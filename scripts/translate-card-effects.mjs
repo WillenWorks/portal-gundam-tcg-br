@@ -316,10 +316,14 @@ function isRetryableStatus(status) {
   return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
 }
 
-/** Extrai o retryDelay (ex: "27s") do corpo de erro 429 do Gemini, em ms. */
+// Teto da espera pedida pela API: com a cota DIÁRIA esgotada o retryDelay vem em horas, e o lote ficava parado
+// a noite inteira numa carta (2026-10-09). Acima disso a carta fica REJEITADA e o `--resume` refaz depois.
+const MAX_RETRY_WAIT_MS = 120_000;
+
+/** Extrai o retryDelay (ex: "27s") do corpo de erro 429 do Gemini, em ms (no máximo `MAX_RETRY_WAIT_MS`). */
 function parseRetryDelayMs(errorText) {
   const match = errorText.match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/);
-  return match ? Math.ceil(Number(match[1]) * 1000) : null;
+  return match ? Math.min(Math.ceil(Number(match[1]) * 1000), MAX_RETRY_WAIT_MS) : null;
 }
 
 async function callGemini(apiKey, prompt) {

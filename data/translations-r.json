@@ -1,0 +1,442 @@
+[
+  {
+    "code": "R-002",
+    "name": "Resource",
+    "set": "GD01",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-003",
+    "name": "Resource",
+    "set": "GD01",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-004",
+    "name": "Resource",
+    "set": "GD01",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-005",
+    "name": "Resource",
+    "set": "GD01",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-006",
+    "name": "Resource",
+    "set": "GD01",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-007",
+    "name": "Resource",
+    "set": "GD01",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-008",
+    "name": "Resource",
+    "set": "GD01",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-009",
+    "name": "Resource",
+    "set": "GD01",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-010",
+    "name": "Resource",
+    "set": "GD02",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-011",
+    "name": "Resource",
+    "set": "GD02",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-012",
+    "name": "Resource",
+    "set": "GD02",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-013",
+    "name": "Resource",
+    "set": "GD02",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-014",
+    "name": "Resource",
+    "set": "GD02",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-015",
+    "name": "Resource",
+    "set": "GD02",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-016",
+    "name": "Resource",
+    "set": "GD02",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-017",
+    "name": "Resource",
+    "set": "GD02",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-018",
+    "name": "Resource",
+    "set": "GD02",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-019",
+    "name": "Resource",
+    "set": "GD02",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-020",
+    "name": "Resource",
+    "set": "GD03",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-021",
+    "name": "Resource",
+    "set": "GD03",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-022",
+    "name": "Resource",
+    "set": "GD03",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-023",
+    "name": "Resource",
+    "set": "GD03",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-024",
+    "name": "Resource",
+    "set": "GD03",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-025",
+    "name": "Resource",
+    "set": "GD03",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-026",
+    "name": "Resource",
+    "set": "GD03",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-027",
+    "name": "Resource",
+    "set": "GD03",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-028",
+    "name": "Resource",
+    "set": "GD03",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-029",
+    "name": "Resource",
+    "set": "GD03",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-031",
+    "name": "Resource",
+    "set": "GD04",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-032",
+    "name": "Resource",
+    "set": "GD04",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-033",
+    "name": "Resource",
+    "set": "GD04",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-034",
+    "name": "Resource",
+    "set": "GD04",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-035",
+    "name": "Resource",
+    "set": "GD04",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-036",
+    "name": "Resource",
+    "set": "GD04",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-037",
+    "name": "Resource",
+    "set": "GD04",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-038",
+    "name": "Resource",
+    "set": "GD04",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-039",
+    "name": "Resource",
+    "set": "GD04",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-040",
+    "name": "Resource",
+    "set": "GD04",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-030",
+    "name": "Resource",
+    "set": "ST09",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  },
+  {
+    "code": "R-041",
+    "name": "Resource",
+    "set": "ST10",
+    "effectEn": "(Rest a Resource when paying a cost.)",
+    "effectPt": "(Coloque um Recurso em Rest ao pagar um custo.)",
+    "status": "OK",
+    "tokens": [
+      "Rest"
+    ]
+  }
+]
