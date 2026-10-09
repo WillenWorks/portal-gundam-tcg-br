@@ -45,7 +45,7 @@ export function formatTimestampForDir(date = new Date()): string {
 }
 
 /** Gera o conteúdo do arquivo Markdown do bug report */
-export function generateBugReportMarkdown(data: BugReportDiskData, hasScreenshot: boolean): string {
+export function generateBugReportMarkdown(data: BugReportDiskData, screenshotFile: string | null): string {
   const now = new Date();
   const dateStr = now.toISOString();
   const localDateStr = now.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
@@ -106,8 +106,8 @@ export function generateBugReportMarkdown(data: BugReportDiskData, hasScreenshot
   lines.push("");
   lines.push("## 3. Captura Visual da Tela (Screenshot)");
   lines.push("");
-  if (hasScreenshot) {
-    lines.push("![Screenshot do Jogo](./screenshot.png)");
+  if (screenshotFile) {
+    lines.push(`![Screenshot do Jogo](./${screenshotFile})`);
   } else {
     lines.push("*Nenhum screenshot anexado ou captura indisponível no cliente.*");
   }
@@ -173,7 +173,7 @@ export function defaultBugReportsDir(): string {
 // O shortCode vira parte do nome da pasta; só o formato gerado pelo servidor passa (evita path traversal).
 const SHORT_CODE_PATTERN = /^BUG-[A-Z0-9]{4,12}$/;
 
-/** Salva o relatório em `bug-reports/<AAAA-MM-DD_HH-mm-ss>_<shortCode>/` (report.md, gameState.json e screenshot.png). */
+/** Salva o relatório em `bug-reports/<AAAA-MM-DD_HH-mm-ss>_<shortCode>/` (report.md, gameState.json e screenshot.jpg/png). */
 export async function saveBugReportToDisk(
   data: BugReportDiskData,
   rootDir: string = defaultBugReportsDir(),
@@ -184,9 +184,14 @@ export async function saveBugReportToDisk(
   const targetDir = path.join(rootDir, `${formatTimestampForDir()}_${data.shortCode}`);
 
   let screenshotBuffer: Buffer | null = null;
+  let screenshotFile: string | null = null;
   if (data.screenshotBase64) {
+    const mime = /^data:image\/(\w+);base64,/.exec(data.screenshotBase64)?.[1];
     const buffer = Buffer.from(data.screenshotBase64.replace(/^data:image\/\w+;base64,/, ""), "base64");
-    if (buffer.length > 0) screenshotBuffer = buffer;
+    if (buffer.length > 0) {
+      screenshotBuffer = buffer;
+      screenshotFile = mime === "jpeg" || mime === "jpg" ? "screenshot.jpg" : "screenshot.png";
+    }
   }
 
   const jsonContent = JSON.stringify(
@@ -208,12 +213,12 @@ export async function saveBugReportToDisk(
 
   await fs.mkdir(targetDir, { recursive: true });
   const mdPath = path.join(targetDir, "report.md");
-  await fs.writeFile(mdPath, generateBugReportMarkdown(data, screenshotBuffer !== null), "utf-8");
+  await fs.writeFile(mdPath, generateBugReportMarkdown(data, screenshotFile), "utf-8");
   await fs.writeFile(path.join(targetDir, "gameState.json"), jsonContent, "utf-8");
 
   let screenshotPath: string | undefined;
-  if (screenshotBuffer) {
-    screenshotPath = path.join(targetDir, "screenshot.png");
+  if (screenshotBuffer && screenshotFile) {
+    screenshotPath = path.join(targetDir, screenshotFile);
     await fs.writeFile(screenshotPath, screenshotBuffer);
   }
 

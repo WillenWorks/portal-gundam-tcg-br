@@ -159,7 +159,7 @@
     "express": "^5.2.1",
     "framer-motion": "^14.0.0",
     "google-auth-library": "^11.1.0",
-    "html2canvas": "^1.4.1",
+    "html2canvas-pro": "2.4.5",
     "input-otp": "^1.5.0",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.52.0",

@@ -59,7 +59,7 @@ describe("bugReportDiskService", () => {
       },
     };
 
-    const md = generateBugReportMarkdown(data, true);
+    const md = generateBugReportMarkdown(data, "screenshot.png");
     expect(md).toContain("# Relatório de Bug: BUG-TEST01");
     expect(md).toContain("Bot IA (Heurístico)");
     expect(md).toContain("Bot travou no Action Step");
@@ -106,6 +106,17 @@ describe("bugReportDiskService", () => {
     const ssExists = await fs.stat(screenshotPath);
     expect(ssExists.isFile()).toBe(true);
     expect(ssExists.size).toBeGreaterThan(0);
+  });
+
+  it("print em JPEG (o cliente manda image/jpeg) é gravado como screenshot.jpg e referenciado no report", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "bug-report-test-"));
+    tempDirs.push(tempDir);
+    const res = await saveBugReportToDisk(
+      { shortCode: "BUG-JPEG01", matchId: "m", reporterId: "u", seat: "A", engineVersion: "dev", screenshotBase64: "data:image/jpeg;base64,/9j/4AAQSkZJRg==" },
+      tempDir,
+    );
+    expect(res.screenshotPath && path.basename(res.screenshotPath)).toBe("screenshot.jpg");
+    expect(await fs.readFile(res.mdPath, "utf-8")).toContain("![Screenshot do Jogo](./screenshot.jpg)");
   });
 
   it("apaga do disco o relato corrigido e mantém os outros", async () => {
