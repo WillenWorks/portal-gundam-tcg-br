@@ -125,7 +125,7 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
           <DataSourceNote
             provenance={provenance}
             labelPrefix="Power Rankings baseado em"
-            weightNote="Eventos maiores e com maior competitividade têm maior peso amostral no score."
+            weightNote="Score = 60% taxa de vitória ajustada + 40% presença no meta. Cada lista conta igual, independente do tamanho do torneio."
             className="mt-4"
           />
         )}

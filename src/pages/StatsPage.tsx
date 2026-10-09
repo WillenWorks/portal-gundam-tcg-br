@@ -551,7 +551,7 @@ export default function StatsPage() {
               <DataSourceNote
                 provenance={metagame.provenance}
                 labelPrefix="Amostragem competitiva baseada em"
-                weightNote="Ponderação Amostral: Grandes Torneios e Regionais possuem peso superior a torneios locais na consolidação das métricas."
+                weightNote="Cada lista conta igual, independente do tamanho do torneio. Use o filtro de tipo de evento para ver só os maiores."
                 className="mt-5"
               />
             )}

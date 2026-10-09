@@ -141,7 +141,7 @@ describe("i18n: keywords e termos", () => {
     expect(highManeuver?.descriptionPt).toContain("não pode ser bloqueada");
 
     const firstStrike = getKeywordDefinition("<First Strike>");
-    expect(firstStrike?.descriptionPt).toContain("dano de batalha ANTES da Unidade inimiga");
+    expect(firstStrike?.descriptionPt).toContain("Quando esta Unidade ataca, ela causa dano de batalha ANTES do alvo");
 
     const suppression = getKeywordDefinition("<Suppression>");
     expect(suppression?.descriptionPt).toContain("atinge os 2 primeiros escudos simultaneamente");
@@ -187,7 +187,7 @@ describe("i18n: keywords e termos", () => {
     expect(link?.descriptionPt).toContain("Condição de afinidade de Piloto");
 
     const exResource = getKeywordDefinition("EX Resource");
-    expect(exResource?.descriptionPt).toContain("Recurso adicional concedido na Área de Recursos");
+    expect(exResource?.descriptionPt).toContain("ao pagar, ele é removido do jogo");
   });
 
   it("parseKeywordValue decompõe corretamente nomes e números", () => {

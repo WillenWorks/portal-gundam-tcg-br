@@ -5,6 +5,12 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { CardDef, CardInstance } from "@/modules/simulator/engine/types";
 import { CardInspectorModal } from "./CardInspectorModal";
 
+// O selo vem do endpoint do A3 (`/api/simulator/card-status`) pelo cache `useCardPlayability`.
+const playability = vi.hoisted(() => ({ value: { entry: null as unknown, isLoading: false } }));
+vi.mock("@/components/catalog/useCardPlayability", () => ({
+  useCardPlayability: () => ({ ...playability.value, status: "fora" }),
+}));
+
 afterEach(cleanup);
 
 let seq = 0;
@@ -286,6 +292,7 @@ describe("CardInspectorModal", () => {
   });
 
   it("telemetria: exibe selo de playability Apta no simulador e restrições ativas", () => {
+    playability.value = { entry: { code: "ST01-001", set: "ST01", status: "apta" }, isLoading: false };
     render(
       <CardInspectorModal
         card={card(
@@ -302,5 +309,19 @@ describe("CardInspectorModal", () => {
     expect(screen.getByText("Restrições")).toBeInTheDocument();
     expect(screen.getByText("Não pode atacar neste turno")).toBeInTheDocument();
     expect(screen.getByText("Não desvira no próximo turno")).toBeInTheDocument();
+  });
+
+  it("selo de playability: não mostra nada enquanto o status ainda não veio do servidor (sem chute por set)", () => {
+    playability.value = { entry: null, isLoading: true };
+    render(
+      <CardInspectorModal
+        card={card({ code: "ST11-001", nameEn: "Nova", cardType: "UNIT", ap: 3, hp: 3 })}
+        art={{}}
+        onClose={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Abrir detalhes" }));
+    expect(screen.queryByText("Apta no simulador")).toBeNull();
+    expect(screen.queryByText("Em revisão")).toBeNull();
   });
 });

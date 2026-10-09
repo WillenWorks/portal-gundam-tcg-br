@@ -657,7 +657,7 @@ export async function getWeeklyTrends(
     weeks: weekPoints,
     topArchetypes,
     provenance,
-    weightNote: "Ponderação Amostral: Grandes Torneios e Regionais possuem peso amostral superior a torneios locais.",
+    weightNote: "Cada lista conta igual, independente do tamanho do torneio. Use o filtro de tipo de evento para ver só os maiores.",
   };
 }
 
