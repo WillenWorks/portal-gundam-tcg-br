@@ -101,7 +101,7 @@ import {
 } from "../src/modules/simulator/server/matchStats.ts";
 import { attachSimulatorSocket } from "./simulatorSocket.ts";
 import { attachSimulatorArena4pSocket } from "./simulatorSocket4p.ts";
-import { cardStatusRouter } from "./routes/cardStatus.ts";
+import { cardStatusRouter, playabilityWhere } from "./routes/cardStatus.ts";
 import {
   getMetaArchetypes,
   getArchetypeBreakdown,
@@ -1973,6 +1973,9 @@ app.get("/api/cards", async (req, res) => {
   const hp = parseIntegerFilter(req.query.hp);
   const cost = parseIntegerFilter(req.query.cost);
   const level = parseIntegerFilter(req.query.level);
+  // "Só aptas" no servidor (antes a página baixava o catálogo inteiro pra filtrar): mesmo veredito do
+  // `/api/simulator/card-status` (`isCardPlayable`), em cache até o próximo deploy.
+  const playabilityFilter = playabilityWhere(normalizeQueryValue(req.query.playability));
   const sort = normalizeQueryValue(req.query.sort) || "code_asc";
   const pagination = getPagination(req.query, { pageSize: 24, maxPageSize: 100 });
 
@@ -2014,6 +2017,7 @@ app.get("/api/cards", async (req, res) => {
     link === "pilot-reference" ? { AND: [{ cardType: { in: [CardType.COMMAND, CardType.COMMAND_PILOT] } }, { OR: [{ effectEn: { contains: "[Pilot]", mode: "insensitive" } }, { effectPt: { contains: "[Pilot]", mode: "insensitive" } }] }] } : {},
     link === "none" ? { linkText: null, pilotName: null } : {},
     relation === "missing" ? { AND: [{ outgoingRelations: { none: { isActive: true } } }, { incomingRelations: { none: { isActive: true } } }] } : {},
+    playabilityFilter,
     relation === "confirmed" ? { OR: [{ outgoingRelations: { some: { isActive: true } } }, { incomingRelations: { some: { isActive: true } } }] } : {},
     hasPrintFilter ? { prints: { some: printWhere } } : {},
   ];

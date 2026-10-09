@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { ParallaxHeroBanner } from "@/components/catalog/ParallaxHeroBanner";
 import { CardPlayabilityBadge } from "@/components/catalog/CardPlayabilityBadge";
 import { SetPlayabilityProgress } from "@/components/catalog/SetPlayabilityProgress";
-import { useAllCardsPlayability } from "@/components/catalog/useCardPlayability";
 import { api, type CardFilters } from "@/lib/api";
 import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX } from "@/lib/gundam-catalog";
 import { MultiSelectFilter } from "@/components/catalog/MultiSelectFilter";
@@ -118,39 +117,18 @@ export default function CardsPage() {
   // /cards/filters devolveu e expande de volta na hora de consultar.
   const rarityGroups = useMemo(() => groupRaritiesByLabel(meta.rarities), [meta.rarities]);
 
-  const { cards: playabilityMap } = useAllCardsPlayability();
-
   useEffect(() => {
     setLoading(true);
-    const { playability, ...restFilters } = filters;
-    const apiFilters: CardFilters = { ...restFilters, rarity: expandRarityFilter(restFilters.rarity ?? "", rarityGroups) };
-
-    if (playability) {
-      api.listCards(apiFilters)
-        .then((items) => {
-          const filtered = items.filter((card) => {
-            const cardCode = card.code ? card.code.toUpperCase() : "";
-            const status = playabilityMap[cardCode]?.status ?? "fora";
-            return status === playability;
-          });
-          setTotal(filtered.length);
-          const computedTotalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-          setTotalPages(computedTotalPages);
-          const safePage = Math.min(page, computedTotalPages);
-          const start = (safePage - 1) * pageSize;
-          setCards(filtered.slice(start, start + pageSize));
-        })
-        .finally(() => setLoading(false));
-    } else {
-      api.listCardsPage(apiFilters, { page, pageSize })
-        .then((result) => {
-          setCards(result.items);
-          setTotal(result.total);
-          setTotalPages(result.totalPages);
-        })
-        .finally(() => setLoading(false));
-    }
-  }, [filters, page, pageSize, rarityGroups, playabilityMap]);
+    // `playability` vai pro servidor junto dos outros filtros (paginado lá, mesmo veredito do card-status).
+    const apiFilters: CardFilters = { ...filters, rarity: expandRarityFilter(filters.rarity ?? "", rarityGroups) };
+    api.listCardsPage(apiFilters, { page, pageSize })
+      .then((result) => {
+        setCards(result.items);
+        setTotal(result.total);
+        setTotalPages(result.totalPages);
+      })
+      .finally(() => setLoading(false));
+  }, [filters, page, pageSize, rarityGroups]);
 
   useEffect(() => {
     navigate(buildHash(basePath, filters, page, pageSize), { replace: true });
