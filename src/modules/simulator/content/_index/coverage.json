@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "1014 specs",
+  "generatedFrom": "1102 specs",
   "sets": {
     "ST01": {
       "cards": [
@@ -5527,6 +5527,434 @@
         "impl": 78,
         "implStar": 1,
         "vanilla": 11,
+        "deferida": 0,
+        "faltando": 0
+      }
+    },
+    "ST11": {
+      "cards": [
+        {
+          "code": "ST11-001",
+          "name": "Char's Z'Gok",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST11-002",
+          "name": "Acguy",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST11-003",
+          "name": "Zock",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST11-004",
+          "name": "ZnO",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST11-005",
+          "name": "Ash",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST11-006",
+          "name": "Shamblo",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST11-007",
+          "name": "Gundam Leopard",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST11-008",
+          "name": "Daughseat",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST11-009",
+          "name": "Kapool",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST11-010",
+          "name": "Abyss Gundam",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST11-011",
+          "name": "Char Aznable",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST11-012",
+          "name": "Loni Garvey",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST11-013",
+          "name": "Poorly Planned Offensive",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST11-014",
+          "name": "The Orca of Red Sea",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST11-015",
+          "name": "A Twinkle from the Abyss",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST11-016",
+          "name": "Mad Angler",
+          "status": "implementada",
+          "deferredClauses": []
+        }
+      ],
+      "counts": {
+        "impl": 12,
+        "implStar": 0,
+        "vanilla": 4,
+        "deferida": 0,
+        "faltando": 0
+      }
+    },
+    "ST12": {
+      "cards": [
+        {
+          "code": "ST12-001",
+          "name": "Gundam Epyon",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST12-002",
+          "name": "Shining Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST12-003",
+          "name": "Tallgeese Ⅲ",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST12-004",
+          "name": "Gundam Exia",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST12-005",
+          "name": "GQuuuuuuX (Omega Psycommu)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST12-006",
+          "name": "Unicorn Gundam 02 Banshee (Destroy Mode)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST12-007",
+          "name": "Gyan",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST12-008",
+          "name": "Efreet Schneid",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST12-009",
+          "name": "Unicorn Gundam 02 Banshee (Unicorn Mode)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST12-010",
+          "name": "Slash Zaku Phantom",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST12-011",
+          "name": "Milliardo Peacecraft",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST12-012",
+          "name": "Ple-Twelve",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST12-013",
+          "name": "The Final Victor",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST12-014",
+          "name": "Wise Leader's Pride",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST12-015",
+          "name": "Two Unicorns",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST12-016",
+          "name": "Libra",
+          "status": "implementada",
+          "deferredClauses": []
+        }
+      ],
+      "counts": {
+        "impl": 13,
+        "implStar": 0,
+        "vanilla": 3,
+        "deferida": 0,
+        "faltando": 0
+      }
+    },
+    "ST13": {
+      "cards": [
+        {
+          "code": "ST13-001",
+          "name": "Qubeley",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST13-002",
+          "name": "Elmeth",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST13-003",
+          "name": "Bertigo",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST13-004",
+          "name": "GX-Bit",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST13-005",
+          "name": "GFreD",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST13-006",
+          "name": "Gundam Aerial",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST13-007",
+          "name": "Gyunei's Jagd Doga",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST13-008",
+          "name": "Gundam Throne Zwei",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST13-009",
+          "name": "Gundam Pharact",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST13-010",
+          "name": "Red Gundam (0079)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST13-011",
+          "name": "Haman Karn",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST13-012",
+          "name": "Suletta Mercury",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST13-013",
+          "name": "I'm a Newtype",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST13-014",
+          "name": "Final Duty",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST13-015",
+          "name": "Operation to Intercept Solomon",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST13-016",
+          "name": "Sodon",
+          "status": "implementada",
+          "deferredClauses": []
+        }
+      ],
+      "counts": {
+        "impl": 13,
+        "implStar": 0,
+        "vanilla": 3,
+        "deferida": 0,
+        "faltando": 0
+      }
+    },
+    "ST14": {
+      "cards": [
+        {
+          "code": "ST14-001",
+          "name": "The-O",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST14-002",
+          "name": "Gundam NT-1 Full Armor",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST14-003",
+          "name": "Palace Athene",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST14-004",
+          "name": "Geara Doga (Heavy Armed Type)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST14-005",
+          "name": "G-Falcon DX",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST14-006",
+          "name": "Full Armor Unicorn Gundam (Destroy Mode)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST14-007",
+          "name": "Full Armor Unicorn Gundam (Unicorn Mode)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST14-008",
+          "name": "Gundam Heavyarms Custom (EW)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST14-009",
+          "name": "Duel Gundam (Assault Shroud)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST14-010",
+          "name": "Perfect Strike Gundam",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST14-011",
+          "name": "Paptimus Scirocco",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST14-012",
+          "name": "Banagher Links",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST14-013",
+          "name": "Natural Talent",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST14-014",
+          "name": "Blazing Mobile Suit Rider",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST14-015",
+          "name": "Battlefield Emotions",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST14-016",
+          "name": "Gryphios 2",
+          "status": "implementada",
+          "deferredClauses": []
+        }
+      ],
+      "counts": {
+        "impl": 12,
+        "implStar": 0,
+        "vanilla": 4,
         "deferida": 0,
         "faltando": 0
       }

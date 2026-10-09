@@ -19161,6 +19161,1456 @@
           ]
         }
       ]
+    },
+    "ST11": {
+      "counts": {
+        "vanilla": 4,
+        "full": 12,
+        "partial": 0,
+        "missing": 0,
+        "withErrors": 0
+      },
+      "cards": [
+        {
+          "code": "ST11-001",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "structured",
+              "refs": [
+                "cannotBeAttackTarget"
+              ],
+              "text": "【During Pair】While 2 or more other friendly (Marine) Units are in play, enemy Units can't choose this Unit as their attack target."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST11-001-Deploy"
+              ],
+              "text": "【Deploy】If another friendly (Marine) Unit is in play, choose 1 enemy Unit that is Lv.2 or lower. Return it to the bottom of its owner's deck."
+            }
+          ]
+        },
+        {
+          "code": "ST11-002",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "structured",
+              "refs": [
+                "damageReductions"
+              ],
+              "text": "During your opponent's turn, while this Unit is rested, friendly (Marine) Units with 2 or less HP can't receive enemy effect damage."
+            }
+          ]
+        },
+        {
+          "code": "ST11-003",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
+              "text": "While another friendly (Marine) Unit is in play, this Unit gains <Blocker>."
+            }
+          ]
+        },
+        {
+          "code": "ST11-004",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST11-004-Deploy"
+              ],
+              "text": "【Deploy】Deploy 1 rested [GOOhN]((ZAFT) (Marine)·AP1·HP1) Unit token."
+            }
+          ]
+        },
+        {
+          "code": "ST11-005",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "keyword",
+              "refs": [
+                "Repair"
+              ],
+              "text": "<Repair 2>"
+            }
+          ]
+        },
+        {
+          "code": "ST11-006",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "structured",
+              "refs": [
+                "shieldAreaEffectDamageReduction"
+              ],
+              "text": "If another friendly (Marine) Unit is in play at the start of your opponent's turn, during this turn, when a friendly shield area card receives enemy effect damage, reduce it by 5."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST11-006-Deploy"
+              ],
+              "text": "【Deploy】Choose 1 (Marine) Unit card from your trash. Add it to your hand."
+            }
+          ]
+        },
+        {
+          "code": "ST11-007",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": []
+        },
+        {
+          "code": "ST11-008",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": []
+        },
+        {
+          "code": "ST11-009",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Destroyed"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST11-009-Destroyed"
+              ],
+              "text": "【Destroyed】If it is your opponent's turn and a friendly (Marine) Unit is in play, draw 1."
+            }
+          ]
+        },
+        {
+          "code": "ST11-010",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "keyword",
+              "refs": [
+                "Blocker"
+              ],
+              "text": "<Blocker>"
+            }
+          ]
+        },
+        {
+          "code": "ST11-011",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST11-011-Burst"
+              ],
+              "text": "【Burst】Add this card to your hand."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "When Paired"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST11-011-WhenPaired"
+              ],
+              "text": "【When Paired】All friendly (Marine) Units get AP+1 during this turn."
+            }
+          ]
+        },
+        {
+          "code": "ST11-012",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST11-012-Burst"
+              ],
+              "text": "【Burst】Add this card to your hand."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "When Paired"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST11-012-WhenPaired"
+              ],
+              "text": "【When Paired】Choose 1 friendly (Marine) Unit. During this turn, when it receives battle damage from an enemy Unit, reduce it by 2."
+            }
+          ]
+        },
+        {
+          "code": "ST11-013",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST11-013-Burst"
+              ],
+              "text": "【Burst】Choose 1 rested enemy Unit with 3 or less HP. Return it to its owner's hand."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Main",
+                "Action"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST11-013-Burst",
+                "ST11-013-Main",
+                "ST11-013-Action"
+              ],
+              "text": "【Main】/【Action】Choose 1 rested enemy Unit with 3 or less HP. Return it to its owner's hand. If you do, draw 1."
+            }
+          ]
+        },
+        {
+          "code": "ST11-014",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Action"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST11-014-Action"
+              ],
+              "text": "【Action】Choose 1 friendly (Marine) Unit. Enemy Units can't choose it as their attack target this turn."
+            },
+            {
+              "i": 1,
+              "triggers": [],
+              "by": "pilotMode",
+              "refs": [
+                "Marco Morassim"
+              ],
+              "text": "【Pilot】[Marco Morassim]"
+            }
+          ]
+        },
+        {
+          "code": "ST11-015",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Main"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST11-015-Main"
+              ],
+              "text": "【Main】Choose 1 (Marine) Unit card that is Lv.4 or lower from your trash. Deploy it rested."
+            }
+          ]
+        },
+        {
+          "code": "ST11-016",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST11-016-Burst"
+              ],
+              "text": "【Burst】Deploy this card."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST11-016-Deploy"
+              ],
+              "text": "【Deploy】Add 1 of your Shields to your hand. Then, if 4 or more enemy Units are in play, choose 1 rested enemy Unit. Deal 2 damage to it."
+            }
+          ]
+        }
+      ]
+    },
+    "ST12": {
+      "counts": {
+        "vanilla": 3,
+        "full": 13,
+        "partial": 0,
+        "missing": 0,
+        "withErrors": 0
+      },
+      "cards": [
+        {
+          "code": "ST12-001",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "spec",
+              "refs": [
+                "ST12-001-DestroyedEnemy"
+              ],
+              "text": "【During Pair·Lv.5 or Higher Pilot】During your turn, when this Unit destroys an enemy Unit with damage, deal 2 damage to all enemy Units with 5 or less AP."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST12-001-Deploy"
+              ],
+              "text": "【Deploy】Choose 1 enemy Base. Deal 5 damage to it."
+            }
+          ]
+        },
+        {
+          "code": "ST12-002",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST12-002-Deploy"
+              ],
+              "text": "【Deploy】Choose 1 friendly Unit with 5 or more AP. It gains <Breach 3> during this turn."
+            }
+          ]
+        },
+        {
+          "code": "ST12-003",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "spec",
+              "refs": [
+                "ST12-003-DestroyedEnemy"
+              ],
+              "text": "【Once per Turn】During your turn, when this Unit destroys an enemy Unit with damage, deal 1 damage to all enemy Units with 3 or less AP."
+            }
+          ]
+        },
+        {
+          "code": "ST12-004",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "keyword",
+              "refs": [
+                "Breach"
+              ],
+              "text": "<Breach 3>"
+            }
+          ]
+        },
+        {
+          "code": "ST12-005",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Attack"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST12-005-Attack"
+              ],
+              "text": "【Attack】You may discard 1. If you do, draw 1."
+            }
+          ]
+        },
+        {
+          "code": "ST12-006",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Activate·Main"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST12-006-ActivateMain"
+              ],
+              "text": "【During Pair】【Activate·Main】Exile 4 cards in your trash from the game:This Unit gains <First Strike> during this turn."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Activate·Action"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST12-006-ActivateAction"
+              ],
+              "text": "【Activate·Action】Exile 4 cards in your trash from the game:This Unit gains <Suppression> during this battle."
+            }
+          ]
+        },
+        {
+          "code": "ST12-007",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "When Linked"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST12-007-WhenLinked"
+              ],
+              "text": "【When Linked】This Unit gains <First Strike> during this turn."
+            }
+          ]
+        },
+        {
+          "code": "ST12-008",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": []
+        },
+        {
+          "code": "ST12-009",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Destroyed"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST12-009-Destroyed",
+                "ST12-009-Then"
+              ],
+              "text": "【Destroyed】If there is a player with 3 or less Shields, choose 1 Unit card that is Lv.6 or higher from your trash. Add it to your hand. If you do, discard 1."
+            }
+          ]
+        },
+        {
+          "code": "ST12-010",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": []
+        },
+        {
+          "code": "ST12-011",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "structured",
+              "refs": [
+                "nameAliases"
+              ],
+              "text": "This card's name is also treated as [Zechs Merquise]."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST12-011-Burst"
+              ],
+              "text": "【Burst】Add this card to your hand."
+            },
+            {
+              "i": 2,
+              "triggers": [
+                "Activate·Action"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST12-011-ActivateAction"
+              ],
+              "text": "【Activate·Action】【Once per Turn】Choose 1 damaged enemy Unit battling this Unit. Deal 2 damage to it."
+            }
+          ]
+        },
+        {
+          "code": "ST12-012",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "structured",
+              "refs": [
+                "nameAliases"
+              ],
+              "text": "This card's name is also treated as [Marida Cruz]."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST12-012-Burst"
+              ],
+              "text": "【Burst】Add this card to your hand."
+            },
+            {
+              "i": 2,
+              "triggers": [
+                "When Linked"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST12-012-WhenLinked"
+              ],
+              "text": "【When Linked】Look at the top 2 cards of your deck and return 1 to the top. Place the remaining card into your trash. If there is a player with 3 or less Shields, add the card to your hand instead of returning it to your deck."
+            }
+          ]
+        },
+        {
+          "code": "ST12-013",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST12-013-Burst"
+              ],
+              "text": "【Burst】Choose 1 enemy Unit. Deal 1 damage to it."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Main"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST12-013-Main",
+                "ST12-013-Then"
+              ],
+              "text": "【Main】Choose 1 enemy player. You and that player each choose 1 of your own Units. Begin a battle between them and only perform the damage step."
+            }
+          ]
+        },
+        {
+          "code": "ST12-014",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Action"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST12-014-Action",
+                "ST12-014-Delayed"
+              ],
+              "text": "【Action】Choose 1 friendly Unit. It gains the following effect during this battle:\n■When this Unit destroys an enemy Unit with battle damage, choose 1 enemy Unit with 2 or less AP. Destroy it."
+            },
+            {
+              "i": 1,
+              "triggers": [],
+              "by": "pilotMode",
+              "refs": [
+                "M'Quve"
+              ],
+              "text": "【Pilot】[M'Quve]"
+            }
+          ]
+        },
+        {
+          "code": "ST12-015",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Action"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST12-015-Action",
+                "ST12-015-Mode1",
+                "ST12-015-Mode2"
+              ],
+              "text": "【Action】When playing this card, choose 1 of the following effects and activate it:\n■Choose 1 enemy Unit that is Lv.2 or lower. Destroy it.\n■Choose 1 friendly Unit and 1 enemy Unit that is Lv.5 or higher. Deal 2 damage to them."
+            }
+          ]
+        },
+        {
+          "code": "ST12-016",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST12-016-Burst"
+              ],
+              "text": "【Burst】Deploy this card."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST12-016-Deploy"
+              ],
+              "text": "【Deploy】Add 1 of your Shields to your hand."
+            },
+            {
+              "i": 2,
+              "triggers": [
+                "Activate·Main"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST12-016-ActivateMain"
+              ],
+              "text": "【Activate·Main】Rest this Base:If a friendly Unit paired with a Pilot has destroyed an enemy Unit with battle damage this turn, choose 1 enemy Unit that is Lv.4 or lower. Deal 1 damage to it."
+            }
+          ]
+        }
+      ]
+    },
+    "ST13": {
+      "counts": {
+        "vanilla": 3,
+        "full": 13,
+        "partial": 0,
+        "missing": 0,
+        "withErrors": 0
+      },
+      "cards": [
+        {
+          "code": "ST13-001",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "spec",
+              "refs": [
+                "ST13-001-ReactionpilotPaired",
+                "ST13-001-Mode1",
+                "ST13-001-Mode2"
+              ],
+              "text": "【Once per Turn】During your turn, when you pair a Pilot with one of your Units, deploy 1 to 2 [Bit / Funnel]((Long-Range Weapon)·AP2·HP2·This Unit can't be paired with a Pilot or attack) Unit tokens."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Activate·Main"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST13-001-ActivateMain"
+              ],
+              "text": "【Activate·Main】【Once per Turn】①:Choose 1 of your Unit tokens and 1 enemy Unit. Begin a battle between them and only perform the damage step."
+            }
+          ]
+        },
+        {
+          "code": "ST13-002",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST13-002-Deploy"
+              ],
+              "text": "【Deploy】Deploy 1 [Bit / Funnel]((Long-Range Weapon)·AP2·HP2·This Unit can't be paired with a Pilot or attack) Unit token."
+            }
+          ]
+        },
+        {
+          "code": "ST13-003",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": []
+        },
+        {
+          "code": "ST13-004",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST13-004-Deploy"
+              ],
+              "text": "【Deploy】Look at the top card of your deck. Return it to the top or bottom of your deck."
+            }
+          ]
+        },
+        {
+          "code": "ST13-005",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST13-005-Deploy"
+              ],
+              "text": "【Deploy】If 4 or more enemy Units are in play, look at the top 5 cards of your deck. You may reveal 1 Pilot card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
+            }
+          ]
+        },
+        {
+          "code": "ST13-006",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Attack"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST13-006-Attack"
+              ],
+              "text": "【During Pair】【Attack】If you are attacking the enemy player, choose 1 enemy Unit. Deal 2 damage to it."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Activate·Action"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST13-006-ActivateAction"
+              ],
+              "text": "【Activate·Action】【Once per Turn】Rest 1 friendly Unit:Choose 1 enemy Unit that is Lv.4 or lower. Deal 1 damage to it."
+            }
+          ]
+        },
+        {
+          "code": "ST13-007",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Activate·Main"
+              ],
+              "by": "keyword",
+              "refs": [
+                "Support"
+              ],
+              "text": "【Activate·Main】<Support 1>"
+            }
+          ]
+        },
+        {
+          "code": "ST13-008",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": []
+        },
+        {
+          "code": "ST13-009",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Attack"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST13-009-Attack",
+                "ST13-009-Then"
+              ],
+              "text": "【Attack】Choose 1 enemy player. That player chooses 2 Unit cards from their trash. Exile them from the game."
+            }
+          ]
+        },
+        {
+          "code": "ST13-010",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Activate·Main"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST13-010-ActivateMain"
+              ],
+              "text": "【Activate·Main】【Once per Turn】Destroy 1 friendly Unit token:This Unit gains <Breach 3> during this turn."
+            }
+          ]
+        },
+        {
+          "code": "ST13-011",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST13-011-Burst"
+              ],
+              "text": "【Burst】Add this card to your hand."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "When Paired"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST13-011-WhenPaired"
+              ],
+              "text": "【When Paired】Look at the top 5 cards of your deck. You may reveal 1 Pilot card whose Lv. is equal to or lower than this Unit among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
+            }
+          ]
+        },
+        {
+          "code": "ST13-012",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST13-012-Burst"
+              ],
+              "text": "【Burst】Add this card to your hand."
+            },
+            {
+              "i": 1,
+              "triggers": [],
+              "by": "spec",
+              "refs": [
+                "ST13-012-EnemyDestroyed"
+              ],
+              "text": "【Once per Turn】When an enemy Unit is destroyed with effect damage while this Unit is attacking, draw 1."
+            }
+          ]
+        },
+        {
+          "code": "ST13-013",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Main"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST13-013-Main",
+                "ST13-013-Mode1",
+                "ST13-013-Mode2"
+              ],
+              "text": "【Main】Deploy 1 to 2 [Bit / Funnel]((Long-Range Weapon)·AP2·HP2·This Unit can't be paired with a Pilot or attack) Unit tokens."
+            },
+            {
+              "i": 1,
+              "triggers": [],
+              "by": "pilotMode",
+              "refs": [
+                "Carris Nautilus"
+              ],
+              "text": "【Pilot】[Carris Nautilus]"
+            }
+          ]
+        },
+        {
+          "code": "ST13-014",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Main"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST13-014-Main",
+                "ST13-014-Then"
+              ],
+              "text": "【Main】Choose 1 of your Units. Destroy it. If you do, look at the top 4 cards of your deck. You may deploy 1 Unit card that is Lv.4 or lower among them. Return the remaining cards randomly to the bottom of your deck."
+            }
+          ]
+        },
+        {
+          "code": "ST13-015",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST13-015-Burst"
+              ],
+              "text": "【Burst】Add this card to your hand."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Main",
+                "Action"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST13-015-Main",
+                "ST13-015-Action"
+              ],
+              "text": "【Main】/【Action】Choose 3 Unit cards from your trash. Exile them from the game. If you do, choose 1 enemy Unit. Deal 3 damage to it."
+            }
+          ]
+        },
+        {
+          "code": "ST13-016",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST13-016-Burst"
+              ],
+              "text": "【Burst】Deploy this card."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST13-016-Deploy"
+              ],
+              "text": "【Deploy】Add 1 of your Shields to your hand. Then, deploy 1 [Bit / Funnel]((Long-Range Weapon)·AP2·HP2·This Unit can't be paired with a Pilot or attack) Unit token."
+            }
+          ]
+        }
+      ]
+    },
+    "ST14": {
+      "counts": {
+        "vanilla": 4,
+        "full": 12,
+        "partial": 0,
+        "missing": 0,
+        "withErrors": 0
+      },
+      "cards": [
+        {
+          "code": "ST14-001",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "keyword",
+              "refs": [
+                "Suppression"
+              ],
+              "text": "<Suppression>"
+            },
+            {
+              "i": 1,
+              "triggers": [],
+              "by": "structured",
+              "refs": [
+                "lowestLevelEnemyRestedStayRested"
+              ],
+              "text": "Each enemy player's rested Units with the lowest Lv. won't be set as active during the start phase of their turn."
+            }
+          ]
+        },
+        {
+          "code": "ST14-002",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "keyword",
+              "refs": [
+                "Blocker"
+              ],
+              "text": "<Blocker>"
+            }
+          ]
+        },
+        {
+          "code": "ST14-003",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST14-003-Deploy",
+                "ST14-003-Then"
+              ],
+              "text": "【Deploy】Choose 1 enemy player. That player chooses 2 Unit cards from their trash. Exile them from the game."
+            }
+          ]
+        },
+        {
+          "code": "ST14-004",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "keyword",
+              "refs": [
+                "Blocker"
+              ],
+              "text": "<Blocker>"
+            },
+            {
+              "i": 1,
+              "triggers": [],
+              "by": "structured",
+              "refs": [
+                "attackTargetRules"
+              ],
+              "text": "This Unit can't choose the enemy player as its attack target."
+            }
+          ]
+        },
+        {
+          "code": "ST14-005",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST14-005-Deploy"
+              ],
+              "text": "【Deploy】Choose 1 enemy Unit that is Lv.6 or lower. Rest it. Then, if there are 7 or more cards in your trash, it gets AP-2 during this turn."
+            }
+          ]
+        },
+        {
+          "code": "ST14-006",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST14-006-Deploy"
+              ],
+              "text": "【Deploy】Look at the top 3 cards of your deck. You may reveal a number of cards equal to the number of enemy players among them and add them to your hand. Return the remaining cards randomly to the bottom of your deck."
+            },
+            {
+              "i": 1,
+              "triggers": [],
+              "by": "structured",
+              "refs": [
+                "damageReductions"
+              ],
+              "text": "【During Pair】【Once per Turn】When this Unit would receive battle damage from an enemy Unit with AP equal to or less than it, it doesn't receive that damage."
+            }
+          ]
+        },
+        {
+          "code": "ST14-007",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "keyword",
+              "refs": [
+                "Breach"
+              ],
+              "text": "<Breach 3>"
+            }
+          ]
+        },
+        {
+          "code": "ST14-008",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": []
+        },
+        {
+          "code": "ST14-009",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Destroyed"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST14-009-Destroyed"
+              ],
+              "text": "【Destroyed】Place 1 EX Resource."
+            }
+          ]
+        },
+        {
+          "code": "ST14-010",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": []
+        },
+        {
+          "code": "ST14-011",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST14-011-Burst"
+              ],
+              "text": "【Burst】Add this card to your hand."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Attack"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST14-011-Attack"
+              ],
+              "text": "【Attack】Choose 1 enemy Unit. Reduce its AP during this battle by an amount equal to the number of rested enemy Units."
+            }
+          ]
+        },
+        {
+          "code": "ST14-012",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST14-012-Burst"
+              ],
+              "text": "【Burst】Add this card to your hand."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "When Paired"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST14-012-WhenPaired"
+              ],
+              "text": "【When Paired】Choose 1 friendly Unit that is Lv.5 or higher. During this turn, it may choose an active enemy Unit with 5 or less AP as its attack target."
+            }
+          ]
+        },
+        {
+          "code": "ST14-013",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST14-013-Burst",
+                "ST14-013-Mode2"
+              ],
+              "text": "【Burst】Choose 1 enemy Unit. It gets AP-3 during this turn."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Main",
+                "Action"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST14-013-Burst",
+                "ST14-013-Main",
+                "ST14-013-Action",
+                "ST14-013-Mode1",
+                "ST14-013-Mode2"
+              ],
+              "text": "【Main】/【Action】When playing this card, choose 1 of the following effects and activate it:\n■Choose 1 to 2 enemy Units with 3 or less HP. Rest them.\n■Choose 1 enemy Unit. It gets AP-3 during this turn."
+            }
+          ]
+        },
+        {
+          "code": "ST14-014",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Main",
+                "Action"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST14-014-Main",
+                "ST14-014-Action"
+              ],
+              "text": "【Main】/【Action】Choose 1 enemy Unit that is Lv.5 or lower. It gets AP-3 during this turn. If there are 4 or more Command cards in your trash, choose 1 enemy Unit instead."
+            },
+            {
+              "i": 1,
+              "triggers": [],
+              "by": "pilotMode",
+              "refs": [
+                "Garrod Ran & Tiffa Adill"
+              ],
+              "text": "【Pilot】[Garrod Ran & Tiffa Adill]"
+            }
+          ]
+        },
+        {
+          "code": "ST14-015",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST14-015-Burst"
+              ],
+              "text": "【Burst】Place 1 EX Resource."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Main"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST14-015-Main",
+                "ST14-015-Then"
+              ],
+              "text": "【Main】Place 1 rested Resource. Then, if you have not set one of your Resources as active with an effect this turn, choose a number of your Resources equal to the number of enemy players. Set them as active."
+            }
+          ]
+        },
+        {
+          "code": "ST14-016",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST14-016-Burst"
+              ],
+              "text": "【Burst】Deploy this card."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST14-016-Deploy"
+              ],
+              "text": "【Deploy】Add 1 of your Shields to your hand."
+            },
+            {
+              "i": 2,
+              "triggers": [],
+              "by": "spec",
+              "refs": [
+                "ST14-016-UnitLinked"
+              ],
+              "text": "【Once per Turn】During your turn, when a friendly Unit links, choose 1 enemy Unit that is Lv.5 or lower. It gets AP-1 during this turn."
+            }
+          ]
+        }
+      ]
     }
   }
 }

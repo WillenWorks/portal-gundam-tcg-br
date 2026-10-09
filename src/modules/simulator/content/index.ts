@@ -15,6 +15,10 @@ import { GD05_EFFECT_SPECS } from "./gd05";
 import { ST09_EFFECT_SPECS } from "./st09";
 import { ST10_EFFECT_SPECS } from "./st10";
 import { EB01_EFFECT_SPECS } from "./eb01";
+import { ST11_EFFECT_SPECS } from "./st11";
+import { ST12_EFFECT_SPECS } from "./st12";
+import { ST13_EFFECT_SPECS } from "./st13";
+import { ST14_EFFECT_SPECS } from "./st14";
 
 export { defaultPredicateResolver, defaultTargetFilterResolver } from "./predicates";
 export { DEFERRED_CLAUSES, type DeferredClause } from "./deferred";
@@ -26,6 +30,10 @@ export { GD05_EFFECT_SPECS, GD05_CARD_DEFS } from "./gd05";
 export { ST09_EFFECT_SPECS, ST09_CARD_DEFS } from "./st09";
 export { ST10_EFFECT_SPECS, ST10_CARD_DEFS } from "./st10";
 export { EB01_EFFECT_SPECS, EB01_CARD_DEFS } from "./eb01";
+export { ST11_EFFECT_SPECS, ST11_CARD_DEFS } from "./st11";
+export { ST12_EFFECT_SPECS, ST12_CARD_DEFS } from "./st12";
+export { ST13_EFFECT_SPECS, ST13_CARD_DEFS } from "./st13";
+export { ST14_EFFECT_SPECS, ST14_CARD_DEFS } from "./st14";
 export { ST05_EFFECT_SPECS } from "./st05";
 export { ST06_EFFECT_SPECS } from "./st06";
 export { ST07_EFFECT_SPECS } from "./st07";
@@ -57,6 +65,10 @@ export const ALL_EFFECT_SPECS: EffectSpec[] = [
   ...ST09_EFFECT_SPECS,
   ...ST10_EFFECT_SPECS,
   ...EB01_EFFECT_SPECS,
+  ...ST11_EFFECT_SPECS,
+  ...ST12_EFFECT_SPECS,
+  ...ST13_EFFECT_SPECS,
+  ...ST14_EFFECT_SPECS,
   ...GD01_EFFECT_SPECS,
   ...GD02_EFFECT_SPECS,
   ...GD03_EFFECT_SPECS,

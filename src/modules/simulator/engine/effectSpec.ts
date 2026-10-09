@@ -5,6 +5,7 @@ import { payResourceCostEvents } from "./costs";
 import { EX_BASE_TOKEN, TOKEN_EX_RESOURCE_CODE } from "./setup";
 import { selfHealReactionEvents } from "./keywords";
 import { incomingDamage, type DamageSource } from "./damageLayer";
+import { shieldAreaEffectReduction } from "./shieldArea";
 
 /**
  * "Effect Spec" — formalização da Camada 3 (texto livre → lógica) proposta
@@ -74,6 +75,8 @@ export type TargetGroup =
   /** GD02-107 All-Range Attack — "Deal 1 damage to all enemy Units other than Link Units". */
   | {
       kind: "allEnemyUnits";
+      /** W12 — ST12-001/003 "all enemy Units with 5 or less AP" */
+      maxAp?: number;
       maxLevel?: number;
       excludeLinkUnits?: boolean;
       /** W7 — GD05-036 "all enemy Units whose Lv. is equal to or lower than that Unit": Lv. do alvo nomeado `ctx.targets[maxLevelOf]` */
@@ -118,7 +121,7 @@ export type TargetGroup =
    * "if you do" (só exilar se houver 6+ elegíveis) é modelado pelo `condition` do spec
    * (`controllerTrashUnitColorCountAtLeast`), não aqui.
    */
-  | { kind: "firstNInTrash"; count: number; filter: CardDefFilter }
+  | { kind: "firstNInTrash"; count: number; filter: CardDefFilter; /** W12 — trash de quem (padrão: controlador) */ player?: PlayerRef }
   /** W4 — GD04-043 "Choose 1 enemy Base" (no máximo 1 Base por jogador — sem escolha) */
   | { kind: "enemyBase" }
   /** W5 — GD04-069 (aproximação de "choose 1 of your (Militia) Units" no fim do turno): a 1ª descansada com o trait */
@@ -152,7 +155,9 @@ export type AmountFrom =
   /** W5 (C6) — GD04-100 "by an amount equal to the cost paid": o valor do evento da reação */
   | { kind: "reactionAmount" }
   /** W5 — GD04-036 "equal to the number of Units rested with this effect": quantos foram escolhidos em `name` */
-  | { kind: "namedCount"; name: string };
+  | { kind: "namedCount"; name: string }
+  /** W12 — ST14-011 "by an amount equal to the number of rested enemy Units" */
+  | { kind: "enemyRestedUnitCount" };
 
 function resolveAmount(call: { amount: number; amountFrom?: AmountFrom }, ctx: EffectContext): number {
   const from = call.amountFrom;
@@ -165,6 +170,9 @@ function resolveAmount(call: { amount: number; amountFrom?: AmountFrom }, ctx: E
     return call.amount * ctx.state.players[ctx.controller].trash.filter((c) => matchesCardDefFilter(c.def, from.filter)).length;
   }
   if (from.kind === "reactionAmount") return call.amount * Number(ctx.targets.reactionAmount?.[0] ?? 0);
+  if (from.kind === "enemyRestedUnitCount") {
+    return call.amount * ctx.state.players[otherPlayer(ctx.controller)].battleArea.filter((c) => c.def.cardType === "UNIT" && c.rested).length;
+  }
   if (from.kind === "namedCount") return call.amount * (ctx.targets[from.name]?.length ?? 0);
   if (from.kind === "topOfDeckTraitCount") {
     return call.amount * ctx.state.players[ctx.controller].deck.slice(0, from.n).filter((c) => hasTrait(c, from.trait, ctx.state)).length;
@@ -220,7 +228,7 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
     return resource ? [resource.instanceId] : [];
   }
   if (group.kind === "firstNInTrash") {
-    const owner = ctx.state.players[ctx.controller];
+    const owner = ctx.state.players[resolvePlayerRef(group.player ?? "controller", ctx.controller)];
     const eligible = owner.trash.filter((c) => matchesCardDefFilter(c.def, group.filter)).map((c) => c.instanceId);
     // W9 — o jogador escolhe quais (CR 10-2-2-1 / Q194); sem escolha (bot, fluxo antigo), as N primeiras
     const chosen = (ctx.targets.trashExile ?? []).filter((id) => eligible.includes(id)).slice(0, group.count);
@@ -233,6 +241,7 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
   return opponent.battleArea
     .filter((u) => u.def.cardType === "UNIT" && (maxLevel === undefined || (u.def.level ?? 0) <= maxLevel))
     .filter((u) => !group.excludeLinkUnits || !isLinkUnit(ctx.state, u))
+    .filter((u) => group.maxAp === undefined || effectiveAp(u, ctx.state) <= group.maxAp)
     .map((u) => u.instanceId);
 }
 
@@ -390,6 +399,11 @@ export type PrimitiveCall =
        * primitivas resolvem pelo dono da carta); só a `PendingDecision` vai pro oponente.
        */
       decidedBy?: "controller" | "opponent";
+      /**
+       * W12 — ST12-013 "You and that player each choose 1 of your own Units": este passo só ESCOLHE o alvo (pede
+       * `ctx.targets.target`), que segue pra continuação como `previousTarget`.
+       */
+      carry?: TargetRef;
     }
   /**
    * W7 — "Place 1 (rested) Resource" (GD01-025/107, GD05-106, EB01-021): CR 3-6-1, Resource sai do topo do
@@ -403,7 +417,7 @@ export type PrimitiveCall =
    */
   | { op: "activateMainOf"; card: TargetRef }
   /** W8 — GD05-017 "Begin a battle between this Unit and it and only perform the damage step" (CR 5-22-3) */
-  | { op: "beginDamageOnlyBattle"; target: TargetRef }
+  | { op: "beginDamageOnlyBattle"; target: TargetRef; /** W12 — ST12-013: a Unit amiga escolhida (padrão: a fonte) */ attacker?: TargetRef }
   /** W8 — GD05-089 "you may deploy it as an (AP3･HP3) Unit instead. (Don't treat it as a Pilot.)" */
   | { op: "deployAsUnit"; target: TargetRef; ap: number; hp: number }
   /**
@@ -496,7 +510,7 @@ export type PrimitiveCall =
    * `Delayed:<evento>`, com `reaction`) até o fim do turno. `subject` = só eventos dessa carta (GD04-035/115);
    * sem `subject`, vale o `reaction.subject`/`subjectFilter` do lado do controlador (GD04-002).
    */
-  | { op: "grantDelayedReaction"; specId: string; subject?: TargetRef }
+  | { op: "grantDelayedReaction"; specId: string; subject?: TargetRef; /** W12 — ST12-014 "during this battle" */ battleOnly?: boolean }
   /** W5 (C6) — GD04-110 "Deploy 1 EX Base." (a Base atual sai: token é removido, carta vai pro trash) */
   | { op: "deployExBase"; player: PlayerRef }
   /** W5 (C2) — GD04-087/095 "battle damage <from> would receive is dealt to <to> instead" */
@@ -507,6 +521,8 @@ export type PrimitiveCall =
    * `declareAttack` barra enquanto for o mesmo turno.
    */
   | { op: "preventAttackThisTurn"; target: TargetRef }
+  /** W12 — ST11-014 "Enemy Units can't choose it as their attack target this turn." */
+  | { op: "preventBeingAttackTarget"; target: TargetRef }
   /**
    * ST08-009 Jegan Ground Type-A 【Deploy】 — "It won't be set as active during
    * the start phase of your opponent's next turn." Marca
@@ -537,6 +553,8 @@ export type PrimitiveCall =
       restTo?: "bottom" | "trash" | "keep";
       /** W11 — EB01-067 "reveal 1 … and return it to the top of your deck" (padrão: mão) */
       revealTo?: "hand" | "top";
+      /** W12 — ST13-011 "whose Lv. is equal to or lower than this Unit" (a Unit da fonte; num Piloto, a pareada) */
+      maxLevelOfSelfUnit?: boolean;
     }
   /**
    * "You may deploy 1 <filtro> card from your hand." disparado por gatilho
@@ -591,7 +609,7 @@ export type PrimitiveCall =
    * de decisão; escolha em `ctx.targets[deployName ?? "trashSearch"]`.
    */
   /** W6 — `free`: ST09-001 "Choose 1 Unit card … from your trash. Deploy it." (sem pagar o custo) */
-  | { op: "deployFromTrashPayingCost"; player: PlayerRef; filter: CardDefFilter; deployName?: string; free?: boolean }
+  | { op: "deployFromTrashPayingCost"; player: PlayerRef; filter: CardDefFilter; deployName?: string; free?: boolean; rested?: boolean }
   /**
    * Lote 5 — GD01-039 "Look at the top card of your deck. Return it to the top
    * or bottom of your deck." Ao contrário de `moveWithinDeck` (posição FIXA,
@@ -648,7 +666,13 @@ export interface CardDefFilter {
 /** W5 — o custo descansa a Unit escolhida no 2º alvo (GD04-006/122/125 "Rest 1 of your … Units:") */
 export function costRestsSecondaryTarget(spec: EffectSpec): boolean {
   const name = spec.secondaryTarget?.name;
-  return !!name && (spec.cost ?? []).some((c) => c.op === "rest" && (c.target.kind === "named" || c.target.kind === "namedGroup") && c.target.name === name);
+  // W12 — ST13-010 "Destroy 1 friendly Unit token:" é custo do mesmo jeito que "Rest 1 friendly Unit:"
+  return (
+    !!name &&
+    (spec.cost ?? []).some(
+      (c) => (c.op === "rest" || c.op === "destroy") && (c.target.kind === "named" || c.target.kind === "namedGroup") && c.target.name === name,
+    )
+  );
 }
 
 /** W5 — custo "Rest 1 of your … Units" sem nenhuma Unit elegível */
@@ -678,7 +702,9 @@ export function trashExileChoice(
   for (const c of calls) {
     if (c.op !== "moveZone" || c.toZone !== "exile" || c.target.kind !== "group" || c.target.group.kind !== "firstNInTrash") continue;
     const group = c.target.group;
-    const legalTrashIds = state.players[controller].trash.filter((card) => matchesCardDefFilter(card.def, group.filter)).map((card) => card.instanceId);
+    const legalTrashIds = state.players[resolvePlayerRef(group.player ?? "controller", controller)].trash
+      .filter((card) => matchesCardDefFilter(card.def, group.filter))
+      .map((card) => card.instanceId);
     if (legalTrashIds.length > group.count) return { legalTrashIds, count: group.count };
   }
   return undefined;
@@ -691,6 +717,18 @@ export function exileCostShortfall(state: GameState, spec: EffectSpec, controlle
     const group = c.target.group;
     return state.players[controller].trash.filter((card) => matchesCardDefFilter(card.def, group.filter)).length < group.count;
   });
+}
+
+/** W12 — filtro do `lookAtTopFilterReveal` com o Lv. máximo dinâmico ("equal to or lower than this Unit", ST13-011) */
+export function revealFilter(
+  call: Extract<PrimitiveCall, { op: "lookAtTopFilterReveal" }>,
+  state: GameState,
+  sourceInstanceId: string,
+): CardDefFilter {
+  if (!call.maxLevelOfSelfUnit) return call.filter;
+  const source = findCard(state, sourceInstanceId);
+  const unit = source.def.cardType === "UNIT" ? source : source.pairedUnitId ? findCard(state, source.pairedUnitId) : undefined;
+  return { ...call.filter, maxLevel: unit?.def.level ?? -1 };
 }
 
 export function matchesCardDefFilter(def: CardDef, filter: CardDefFilter): boolean {
@@ -771,6 +809,8 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
     }
     case "damageShield": {
       const player = resolvePlayerRef(call.player, ctx.controller);
+      // W12 — ST11-006: escudo "tem 1 HP": dano de efeito inimigo reduzido a 0 não derruba
+      if (player !== ctx.controller && shieldAreaEffectReduction(ctx.state, player) >= 1) return [];
       return [{ type: "DAMAGE_SHIELD", player, count: call.count }];
     }
     case "destroy": {
@@ -828,7 +868,14 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       return resolveTargetIds(call.target, ctx).map((instanceId): GameEvent => ({ type: "REST_CARD", instanceId }));
     }
     case "setActive": {
-      return resolveTargetIds(call.target, ctx).map((instanceId): GameEvent => ({ type: "SET_ACTIVE", instanceId }));
+      const ids = resolveTargetIds(call.target, ctx);
+      const events: GameEvent[] = ids.map((instanceId): GameEvent => ({ type: "SET_ACTIVE", instanceId }));
+      // W12 — ST14-015 "if you have not set one of your Resources as active with an effect this turn"
+      for (const id of ids) {
+        const card = findCard(ctx.state, id);
+        if (card.zone === "resourceArea" && card.rested) events.push({ type: "MARK_RESOURCE_SET_ACTIVE_BY_EFFECT", player: card.owner, turn: ctx.turnNumber });
+      }
+      return events;
     }
     case "heal": {
       const events: GameEvent[] = [];
@@ -901,7 +948,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
         (subjectId): GameEvent => ({
           type: "ADD_DELAYED_REACTION",
           player: ctx.controller,
-          entry: { specId: call.specId, sourceId: ctx.sourceInstanceId, subjectId, turn: ctx.turnNumber },
+          entry: { specId: call.specId, sourceId: ctx.sourceInstanceId, subjectId, turn: ctx.turnNumber, ...(call.battleOnly ? { battleOnly: true } : {}) },
         }),
       );
     }
@@ -1036,7 +1083,9 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
     }
     case "beginDamageOnlyBattle": {
       const [targetId] = resolveTargetIds(call.target, ctx);
-      const attacker = findCard(ctx.state, ctx.sourceInstanceId);
+      const attackerId = call.attacker ? resolveTargetIds(call.attacker, ctx)[0] : ctx.sourceInstanceId;
+      if (!attackerId) return [];
+      const attacker = findCard(ctx.state, attackerId);
       if (!targetId || ctx.state.combat || attacker.zone !== "battleArea" || attacker.def.cardType !== "UNIT") return [];
       const target = findCard(ctx.state, targetId);
       if (target.zone !== "battleArea" || target.owner === attacker.owner) return [];
@@ -1060,13 +1109,16 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       const player = resolvePlayerRef(call.player, ctx.controller);
       const side = ctx.state.players[player];
       const base = side.baseSection[0];
+      // W12 — ST11-006: dano de efeito inimigo na área de escudo reduzido
+      const amount = player !== ctx.controller ? call.amount - shieldAreaEffectReduction(ctx.state, player) : call.amount;
+      if (amount <= 0) return [];
       if (base) {
-        const hit = incomingDamage(ctx.state, base, call.amount, effectSource(ctx));
+        const hit = incomingDamage(ctx.state, base, amount, effectSource(ctx));
         const events: GameEvent[] = [{ type: "DAMAGE_BASE", instanceId: base.instanceId, amount: hit.amount, consume: hit.consume }];
         if (hit.amount > 0 && base.damage + hit.amount >= effectiveHp(base, ctx.state)) events.push({ type: "DESTROY_CARD", instanceId: base.instanceId });
         return events;
       }
-      return side.shields.length > 0 && call.amount > 0 ? [{ type: "DAMAGE_SHIELD", player, count: 1 }] : [];
+      return side.shields.length > 0 ? [{ type: "DAMAGE_SHIELD", player, count: 1 }] : [];
     }
     case "placeResourceFromDeck": {
       const player = resolvePlayerRef(call.player, ctx.controller);
@@ -1147,7 +1199,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       if (revealed) {
         const card = top.find((c) => c.instanceId === revealed);
         if (!card) throw new Error(`lookAtTopFilterReveal: carta revelada "${revealed}" não está no topo ${call.count} do deck`);
-        if (!matchesCardDefFilter(card.def, call.filter)) {
+        if (!matchesCardDefFilter(card.def, revealFilter(call, ctx.state, ctx.sourceInstanceId))) {
           throw new Error(`lookAtTopFilterReveal: carta revelada "${card.def.code}" não casa o filtro exigido pelo efeito`);
         }
         if (call.revealTo !== "top") events.push({ type: "MOVE_CARD", instanceId: revealed, toZone: "hand" });
@@ -1162,6 +1214,9 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       }
       if (revealed && call.revealTo === "top") events.push({ type: "MOVE_WITHIN_DECK", instanceId: revealed, position: "top" });
       return events;
+    }
+    case "preventBeingAttackTarget": {
+      return resolveTargetIds(call.target, ctx).map((instanceId): GameEvent => ({ type: "PREVENT_BEING_ATTACK_TARGET", instanceId, turn: ctx.turnNumber }));
     }
     case "deployThisCard": {
       const source = findCard(ctx.state, ctx.sourceInstanceId);
@@ -1291,7 +1346,10 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       }
       // GD03-058 — "This card in your trash gets cost -1."
       const cost = call.free ? 0 : Math.max(0, effectiveCost(card.def, ctx.state, player) + (card.def.costModifierInTrash ?? 0));
-      return [...payResourceCostEvents(ctx.state, player, cost), { type: "MOVE_CARD", instanceId: chosen, toZone: "battleArea" }];
+      const deployed: GameEvent[] = [{ type: "MOVE_CARD", instanceId: chosen, toZone: "battleArea" }];
+      // W12 — ST11-015 "Deploy it rested."
+      if (call.rested) deployed.push({ type: "REST_CARD", instanceId: chosen });
+      return [...payResourceCostEvents(ctx.state, player, cost), ...deployed];
     }
     case "moveTopCardToChosenPosition": {
       const player = resolvePlayerRef(call.player, ctx.controller);
@@ -1398,7 +1456,14 @@ export type ReactionEvent =
   /** W8.5 — "When a friendly (Clan) Unit links" (ST06-015): pareamento que formou Link Unit; a carta do evento é a Unit */
   | "unitLinked"
   /** W8.5 — "When you draw with an effect" (ST08-011): 1× por efeito que comprou do deck; a carta do evento é a 1ª comprada */
-  | "drewByEffect";
+  | "drewByEffect"
+  /**
+   * W12 — "when this Unit destroys an enemy Unit with damage" (ST12-001/003): dano de batalha OU de efeito da Unit
+   * (ou do Piloto pareado com ela) — rulings Q436–Q439. A carta do evento é a Unit que destruiu.
+   */
+  | "destroyedEnemyWithDamage"
+  /** W12 — ST13-012 "When an enemy Unit is destroyed with effect damage" (qualquer efeito; "destroy" sem dano não conta, Q459). A carta do evento é a Unit destruída; escutam as cartas do oponente dela. */
+  | "enemyDestroyedByEffectDamage";
 
 export interface ReactionSpec {
   event: ReactionEvent;
@@ -1415,6 +1480,8 @@ export interface ReactionSpec {
   byEnemyEffect?: boolean;
   /** "During your turn" / "During your opponent's turn" */
   turn?: "yours" | "opponents";
+  /** W12 — ST12-001 "【During Pair･Lv.5 or Higher Pilot】": Lv. mínimo do Piloto pareado com a Unit da fonte (no momento do evento) */
+  pairedPilotMinLevel?: number;
 }
 
 export interface EffectSpec {
@@ -1850,6 +1917,12 @@ export function availableModeValues(
         .filter((s) => s.cardCode === spec.cardCode && s.trigger === `Mode:${o.value}`)
         .every((s) => {
           if (specNeedsNamedTarget(s) && computeLegalTargets(state, s, controller, resolveFilter, sourceInstanceId).length === 0) return false;
+          // W12 — ST12-015 (Q451) "Choose 1 friendly Unit and 1 enemy Unit …": o 2º alvo também precisa existir
+          const second = s.secondaryTarget;
+          if (second && !second.sequential) {
+            const pool = { targetScope: second.targetScope, targetFilter: second.targetFilter };
+            if (computeLegalTargets(state, pool, controller, resolveFilter, sourceInstanceId).length === 0) return false;
+          }
           for (const c of specActiveCalls(s, ctx, predicateResolver)) {
             if (c.op === "searchTrashToHand") {
               const p = resolvePlayerRef(c.player, controller);

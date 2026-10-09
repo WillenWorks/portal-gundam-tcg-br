@@ -1,5 +1,5 @@
 import type { CardInstance, GameEvent, GameState, PlayerId } from "./types";
-import { otherPlayer } from "./types";
+import { isBoardConditionMet, otherPlayer } from "./types";
 import { applyEvent, applyEvents } from "./events";
 import { computeRepairEvents } from "./keywords";
 
@@ -14,8 +14,20 @@ import { computeRepairEvents } from "./keywords";
 export function computeStartPhaseEvents(state: GameState): GameEvent[] {
   const events: GameEvent[] = [{ type: "PHASE_CHANGE", phase: "start" }];
   const player = state.players[state.activePlayer];
+  // W12 — ST11-006: "at the start of your opponent's turn" — a carta do jogador que NÃO está no turno
+  const standby = otherPlayer(state.activePlayer);
+  for (const card of state.players[standby].battleArea) {
+    const r = card.def.shieldAreaEffectDamageReduction;
+    if (!r || (r.boardCondition && !isBoardConditionMet(state, standby, r.boardCondition, card.instanceId))) continue;
+    events.push({ type: "SET_SHIELD_AREA_EFFECT_REDUCTION", player: standby, turn: state.turnNumber, amount: r.amount });
+  }
+  // W12 — ST14-001 The-O: as Units descansadas de MENOR Lv. do jogador ativo não destombam (empate: todas, Q462)
+  const theO = state.players[standby].battleArea.some((c) => c.def.lowestLevelEnemyRestedStayRested);
+  const restedUnits = player.battleArea.filter((c) => c.def.cardType === "UNIT" && c.rested);
+  const lowestRestedLevel = theO && restedUnits.length ? Math.min(...restedUnits.map((c) => c.def.level ?? 0)) : undefined;
   for (const zone of ["battleArea", "baseSection", "resourceArea"] as const) {
     for (const card of player[zone]) {
+      if (lowestRestedLevel !== undefined && zone === "battleArea" && card.def.cardType === "UNIT" && card.rested && (card.def.level ?? 0) === lowestRestedLevel) continue;
       // ST08-009 Jegan Ground Type-A — ver `CardInstance.cannotActivateUntilTurn`:
       // esta Unit fica rested nesta Start Phase específica em vez de destombar.
       if (card.rested && card.cannotActivateUntilTurn !== state.turnNumber) {

@@ -50,6 +50,7 @@ const { ST09_DECKS } = await import(sim("fixtures/st09Decks.ts"));
 const { GD05_DECKS } = await import(sim("fixtures/gd05Decks.ts"));
 const { ST10_TEST_DECKS } = await import(sim("fixtures/st10Decks.ts"));
 const { EB01_TEST_DECKS } = await import(sim("fixtures/eb01Decks.ts"));
+const { ST11_TO_14_DECKS } = await import(sim("fixtures/st11to14Decks.ts"));
 const { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } = await import(sim("content/index.ts"));
 const { heuristicPolicy } = await import(sim("engine/bot/heuristicPolicy.ts"));
 const { mctsPolicy } = await import(sim("engine/bot/mctsPolicy.ts"));
@@ -102,6 +103,8 @@ const DECKS = {
   ...Object.fromEntries(Object.values(ST10_TEST_DECKS).map((d) => [d.id, d.build])),
   // W11 — decks de teste do EB01 (set fechado)
   ...Object.fromEntries(Object.values(EB01_TEST_DECKS).map((d) => [d.id, d.build])),
+  // W12 — receitas oficiais do ST11–ST14 (sets fechados)
+  ...Object.fromEntries(Object.values(ST11_TO_14_DECKS).map((d) => [d.id, d.build])),
 };
 
 function parseArgs(argv) {

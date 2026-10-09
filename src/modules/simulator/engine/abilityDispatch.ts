@@ -20,6 +20,7 @@ import {
   isFollowUpTrigger,
   matchesCardDefFilter,
   peekAndReorderDeck,
+  revealFilter,
   resolvePlayerRef,
   specActiveCalls,
   specChoicePrimitive,
@@ -143,7 +144,8 @@ function buildQueueEntry(
   if (choice.op === "lookAtTopFilterReveal") {
     const chooser = resolvePlayerRef(choice.player, player);
     const topCards = peekAndReorderDeck(state, chooser, choice.count);
-    const revealableIds = topCards.filter((c) => matchesCardDefFilter(c.def, choice.filter)).map((c) => c.instanceId);
+    const filter = revealFilter(choice, state, sourceInstanceId);
+    const revealableIds = topCards.filter((c) => matchesCardDefFilter(c.def, filter)).map((c) => c.instanceId);
     return { ...entry, deckTopReveal: { topCards, revealableIds, count: choice.count, label: spec.sourceText } };
   }
 
@@ -320,9 +322,11 @@ export function deferOrDispatchAbilities(
   });
 
   // Descarta specs cujo efeito é incondicionalmente vazio no estado atual
-  // (ex: condição falhou e não tem `else` nem `actions` fora da condição)
+  // (ex: condição falhou e não tem `else` nem `actions` fora da condição).
+  // W12 — com custo ("Rest this Base: If …", ST12-016) a ativação acontece e o custo é pago; só o "If" falha.
+  // Antes a ativação virava um no-op sem custo, sempre legal — o bot repetia sem fim (achado do fuzz).
   const activeEntries = entriesWithCalls.filter(({ spec, activeCalls }) => {
-    if (spec.condition && activeCalls.length === 0) return false;
+    if (spec.condition && activeCalls.length === 0 && !(spec.cost ?? []).length) return false;
     return true;
   });
   if (activeEntries.length === 0) return state;
@@ -915,7 +919,8 @@ export function filterDispatchableSpecs(
       targets: suppliedTargetIds ? { target: suppliedTargetIds } : {},
     };
     const activeCalls = specActiveCalls(spec, ctx, predicateResolver);
-    if (spec.condition && activeCalls.length === 0) return false;
+    // W12 — condição falsa: sem custo o spec sai do lote; com custo ("Rest this Base: If …") a ativação paga e nada mais
+    if (spec.condition && activeCalls.length === 0) return (spec.cost ?? []).length > 0;
     if (!callsNeedNamedTarget(activeCalls)) return true;
     const legal = computeLegalTargets(state, spec, controller, targetFilterResolver, sourceInstanceId);
     if (legal.length === 0) return false;
@@ -949,6 +954,8 @@ export interface ReactionOccurrence {
   victimId?: string;
   /** W5 — valor do evento (custo pago em `paidForUnitEffect`), alvo implícito `reactionAmount` */
   amount?: number;
+  /** W12 — Piloto pareado com a carta do evento NO momento dele (a Unit pode já ter saído de jogo, Q436) */
+  subjectPairedPilotId?: string;
 }
 
 /**
@@ -962,6 +969,8 @@ export function collectEffectReactions(
   events: GameEvent[],
   effectController: PlayerId,
   after?: GameState,
+  /** W12 — a carta do efeito (pra "this Unit destroys an enemy Unit with damage") */
+  sourceInstanceId?: string,
 ): ReactionOccurrence[] {
   const out: ReactionOccurrence[] = [];
   const seen = new Set<string>();
@@ -1000,6 +1009,37 @@ export function collectEffectReactions(
       restedNow.set(card.instanceId, false);
     }
   }
+  // W12 — ST13-012 "When an enemy Unit is destroyed with effect damage": a Unit que levou dano neste efeito e foi destruída
+  {
+    const damagedNow = new Set(events.flatMap((e) => (e.type === "DAMAGE_UNIT" && e.amount > 0 ? [e.instanceId] : [])));
+    for (const e of events) {
+      if (e.type !== "DESTROY_CARD" || !damagedNow.has(e.instanceId)) continue;
+      const victim = before.players.A.battleArea.find((c) => c.instanceId === e.instanceId) ?? before.players.B.battleArea.find((c) => c.instanceId === e.instanceId);
+      if (!victim || victim.def.cardType !== "UNIT") continue;
+      out.push({ event: "enemyDestroyedByEffectDamage", subjectId: victim.instanceId, owner: otherPlayer(victim.owner), effectController });
+    }
+  }
+  // W12 — "when this Unit destroys an enemy Unit with damage" por EFEITO (Q437/Q439): a fonte é a Unit, ou o Piloto pareado com ela
+  if (sourceInstanceId) {
+    const source = [...before.players.A.battleArea, ...before.players.B.battleArea].find((c) => c.instanceId === sourceInstanceId);
+    const unit = source && (source.def.cardType === "UNIT" ? source : source.pairedUnitId ? findCard(before, source.pairedUnitId) : undefined);
+    const damaged = new Set(events.flatMap((e) => (e.type === "DAMAGE_UNIT" && e.amount > 0 ? [e.instanceId] : [])));
+    if (unit && unit.def.cardType === "UNIT") {
+      for (const e of events) {
+        if (e.type !== "DESTROY_CARD" || !damaged.has(e.instanceId)) continue;
+        const victim = before.players[otherPlayer(unit.owner)].battleArea.find((c) => c.instanceId === e.instanceId);
+        if (!victim || victim.def.cardType !== "UNIT") continue;
+        out.push({
+          event: "destroyedEnemyWithDamage",
+          subjectId: unit.instanceId,
+          owner: unit.owner,
+          effectController,
+          victimId: victim.instanceId,
+          ...(unit.pairedPilotId ? { subjectPairedPilotId: unit.pairedPilotId } : {}),
+        });
+      }
+    }
+  }
   // W5 — "when one of your Units is deployed": Unit que entrou na Battle Area por este efeito
   if (after) {
     for (const pid of ["A", "B"] as PlayerId[]) {
@@ -1032,7 +1072,16 @@ function reactionMatches(
   if (!reaction || reaction.event !== occ.event) return false;
   // carta que saiu de jogo no próprio evento (CR 10-1-6-4) não tem como provar que estava pareada
   // (`specPairGateOpen` abre pra quem está fora da Battle Area): 【During Pair/Link】 não reage
-  if ((spec.duringPair || spec.duringLink) && listener.zone !== "battleArea") return false;
+  // W12 — exceto quando o evento lembra o Piloto pareado no momento (combate: Q436 "even when both Units are destroyed")
+  const rememberedPilot = listener.instanceId === occ.subjectId ? occ.subjectPairedPilotId : undefined;
+  if ((spec.duringPair || spec.duringLink) && listener.zone !== "battleArea") {
+    if (!rememberedPilot) return false;
+    if (spec.duringLink && !satisfiesLinkCondition(effectivePilotDef(findCard(state, rememberedPilot)), listener.def)) return false;
+  }
+  if (reaction.pairedPilotMinLevel !== undefined) {
+    const pilotId = rememberedPilot ?? listener.pairedPilotId;
+    if (!pilotId || (findCard(state, pilotId).def.level ?? 0) < reaction.pairedPilotMinLevel) return false;
+  }
   if (spec.oncePerTurn && listener.usedKeywordsThisTurn.includes(specOncePerTurnMarker(spec))) return false;
   if (listener.def.oncePerTurn && listener.usedKeywordsThisTurn.includes(spec.trigger)) return false;
   // "this Unit" num Piloto é a Unit pareada
@@ -1245,6 +1294,8 @@ export function dispatchReactionsFromEffect(
   effectController: PlayerId,
   specs: EffectSpec[],
   opts: {
+    /** W12 — a carta do efeito ("this Unit destroys an enemy Unit with damage") */
+    sourceInstanceId?: string;
     predicateResolver?: PredicateResolver;
     targetFilterResolver?: TargetFilterResolver;
     cascadeDepth?: number;
@@ -1252,7 +1303,7 @@ export function dispatchReactionsFromEffect(
   } = {},
 ): GameState {
   if (!specs.some((s) => s.reaction)) return after;
-  return dispatchReactions(after, collectEffectReactions(before, events, effectController, after), specs, opts);
+  return dispatchReactions(after, collectEffectReactions(before, events, effectController, after, opts.sourceInstanceId), specs, opts);
 }
 
 /**
