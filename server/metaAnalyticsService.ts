@@ -218,8 +218,9 @@ export async function fetchEligibleDecks(prisma: PrismaClient): Promise<RawDeckD
         items: filteredItems,
       });
     }
-  } catch {
-    // Safe fallback se tournamentEntry não estiver presente no mock de testes
+  } catch (err) {
+    // Mocks de teste sem `tournamentEntry` caem aqui; em produção é erro de banco e precisa aparecer no log.
+    console.warn("[metaAnalytics] listas de torneio indisponíveis; seguindo só com decks do site:", err instanceof Error ? err.message : err);
   }
 
   // Se houver menos de 4 decks no banco, complementa com os decks validados do simulador

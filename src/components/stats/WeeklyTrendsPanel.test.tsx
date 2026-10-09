@@ -17,7 +17,7 @@ const mockWeeklyTrendsData: WeeklyTrendsResponse = {
   season: { id: "s1", code: "GD01", name: "Gundam Format 1" },
   seasonId: "s1",
   tier: null,
-  weightNote: "Ponderação Amostral: Grandes Torneios e Regionais possuem peso superior a torneios locais.",
+  weightNote: "Cada lista conta igual, independente do tamanho do torneio.",
   weeks: [
     {
       weekKey: "2026-W11",
@@ -144,7 +144,7 @@ describe("WeeklyTrendsPanel", () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Série temporal semanal baseada em 20 listas de 3 torneios/i)).toBeInTheDocument();
-      expect(screen.getByText(/Ponderação Amostral: Grandes Torneios e Regionais possuem peso superior a torneios locais/i)).toBeInTheDocument();
+      expect(screen.getByText(/Cada lista conta igual, independente do tamanho do torneio/i)).toBeInTheDocument();
     });
   });
 
