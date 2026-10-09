@@ -193,3 +193,18 @@ describe("cardStatus — rotas HTTP", () => {
     expect(body.sets).toBeUndefined();
   });
 });
+
+describe("playabilityWhere (filtro \"Só aptas\" do catálogo no servidor)", () => {
+  it("apta/revisao filtram pelos códigos com o mesmo veredito do card-status; fora exclui os dois", async () => {
+    const { playabilityWhere, getAllCardStatuses } = await import("./cardStatus.ts");
+    const cards = Object.values(getAllCardStatuses().cards);
+    const apta = playabilityWhere("apta").code as { in: string[] };
+    expect(apta.in).toContain("ST01-001");
+    expect(apta.in.every((c) => getAllCardStatuses().cards[c].status === "apta")).toBe(true);
+    expect(apta.in).toHaveLength(cards.filter((c) => c.status === "apta").length);
+    const fora = playabilityWhere("fora").code as { notIn: string[] };
+    expect(fora.notIn).toContain("ST01-001");
+    expect(playabilityWhere(undefined)).toEqual({});
+    expect(playabilityWhere("qualquer")).toEqual({});
+  });
+});
