@@ -1,0 +1,187 @@
+[
+  {
+    "code": "ST07-001",
+    "name": "Gundam Exia",
+    "set": "ST07",
+    "effectEn": "At the end of your turn, if there are 7 or more (CB) cards in your trash, choose 1 of your Resources. Set it as active.\n【When Paired】Place the top 2 cards of your deck into your trash. If you place a (CB) card with this effect, draw 1.",
+    "effectPt": "No fim do seu turno, se houver 7 ou mais cartas (CB) no seu lixo, escolha 1 dos seus Recursos. Coloque-o como ativo.\n【When Paired】Coloque as 2 cartas do topo do seu deck no seu lixo. Se voce colocar uma carta (CB) com este efeito, compre 1 carta.",
+    "status": "OK",
+    "tokens": [
+      "【When Paired】",
+      "(CB)",
+      "(CB)"
+    ]
+  },
+  {
+    "code": "ST07-002",
+    "name": "Gundam Exia",
+    "set": "ST07",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST07-003",
+    "name": "Gundam Virtue",
+    "set": "ST07",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST07-004",
+    "name": "Gundam Virtue",
+    "set": "ST07",
+    "effectEn": "While you have a (CB) Pilot in play, this Unit gains <Blocker>.\n\n(Rest this Unit to change the attack target to it.)",
+    "effectPt": "Enquanto voce tiver um Piloto (CB) em jogo, esta Unidade ganha <Blocker>.\n\n(Rest esta Unidade para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "(CB)",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST07-005",
+    "name": "Gundam Dynames",
+    "set": "ST07",
+    "effectEn": "During your turn, when this Unit destroys an enemy Unit with battle damage, this Unit recovers 2 HP.\n【During Link】This Unit gets AP+2.",
+    "effectPt": "Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano de batalha, esta Unidade recupera 2 de HP.\n【During Link】Esta Unidade recebe AP+2.",
+    "status": "OK",
+    "tokens": [
+      "【During Link】",
+      "HP",
+      "AP+2"
+    ]
+  },
+  {
+    "code": "ST07-006",
+    "name": "Gundam Dynames",
+    "set": "ST07",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST07-007",
+    "name": "Gundam Kyrios",
+    "set": "ST07",
+    "effectEn": "During your turn, while you have a (CB) Pilot in play, this Unit gets AP+2.",
+    "effectPt": "Durante o seu turno, enquanto você tiver um Piloto (CB) em jogo, esta Unidade recebe AP+2.",
+    "status": "OK",
+    "tokens": [
+      "(CB)",
+      "AP+2"
+    ]
+  },
+  {
+    "code": "ST07-008",
+    "name": "Gundam Kyrios (Flight Mode)",
+    "set": "ST07",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST07-009",
+    "name": "Setsuna F. Seiei",
+    "set": "ST07",
+    "effectEn": "【Burst】Add this card to your hand.\n【Attack】This Unit gets AP+1 during this turn. If there are 7 or more (CB) cards in your trash, all your (CB) Units get AP+1 instead.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Attack】Esta Unidade recebe AP+1 durante este turno. Se houver 7 ou mais cartas (CB) no seu lixo, todas as suas Unidades (CB) recebem AP+1 em vez disso.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Attack】",
+      "(CB)",
+      "(CB)",
+      "AP+1",
+      "AP+1"
+    ]
+  },
+  {
+    "code": "ST07-010",
+    "name": "Tieria Erde",
+    "set": "ST07",
+    "effectEn": "【Burst】Add this card to your hand.\n【Destroyed】If it is your opponent's turn and this is a (CB) Unit, draw 1.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Destroyed】Se for o turno do seu oponente e esta for uma Unidade (CB), compre 1 carta.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Destroyed】",
+      "(CB)"
+    ]
+  },
+  {
+    "code": "ST07-011",
+    "name": "Lockon Stratos (Neil)",
+    "set": "ST07",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Paired】If this is a (CB) Unit, it may choose an active enemy Unit whose Lv. is equal to or lower than this Unit as its attack target during this turn.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Paired】Se esta for uma Unidade (CB), ela pode escolher uma Unidade inimiga ativa com Lv. igual ou menor que o desta Unidade como alvo de ataque durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Paired】",
+      "(CB)"
+    ]
+  },
+  {
+    "code": "ST07-012",
+    "name": "Allelujah Haptism",
+    "set": "ST07",
+    "effectEn": "【Burst】Add this card to your hand.\nDuring your turn, while you have a (CB) Link Unit in play, this Unit can't receive battle damage from enemy Units with 3 or less AP.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\nDurante o seu turno, enquanto você tiver uma Unidade com Link (CB) em jogo, esta Unidade não pode receber dano de batalha de Unidades inimigas com AP 3 ou menos.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "(CB)",
+      "AP"
+    ]
+  },
+  {
+    "code": "ST07-013",
+    "name": "Armed Intervention",
+    "set": "ST07",
+    "effectEn": "【Burst】Draw 1.\n【Action】Choose 1 rested friendly (CB) Unit. Change the attack target of the battling enemy Unit to it.",
+    "effectPt": "【Burst】Compre 1 carta.\n【Action】Escolha 1 Unidade (CB) aliada descansada. Mude o alvo de ataque da Unidade inimiga em batalha para ela.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Action】",
+      "(CB)"
+    ]
+  },
+  {
+    "code": "ST07-014",
+    "name": "Tactical Visionary",
+    "set": "ST07",
+    "effectEn": "【Main】Look at the top 3 cards of your deck. You may reveal 1 (CB) Unit card/Pilot card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck.",
+    "effectPt": "【Main】Olhe as 3 cartas do topo do seu deck. Você pode revelar 1 carta de Unidade/carta de Piloto (CB) entre elas e adicioná-la à sua mão. Coloque as cartas restantes no fundo do seu deck em ordem aleatória.",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "(CB)"
+    ]
+  },
+  {
+    "code": "ST07-015",
+    "name": "Ptolemaios",
+    "set": "ST07",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\nWhile a rested friendly (CB) Unit is in play, this Base can't receive damage from enemy Units that are Lv.3 or lower, other than Unit tokens.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\nEnquanto uma Unidade (CB) aliada descansada estiver em jogo, esta Base não pode receber dano de Unidades inimigas de Lv.3 ou menor, exceto fichas de Unidade.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "(CB)",
+      "Lv.3"
+    ]
+  }
+]

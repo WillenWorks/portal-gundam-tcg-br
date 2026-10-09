@@ -1,0 +1,199 @@
+[
+  {
+    "code": "ST06-001",
+    "name": "GQuuuuuuX (Omega Psycommu)",
+    "set": "ST06",
+    "effectEn": "【When Linked】If another friendly (Clan) Unit is in play, this gains <First Strike> during this turn.\n\n(While this Unit is attacking, it deals damage before the enemy Unit.)",
+    "effectPt": "【When Linked】Se outra Unidade (Clan) aliada estiver em jogo, esta recebe <First Strike> durante este turno.\n\n(Enquanto esta Unidade estiver atacando, ela causa dano antes da Unidade inimiga.)",
+    "status": "OK",
+    "tokens": [
+      "【When Linked】",
+      "<First Strike>",
+      "(Clan)"
+    ]
+  },
+  {
+    "code": "ST06-002",
+    "name": "GQuuuuuuX (Omega Psycommu)",
+    "set": "ST06",
+    "effectEn": "【Deploy】If another friendly (Clan) Unit is in play, choose 1 enemy Unit. Deal 1 damage to it.",
+    "effectPt": "【Deploy】Se outra Unidade (Clan) aliada estiver em jogo, escolha 1 Unidade inimiga. Cause 1 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "(Clan)"
+    ]
+  },
+  {
+    "code": "ST06-003",
+    "name": "Gaia's Rick Dom (GQ)",
+    "set": "ST06",
+    "effectEn": "【Activate･Main】<Support 1> (Rest this Unit. 1 other friendly Unit gets AP+(specified amount) during this turn.)",
+    "effectPt": "【Activate･Main】<Support 1> (Rest esta Unidade. 1 outra Unidade aliada recebe AP+(quantidade especificada) durante este turno.)",
+    "status": "OK",
+    "tokens": [
+      "【Activate･Main】",
+      "<Support 1>",
+      "AP",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST06-004",
+    "name": "Gelgoog (GQ)",
+    "set": "ST06",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST06-005",
+    "name": "Red Gundam",
+    "set": "ST06",
+    "effectEn": "<Breach 1> (When this Unit's attack destroys an enemy Unit, deal the specified amount of damage to the first card in that opponent's shield area.)\n【Attack】Choose 1 to 2 friendly (Clan) Units. They get AP+2 during this turn.",
+    "effectPt": "<Breach 1> (Quando o ataque desta Unidade destruir uma Unidade inimiga, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)\n【Attack】Escolha 1 a 2 Unidades (Clan) aliadas. Elas recebem AP+2 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Attack】",
+      "<Breach 1>",
+      "(Clan)",
+      "AP+2"
+    ]
+  },
+  {
+    "code": "ST06-006",
+    "name": "Red Gundam",
+    "set": "ST06",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST06-007",
+    "name": "Ortega's Rick Dom (GQ)",
+    "set": "ST06",
+    "effectEn": "【Deploy】Choose 1 of your other (Clan) Units. During this turn, it may choose an active enemy Unit with 3 or less AP as its attack target.",
+    "effectPt": "【Deploy】Escolha 1 de suas outras Unidades (Clan). Durante este turno, ela pode escolher uma Unidade inimiga ativa com 3 ou menos AP como alvo de ataque.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "(Clan)",
+      "AP"
+    ]
+  },
+  {
+    "code": "ST06-008",
+    "name": "Sugai's Gelgoog (GQ)",
+    "set": "ST06",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST06-009",
+    "name": "Amate Yuzuriha (Machu)",
+    "set": "ST06",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Linked】Look at the top card of your deck. If it is a (Clan) card, you may reveal it and add it to your hand. Return any remaining card to the bottom of your deck.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Linked】Olhe a carta do topo do seu deck. Se for uma carta (Clan), você pode revelá-la e adicioná-la à sua mão. Coloque a carta restante no fundo do seu deck.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Linked】",
+      "(Clan)"
+    ]
+  },
+  {
+    "code": "ST06-010",
+    "name": "Shuji Itō",
+    "set": "ST06",
+    "effectEn": "【Burst】Add this card to your hand.\n【During Link】【Attack】If you have a (Clan) Unit in play, look at the top card of your deck. Return it to the top or bottom of your deck.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【During Link】【Attack】Se você tiver uma Unidade (Clan) em jogo, olhe a carta do topo do seu deck. Devolva-a ao topo ou ao fundo do seu deck.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【During Link】",
+      "【Attack】",
+      "(Clan)"
+    ]
+  },
+  {
+    "code": "ST06-011",
+    "name": "Ruthless Tactics",
+    "set": "ST06",
+    "effectEn": "【Main】/【Action】Choose 1 to 2 friendly (Clan) Units. They get AP+2 during this turn.\n【Pilot】[Gaia (GQ)]",
+    "effectPt": "【Main】/【Action】Escolha 1 a 2 Unidades (Clan) aliadas. Elas recebem AP+2 durante este turno.\n【Pilot】[Gaia (GQ)]",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Action】",
+      "【Pilot】",
+      "[Gaia (GQ)]",
+      "(Clan)",
+      "AP+2"
+    ]
+  },
+  {
+    "code": "ST06-012",
+    "name": "Schoolgirl and Smuggler",
+    "set": "ST06",
+    "effectEn": "【Main】Look at the top 3 cards of your deck. You may reveal 1 (Clan) Unit card/Pilot card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck.",
+    "effectPt": "【Main】Olhe as 3 cartas do topo do seu deck. Você pode revelar 1 carta de Unidade/carta de Piloto (Clan) entre elas e adicioná-la à sua mão. Devolva as cartas restantes aleatoriamente ao fundo do seu deck.",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "(Clan)"
+    ]
+  },
+  {
+    "code": "ST06-013",
+    "name": "Fierce Unity",
+    "set": "ST06",
+    "effectEn": "【Action】Choose 1 to 2 friendly (Clan) Units. They can't receive battle damage from enemy Units that are Lv.2 or lower during this turn.\n【Pilot】[Ortega (GQ)]",
+    "effectPt": "【Action】Escolha de 1 a 2 Unidades (Clan) aliadas. Elas não podem receber dano de batalha de Unidades inimigas de Lv.2 ou menor durante este turno.\n【Pilot】[Ortega (GQ)]",
+    "status": "OK",
+    "tokens": [
+      "【Action】",
+      "【Pilot】",
+      "[Ortega (GQ)]",
+      "(Clan)",
+      "Lv.2"
+    ]
+  },
+  {
+    "code": "ST06-014",
+    "name": "Clan Battle",
+    "set": "ST06",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Activate･Main】Rest this Base：If a friendly (Clan) Link Unit is in play, choose 1 friendly Unit. It gets AP+2 during this turn.",
+    "effectPt": "【Burst】Deploy esta carta.\n【Deploy】Adicione 1 dos seus Shields à sua mão.\n\n【Activate･Main】Rest esta Base: Se uma Unidade com Link (Clan) aliada estiver em jogo, escolha 1 Unidade aliada. Ela recebe AP+2 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "【Activate･Main】",
+      "(Clan)",
+      "AP+2",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST06-015",
+    "name": "Kaneban Co., Ltd.",
+    "set": "ST06",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Once per Turn】When a friendly (Clan) Unit links, it gains <Breach 3> during this turn.\n\n(When this Unit's attack destroys an enemy Unit, deal the specified amount of damage to the first card in that opponent's shield area.)",
+    "effectPt": "【Burst】Implante esta carta.\n【Deploy】Adicione 1 dos seus Escudos à sua mão.\n\n【Once per Turn】Quando uma Unidade (Clan) aliada fizer link, ela recebe <Breach 3> durante este turno.\n\n(Quando o ataque desta Unidade destruir uma Unidade inimiga, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "【Once per Turn】",
+      "<Breach 3>",
+      "(Clan)"
+    ]
+  }
+]

@@ -1,0 +1,20 @@
+[
+  {
+    "code": "EXB-002",
+    "name": "EX Base",
+    "set": "ST09",
+    "effectEn": "(At the start of the game, place 1 active EX Base as your shield area's base.)",
+    "effectPt": "(No início do jogo, coloque 1 EX Base ativa como a base da sua área de escudo.)",
+    "status": "OK",
+    "tokens": []
+  },
+  {
+    "code": "EXB-003",
+    "name": "EX Base",
+    "set": "ST10",
+    "effectEn": "(At the start of the game, place 1 active EX Base as your shield area's base.)",
+    "effectPt": "(No início do jogo, coloque 1 EX Base ativa como a base da sua área de escudo.)",
+    "status": "OK",
+    "tokens": []
+  }
+]

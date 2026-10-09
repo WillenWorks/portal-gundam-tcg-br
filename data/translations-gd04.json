@@ -1,0 +1,1690 @@
+[
+  {
+    "code": "GD04-001",
+    "name": "Gundam",
+    "set": "GD04",
+    "effectEn": "【During Link】【Attack】If you are attacking an enemy Unit, you may return a blue Pilot paired with this Unit to its owner's hand.",
+    "effectPt": "【During Link】【Attack】Se você estiver atacando uma Unidade inimiga, você pode devolver à mão do dono um Piloto azul pareado com esta Unidade.",
+    "status": "OK",
+    "tokens": [
+      "【During Link】",
+      "【Attack】"
+    ]
+  },
+  {
+    "code": "GD04-002",
+    "name": "Penelope (Flight Form)",
+    "set": "GD04",
+    "effectEn": "During your turn, all your (Earth Federation) Units get AP+1.\n【Deploy】During this turn, when one of your (Earth Federation) Units destroys an enemy Unit with battle damage, choose 1 enemy Unit with 5 or less HP. Rest it.",
+    "effectPt": "Durante o seu turno, todas as suas Unidades (Earth Federation) recebem AP+1.\n【Deploy】Durante este turno, quando uma das suas Unidades (Earth Federation) destruir uma Unidade inimiga com dano de batalha, escolha 1 Unidade inimiga com HP 5 ou menos. Coloque-a em Rest.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "(Earth Federation)",
+      "(Earth Federation)",
+      "AP+1",
+      "HP",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD04-003",
+    "name": "Victory Gundam",
+    "set": "GD04",
+    "effectEn": "【Attack】If you have 3 or more (League Militaire) Units in play, draw 1.",
+    "effectPt": "【Attack】Se você tiver 3 ou mais Unidades (League Militaire) em jogo, compre 1 carta.",
+    "status": "OK",
+    "tokens": [
+      "【Attack】",
+      "(League Militaire)"
+    ]
+  },
+  {
+    "code": "GD04-004",
+    "name": "Psycho Gundam Mk-Ⅱ",
+    "set": "GD04",
+    "effectEn": "<Repair 2> (At the end of your turn, this Unit recovers the specified number of HP.)\n【Once per Turn】When you pair a (Cyber-Newtype) Pilot with one of your blue Units, draw 1.",
+    "effectPt": "<Repair 2> (No fim do seu turno, esta Unidade recupera a quantidade especificada de HP.)\n【Once per Turn】Quando você parear um Piloto (Cyber-Newtype) com uma das suas Unidades azuis, compre 1 carta.",
+    "status": "OK",
+    "tokens": [
+      "【Once per Turn】",
+      "<Repair 2>",
+      "(Cyber-Newtype)",
+      "HP"
+    ]
+  },
+  {
+    "code": "GD04-005",
+    "name": "GM III",
+    "set": "GD04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD04-006",
+    "name": "V-Dash Gundam",
+    "set": "GD04",
+    "effectEn": "<Breach 3> (When this Unit's attack destroys an enemy Unit, deal the specified amount of damage to the first card in that opponent's shield area.)\n【Activate･Main】【Once per Turn】Rest 1 of your other (League Militaire) Units：Choose 1 enemy Unit with 4 or less HP. Rest it.",
+    "effectPt": "<Breach 3> (Quando o ataque desta Unidade destruir uma Unidade inimiga, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)\n【Activate･Main】【Once per Turn】Coloque em Rest 1 das suas outras Unidades (League Militaire)：Escolha 1 Unidade inimiga com HP 4 ou menos. Coloque-a em Rest.",
+    "status": "OK",
+    "tokens": [
+      "【Activate･Main】",
+      "【Once per Turn】",
+      "<Breach 3>",
+      "(League Militaire)",
+      "HP",
+      "Rest",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD04-007",
+    "name": "Victory Gundam Hexa",
+    "set": "GD04",
+    "effectEn": "【During Pair】【Attack】Deploy 1 [Parts]((League Militaire)･AP1･HP1･This Unit can't choose the enemy player as its attack target) Unit token.",
+    "effectPt": "【During Pair】【Attack】Faça o Deploy de 1 ficha de Unidade [Parts]((League Militaire)･AP1･HP1･This Unit can't choose the enemy player as its attack target).",
+    "status": "OK",
+    "tokens": [
+      "【During Pair】",
+      "【Attack】",
+      "[Parts]",
+      "((League Militaire)･AP1･HP1･This Unit can't choose the enemy player as its attack target)"
+    ]
+  },
+  {
+    "code": "GD04-008",
+    "name": "Gundam",
+    "set": "GD04",
+    "effectEn": "【During Link】This Unit gains <High-Maneuver>.\n\n(This Unit can't be blocked.)",
+    "effectPt": "【During Link】Esta Unidade ganha <High-Maneuver>.\n\n(Esta Unidade não pode ser bloqueada.)",
+    "status": "OK",
+    "tokens": [
+      "【During Link】",
+      "<High-Maneuver>"
+    ]
+  },
+  {
+    "code": "GD04-009",
+    "name": "Guncannon (108) & Guncannon (109)",
+    "set": "GD04",
+    "effectEn": "【When Linked】Choose 1 of your other (White Base Team) Units that is Lv.4 or higher. Set it as active.",
+    "effectPt": "【When Linked】Escolha 1 das suas outras Unidades (White Base Team) de Lv.4 ou maior. Coloque-a como ativa.",
+    "status": "OK",
+    "tokens": [
+      "【When Linked】",
+      "(White Base Team)",
+      "Lv.4"
+    ]
+  },
+  {
+    "code": "GD04-010",
+    "name": "Gaplant",
+    "set": "GD04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD04-011",
+    "name": "Victory Gundam",
+    "set": "GD04",
+    "effectEn": "【Destroyed】If another friendly (League Militaire) Unit is in play, deploy 1 [Parts]((League Militaire)･AP1･HP1･This Unit can't choose the enemy player as its attack target) Unit token.",
+    "effectPt": "【Destroyed】Se outra Unidade (League Militaire) aliada estiver em jogo, faça o Deploy de 1 ficha de Unidade [Parts]((League Militaire)･AP1･HP1･This Unit can't choose the enemy player as its attack target).",
+    "status": "OK",
+    "tokens": [
+      "【Destroyed】",
+      "[Parts]",
+      "((League Militaire)･AP1･HP1･This Unit can't choose the enemy player as its attack target)",
+      "(League Militaire)"
+    ]
+  },
+  {
+    "code": "GD04-012",
+    "name": "Core Booster (005) & Core Booster (006)",
+    "set": "GD04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD04-013",
+    "name": "Core Fighter",
+    "set": "GD04",
+    "effectEn": "While this Unit is rested, all your (League Militaire) Unit tokens gain <Blocker>.\n\n(Rest this Unit to change the attack target to it.)",
+    "effectPt": "Enquanto esta Unidade estiver descansada, todas as suas fichas de Unidade (League Militaire) ganham <Blocker>.\n\n(Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "(League Militaire)",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD04-014",
+    "name": "Shokew",
+    "set": "GD04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD04-015",
+    "name": "Gun EZ",
+    "set": "GD04",
+    "effectEn": "【Deploy】Choose 1 of your active (League Militaire) Units and 1 enemy Unit that is Lv.3 or lower. Rest them.",
+    "effectPt": "【Deploy】Escolha 1 das suas Unidades (League Militaire) ativas e 1 Unidade inimiga de Lv.3 ou menor. Coloque-as em Rest.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "(League Militaire)",
+      "Lv.3",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD04-016",
+    "name": "Zoloat (League Militaire)",
+    "set": "GD04",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)\nThis Unit can't choose the enemy player as its attack target.",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)\nEsta Unidade não pode escolher o jogador inimigo como alvo de ataque.",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD04-017",
+    "name": "Zeong",
+    "set": "GD04",
+    "effectEn": "【When Paired･(Newtype) Pilot】Deploy 2 [Wire-Guided Arm]((Zeon)･AP2･HP1･This Unit can't be paired with a Pilot) Unit tokens.\n【Destroyed】Deploy 1 rested [Zeong (Head)]((Zeon)･AP3･HP1) Unit token.",
+    "effectPt": "【When Paired･(Newtype) Pilot】Faça o Deploy de 2 fichas de Unidade [Wire-Guided Arm]((Zeon)･AP2･HP1･This Unit can't be paired with a Pilot).\n【Destroyed】Faça o Deploy de 1 ficha de Unidade [Zeong (Head)]((Zeon)･AP3･HP1) descansada.",
+    "status": "OK",
+    "tokens": [
+      "【When Paired･(Newtype) Pilot】",
+      "【Destroyed】",
+      "[Wire-Guided Arm]",
+      "[Zeong (Head)]",
+      "((Zeon)･AP2･HP1･This Unit can't be paired with a Pilot)",
+      "((Zeon)･AP3･HP1)"
+    ]
+  },
+  {
+    "code": "GD04-018",
+    "name": "Gundam Pharact",
+    "set": "GD04",
+    "effectEn": "<Breach 5> (When this Unit's attack destroys an enemy Unit, deal the specified amount of damage to the first card in that opponent's shield area.)\n【Once per Turn】During your turn, when one of your other (Academy) Units receives damage from an enemy, place 1 EX Resource.",
+    "effectPt": "<Breach 5> (Quando o ataque desta Unidade destruir uma Unidade inimiga, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)\n【Once per Turn】Durante o seu turno, quando uma das suas outras Unidades (Academy) receber dano de um inimigo, coloque 1 EX Resource.",
+    "status": "OK",
+    "tokens": [
+      "【Once per Turn】",
+      "<Breach 5>",
+      "(Academy)"
+    ]
+  },
+  {
+    "code": "GD04-019",
+    "name": "GN Armor Type-D (Trans-Am)",
+    "set": "GD04",
+    "effectEn": "<Breach 3> (When this Unit's attack destroys an enemy Unit, deal the specified amount of damage to the first card in that opponent's shield area.)\n【Destroyed】Look at the top 3 cards of your deck. You may reveal 1 (CB) Unit card that is Lv.5 or lower among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck.",
+    "effectPt": "<Breach 3> (Quando o ataque desta Unidade destruir uma Unidade inimiga, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)\n【Destroyed】Olhe as 3 cartas do topo do seu deck. Você pode revelar 1 carta de Unidade (CB) de Lv.5 ou menor entre elas e adicioná-la à sua mão. Coloque as cartas restantes no fundo do seu deck em ordem aleatória.",
+    "status": "OK",
+    "tokens": [
+      "【Destroyed】",
+      "<Breach 3>",
+      "(CB)",
+      "Lv.5"
+    ]
+  },
+  {
+    "code": "GD04-020",
+    "name": "Gundam Lfrith Ur",
+    "set": "GD04",
+    "effectEn": "【Once per Turn】During your turn, when you play and activate a (Dawn of Fold) Command card using an EX Resource, draw 1.",
+    "effectPt": "【Once per Turn】Durante o seu turno, quando você jogar e ativar uma carta de Comando (Dawn of Fold) usando um EX Resource, compre 1 carta.",
+    "status": "OK",
+    "tokens": [
+      "【Once per Turn】"
+    ]
+  },
+  {
+    "code": "GD04-021",
+    "name": "Gundam Lfrith Thorn",
+    "set": "GD04",
+    "effectEn": "<Breach 3> (When this Unit's attack destroys an enemy Unit, deal the specified amount of damage to the first card in that opponent's shield area.)\nDuring your turn, when you play and activate a (Dawn of Fold) Command card using an EX Resource, you may pair that card from your trash with one of your Units with \"Gundam Lfrith\" in its card name.",
+    "effectPt": "<Breach 3> (Quando o ataque desta Unidade destruir uma Unidade inimiga, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)\nDurante o seu turno, quando você jogar e ativar uma carta de Comando (Dawn of Fold) usando um EX Resource, você pode parear aquela carta, a partir do seu lixo, com uma das suas Unidades com \"Gundam Lfrith\" no nome.",
+    "status": "OK",
+    "tokens": [
+      "<Breach 3>"
+    ]
+  },
+  {
+    "code": "GD04-022",
+    "name": "Kikeroga (MS Mode) (GQ)",
+    "set": "GD04",
+    "effectEn": "All your Unit tokens gain <Breach 1>.\n\n(When this Unit's attack destroys an enemy Unit, deal the specified amount of damage to the first card in that opponent's shield area.)\n【During Link】All Units that are Lv.3 or lower other than Unit tokens are deployed rested.",
+    "effectPt": "Todas as suas fichas de Unidade ganham <Breach 1>.\n\n(Quando o ataque desta Unidade destruir uma Unidade inimiga, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)\n【During Link】Todas as Unidades de Lv.3 ou menor, exceto fichas de Unidade, entram em jogo descansadas.",
+    "status": "OK",
+    "tokens": [
+      "【During Link】",
+      "<Breach 1>",
+      "Lv.3"
+    ]
+  },
+  {
+    "code": "GD04-023",
+    "name": "Gundam Kyrios (Tail Booster)",
+    "set": "GD04",
+    "effectEn": "【Deploy】Choose 1 of your Units paired with a (Super Soldier) Pilot. During this turn, it may choose an active enemy Unit that is Lv.4 or lower as its attack target.",
+    "effectPt": "【Deploy】Escolha 1 das suas Unidades pareadas com um Piloto (Super Soldier). Durante este turno, ela pode escolher uma Unidade inimiga ativa de Lv.4 ou menor como alvo de ataque.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "(Super Soldier)",
+      "Lv.4"
+    ]
+  },
+  {
+    "code": "GD04-024",
+    "name": "Gundam Aerial Rebuild",
+    "set": "GD04",
+    "effectEn": "【Deploy】Look at the top 3 cards of your deck. You may reveal 1 (Academy) Unit card/Command card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck.",
+    "effectPt": "【Deploy】Olhe as 3 cartas do topo do seu deck. Você pode revelar 1 carta de Unidade/carta de Comando (Academy) entre elas e adicioná-la à sua mão. Coloque as cartas restantes no fundo do seu deck em ordem aleatória.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "(Academy)"
+    ]
+  },
+  {
+    "code": "GD04-025",
+    "name": "Gundvölva",
+    "set": "GD04",
+    "effectEn": "【Destroyed】During your turn, if you have another (Dawn of Fold) Unit in play, place 1 EX Resource.",
+    "effectPt": "【Destroyed】Durante o seu turno, se você tiver outra Unidade (Dawn of Fold) em jogo, coloque 1 EX Resource.",
+    "status": "OK",
+    "tokens": [
+      "【Destroyed】"
+    ]
+  },
+  {
+    "code": "GD04-026",
+    "name": "Garma's Dopp",
+    "set": "GD04",
+    "effectEn": "【Deploy】Look at the top card of your deck. Return it to the top of your deck or place it into your trash.",
+    "effectPt": "【Deploy】Olhe a carta do topo do seu deck. Devolva-a ao topo do seu deck ou coloque-a no seu lixo.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】"
+    ]
+  },
+  {
+    "code": "GD04-027",
+    "name": "Bigro",
+    "set": "GD04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD04-028",
+    "name": "Zakrello",
+    "set": "GD04",
+    "effectEn": "【Attack】Choose 1 active enemy Unit. It gains <Blocker> during this turn.\n\n(Rest this Unit to change the attack target to it.)",
+    "effectPt": "【Attack】Escolha 1 Unidade inimiga ativa. Ela ganha <Blocker> durante este turno.\n\n(Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "【Attack】",
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD04-029",
+    "name": "Gundam Dynames (GN Full Shield)",
+    "set": "GD04",
+    "effectEn": "【Once per Turn】If you have a (CB) Pilot in play, when this Unit receives damage from an enemy, reduce it by 1.",
+    "effectPt": "【Once per Turn】Se você tiver um Piloto (CB) em jogo, quando esta Unidade receber dano de um inimigo, reduza-o em 1.",
+    "status": "OK",
+    "tokens": [
+      "【Once per Turn】",
+      "(CB)"
+    ]
+  },
+  {
+    "code": "GD04-030",
+    "name": "Chuchu's Demi Trainer",
+    "set": "GD04",
+    "effectEn": "【Attack】Choose 1 of your other (Academy) Units. During this turn, it may choose an active enemy Unit that is Lv.3 or lower as its attack target.",
+    "effectPt": "【Attack】Escolha 1 das suas outras Unidades (Academy). Durante este turno, ela pode escolher uma Unidade inimiga ativa de Lv.3 ou menor como alvo de ataque.",
+    "status": "OK",
+    "tokens": [
+      "【Attack】",
+      "(Academy)",
+      "Lv.3"
+    ]
+  },
+  {
+    "code": "GD04-031",
+    "name": "Heindree",
+    "set": "GD04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD04-032",
+    "name": "Xavier's Gyan Hakuji-Packs (GQ)",
+    "set": "GD04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD04-033",
+    "name": "Neo Zeong",
+    "set": "GD04",
+    "effectEn": "When this Unit or one of your (Neo Zeon) Units is deployed, choose 1 enemy Unit. Deal 3 damage to it.\n【During Link】All your Units gain (Neo Zeon).",
+    "effectPt": "Quando esta Unidade ou uma das suas Unidades (Neo Zeon) entrar em jogo, escolha 1 Unidade inimiga. Cause 3 de dano a ela.\n【During Link】Todas as suas Unidades ganham (Neo Zeon).",
+    "status": "OK",
+    "tokens": [
+      "【During Link】",
+      "(Neo Zeon)",
+      "(Neo Zeon)"
+    ]
+  },
+  {
+    "code": "GD04-034",
+    "name": "Gundam Kyrios",
+    "set": "GD04",
+    "effectEn": "<First Strike> (While this Unit is attacking, it deals damage before the enemy Unit.)\n【During Link】This Unit gets AP+2 for each of your rested (CB) Units.",
+    "effectPt": "<First Strike> (Enquanto esta Unidade estiver atacando, ela causa dano antes da Unidade inimiga.)\n【During Link】Esta Unidade recebe AP+2 para cada uma das suas Unidades (CB) descansadas.",
+    "status": "OK",
+    "tokens": [
+      "【During Link】",
+      "<First Strike>",
+      "(CB)",
+      "AP+2"
+    ]
+  },
+  {
+    "code": "GD04-035",
+    "name": "Ξ Gundam",
+    "set": "GD04",
+    "effectEn": "【Deploy】Choose 1 of your (Mafty) Units. When it destroys an enemy Unit with battle damage during this turn, if you have 3 or less cards in your hand, draw 1.",
+    "effectPt": "【Deploy】Escolha 1 das suas Unidades (Mafty). Quando ela destruir uma Unidade inimiga com dano de batalha durante este turno, se você tiver 3 ou menos cartas na mão, compre 1 carta.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "(Mafty)"
+    ]
+  },
+  {
+    "code": "GD04-036",
+    "name": "Gundam Throne Eins",
+    "set": "GD04",
+    "effectEn": "【Deploy】You may choose 1 to 2 of your other active (CB) Units. Rest them. If you do, deal damage equal to the number of Units rested with this effect to all enemy Units that are Lv.6 or lower.",
+    "effectPt": "【Deploy】Você pode escolher de 1 a 2 das suas outras Unidades (CB) ativas. Coloque-as em Rest. Se fizer isso, cause dano igual ao número de Unidades descansadas por este efeito a todas as Unidades inimigas de Lv.6 ou menor.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "(CB)",
+      "Lv.6",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD04-037",
+    "name": "Gundam Kyrios (Trans-Am)",
+    "set": "GD04",
+    "effectEn": "While you have a red (Super Soldier) Pilot in play, this Unit gains <First Strike>.\n\n(While this Unit is attacking, it deals damage before the enemy Unit.)\nWhile you have a green (Super Soldier) Pilot in play, this Unit gains <Breach 3>.\n\n(When this Unit's attack destroys an enemy Unit, deal the specified amount of damage to the first card in that opponent's shield area.)",
+    "effectPt": "Enquanto você tiver um Piloto (Super Soldier) vermelho em jogo, esta Unidade ganha <First Strike>.\n\n(Enquanto esta Unidade estiver atacando, ela causa dano antes da Unidade inimiga.)\nEnquanto você tiver um Piloto (Super Soldier) verde em jogo, esta Unidade ganha <Breach 3>.\n\n(Quando o ataque desta Unidade destruir uma Unidade inimiga, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)",
+    "status": "OK",
+    "tokens": [
+      "<First Strike>",
+      "<Breach 3>",
+      "(Super Soldier)",
+      "(Super Soldier)"
+    ]
+  },
+  {
+    "code": "GD04-038",
+    "name": "Gundam Exia",
+    "set": "GD04",
+    "effectEn": "【Deploy】If 2 or more enemy Units are in play, choose 1 enemy Unit that is Lv.2 or lower. Deal 2 damage to it.",
+    "effectPt": "【Deploy】Se 2 ou mais Unidades inimigas estiverem em jogo, escolha 1 Unidade inimiga de Lv.2 ou menor. Cause 2 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "Lv.2"
+    ]
+  },
+  {
+    "code": "GD04-039",
+    "name": "Rozen Zulu",
+    "set": "GD04",
+    "effectEn": "If there are 8 or more (Neo Zeon) cards in your trash, this card in your hand gets cost -4.\n【Deploy】Choose 1 enemy Unit. Deal 1 damage to it. If it has <Repair>, deal 3 damage instead.",
+    "effectPt": "Se houver 8 ou mais cartas (Neo Zeon) no seu lixo, esta carta na sua mão recebe custo -4.\n【Deploy】Escolha 1 Unidade inimiga. Cause 1 de dano a ela. Se ela tiver <Repair>, cause 3 de dano em vez disso.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "<Repair>",
+      "(Neo Zeon)"
+    ]
+  },
+  {
+    "code": "GD04-040",
+    "name": "Schuzrum-Galluss",
+    "set": "GD04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD04-041",
+    "name": "Gundam Throne Drei",
+    "set": "GD04",
+    "effectEn": "【Once per Turn】When this Unit is rested by an effect, set it as active.",
+    "effectPt": "【Once per Turn】Quando esta Unidade for descansada por um efeito, coloque-a como ativa.",
+    "status": "OK",
+    "tokens": [
+      "【Once per Turn】"
+    ]
+  },
+  {
+    "code": "GD04-042",
+    "name": "Psycho Gundam (GQ)",
+    "set": "GD04",
+    "effectEn": "【During Link】【Once per Turn】When damage from one of your Units paired with a (Cyber-Newtype) Pilot destroys an enemy shield area card, choose 1 enemy Unit with 5 or less AP. Deal 2 damage to it.",
+    "effectPt": "【During Link】【Once per Turn】Quando o dano de uma das suas Unidades pareadas com um Piloto (Cyber-Newtype) destruir uma carta da área de escudo inimiga, escolha 1 Unidade inimiga com AP 5 ou menos. Cause 2 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【During Link】",
+      "【Once per Turn】",
+      "(Cyber-Newtype)",
+      "AP"
+    ]
+  },
+  {
+    "code": "GD04-043",
+    "name": "Zssa (Sleeves)",
+    "set": "GD04",
+    "effectEn": "【Deploy】Choose 1 enemy Base. Deal 1 damage to it.",
+    "effectPt": "【Deploy】Escolha 1 Base inimiga. Cause 1 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】"
+    ]
+  },
+  {
+    "code": "GD04-044",
+    "name": "Gadeel",
+    "set": "GD04",
+    "effectEn": "【Attack】If you are attacking a damaged enemy Unit, this Unit gains <Breach 3> during this battle.\n\n(When this Unit's attack destroys an enemy Unit, deal the specified amount of damage to the first card in that opponent's shield area.)",
+    "effectPt": "【Attack】Se você estiver atacando uma Unidade inimiga danificada, esta Unidade ganha <Breach 3> durante esta batalha.\n\n(Quando o ataque desta Unidade destruir uma Unidade inimiga, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)",
+    "status": "OK",
+    "tokens": [
+      "【Attack】",
+      "<Breach 3>"
+    ]
+  },
+  {
+    "code": "GD04-045",
+    "name": "Gundam Throne Zwei",
+    "set": "GD04",
+    "effectEn": "【When Linked】Choose 1 of your (CB) Units. During this turn, it may choose a damaged active enemy Unit as its attack target.",
+    "effectPt": "【When Linked】Escolha 1 das suas Unidades (CB). Durante este turno, ela pode escolher uma Unidade inimiga ativa danificada como alvo de ataque.",
+    "status": "OK",
+    "tokens": [
+      "【When Linked】",
+      "(CB)"
+    ]
+  },
+  {
+    "code": "GD04-046",
+    "name": "Gundam Dynames",
+    "set": "GD04",
+    "effectEn": "【Deploy】You may rest this Unit. If you do, choose 1 enemy Unit that is Lv.3 or lower. Deal 2 damage to it.",
+    "effectPt": "【Deploy】Você pode descansar esta Unidade. Se fizer isso, escolha 1 Unidade inimiga de Lv.3 ou menor. Cause 2 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "Lv.3"
+    ]
+  },
+  {
+    "code": "GD04-047",
+    "name": "Gundam Virtue",
+    "set": "GD04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD04-048",
+    "name": "Hambrabi (GQ)",
+    "set": "GD04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD04-049",
+    "name": "Gundam DX",
+    "set": "GD04",
+    "effectEn": "<Suppression> (Damage to Shields by an attack is dealt to the first 2 cards simultaneously.)\n【During Pair】【Attack】If you are attacking the enemy player, you may choose 7 (Vulture) cards from your trash. Exile them from the game. If you do, choose 1 enemy Unit/Base that is Lv.8 or lower. Destroy it.",
+    "effectPt": "<Suppression> (O dano de um ataque aos escudos é causado às 2 primeiras cartas ao mesmo tempo.)\n【During Pair】【Attack】Se você estiver atacando o jogador inimigo, você pode escolher 7 cartas (Vulture) do seu lixo. Exile-as do jogo. Se fizer isso, escolha 1 Unidade/Base inimiga de Lv.8 ou menor. Destrua-a.",
+    "status": "OK",
+    "tokens": [
+      "【During Pair】",
+      "【Attack】",
+      "<Suppression>",
+      "(Vulture)",
+      "Lv.8"
+    ]
+  },
+  {
+    "code": "GD04-050",
+    "name": "Destiny Gundam",
+    "set": "GD04",
+    "effectEn": "<High-Maneuver> (This Unit can't be blocked.)\n【During Pair】【Attack】You may choose 1 (Minerva Squad) Unit card from your trash. Pay its cost to deploy it.",
+    "effectPt": "<High-Maneuver> (Esta Unidade não pode ser bloqueada.)\n【During Pair】【Attack】Você pode escolher 1 carta de Unidade (Minerva Squad) do seu lixo. Pague o custo dela para fazer o Deploy.",
+    "status": "OK",
+    "tokens": [
+      "【During Pair】",
+      "【Attack】",
+      "<High-Maneuver>",
+      "(Minerva Squad)"
+    ]
+  },
+  {
+    "code": "GD04-051",
+    "name": "Gundam Airmaster Burst",
+    "set": "GD04",
+    "effectEn": "【During Pair･(Vulture) Pilot】If there are 7 or more cards in your trash, this Unit may choose an active enemy Unit with a keyword effect as its attack target.",
+    "effectPt": "【During Pair･(Vulture) Pilot】Se houver 7 ou mais cartas no seu lixo, esta Unidade pode escolher como alvo de ataque uma Unidade inimiga ativa com um efeito de keyword.",
+    "status": "OK",
+    "tokens": [
+      "【During Pair･(Vulture) Pilot】"
+    ]
+  },
+  {
+    "code": "GD04-052",
+    "name": "Gundam Leopard Destroy",
+    "set": "GD04",
+    "effectEn": "【During Pair】【Attack】You may choose 1 enemy Unit. Deal 2 damage to it and this Unit.",
+    "effectPt": "【During Pair】【Attack】Você pode escolher 1 Unidade inimiga. Cause 2 de dano a ela e a esta Unidade.",
+    "status": "OK",
+    "tokens": [
+      "【During Pair】",
+      "【Attack】"
+    ]
+  },
+  {
+    "code": "GD04-053",
+    "name": "Rey's Blaze Zaku Phantom",
+    "set": "GD04",
+    "effectEn": "【During Link】【Once per Turn】When this Unit receives damage from an enemy, reduce it by 1.",
+    "effectPt": "【During Link】【Once per Turn】Quando esta Unidade receber dano de um inimigo, reduza-o em 1.",
+    "status": "OK",
+    "tokens": [
+      "【During Link】",
+      "【Once per Turn】"
+    ]
+  },
+  {
+    "code": "GD04-054",
+    "name": "Gundam Virtue (Trans-Am)",
+    "set": "GD04",
+    "effectEn": "When this Unit deals battle damage to an enemy Unit, destroy that enemy Unit.",
+    "effectPt": "Quando esta Unidade causar dano de batalha a uma Unidade inimiga, destrua aquela Unidade inimiga.",
+    "status": "OK",
+    "tokens": []
+  },
+  {
+    "code": "GD04-055",
+    "name": "Heine's Gouf Ignited",
+    "set": "GD04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD04-056",
+    "name": "Sword Impulse Gundam",
+    "set": "GD04",
+    "effectEn": "【Deploy】Deal 1 damage to this Unit. If you do, choose 1 enemy Unit with 3 or less AP. Rest it.",
+    "effectPt": "【Deploy】Cause 1 de dano a esta Unidade. Se fizer isso, escolha 1 Unidade inimiga com AP 3 ou menos. Coloque-a em Rest.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "AP",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD04-057",
+    "name": "Gundam Nadleeh",
+    "set": "GD04",
+    "effectEn": "【Deploy】Choose 1 enemy Unit that is Lv.6 or lower. During this turn, reduce its AP by an amount equal to the number of Unit cards with \"Gundam Virtue\" in their card names in your trash.",
+    "effectPt": "【Deploy】Escolha 1 Unidade inimiga de Lv.6 ou menor. Durante este turno, reduza o AP dela em uma quantidade igual ao número de cartas de Unidade com \"Gundam Virtue\" no nome no seu lixo.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "AP",
+      "Lv.6"
+    ]
+  },
+  {
+    "code": "GD04-058",
+    "name": "Jamil's Gundam X",
+    "set": "GD04",
+    "effectEn": "【During Pair･(Vulture) Pilot】【Destroyed】If it is your turn, return this Unit's paired Pilot to its owner's hand.",
+    "effectPt": "【During Pair･(Vulture) Pilot】【Destroyed】Se for o seu turno, devolva o Piloto pareado com esta Unidade à mão do dono.",
+    "status": "OK",
+    "tokens": [
+      "【During Pair･(Vulture) Pilot】",
+      "【Destroyed】"
+    ]
+  },
+  {
+    "code": "GD04-059",
+    "name": "Daughtress High Mobility Command Wise Wallaby",
+    "set": "GD04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD04-060",
+    "name": "Esperansa",
+    "set": "GD04",
+    "effectEn": "【Deploy】If you deploy this Unit from your trash, draw 1.",
+    "effectPt": "【Deploy】Se você fizer o Deploy desta Unidade a partir do seu lixo, compre 1 carta.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】"
+    ]
+  },
+  {
+    "code": "GD04-061",
+    "name": "G-Falcon",
+    "set": "GD04",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)\nThis Unit can't attack while there are 6 or less cards in your trash.",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)\nEsta Unidade não pode atacar enquanto houver 6 ou menos cartas no seu lixo.",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD04-062",
+    "name": "Lunamaria's Gunner Zaku Warrior",
+    "set": "GD04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD04-063",
+    "name": "GN Armor Type-E",
+    "set": "GD04",
+    "effectEn": "【Deploy】Choose 1 enemy Unit that is Lv.1 or lower or has 1 or less AP. Destroy it.",
+    "effectPt": "【Deploy】Escolha 1 Unidade inimiga de Lv.1 ou menor ou com AP 1 ou menos. Destrua-a.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "AP",
+      "Lv.1"
+    ]
+  },
+  {
+    "code": "GD04-064",
+    "name": "Gundam Exia",
+    "set": "GD04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD04-065",
+    "name": "Unicorn Gundam 02 Banshee Norn (Destroy Mode)",
+    "set": "GD04",
+    "effectEn": "【During Link】【Activate･Main】Exile 3 blue cards from your trash：Set this Unit as active. It can't choose the enemy player as its attack target during this turn.\n【Attack】All enemy Units get AP-1 during this turn.",
+    "effectPt": "【During Link】【Activate･Main】Exile 3 cartas azuis do seu lixo：Coloque esta Unidade como ativa. Ela não pode escolher o jogador inimigo como alvo de ataque durante este turno.\n【Attack】Todas as Unidades inimigas recebem AP-1 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【During Link】",
+      "【Activate･Main】",
+      "【Attack】",
+      "AP-1"
+    ]
+  },
+  {
+    "code": "GD04-066",
+    "name": "Unicorn Gundam (Awakened)",
+    "set": "GD04",
+    "effectEn": "<Suppression> (Damage to Shields by an attack is dealt to the first 2 cards simultaneously.)\nWhen you activate a Command's 【Main】/【Action】 effect, choose 1 enemy Unit. It gets AP-2 during this turn.",
+    "effectPt": "<Suppression> (O dano de um ataque aos escudos é causado às 2 primeiras cartas ao mesmo tempo.)\nQuando você ativar um efeito 【Main】/【Action】 de um Comando, escolha 1 Unidade inimiga. Ela recebe AP-2 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Action】",
+      "<Suppression>",
+      "AP-2"
+    ]
+  },
+  {
+    "code": "GD04-067",
+    "name": "∀ Gundam",
+    "set": "GD04",
+    "effectEn": "【Activate･Main】【Once per Turn】①：Choose 1 Unit card with <Repair>/<Breach>/<First Strike>/<Support>/<High-Maneuver>/<Suppression>/<Blocker> from your trash. During this turn, this Unit gets AP+1 and all <Repair>/<Breach>/<First Strike>/<Support>/<High-Maneuver>/<Suppression>/<Blocker> on that Unit card.",
+    "effectPt": "【Activate･Main】【Once per Turn】①：Escolha 1 carta de Unidade com <Repair>/<Breach>/<First Strike>/<Support>/<High-Maneuver>/<Suppression>/<Blocker> do seu lixo. Durante este turno, esta Unidade recebe AP+1 e todos os <Repair>/<Breach>/<First Strike>/<Support>/<High-Maneuver>/<Suppression>/<Blocker> daquela carta de Unidade.",
+    "status": "OK",
+    "tokens": [
+      "【Activate･Main】",
+      "【Once per Turn】",
+      "<Repair>",
+      "<Breach>",
+      "<First Strike>",
+      "<Support>",
+      "<High-Maneuver>",
+      "<Suppression>",
+      "<Blocker>",
+      "<Repair>",
+      "<Breach>",
+      "<First Strike>",
+      "<Support>",
+      "<High-Maneuver>",
+      "<Suppression>",
+      "<Blocker>",
+      "①",
+      "AP+1"
+    ]
+  },
+  {
+    "code": "GD04-068",
+    "name": "Silver Bullet",
+    "set": "GD04",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)\nWhen this Unit receives effect damage from an enemy, reduce it by 3.",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)\nQuando esta Unidade receber dano de efeito de um inimigo, reduza-o em 3.",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD04-069",
+    "name": "∀ Gundam",
+    "set": "GD04",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)\n【During Link】At the end of a turn where you have paid ① or more for one of your other (Militia)/(Dianna Counter) Units' effects, choose 1 of your (Militia) Units. Set it as active.",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)\n【During Link】No fim de um turno em que você tenha pago ① ou mais pelos efeitos de uma das suas outras Unidades (Militia)/(Dianna Counter), escolha 1 das suas Unidades (Militia). Coloque-a como ativa.",
+    "status": "OK",
+    "tokens": [
+      "【During Link】",
+      "<Blocker>",
+      "①",
+      "(Militia)",
+      "(Dianna Counter)",
+      "(Militia)",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD04-070",
+    "name": "Al-Saachez's AEU Enact Custom Moralia Development Experiment Type",
+    "set": "GD04",
+    "effectEn": "【Deploy】You may pair 1 Pilot card with \"Ali al-Saachez\" in its card name from your hand with this Unit.",
+    "effectPt": "【Deploy】Você pode parear 1 carta de Piloto com \"Ali al-Saachez\" no nome da sua mão com esta Unidade.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】"
+    ]
+  },
+  {
+    "code": "GD04-071",
+    "name": "Graham's Union Flag Custom Ⅱ (GN Flag)",
+    "set": "GD04",
+    "effectEn": "【Burst】If an enemy (CB) Unit is in play, add this card to your hand.\n【Activate･Main】Choose 1 (Superpower Bloc) card and 1 (UN) card from your trash. Exile them from the game. If you do, set this Unit as active. It can't attack during this turn.",
+    "effectPt": "【Burst】Se uma Unidade (CB) inimiga estiver em jogo, adicione esta carta à sua mão.\n【Activate･Main】Escolha 1 carta (Superpower Bloc) e 1 carta (UN) do seu lixo. Exile-as do jogo. Se fizer isso, coloque esta Unidade como ativa. Ela não pode atacar durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Activate･Main】",
+      "(CB)",
+      "(Superpower Bloc)",
+      "(UN)"
+    ]
+  },
+  {
+    "code": "GD04-072",
+    "name": "Unicorn Gundam 02 Banshee Norn (Unicorn Mode)",
+    "set": "GD04",
+    "effectEn": "【When Linked】Choose 1 enemy Unit with 3 or less HP. Return it to its owner's hand.",
+    "effectPt": "【When Linked】Escolha 1 Unidade inimiga com HP 3 ou menos. Devolva-a à mão do dono.",
+    "status": "OK",
+    "tokens": [
+      "【When Linked】",
+      "HP"
+    ]
+  },
+  {
+    "code": "GD04-073",
+    "name": "∀ Gundam",
+    "set": "GD04",
+    "effectEn": "【Activate･Main】【Once per Turn】①：This Unit gets AP+2 during this turn.",
+    "effectPt": "【Activate･Main】【Once per Turn】①：Esta Unidade recebe AP+2 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Activate･Main】",
+      "【Once per Turn】",
+      "①",
+      "AP+2"
+    ]
+  },
+  {
+    "code": "GD04-074",
+    "name": "Kapool",
+    "set": "GD04",
+    "effectEn": "【Attack】You may pay ①. If you do, draw 1. Then, discard 1.",
+    "effectPt": "【Attack】Você pode pagar ①. Se fizer isso, compre 1 carta. Então, descarte 1 carta.",
+    "status": "OK",
+    "tokens": [
+      "【Attack】",
+      "①"
+    ]
+  },
+  {
+    "code": "GD04-075",
+    "name": "GN-X",
+    "set": "GD04",
+    "effectEn": "Reduce the cost of this card in your hand by an amount equal to the number of (UN)/(Superpower Bloc) Command cards in your trash.",
+    "effectPt": "Reduza o custo desta carta na sua mão em uma quantidade igual ao número de cartas de Comando (UN)/(Superpower Bloc) no seu lixo.",
+    "status": "OK",
+    "tokens": [
+      "(UN)",
+      "(Superpower Bloc)"
+    ]
+  },
+  {
+    "code": "GD04-076",
+    "name": "Hipheavy",
+    "set": "GD04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD04-077",
+    "name": "Flat (Militia)",
+    "set": "GD04",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD04-078",
+    "name": "Borjarnon",
+    "set": "GD04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD04-079",
+    "name": "Agrissa",
+    "set": "GD04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD04-080",
+    "name": "Alvatore",
+    "set": "GD04",
+    "effectEn": "【Destroyed】If you have another (UN)/(Superpower Bloc) Unit in play, deploy 1 rested [Alvaaron]((UN)･AP4･HP1) Unit token.",
+    "effectPt": "【Destroyed】Se você tiver outra Unidade (UN)/(Superpower Bloc) em jogo, faça o Deploy de 1 ficha de Unidade [Alvaaron]((UN)･AP4･HP1) descansada.",
+    "status": "OK",
+    "tokens": [
+      "【Destroyed】",
+      "[Alvaaron]",
+      "((UN)･AP4･HP1)",
+      "(UN)",
+      "(Superpower Bloc)"
+    ]
+  },
+  {
+    "code": "GD04-081",
+    "name": "Üso Ewin",
+    "set": "GD04",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Paired】If this is a (League Militaire) Unit, deploy 1 [Parts]((League Militaire)･AP1･HP1･This Unit can't choose the enemy player as its attack target) Unit token.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Paired】Se esta for uma Unidade (League Militaire), faça o Deploy de 1 ficha de Unidade [Parts]((League Militaire)･AP1･HP1･This Unit can't choose the enemy player as its attack target).",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Paired】",
+      "[Parts]",
+      "((League Militaire)･AP1･HP1･This Unit can't choose the enemy player as its attack target)",
+      "(League Militaire)"
+    ]
+  },
+  {
+    "code": "GD04-082",
+    "name": "Rosamia Badam",
+    "set": "GD04",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Linked】Choose 1 rested Unit. Deal 1 damage to it.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Linked】Escolha 1 Unidade descansada. Cause 1 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Linked】"
+    ]
+  },
+  {
+    "code": "GD04-083",
+    "name": "Marbet Fingerhat",
+    "set": "GD04",
+    "effectEn": "【Burst】Add this card to your hand.\nAll your (League Militaire) Unit tokens get AP+1.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\nTodas as suas fichas de Unidade (League Militaire) recebem AP+1.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "(League Militaire)",
+      "AP+1"
+    ]
+  },
+  {
+    "code": "GD04-084",
+    "name": "Sleggar Law",
+    "set": "GD04",
+    "effectEn": "【Burst】Add this card to your hand.\n【Attack】Choose 1 of your (White Base Team) Units. It gets AP+1 during this turn.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Attack】Escolha 1 das suas Unidades (White Base Team). Ela recebe AP+1 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Attack】",
+      "(White Base Team)",
+      "AP+1"
+    ]
+  },
+  {
+    "code": "GD04-085",
+    "name": "Suletta Mercury",
+    "set": "GD04",
+    "effectEn": "【Burst】Add this card to your hand.\n【During Link】【Once per Turn】When you play and activate an (Academy) Command card using an EX Resource, if you have no remaining EX Resources, place 1 rested EX Resource.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【During Link】【Once per Turn】Quando você jogar e ativar uma carta de Comando (Academy) usando um EX Resource, se você não tiver mais nenhum EX Resource, coloque 1 EX Resource descansado.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【During Link】",
+      "【Once per Turn】",
+      "(Academy)"
+    ]
+  },
+  {
+    "code": "GD04-086",
+    "name": "Garma Zabi",
+    "set": "GD04",
+    "effectEn": "【Burst】Add this card to your hand.\n【During Link】【Destroyed】If you have no EX Resources, place 1 EX Resource.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【During Link】【Destroyed】Se você não tiver nenhum EX Resource, coloque 1 EX Resource.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【During Link】",
+      "【Destroyed】"
+    ]
+  },
+  {
+    "code": "GD04-087",
+    "name": "Elan Ceres (Enhanced Person Number 5)",
+    "set": "GD04",
+    "effectEn": "【Burst】Add this card to your hand.\n【During Link】【Attack】You may choose 1 of your (Academy) Units. During this battle, battle damage this Unit would receive is dealt to that Unit instead.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【During Link】【Attack】Você pode escolher 1 das suas Unidades (Academy). Durante esta batalha, o dano de batalha que esta Unidade receberia é causado àquela Unidade.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【During Link】",
+      "【Attack】",
+      "(Academy)"
+    ]
+  },
+  {
+    "code": "GD04-088",
+    "name": "Tokwan",
+    "set": "GD04",
+    "effectEn": "【Burst】Add this card to your hand.\nWhen this Unit is blocked by an enemy Unit that is Lv.4 or lower, it can't receive battle damage during this battle.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\nQuando esta Unidade for bloqueada por uma Unidade inimiga de Lv.4 ou menor, ela não pode receber dano de batalha durante esta batalha.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "Lv.4"
+    ]
+  },
+  {
+    "code": "GD04-089",
+    "name": "Nena Trinity",
+    "set": "GD04",
+    "effectEn": "【Burst】Add this card to your hand.\n【Activate･Main】<Support 2> (Rest this Unit. 1 other friendly Unit gets AP+(specified amount) during this turn.)",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Activate･Main】<Support 2> (Coloque esta Unidade em Rest. 1 outra Unidade aliada recebe AP+(quantidade especificada) durante este turno.)",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Activate･Main】",
+      "<Support 2>",
+      "AP",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD04-090",
+    "name": "Hallelujah Haptism",
+    "set": "GD04",
+    "effectEn": "【Burst】Add this card to your hand.\n【During Link】【Once per Turn】During your turn, when this Unit destroys an enemy Unit with battle damage, look at the top card of your deck. If it is a (CB) card, you may reveal it and add it to your hand. Return any remaining card to the bottom of your deck.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【During Link】【Once per Turn】Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano de batalha, olhe a carta do topo do seu deck. Se for uma carta (CB), você pode revelá-la e adicioná-la à sua mão. Coloque a carta restante no fundo do seu deck.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【During Link】",
+      "【Once per Turn】",
+      "(CB)"
+    ]
+  },
+  {
+    "code": "GD04-091",
+    "name": "Deux Murasame",
+    "set": "GD04",
+    "effectEn": "【Burst】Add this card to your hand.\n【Destroyed】Choose 1 undamaged enemy Unit. Deal 1 damage to it.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Destroyed】Escolha 1 Unidade inimiga sem dano. Cause 1 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Destroyed】"
+    ]
+  },
+  {
+    "code": "GD04-092",
+    "name": "Michael Trinity",
+    "set": "GD04",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Linked】Choose 1 damaged enemy Unit. Deal 1 damage to it.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Linked】Escolha 1 Unidade inimiga danificada. Cause 1 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Linked】"
+    ]
+  },
+  {
+    "code": "GD04-093",
+    "name": "Rey Za Burrel",
+    "set": "GD04",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Linked】Choose 1 of your (ZAFT) Link Units. During this turn, reduce the next damage it receives by 2.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Linked】Escolha 1 das suas Unidades com Link (ZAFT). Durante este turno, reduza em 2 o próximo dano que ela receber.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Linked】",
+      "(ZAFT)"
+    ]
+  },
+  {
+    "code": "GD04-094",
+    "name": "Pala Sys",
+    "set": "GD04",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Linked】Choose 1 purple Unit card with <Suppression> from your trash. Add it to your hand.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Linked】Escolha 1 carta de Unidade roxa com <Suppression> do seu lixo. Adicione-a à sua mão.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Linked】",
+      "<Suppression>"
+    ]
+  },
+  {
+    "code": "GD04-095",
+    "name": "Lunamaria Hawke",
+    "set": "GD04",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Linked】Choose 1 of your (Minerva Squad) Units. During this turn, battle damage it would receive is dealt to this Unit instead.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Linked】Escolha 1 das suas Unidades (Minerva Squad). Durante este turno, o dano de batalha que ela receberia é causado a esta Unidade.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Linked】",
+      "(Minerva Squad)"
+    ]
+  },
+  {
+    "code": "GD04-096",
+    "name": "Ennil El",
+    "set": "GD04",
+    "effectEn": "【Burst】Add this card to your hand.\n【During Link】When this Unit deals battle damage to an enemy Unit that is Lv.5 or lower, destroy that enemy Unit.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【During Link】Quando esta Unidade causar dano de batalha a uma Unidade inimiga de Lv.5 ou menor, destrua aquela Unidade inimiga.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【During Link】",
+      "Lv.5"
+    ]
+  },
+  {
+    "code": "GD04-097",
+    "name": "Loran Cehack",
+    "set": "GD04",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Linked】Choose 1 enemy Unit with 3 or less HP. Return it to its owner's hand.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Linked】Escolha 1 Unidade inimiga com HP 3 ou menos. Devolva-a à mão do dono.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Linked】",
+      "HP"
+    ]
+  },
+  {
+    "code": "GD04-098",
+    "name": "Riddhe Marcenas",
+    "set": "GD04",
+    "effectEn": "【Burst】Add this card to your hand.\n【During Link】When this Unit receives effect damage from an enemy, reduce it by 2.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【During Link】Quando esta Unidade receber dano de efeito de um inimigo, reduza-o em 2.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【During Link】"
+    ]
+  },
+  {
+    "code": "GD04-099",
+    "name": "Ali al-Saachez",
+    "set": "GD04",
+    "effectEn": "【Burst】Add this card to your hand.\n【During Link】【Attack】You may choose 1 enemy Pilot. Return it to its owner's hand.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【During Link】【Attack】Você pode escolher 1 Piloto inimigo. Devolva-o à mão do dono.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【During Link】",
+      "【Attack】"
+    ]
+  },
+  {
+    "code": "GD04-100",
+    "name": "Sochie Heim",
+    "set": "GD04",
+    "effectEn": "【Burst】Add this card to your hand.\n【Once per Turn】When you pay ① or more cost for one of your Units' effects, you may increase this Unit's AP during this turn by an amount equal to the cost paid.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Once per Turn】Quando você pagar ① ou mais de custo pelo efeito de uma das suas Unidades, você pode aumentar o AP desta Unidade durante este turno em uma quantidade igual ao custo pago.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Once per Turn】",
+      "①",
+      "AP"
+    ]
+  },
+  {
+    "code": "GD04-101",
+    "name": "Kindhearted",
+    "set": "GD04",
+    "effectEn": "【Burst】Activate this card's 【Main】.\n【Main】/【Action】During this turn, friendly Units can't be destroyed by enemy effects. Then, draw 1.",
+    "effectPt": "【Burst】Ative o 【Main】 desta carta.\n【Main】/【Action】Durante este turno, Unidades aliadas não podem ser destruídas por efeitos inimigos. Então, compre 1 carta.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Main】",
+      "【Main】",
+      "【Action】"
+    ]
+  },
+  {
+    "code": "GD04-102",
+    "name": "Moment of Rest",
+    "set": "GD04",
+    "effectEn": "【Burst】Draw 1.\n【Main】Choose 1 rested enemy Unit that is Lv.5 or lower. It won't be set as active during the start phase of your opponent's next turn.",
+    "effectPt": "【Burst】Compre 1 carta.\n【Main】Escolha 1 Unidade inimiga descansada de Lv.5 ou menor. Ela não volta a ficar ativa na fase inicial do próximo turno do seu oponente.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Main】",
+      "Lv.5"
+    ]
+  },
+  {
+    "code": "GD04-103",
+    "name": "Spiritual Support",
+    "set": "GD04",
+    "effectEn": "【Main】Choose 1 of your Units. It gains <Repair 2> during this turn.\n\n(At the end of your turn, this Unit recovers the specified number of HP.)",
+    "effectPt": "【Main】Escolha 1 das suas Unidades. Ela ganha <Repair 2> durante este turno.\n\n(No fim do seu turno, esta Unidade recupera a quantidade especificada de HP.)",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "<Repair 2>",
+      "HP"
+    ]
+  },
+  {
+    "code": "GD04-104",
+    "name": "Shrike Team's Bulwark",
+    "set": "GD04",
+    "effectEn": "【Main】/【Action】Choose 1 to 2 enemy Units that are Lv.2 or lower. Rest them.\n【Pilot】[Junko Jenko]",
+    "effectPt": "【Main】/【Action】Escolha de 1 a 2 Unidades inimigas de Lv.2 ou menor. Coloque-as em Rest.\n【Pilot】[Junko Jenko]",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Action】",
+      "【Pilot】",
+      "[Junko Jenko]",
+      "Lv.2",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD04-105",
+    "name": "Encounter",
+    "set": "GD04",
+    "effectEn": "【Main】Look at the top 5 cards of your deck. You may reveal 1 Pilot card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck.",
+    "effectPt": "【Main】Olhe as 5 cartas do topo do seu deck. Você pode revelar 1 carta de Piloto entre elas e adicioná-la à sua mão. Coloque as cartas restantes no fundo do seu deck em ordem aleatória.",
+    "status": "OK",
+    "tokens": [
+      "【Main】"
+    ]
+  },
+  {
+    "code": "GD04-106",
+    "name": "Indiscriminate Violence",
+    "set": "GD04",
+    "effectEn": "【Main】Choose 1 friendly (Academy) Unit. During this turn, it may choose an active enemy Unit with 5 or less AP as its attack target. If you use an EX Resource to play this card, choose 1 to 2 friendly (Academy) Units instead.\n【Pilot】[Norea Du Noc]",
+    "effectPt": "【Main】Escolha 1 Unidade (Academy) aliada. Durante este turno, ela pode escolher uma Unidade inimiga ativa com AP 5 ou menos como alvo de ataque. Se você usar um EX Resource para jogar esta carta, escolha, em vez disso, de 1 a 2 Unidades (Academy) aliadas.\n【Pilot】[Norea Du Noc]",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Pilot】",
+      "[Norea Du Noc]",
+      "(Academy)",
+      "(Academy)",
+      "AP"
+    ]
+  },
+  {
+    "code": "GD04-107",
+    "name": "Destined Battle",
+    "set": "GD04",
+    "effectEn": "【Burst】Add this card to your hand.\n【Action】Choose 1 of your rested Units. During this turn, all enemy Units must choose that Unit as their attack target when attacking.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Action】Escolha 1 das suas Unidades descansadas. Durante este turno, todas as Unidades inimigas precisam escolher aquela Unidade como alvo de ataque ao atacar.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Action】"
+    ]
+  },
+  {
+    "code": "GD04-108",
+    "name": "Witches from Earth",
+    "set": "GD04",
+    "effectEn": "【Main】/【Action】Choose 1 friendly (Academy) Unit. During this turn, reduce the next damage it receives by 2. If you use an EX Resource to play this card, reduce by 4 instead.\n【Pilot】[Sophie Pulone]",
+    "effectPt": "【Main】/【Action】Escolha 1 Unidade (Academy) aliada. Durante este turno, reduza em 2 o próximo dano que ela receber. Se você usar um EX Resource para jogar esta carta, reduza em 4 em vez disso.\n【Pilot】[Sophie Pulone]",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Action】",
+      "【Pilot】",
+      "[Sophie Pulone]",
+      "(Academy)"
+    ]
+  },
+  {
+    "code": "GD04-109",
+    "name": "Overwhelming Pressure",
+    "set": "GD04",
+    "effectEn": "【Main】/【Action】Choose 1 enemy Unit that is Lv.6 or lower. Deal 4 damage to it.",
+    "effectPt": "【Main】/【Action】Escolha 1 Unidade inimiga de Lv.6 ou menor. Cause 4 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Action】",
+      "Lv.6"
+    ]
+  },
+  {
+    "code": "GD04-110",
+    "name": "Financier",
+    "set": "GD04",
+    "effectEn": "【Main】/【Action】Deploy 1 EX Base.",
+    "effectPt": "【Main】/【Action】Faça o Deploy de 1 EX Base.",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Action】"
+    ]
+  },
+  {
+    "code": "GD04-111",
+    "name": "Trinity",
+    "set": "GD04",
+    "effectEn": "【Main】/【Action】Choose 1 to 3 of your (CB) Units. They get AP+2 during this turn.\n【Pilot】[Johann Trinity]",
+    "effectPt": "【Main】/【Action】Escolha de 1 a 3 das suas Unidades (CB). Elas recebem AP+2 durante este turno.\n【Pilot】[Johann Trinity]",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Action】",
+      "【Pilot】",
+      "[Johann Trinity]",
+      "(CB)",
+      "AP+2"
+    ]
+  },
+  {
+    "code": "GD04-112",
+    "name": "Inspector",
+    "set": "GD04",
+    "effectEn": "【Main】Deal 1 damage to all Units that are Lv.2 or lower.\n【Pilot】[Gates Capa]",
+    "effectPt": "【Main】Cause 1 de dano a todas as Unidades de Lv.2 ou menor.\n【Pilot】[Gates Capa]",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Pilot】",
+      "[Gates Capa]",
+      "Lv.2"
+    ]
+  },
+  {
+    "code": "GD04-113",
+    "name": "Damage Control",
+    "set": "GD04",
+    "effectEn": "【Burst】Choose 1 enemy Unit. It gets AP-2 during this turn.\n【Action】Choose 1 of your Units. During this battle, reduce battle damage it receives by 3.",
+    "effectPt": "【Burst】Escolha 1 Unidade inimiga. Ela recebe AP-2 durante este turno.\n【Action】Escolha 1 das suas Unidades. Durante esta batalha, reduza em 3 o dano de batalha que ela receber.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Action】",
+      "AP-2"
+    ]
+  },
+  {
+    "code": "GD04-114",
+    "name": "Reformationist",
+    "set": "GD04",
+    "effectEn": "【Burst】Choose 1 Unit card with \"Trans-Am\" in its card name from your trash. Add it to your hand.\n【Main】/【Action】Choose 1 of your Units and 1 enemy Unit. Deal 1 damage to them.",
+    "effectPt": "【Burst】Escolha 1 carta de Unidade com \"Trans-Am\" no nome do seu lixo. Adicione-a à sua mão.\n【Main】/【Action】Escolha 1 das suas Unidades e 1 Unidade inimiga. Cause 1 de dano a elas.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Main】",
+      "【Action】"
+    ]
+  },
+  {
+    "code": "GD04-115",
+    "name": "Backup",
+    "set": "GD04",
+    "effectEn": "【Burst】Choose 1 enemy Unit. Deal 1 damage to it.\n【Main】Choose 1 of your Units. When it deals battle damage to an enemy Unit that is Lv.5 or lower during this turn, destroy that enemy Unit.",
+    "effectPt": "【Burst】Escolha 1 Unidade inimiga. Cause 1 de dano a ela.\n【Main】Escolha 1 das suas Unidades. Quando ela causar dano de batalha a uma Unidade inimiga de Lv.5 ou menor durante este turno, destrua aquela Unidade inimiga.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Main】",
+      "Lv.5"
+    ]
+  },
+  {
+    "code": "GD04-116",
+    "name": "Reliable Big Brother",
+    "set": "GD04",
+    "effectEn": "【Main】Place the top 2 cards of your deck into your trash. If you do, choose 1 enemy Unit with 4 or less AP. Deal an amount of damage equal to the number of (Minerva Squad) cards placed with this effect to that enemy Unit.\n【Pilot】[Heine Westenfluss]",
+    "effectPt": "【Main】Coloque as 2 cartas do topo do seu deck no seu lixo. Se fizer isso, escolha 1 Unidade inimiga com AP 4 ou menos. Cause àquela Unidade inimiga uma quantidade de dano igual ao número de cartas (Minerva Squad) colocadas por este efeito.\n【Pilot】[Heine Westenfluss]",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Pilot】",
+      "[Heine Westenfluss]",
+      "(Minerva Squad)",
+      "AP"
+    ]
+  },
+  {
+    "code": "GD04-117",
+    "name": "Graceful Demeanor",
+    "set": "GD04",
+    "effectEn": "【Burst】Activate this card's 【Action】.\n【Action】Choose 1 to 2 enemy Units that are Lv.3 or lower. Return them to their owners' hands.",
+    "effectPt": "【Burst】Ative o 【Action】 desta carta.\n【Action】Escolha de 1 a 2 Unidades inimigas de Lv.3 ou menor. Devolva-as às mãos dos donos.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Action】",
+      "【Action】",
+      "Lv.3"
+    ]
+  },
+  {
+    "code": "GD04-118",
+    "name": "World Distortion",
+    "set": "GD04",
+    "effectEn": "【Main】/【Action】If 2 or more friendly (UN) Units are in play, choose 1 enemy Unit with 5 or less HP. Return it to its owner's hand.\n【Pilot】[Alejandro Corner]",
+    "effectPt": "【Main】/【Action】Se 2 ou mais Unidades (UN) aliadas estiverem em jogo, escolha 1 Unidade inimiga com HP 5 ou menos. Devolva-a à mão do dono.\n【Pilot】[Alejandro Corner]",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Action】",
+      "【Pilot】",
+      "[Alejandro Corner]",
+      "(UN)",
+      "HP"
+    ]
+  },
+  {
+    "code": "GD04-119",
+    "name": "Fighting Alone",
+    "set": "GD04",
+    "effectEn": "【Main】/【Action】Choose 1 friendly Unit paired with a (Newtype) Pilot. It can't receive effect damage from enemy Units during this turn.\n【Pilot】[Gael Chan]",
+    "effectPt": "【Main】/【Action】Escolha 1 Unidade aliada pareada com um Piloto (Newtype). Ela não pode receber dano de efeito de Unidades inimigas durante este turno.\n【Pilot】[Gael Chan]",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Action】",
+      "【Pilot】",
+      "[Gael Chan]",
+      "(Newtype)"
+    ]
+  },
+  {
+    "code": "GD04-120",
+    "name": "Machine Doll Squad",
+    "set": "GD04",
+    "effectEn": "【Main】/【Action】Choose 1 friendly (Militia)/(Dianna Counter) Unit. It gets AP+2 during this turn.\n【Pilot】[Miashei Kune]",
+    "effectPt": "【Main】/【Action】Escolha 1 Unidade (Militia)/(Dianna Counter) aliada. Ela recebe AP+2 durante este turno.\n【Pilot】[Miashei Kune]",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Action】",
+      "【Pilot】",
+      "[Miashei Kune]",
+      "(Militia)",
+      "(Dianna Counter)",
+      "AP+2"
+    ]
+  },
+  {
+    "code": "GD04-121",
+    "name": "Reineforce Jr.",
+    "set": "GD04",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, during your turn, if a friendly (League Militaire) Unit is in play, deploy 1 [Parts]((League Militaire)･AP1･HP1･This Unit can't choose the enemy player as its attack target) Unit token.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão. Então, durante o seu turno, se uma Unidade (League Militaire) aliada estiver em jogo, faça o Deploy de 1 ficha de Unidade [Parts]((League Militaire)･AP1･HP1･This Unit can't choose the enemy player as its attack target).",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "[Parts]",
+      "((League Militaire)･AP1･HP1･This Unit can't choose the enemy player as its attack target)",
+      "(League Militaire)"
+    ]
+  },
+  {
+    "code": "GD04-122",
+    "name": "Jaburo",
+    "set": "GD04",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Activate･Main】【Once per Turn】Rest 1 of your (Earth Federation) Units：Choose 1 enemy Unit that is Lv.3 or lower. Rest it.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\n【Activate･Main】【Once per Turn】Coloque em Rest 1 das suas Unidades (Earth Federation)：Escolha 1 Unidade inimiga de Lv.3 ou menor. Coloque-a em Rest.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "【Activate･Main】",
+      "【Once per Turn】",
+      "(Earth Federation)",
+      "Lv.3",
+      "Rest",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD04-123",
+    "name": "A Baoa Qu",
+    "set": "GD04",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\nWhile you have a rested (Zeon) Unit in play, this Base can't receive battle damage from enemy Units that are Lv.4 or lower.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\nEnquanto você tiver uma Unidade (Zeon) descansada em jogo, esta Base não pode receber dano de batalha de Unidades inimigas de Lv.4 ou menor.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "(Zeon)",
+      "Lv.4"
+    ]
+  },
+  {
+    "code": "GD04-124",
+    "name": "9th Tactical Testing Sector",
+    "set": "GD04",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\nWhen you place an EX Resource, choose 1 friendly (Academy) Unit. It gets AP+2 during this turn.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\nQuando você colocar um EX Resource, escolha 1 Unidade (Academy) aliada. Ela recebe AP+2 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "(Academy)",
+      "AP+2"
+    ]
+  },
+  {
+    "code": "GD04-125",
+    "name": "Trinity Warship",
+    "set": "GD04",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Activate･Main】【Once per Turn】①, rest 1 friendly (CB) Unit：Choose 1 enemy Unit that is Lv.5 or lower. Deal 1 damage to it.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\n【Activate･Main】【Once per Turn】①, descanse 1 Unidade (CB) aliada：Escolha 1 Unidade inimiga de Lv.5 ou menor. Cause 1 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "【Activate･Main】",
+      "【Once per Turn】",
+      "①",
+      "(CB)",
+      "Lv.5"
+    ]
+  },
+  {
+    "code": "GD04-126",
+    "name": "Izuma Colony",
+    "set": "GD04",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\nWhen this Base receives battle damage from an enemy Unit with 3 or less AP, deal 1 damage to that Unit.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\nQuando esta Base receber dano de batalha de uma Unidade inimiga com AP 3 ou menos, cause 1 de dano àquela Unidade.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "AP"
+    ]
+  },
+  {
+    "code": "GD04-127",
+    "name": "Freeden Ⅱ",
+    "set": "GD04",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, if there are 7 or more (Vulture) cards in your trash, choose 1 enemy Unit with 2 or less AP. Destroy it.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão. Então, se houver 7 ou mais cartas (Vulture) no seu lixo, escolha 1 Unidade inimiga com AP 2 ou menos. Destrua-a.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "(Vulture)",
+      "AP"
+    ]
+  },
+  {
+    "code": "GD04-128",
+    "name": "Armory One",
+    "set": "GD04",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Destroyed】All players draw 1.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\n【Destroyed】Todos os jogadores compram 1 carta.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "【Destroyed】"
+    ]
+  },
+  {
+    "code": "GD04-129",
+    "name": "Willgem",
+    "set": "GD04",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, deal 3 damage to this Base.\n\n【Once per Turn】During your turn, when you pay ① or more for a friendly Unit's effect, this Base recovers 2 HP.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão. Então, cause 3 de dano a esta Base.\n\n【Once per Turn】Durante o seu turno, quando você pagar ① ou mais pelo efeito de uma Unidade aliada, esta Base recupera 2 de HP.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "【Once per Turn】",
+      "①",
+      "HP"
+    ]
+  },
+  {
+    "code": "GD04-130",
+    "name": "Industrial 7",
+    "set": "GD04",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Activate･Main】【Once per Turn】Exile 1 Command card from your trash：Choose 1 enemy Unit. It gets AP-1 during this turn.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\n【Activate･Main】【Once per Turn】Exile 1 carta de Comando do seu lixo：Escolha 1 Unidade inimiga. Ela recebe AP-1 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "【Activate･Main】",
+      "【Once per Turn】",
+      "AP-1"
+    ]
+  }
+]

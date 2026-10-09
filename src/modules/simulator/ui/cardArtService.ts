@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { PRECOMPILED_CARD_TRANSLATIONS } from "@/i18n";
 import type { CardArt, ArtLookup } from "./cardArt";
 
 export type { CardArt, ArtLookup };
@@ -68,7 +67,8 @@ export async function loadSimulatorCardLookup(): Promise<CachedLookup> {
     const cardText: Record<string, { pt?: string; en?: string }> = {};
     const cardByName: Record<string, { code: string; art: CardArt }> = {};
 
-    // Injeta primeiro as traduções pré-compiladas oficiais como base
+    // Injeta primeiro as traduções pré-compiladas oficiais como base (chunk à parte, carregado só aqui)
+    const { PRECOMPILED_CARD_TRANSLATIONS } = await import("@/i18n/translatedCardsData");
     for (const [code, trans] of Object.entries(PRECOMPILED_CARD_TRANSLATIONS)) {
       const upper = code.toUpperCase();
       cardText[upper] = {

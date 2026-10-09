@@ -1,0 +1,278 @@
+[
+  {
+    "code": "T-011",
+    "name": "Fatum-00",
+    "set": "GD01",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "T-012",
+    "name": "Daughtress",
+    "set": "GD02",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "T-013",
+    "name": "Hy-Gogg",
+    "set": "GD03",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "T-014",
+    "name": "Ad Balloon",
+    "set": "GD03",
+    "effectEn": "This Unit can't be set as active or paired with a Pilot.",
+    "effectPt": "Esta Unidade não pode ser colocada como ativa nem pareada com um Piloto.",
+    "status": "OK",
+    "tokens": []
+  },
+  {
+    "code": "T-015",
+    "name": "CGS Mobile Worker",
+    "set": "GD03",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "T-016",
+    "name": "Graze Custom",
+    "set": "GD03",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "T-017",
+    "name": "Gundam Barbatos 4th Form",
+    "set": "GD03",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "T-018",
+    "name": "Red Gundam",
+    "set": "GD03",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "T-019",
+    "name": "GQuuuuuuX (Omega Psycommu)",
+    "set": "GD03",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "T-020",
+    "name": "GFreD",
+    "set": "GD03",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "T-021",
+    "name": "Parts",
+    "set": "GD04",
+    "effectEn": "This Unit can't choose the enemy player as its attack target.",
+    "effectPt": "Esta Unidade não pode escolher o jogador inimigo como alvo de ataque.",
+    "status": "OK",
+    "tokens": []
+  },
+  {
+    "code": "T-022",
+    "name": "Wire-Guided Arm",
+    "set": "GD04",
+    "effectEn": "This Unit can't be paired with a Pilot.",
+    "effectPt": "Esta Unidade não pode ser pareada com um Piloto.",
+    "status": "OK",
+    "tokens": []
+  },
+  {
+    "code": "T-023",
+    "name": "Zeong (Head)",
+    "set": "GD04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "T-024",
+    "name": "Alvaaron",
+    "set": "GD04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "T-026",
+    "name": "Gundnode",
+    "set": "GD05",
+    "effectEn": "<Breach 1> (During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)",
+    "effectPt": "<Breach 1> (Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano de batalha, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)",
+    "status": "OK",
+    "tokens": [
+      "<Breach 1>"
+    ]
+  },
+  {
+    "code": "T-027",
+    "name": "Pluma",
+    "set": "GD05",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "T-001",
+    "name": "Gundam",
+    "set": "ST01",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "T-002",
+    "name": "Guncannon",
+    "set": "ST01",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "T-003",
+    "name": "Guntank",
+    "set": "ST01",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "T-004",
+    "name": "Leo",
+    "set": "ST02",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "T-005",
+    "name": "Tallgeese",
+    "set": "ST02",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "T-006",
+    "name": "Char's Zaku Ⅱ",
+    "set": "ST03",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "T-007",
+    "name": "Zaku Ⅱ",
+    "set": "ST03",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "T-008",
+    "name": "Aile Strike Gundam",
+    "set": "ST04",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "T-009",
+    "name": "Launcher Strike Gundam",
+    "set": "ST04",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "T-010",
+    "name": "Sword Strike Gundam",
+    "set": "ST04",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "T-025",
+    "name": "Gundam Exia",
+    "set": "EB01",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  }
+]
