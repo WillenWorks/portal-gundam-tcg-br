@@ -17,6 +17,7 @@ import {
   Save,
   Share2,
   Shield,
+  Swords,
   Upload,
 } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
@@ -190,7 +191,7 @@ function PoolCardTile({ card, qtyInDeck, limit, section, playabilityEntry, onAdd
         } ${!exSection && atLimit ? "opacity-45" : ""}`}
       >
         {image ? (
-          <img src={image} alt={cardName} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.05]" />
+          <img loading="lazy" decoding="async" src={image} alt={cardName} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.05]" />
         ) : (
           <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{cardName}</div>
         )}
@@ -258,7 +259,7 @@ function DeckGridTile({ row, playabilityEntry, onIncrement, onDecrement, onOpenG
             : "border-white/15 group-hover:border-primary/50"
         }`}
       >
-        {image ? <img src={image} alt={cardName} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{cardName}</div>}
+        {image ? <img loading="lazy" decoding="async" src={image} alt={cardName} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{cardName}</div>}
         <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{row.quantity}</span>
         <div className="absolute inset-x-0 bottom-6 bg-slate-950/90 p-1.5 text-left">
           <p className="truncate text-[11px] font-medium text-white">{cardName}</p>
@@ -302,7 +303,7 @@ function ExComponentTile({ label, row, onReset }: { label: string; row: DeckRow 
   return (
     <div className="group relative">
       <div className="relative block aspect-[63/88] w-full overflow-hidden border border-white/15">
-        {image ? <img src={image} alt={cardName || label} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{label}</div>}
+        {image ? <img loading="lazy" decoding="async" src={image} alt={cardName || label} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{label}</div>}
         <span className="absolute inset-x-0 top-0 bg-slate-700/90 py-0.5 text-center text-[9px] uppercase tracking-[0.16em] text-white">{label}</span>
         <div className="absolute inset-x-0 bottom-0 bg-slate-950/90 p-1.5 text-left">
           <p className="truncate text-[10px] font-medium text-white">{cardName || "Carregando…"}</p>
@@ -375,7 +376,7 @@ function AltArtModal({
               return (
                 <div key={printId} className="border border-white/10 bg-slate-900/60 p-2.5">
                   <div className="aspect-[63/88] overflow-hidden border border-white/10 bg-slate-950/70">
-                    {image ? <img src={image} alt={getCardDisplayName(print, isPt)} className="h-full w-full object-cover" /> : null}
+                    {image ? <img loading="lazy" decoding="async" src={image} alt={getCardDisplayName(print, isPt)} className="h-full w-full object-cover" /> : null}
                   </div>
                   <p className="mt-2 truncate text-[11px] text-slate-400">{print.code}</p>
                   <div className="mt-2 flex items-center justify-center gap-2.5">
@@ -415,7 +416,7 @@ function CardPreviewModal({ card, onClose }: { card: (CardRecord & { quantity?: 
         <div className="grid gap-4 sm:grid-cols-[200px_1fr]">
           <div className="space-y-2">
             <div className="aspect-[63/88] w-full overflow-hidden border border-white/10 bg-slate-950/70">
-              {image ? <img src={image} alt={displayName} className="h-full w-full object-cover" /> : null}
+              {image ? <img loading="lazy" decoding="async" src={image} alt={displayName} className="h-full w-full object-cover" /> : null}
             </div>
             {card.quantity !== undefined ? <p className="text-center text-xs text-slate-400">{card.quantity}x nesse deck</p> : null}
             <div className="flex justify-center">
@@ -542,7 +543,7 @@ function StatDetailModal({ title, rows, onClose, onPreviewCard }: { title: { lab
               const cardName = getCardDisplayName(row, isPt);
               return (
                 <button key={row.printId || row.id} type="button" onClick={() => onPreviewCard(row)} className="group relative block aspect-[63/88] overflow-hidden border border-white/15 transition hover:border-primary/50">
-                  {image ? <img src={image} alt={cardName} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{cardName}</div>}
+                  {image ? <img loading="lazy" decoding="async" src={image} alt={cardName} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{cardName}</div>}
                   <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{row.quantity}</span>
                 </button>
               );
@@ -555,7 +556,7 @@ function StatDetailModal({ title, rows, onClose, onPreviewCard }: { title: { lab
               const cardName = getCardDisplayName(row, isPt);
               return (
                 <button key={row.printId || row.id} type="button" onClick={() => onPreviewCard(row)} className="flex w-full items-center gap-3 border border-white/10 bg-white/5 p-2 text-left transition hover:border-primary/40 hover:bg-white/10">
-                  <div className="h-14 w-10 shrink-0 overflow-hidden border border-white/10 bg-slate-950/70">{image ? <img src={image} alt={cardName} className="h-full w-full object-cover" /> : null}</div>
+                  <div className="h-14 w-10 shrink-0 overflow-hidden border border-white/10 bg-slate-950/70">{image ? <img loading="lazy" decoding="async" src={image} alt={cardName} className="h-full w-full object-cover" /> : null}</div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium heading-portal">{cardName}</p>
                     <p className="text-xs text-slate-500">{row.code} · {row.color}</p>
@@ -1744,6 +1745,18 @@ export default function DeckbuilderPage() {
                 mainDeckCount={stats.mainDeckCount}
                 expectedDeckSize={DECK_MAIN_SIZE}
               />
+              {/* Atalho montar → jogar: só para deck salvo, completo e todo apto no simulador. O Treino usa a versão SALVA. */}
+              {deckId && deckPlayability.playable && stats.mainDeckCount === DECK_MAIN_SIZE && stats.resourceDeckCount === DECK_RESOURCE_SIZE ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-4 w-full rounded-none border-emerald-400/40 text-emerald-300 hover:bg-emerald-500/10"
+                  onClick={() => navigate(`/simulador/treino?deck=${encodeURIComponent(deckId)}`)}
+                >
+                  <Swords className="mr-2 size-4" aria-hidden />
+                  Treinar com este deck (versão salva)
+                </Button>
+              ) : null}
               {pilotCoverageGaps.length ? (
                 <div className="mt-4 border border-amber-400/30 bg-amber-500/10 p-4">
                   <p className="text-xs uppercase tracking-[0.2em] text-amber-300">Cobertura de Piloto de Link · {pilotCoverageGaps.length}</p>

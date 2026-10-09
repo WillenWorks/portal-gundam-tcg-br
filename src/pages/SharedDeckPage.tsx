@@ -221,7 +221,7 @@ function CardPreviewModal({
         <DialogTitle className="sr-only">{`Carta ampliada: ${card.namePt || card.name}`}</DialogTitle>
         <div className="relative mx-auto h-[447px] w-[320px] overflow-hidden border border-white/10 bg-slate-950/70">
           {image ? (
-            <img src={image} alt={card.namePt || card.name} className="h-full w-full object-cover" />
+            <img loading="lazy" decoding="async" src={image} alt={card.namePt || card.name} className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full items-center justify-center text-slate-500 font-mono text-xs">Arte indisponível</div>
           )}
@@ -735,7 +735,7 @@ export default function SharedDeckPage() {
         {/* BANNER DO HANGAR OZ COM METADADOS DO DECK */}
         <Card className="panel-cut rounded-none border-primary/30 hero-surface overflow-hidden">
           <div className="relative min-h-[220px] sm:min-h-[260px] w-full overflow-hidden border-b border-white/10 bg-slate-950">
-            <img
+            <img loading="lazy" decoding="async"
               src={deck.coverImage || ozHangarBanner}
               alt={deck.name}
               className="h-full w-full object-cover object-center brightness-90"
@@ -2059,7 +2059,7 @@ export default function SharedDeckPage() {
                         >
                           <div className="w-16 shrink-0 aspect-[63/88] border border-white/15 bg-slate-900 overflow-hidden">
                             {tokenImg ? (
-                              <img
+                              <img loading="lazy" decoding="async"
                                 src={tokenImg}
                                 alt={token.tokenName}
                                 className="w-full h-full object-cover"

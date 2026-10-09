@@ -267,13 +267,13 @@ export function HomeDirectivesSection() {
               {/* Ícone com Efeito Haro On/Off no Hover */}
               <div className="relative size-16 sm:size-20 shrink-0 overflow-hidden rounded-xl border border-white/15 bg-slate-950 transition-all duration-300 group-hover:scale-105 group-hover:shadow-[0_0_24px_rgba(132,204,22,0.55)] group-hover:border-lime-400/60">
                 {/* Standby: Haro Clássico em Modo Bola Fechado */}
-                <img
+                <img loading="lazy" decoding="async"
                   src={haroRulesOff}
                   alt="Haro Clássico em Modo Bola Fechado"
                   className="absolute inset-0 size-full object-cover transition-opacity duration-300 group-hover:opacity-0"
                 />
                 {/* Energizado no Hover: Haro Aberto com Orelhas e Olhos Acesos */}
-                <img
+                <img loading="lazy" decoding="async"
                   src={haroRulesOn}
                   alt="Haro Clássico Aberto com Orelhas e Olhos Acesos"
                   className="absolute inset-0 size-full object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100"

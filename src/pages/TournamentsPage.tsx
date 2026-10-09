@@ -261,7 +261,7 @@ export default function TournamentsPage() {
               {overallBreakdown.length ? (
                 <div className="mt-6">
                   <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Meta geral · arquétipos declarados nos eventos com report</p>
-                  <div className="mt-3 grid gap-4 2xl:grid-cols-3">
+                  <div className="mt-3 grid gap-4 lg:grid-cols-2 2xl:grid-cols-3 4xl:grid-cols-4">
                     {overallBreakdown.slice(0, 6).map((item) => (
                       <div key={item.archetype} className="panel-cut border surface-strong p-4 light:border-slate-300/80 light:bg-slate-50">
                         <p className="font-heading text-2xl uppercase leading-none dark:text-white light:text-slate-900">{item.archetype}</p>
@@ -398,7 +398,7 @@ function TournamentReportCard({ tournament, onOpenDetail }: { tournament: any; o
         </div>
 
         {breakdown.length ? (
-          <div className="mt-6 grid gap-4 2xl:grid-cols-3">
+          <div className="mt-6 grid gap-4 lg:grid-cols-2 2xl:grid-cols-3 4xl:grid-cols-4">
             {breakdown.slice(0, 6).map((item) => (
               <div key={item.archetype} className="panel-cut border surface-strong p-4 light:border-slate-300/80 light:bg-slate-50">
                 <p className="font-heading text-2xl uppercase leading-none dark:text-white light:text-slate-900">{item.archetype}</p>

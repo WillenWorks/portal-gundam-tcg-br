@@ -48,7 +48,7 @@ export default function SetDetailPage() {
               <div className="grid gap-6 lg:grid-cols-[0.72fr_1.28fr] lg:items-start">
                 <div className="overflow-hidden border border-white/10 bg-slate-950/60 aspect-[16/10] dark:bg-slate-950/60 light:bg-slate-100">
                   {setData.coverImage ? (
-                    <img src={setData.coverImage} alt={setData.namePt || setData.nameEn} className="h-full w-full object-cover" />
+                    <img loading="lazy" decoding="async" src={setData.coverImage} alt={setData.namePt || setData.nameEn} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
                       <span className="text-[10px] uppercase tracking-[0.28em] text-slate-500">Sem capa local</span>
@@ -95,7 +95,7 @@ export default function SetDetailPage() {
                   <CardContent className="space-y-4 p-5">
                     <div className="overflow-hidden border border-white/10 bg-slate-950/60 aspect-[3/4] dark:bg-slate-950/60 light:bg-slate-100">
                       {(card.imageSmallUrl || card.thumbUrl || card.imageUrl) ? (
-                        <img src={card.imageSmallUrl || card.thumbUrl || card.imageUrl} alt={card.namePt || card.nameEn} className="h-full w-full object-cover" />
+                        <img loading="lazy" decoding="async" src={card.imageSmallUrl || card.thumbUrl || card.imageUrl} alt={card.namePt || card.nameEn} className="h-full w-full object-cover" />
                       ) : (
                         <div className="flex h-full items-center justify-center text-[10px] uppercase tracking-[0.24em] text-slate-500">Sem arte</div>
                       )}

@@ -46,7 +46,7 @@ function CardPreviewModal({ rows, index, onNavigate, onClose }: { rows: BinderRo
       <DialogContent aria-describedby={undefined} className="w-[380px] max-h-[90vh] overflow-y-auto border-white/10 bg-slate-950 text-white">
         <DialogTitle className="sr-only">{`Carta ampliada: ${card.namePt || card.name}`}</DialogTitle>
         <div className="relative mx-auto h-[447px] w-[320px] overflow-hidden border border-white/10 bg-slate-950/70">
-          {image ? <img src={image} alt={card.namePt || card.name} className="h-full w-full object-cover" /> : null}
+          {image ? <img loading="lazy" decoding="async" src={image} alt={card.namePt || card.name} className="h-full w-full object-cover" /> : null}
           {rows.length > 1 ? (
             <>
               <button type="button" onClick={() => onNavigate((index - 1 + rows.length) % rows.length)} title="Carta anterior" className="absolute left-2 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-slate-950/80 text-white transition hover:bg-primary hover:text-primary-foreground"><ChevronLeft className="size-5" /></button>
@@ -73,7 +73,7 @@ function PocketTile({ row, onOpen }: { row: BinderRow | undefined; onOpen: () =>
   const image = row.imageMediumUrl || row.imageUrl;
   return (
     <button type="button" onClick={onOpen} title={`Ver ${row.namePt || row.name} em tamanho grande`} className="group relative block aspect-[63/88] w-full overflow-hidden border border-white/15 bg-slate-950/60 transition hover:border-primary/50">
-      {image ? <img src={image} alt={row.namePt || row.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{row.namePt || row.name}</div>}
+      {image ? <img loading="lazy" decoding="async" src={image} alt={row.namePt || row.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{row.namePt || row.name}</div>}
       <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{row.quantity}</span>
       {row.tag ? <span className={cn("absolute inset-x-0 bottom-0 border-t px-1 py-0.5 text-center text-[9px] font-bold uppercase tracking-[0.1em]", TAG_BADGE_CLASS[row.tag])}>{TAG_LABEL[row.tag]}</span> : null}
     </button>

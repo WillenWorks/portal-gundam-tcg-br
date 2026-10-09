@@ -230,7 +230,7 @@ export default function PublicDecksPage() {
       <section className="relative mb-8 min-h-[300px] overflow-hidden border border-primary/40 bg-slate-950 shadow-2xl shadow-primary/15">
         {/* Background Hangar com Tallgeese na Escala Canônica */}
         <div className="absolute inset-0 z-0">
-          <img
+          <img loading="lazy" decoding="async"
             src={ozDeckHangarImg}
             alt="Hangar da OZ com o Tallgeese em montagem"
             className="h-full w-full object-cover object-center opacity-70 transition-transform duration-700 hover:scale-105"

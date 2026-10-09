@@ -142,7 +142,7 @@ export function DeckPreviewCard({ deck, isOwner }: DeckPreviewCardProps) {
             title={`Ver deck: ${deck.name}`}
           >
             {deck.coverImage ? (
-              <img
+              <img loading="lazy" decoding="async"
                 src={deck.coverImage}
                 alt={deck.name}
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
