@@ -146,6 +146,8 @@ export function attackTargetError(state: GameState, attacker: CardInstance, targ
       const allowedUnpaired = !!granted?.unpairedOnly && !targetUnit.pairedPilotId;
       // W4 — GD04-045 "a damaged active enemy Unit"
       const allowedDamaged = !!granted?.damagedOnly && targetUnit.damage > 0;
+      // W11 — EB01-066 "an active enemy Unit with <Blocker>"
+      const allowedGrantedKeyword = !!granted?.keyword && hasKeyword(targetUnit, granted.keyword, state);
       // W5 — GD04-051 "an active enemy Unit with a keyword effect" (Piloto com trait + trash N+)
       const kwRule = attacker.def.attackTargetRules?.mayTargetActiveEnemyWithKeyword;
       const kwPilot = attacker.pairedPilotId ? findCard(state, attacker.pairedPilotId) : undefined;
@@ -155,7 +157,8 @@ export function attackTargetError(state: GameState, attacker: CardInstance, targ
         (!kwRule.pairedPilotTrait || (effectivePilotDef(kwPilot).traits ?? []).includes(kwRule.pairedPilotTrait)) &&
         (kwRule.trashAtLeast === undefined || state.players[attacker.owner].trash.length >= kwRule.trashAtLeast) &&
         KEYWORD_EFFECTS.some((k) => hasKeyword(targetUnit, k, state));
-      const allowed = allowedByLevel || allowedByAp || allowedBySelfAp || allowedUnpaired || allowedDamaged || allowedKeyword;
+      const allowed =
+        allowedByLevel || allowedByAp || allowedBySelfAp || allowedUnpaired || allowedDamaged || allowedKeyword || allowedGrantedKeyword;
       if (!allowed) {
         return "Só é possível declarar ataque contra Unit inimiga rested (exceto keyword que relaxe essa regra)";
       }
@@ -559,7 +562,12 @@ export function resolveDamageStep(state: GameState): GameState {
       // receive damage from enemy Units that are Lv.4 or lower" (docs/18, lacuna #7).
       const protection = combat.shieldProtection;
       const attackerLevel = attacker.def.level ?? 0;
-      const restedGuard = state.players[defendingPlayer].battleArea.some((c) => c.rested && c.def.protectsShieldsWhileRested);
+      // W11 — EB01-055: a guarda pode ter condição ("If there are 2 or more enemy players and this Unit is rested")
+      const restedGuard = state.players[defendingPlayer].battleArea.some((c) => {
+        const guard = c.def.protectsShieldsWhileRested;
+        if (!c.rested || !guard) return false;
+        return guard === true || isBoardConditionMet(state, c.owner, guard.boardCondition, c.instanceId);
+      });
       const shieldsProtected = (!!protection && attackerLevel <= protection.maxAttackerLevel) || restedGuard;
       if (!shieldsProtected) {
         const hadShields = state.players[defendingPlayer].shields.length > 0;

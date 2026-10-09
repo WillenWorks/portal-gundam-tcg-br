@@ -92,7 +92,7 @@ export default function ProfilePage() {
 
               <div className="flex items-center gap-4">
                 <button type="button" onClick={handleAvatarPick} disabled={uploadingAvatar} className="group relative size-20 shrink-0 overflow-hidden rounded-full border-2 border-white/15 bg-slate-950/60 transition hover:border-primary/60 disabled:opacity-60">
-                  <img src={user?.avatarUrl || defaultPilotAvatar} alt={user?.displayName || "Piloto"} className="h-full w-full object-cover" />
+                  <img loading="lazy" decoding="async" src={user?.avatarUrl || defaultPilotAvatar} alt={user?.displayName || "Piloto"} className="h-full w-full object-cover" />
                   <div className="absolute inset-0 flex items-center justify-center bg-slate-950/70 opacity-0 transition group-hover:opacity-100">
                     <Upload className="size-5 text-white" />
                   </div>

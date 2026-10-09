@@ -42,7 +42,10 @@ export default function SimulatorTrainingPage() {
   const [, navigate] = useLocation();
   const starters = SIMULATOR_DECK_PRESETS;
   const { decks: myDecks } = useMySimulatorDecks();
-  const [playerDeckId, setPlayerDeckId] = useState<string>(starters[0]?.key ?? "ST01");
+  // `?deck=<id>` vem do atalho "Treinar com este deck" do deckbuilder (roteamento por hash: a query fica em location.search).
+  const [playerDeckId, setPlayerDeckId] = useState<string>(
+    () => new URLSearchParams(window.location.search).get("deck") || (starters[0]?.key ?? "ST01"),
+  );
   const [botDeckId, setBotDeckId] = useState<string>("SAME");
   const [level, setLevel] = useState<SimulatorTrainingLevel>("normal");
   const [starting, setStarting] = useState(false);
@@ -93,7 +96,7 @@ export default function SimulatorTrainingPage() {
       <div className="relative mx-auto w-full container-ultrawide overflow-hidden rounded-2xl border border-primary/30 bg-slate-950 shadow-[0_0_60px_rgba(6,182,212,0.25)]">
         {/* Imagem de Fundo Cockpit de Treino com Instrumentos de Medição em alta visibilidade */}
         <div className="pointer-events-none absolute inset-0">
-          <img
+          <img loading="lazy" decoding="async"
             src="/images/gundam_training_cockpit.jpg"
             alt="Cockpit de Treinamento Gundam com Instrumentos de Medição"
             className="h-full w-full object-cover object-center opacity-95 brightness-105 contrast-105 transition-opacity duration-500"

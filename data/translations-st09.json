@@ -1,0 +1,125 @@
+[
+  {
+    "code": "ST09-001",
+    "name": "Impulse Gundam",
+    "set": "ST09",
+    "effectEn": "【Activate･Main】②, return this Unit to the bottom of its owner's deck：Choose 1 Unit card with \"Impulse Gundam\" in its card name that is Lv.4 or higher from your trash. Deploy it.",
+    "effectPt": "【Activate･Main】②, coloque esta Unidade no fundo do deck do dono：Escolha 1 carta de Unidade com \"Impulse Gundam\" no nome que seja Lv.4 ou maior do seu lixo. Faça o Deploy dela.",
+    "status": "OK",
+    "tokens": [
+      "【Activate･Main】",
+      "②",
+      "Lv.4"
+    ]
+  },
+  {
+    "code": "ST09-002",
+    "name": "Force Impulse Gundam",
+    "set": "ST09",
+    "effectEn": "【Destroyed】Choose 1 (Minerva Squad) Unit card without \"Force Impulse Gundam\" in its card name from your trash. Add it to your hand.",
+    "effectPt": "【Destroyed】Escolha 1 carta de Unidade (Minerva Squad) sem \"Force Impulse Gundam\" no nome do seu lixo. Adicione-a à sua mão.",
+    "status": "OK",
+    "tokens": [
+      "【Destroyed】",
+      "(Minerva Squad)"
+    ]
+  },
+  {
+    "code": "ST09-003",
+    "name": "Saviour Gundam",
+    "set": "ST09",
+    "effectEn": "<Breach 3> (When this Unit's attack destroys an enemy Unit, deal the specified amount of damage to the first card in that opponent's shield area.)\n【When Linked】If there are 5 or more purple cards in your trash, deal 2 damage to all Units with 5 or less AP.",
+    "effectPt": "<Breach 3> (Quando o ataque desta Unidade destruir uma Unidade inimiga, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)\n【When Linked】Se houver 5 ou mais cartas roxas no seu lixo, cause 2 de dano a todas as Unidades com AP 5 ou menos.",
+    "status": "OK",
+    "tokens": [
+      "【When Linked】",
+      "<Breach 3>",
+      "AP"
+    ]
+  },
+  {
+    "code": "ST09-004",
+    "name": "Freedom Gundam",
+    "set": "ST09",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)\nWhile a friendly Base in play, this Unit gains <Suppression>.\n\n(Damage to Shields by an attack is dealt to the first 2 cards simultaneously.)",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)\nEnquanto uma Base aliada estiver em jogo, esta Unidade ganha <Suppression>.\n\n(O dano de um ataque aos escudos é causado às 2 primeiras cartas ao mesmo tempo.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "<Suppression>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST09-005",
+    "name": "Zaku Warrior",
+    "set": "ST09",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST09-006",
+    "name": "Sword Impulse Gundam",
+    "set": "ST09",
+    "effectEn": "【Deploy】If you deploy this Unit from your trash, choose 1 enemy Unit that is Lv.3 or lower. Destroy it.",
+    "effectPt": "【Deploy】Se você fizer o Deploy desta Unidade a partir do seu lixo, escolha 1 Unidade inimiga de Lv.3 ou menor. Destrua-a.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "Lv.3"
+    ]
+  },
+  {
+    "code": "ST09-007",
+    "name": "Blast Impulse Gundam",
+    "set": "ST09",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST09-008",
+    "name": "Shinn Asuka",
+    "set": "ST09",
+    "effectEn": "【Burst】Add this card to your hand.\n【Attack】If this is a (Minerva Squad) Unit, choose 1 of your Resources. Set it as active.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Attack】Se esta for uma Unidade (Minerva Squad), escolha 1 dos seus Recursos. Coloque-o como ativo.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Attack】",
+      "(Minerva Squad)"
+    ]
+  },
+  {
+    "code": "ST09-009",
+    "name": "Giant Killing",
+    "set": "ST09",
+    "effectEn": "【Main】/【Action】Choose 1 active enemy Unit with 4 or less AP. Destroy it.",
+    "effectPt": "【Main】/【Action】Escolha 1 Unidade inimiga ativa com AP 4 ou menos. Destrua-a.",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Action】",
+      "AP"
+    ]
+  },
+  {
+    "code": "ST09-010",
+    "name": "Minerva",
+    "set": "ST09",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, if it is your turn, look at the top 2 cards of your deck and return 1 to the top. Place the remaining card into your trash.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão. Então, se for o seu turno, olhe as 2 cartas do topo do seu deck e devolva 1 ao topo. Coloque a carta restante no seu lixo.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】"
+    ]
+  }
+]

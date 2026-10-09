@@ -49,7 +49,7 @@ export default function ArticleDetailPage() {
           <>
             {post.coverImage ? (
               <div className="overflow-hidden border border-white/10 bg-slate-950/60 aspect-[21/9]">
-                <img src={post.coverImage} alt={post.title} className="h-full w-full object-cover" />
+                <img loading="lazy" decoding="async" src={post.coverImage} alt={post.title} className="h-full w-full object-cover" />
               </div>
             ) : null}
 

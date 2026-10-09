@@ -56,13 +56,13 @@ describe("i18n: glossário e dicionário de keywords (Fase 5)", () => {
 
   it("inclui seções correspondentes das Comprehensive Rules (CR) nas keywords de efeito", () => {
     const blocker = ALL_KEYWORDS.find((k) => k.id === "blocker");
-    expect(blocker?.rulesSection).toBe("CR 13-1-1");
+    expect(blocker?.rulesSection).toBe("CR 13-1-4");
 
     const breach = ALL_KEYWORDS.find((k) => k.id === "breach");
     expect(breach?.rulesSection).toBe("CR 13-1-2");
 
     const repair = ALL_KEYWORDS.find((k) => k.id === "repair");
-    expect(repair?.rulesSection).toBe("CR 13-1-3");
+    expect(repair?.rulesSection).toBe("CR 13-1-1");
   });
 
   it("interpola parâmetros numéricos corretamente em pt-BR e EN", () => {
@@ -127,5 +127,27 @@ describe("i18n: glossário e dicionário de keywords (Fase 5)", () => {
     expect(getPhaseStepLabel("action_step", "PT_BR")).toBe("Etapa de Ação");
     expect(getPhaseStepLabel("damage_step", "PT_BR")).toBe("Etapa de Dano");
     expect(getPhaseStepLabel("end_battle_step", "PT_BR")).toBe("Etapa Final da Batalha");
+  });
+});
+
+describe("glossário × Comprehensive Rules (auditoria 2026-10-08)", () => {
+  it("cada keyword aponta para a seção certa da CR", () => {
+    const expected: Record<string, string> = {
+      Repair: "CR 13-1-1",
+      Breach: "CR 13-1-2",
+      Support: "CR 13-1-3",
+      Blocker: "CR 13-1-4",
+      "First Strike": "CR 13-1-5",
+      "High-Maneuver": "CR 13-1-6",
+      Suppression: "CR 13-1-7",
+      "Development N": "CR 13-1-8",
+      Deploy: "CR 13-2-6",
+      Burst: "CR 13-2-5",
+      "When Paired": "CR 13-2-9",
+      "Once per Turn": "CR 13-2-13",
+    };
+    for (const [kw, section] of Object.entries(expected)) {
+      expect(getKeywordDefinition(kw, "PT_BR")?.rulesSection, kw).toBe(section);
+    }
   });
 });

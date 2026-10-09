@@ -155,3 +155,14 @@ describe("scripts/train/pipeline", () => {
     }
   });
 });
+
+describe("pipeline --zero (Fase 4: matriz do Zero System)", () => {
+  it("liga a etapa só quando pedido; 2 partidas/par no rápido e 10 no normal", () => {
+    expect(resolveConfig(parseArgs([])).zero).toBe(false);
+    const rapido = resolveConfig(parseArgs(["--zero", "--rapido"]));
+    expect(rapido.zero).toBe(true);
+    expect(rapido.zeroGames).toBe(2);
+    expect(resolveConfig(parseArgs(["--zero"])).zeroGames).toBe(10);
+    expect(resolveConfig(parseArgs(["--zero", "--zeroGames=6"])).zeroGames).toBe(6);
+  });
+});

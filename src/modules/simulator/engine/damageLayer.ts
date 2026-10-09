@@ -60,6 +60,7 @@ function reductionApplies(state: GameState, target: CardInstance, holder: CardIn
   if (r.aura?.targetCondition && !isTargetConditionMet(target, state, r.aura.targetCondition)) return false;
   if (r.oncePerTurn && holder.usedKeywordsThisTurn.includes(marker)) return false;
   if (r.duringLink && !isLinked(state, target)) return false;
+  if (r.duringPair && !target.pairedPilotId) return false;
   if (r.boardCondition && !isBoardConditionMet(state, target.owner, r.boardCondition, target.instanceId)) return false;
   const unit = sourceUnit(state, src);
   if (r.sourceUnitOnly && !unit) return false;

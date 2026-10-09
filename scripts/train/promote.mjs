@@ -5,7 +5,7 @@
  * Avalia se um modelo treinado preenche os 4 critérios formais de promoção:
  *   1. Integridade do manifesto e pesos válidos
  *   2. Compatibilidade estrita do motor (engineSha idêntico ao motor atual)
- *   3. Desempenho superior ao baseline (winrate > 55% e Wilson low > 50%)
+ *   3. Desempenho superior ao baseline (≥ 30 partidas decididas, winrate > 55% e Wilson low > 50%)
  *   4. Golden Master intacto (pnpm gundam:golden)
  *
  * NUNCA liga diretamente o modelo em produção sem aprovação (regra do A5:
@@ -26,6 +26,7 @@ import { fileURLToPath } from "node:url";
 import { ENGINE_ROOT, getEngineSha, FEATURE_SIZE, ACTION_SPACE } from "./engine.mjs";
 
 export const PROMOTION_THRESHOLD = 0.55;
+export const MIN_DECIDED_GAMES = 30;
 
 export function parseArgs(argv) {
   const args = {
@@ -102,14 +103,16 @@ export function evaluatePromotionCriteria({ manifest, evalReport, currentEngineS
   const decided = vsHeuristic?.decided ?? 0;
 
   const winratePassed = winrate > PROMOTION_THRESHOLD;
-  const wilsonPassed = decided < 30 || wilsonLow > 0.5;
-  const baselinePassed = Boolean(vsHeuristic && winratePassed && wilsonPassed);
+  // Antes, com menos de 30 partidas o Wilson era ignorado (11/20 promovia). Sem amostra mínima não há promoção.
+  const samplePassed = decided >= MIN_DECIDED_GAMES;
+  const wilsonPassed = wilsonLow > 0.5;
+  const baselinePassed = Boolean(vsHeuristic && samplePassed && winratePassed && wilsonPassed);
 
   checks.push({
     name: "Superação do baseline heurístico",
     passed: baselinePassed,
     detail: vsHeuristic
-      ? `Winrate: ${(winrate * 100).toFixed(1)}% (limiar: ${(PROMOTION_THRESHOLD * 100).toFixed(0)}%), Wilson low: ${(wilsonLow * 100).toFixed(1)}% (limiar: >50% se >=30 jogos)`
+      ? `Winrate: ${(winrate * 100).toFixed(1)}% (limiar: ${(PROMOTION_THRESHOLD * 100).toFixed(0)}%), Wilson low: ${(wilsonLow * 100).toFixed(1)}% (limiar: >50%), partidas decididas: ${decided} (mínimo: ${MIN_DECIDED_GAMES})`
       : "Relatório de avaliação não encontrado",
   });
 

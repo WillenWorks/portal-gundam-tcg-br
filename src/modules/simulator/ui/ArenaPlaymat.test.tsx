@@ -60,6 +60,13 @@ describe("ArenaPlaymat", () => {
     expect(canvas.style.getPropertyValue("--card-w")).toBe("88px");
   });
 
+  it("BUG-0C8TM1: o tamanho-padrão da carta acompanha --card-w sem teto fixo (ultrawide não vira ilha)", () => {
+    const { container } = renderArena();
+    const canvas = container.firstElementChild as HTMLElement;
+    expect(canvas.className).toContain("[--card-w-std:calc(var(--card-w)*0.78)]");
+    expect(canvas.className).not.toMatch(/--card-w-std:clamp/);
+  });
+
   it("V6.2 (docs/33): `expanded` troca aspect-[16/9] por h-full w-full (canvas usa a caixa toda, sem travar 16:9)", () => {
     const { container } = renderArena({ expanded: true });
     const canvas = container.firstElementChild as HTMLElement;

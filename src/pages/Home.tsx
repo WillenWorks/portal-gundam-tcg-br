@@ -143,7 +143,7 @@ export default function Home({ targetSection }: HomeProps) {
                       )}
                     >
                       {/* Imagem de Fundo da Notícia */}
-                      <img
+                      <img decoding="async"
                         src={slide.image}
                         alt={slide.title}
                         className="size-full object-cover object-center transform transition-transform duration-1000 group-hover:scale-105"
@@ -269,13 +269,13 @@ export default function Home({ targetSection }: HomeProps) {
                       )}
                     >
                       {/* Estado Desativado / Standby */}
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={isZeon ? zakuHeadOff : rx78HeadOff}
                         alt={isZeon ? "Zaku II do Char Standby" : "RX-78-2 Gundam Standby"}
                         className="absolute inset-0 size-full object-cover transition-opacity duration-300 group-hover:opacity-0"
                       />
                       {/* Estado Energizado / Olhos Acesos no Hover */}
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={isZeon ? zakuHeadOn : rx78HeadOn}
                         alt={isZeon ? "Zaku II do Char Monoeye Ativo" : "RX-78-2 Gundam Olhos Amarelos"}
                         className="absolute inset-0 size-full object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100"
@@ -320,12 +320,12 @@ export default function Home({ targetSection }: HomeProps) {
                   >
                     {/* Ícone com Efeito Hangar On/Off no Hover */}
                     <div className="relative size-16 sm:size-20 shrink-0 overflow-hidden rounded-xl border border-white/15 bg-slate-950 transition-all duration-300 group-hover:scale-105 group-hover:shadow-[0_0_24px_rgba(234,179,8,0.5)] group-hover:border-amber-400/60">
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={ozHangarOff}
                         alt="Hangar Tático Standby"
                         className="absolute inset-0 size-full object-cover transition-opacity duration-300 group-hover:opacity-0"
                       />
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={ozHangarOn}
                         alt="Hangar Tático Ativo"
                         className="absolute inset-0 size-full object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100"
@@ -362,12 +362,12 @@ export default function Home({ targetSection }: HomeProps) {
                   >
                     {/* Ícone com Efeito VEDA On/Off no Hover */}
                     <div className="relative size-16 sm:size-20 shrink-0 overflow-hidden rounded-xl border border-white/15 bg-slate-950 transition-all duration-300 group-hover:scale-105 group-hover:shadow-[0_0_24px_rgba(16,185,129,0.55)] group-hover:border-emerald-400/60">
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={exiaVedaOff}
                         alt="Sistema VEDA Exia Standby"
                         className="absolute inset-0 size-full object-cover transition-opacity duration-300 group-hover:opacity-0"
                       />
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={exiaVedaOn}
                         alt="Sistema VEDA Exia Ativo"
                         className="absolute inset-0 size-full object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100"

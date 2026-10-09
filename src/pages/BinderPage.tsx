@@ -66,7 +66,7 @@ function PoolCardTile({ card, quantity, onAdd, onOpenGallery }: { card: CardReco
   return (
     <div className="group relative">
       <button type="button" onClick={() => onAdd(card)} title={`Adicionar ${card.namePt || card.name}`} className="relative block aspect-[63/88] w-full overflow-hidden border border-white/15 transition group-hover:border-primary/60">
-        {image ? <img src={image} alt={card.namePt || card.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.05]" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{card.namePt || card.name}</div>}
+        {image ? <img loading="lazy" decoding="async" src={image} alt={card.namePt || card.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.05]" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{card.namePt || card.name}</div>}
         {quantity > 0 ? <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{quantity}</span> : null}
         <div className="absolute inset-x-0 bottom-0 translate-y-full bg-slate-950/95 p-1.5 text-left opacity-0 transition duration-150 group-hover:translate-y-0 group-hover:opacity-100">
           <p className="truncate text-[11px] font-medium text-white">{card.namePt || card.name}</p>
@@ -91,7 +91,7 @@ function BinderItemTile({ row, onDecrement, onPreview, onCycleTag, draggable }: 
   return (
     <div ref={sortable.setNodeRef} style={style} className="group relative">
       <button type="button" onClick={() => onDecrement(printId)} title={`Remover 1 de ${row.namePt || row.name}`} className="relative block aspect-[63/88] w-full overflow-hidden border border-white/15 transition group-hover:border-red-400/50">
-        {image ? <img src={image} alt={row.namePt || row.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{row.namePt || row.name}</div>}
+        {image ? <img loading="lazy" decoding="async" src={image} alt={row.namePt || row.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{row.namePt || row.name}</div>}
         <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{row.quantity}</span>
       </button>
       <button type="button" onClick={() => onPreview(row)} title="Ver imagem grande" className="absolute left-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-white opacity-100 transition hover:bg-white/20 lg:opacity-0 lg:group-hover:opacity-100">
@@ -147,7 +147,7 @@ function PrintPickerModal({ modelId, onClose, entries, onIncrement, onDecrement 
               const image = print.imageMediumUrl || print.imageUrl;
               return (
                 <div key={printId} className="border border-white/10 bg-slate-900/60 p-2.5">
-                  <div className="aspect-[63/88] overflow-hidden border border-white/10 bg-slate-950/70">{image ? <img src={image} alt={print.namePt || print.name} className="h-full w-full object-cover" /> : null}</div>
+                  <div className="aspect-[63/88] overflow-hidden border border-white/10 bg-slate-950/70">{image ? <img loading="lazy" decoding="async" src={image} alt={print.namePt || print.name} className="h-full w-full object-cover" /> : null}</div>
                   <p className="mt-2 truncate text-[11px] text-slate-400">{print.code}{print.rarity ? ` · ${print.rarity}` : ""}</p>
                   <div className="mt-2 flex items-center justify-center gap-2.5">
                     <button type="button" onClick={() => onDecrement(printId)} disabled={quantity <= 0} className="flex size-8 shrink-0 items-center justify-center rounded-none border border-white/15 bg-white/5 text-white transition hover:bg-white/10 disabled:pointer-events-none disabled:opacity-30"><Minus className="size-4" /></button>
@@ -171,7 +171,7 @@ function CardPreviewModal({ card, onClose }: { card: BinderRow | null; onClose: 
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent aria-describedby={undefined} className="w-[380px] max-h-[90vh] overflow-y-auto border-white/10 bg-slate-950 text-white">
         <DialogTitle className="sr-only">{`Carta ampliada: ${card.namePt || card.name}`}</DialogTitle>
-        <div className="mx-auto h-[447px] w-[320px] overflow-hidden border border-white/10 bg-slate-950/70">{image ? <img src={image} alt={card.namePt || card.name} className="h-full w-full object-cover" /> : null}</div>
+        <div className="mx-auto h-[447px] w-[320px] overflow-hidden border border-white/10 bg-slate-950/70">{image ? <img loading="lazy" decoding="async" src={image} alt={card.namePt || card.name} className="h-full w-full object-cover" /> : null}</div>
         <div className="flex flex-col items-center gap-2 pt-1">
           <p className="text-sm text-slate-400">{card.quantity}x nesse binder</p>
           <a href={`/#/cards/${card.cardModelId || card.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-none border border-white/15 bg-white/5 px-3 py-2 text-xs uppercase tracking-[0.16em] text-white nav-hover-soft hover:text-white">

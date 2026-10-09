@@ -255,6 +255,23 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     return ctx.state.players[ctx.controller].battleArea.some((u) => u.def.cardType === "UNIT" && hasKeyword(u, controllerUnitWithKeywordInPlay[1], ctx.state));
   }
   // W9 — ST10-011 "If 2 or more rested Units are in play" (dos dois lados, FAQ Q307)
+  // W11 — EB01-040/044 "If there are 2 or more enemy players": o simulador é 1v1
+  const enemyPlayerCountAtLeast = predicate.match(/^enemyPlayerCountAtLeast:(\d+)$/);
+  if (enemyPlayerCountAtLeast) return 1 >= Number(enemyPlayerCountAtLeast[1]);
+  // W11 — EB01-023/078 "If it is …, they may reveal it": o jogador não revelou (a carta segue no topo)
+  if (predicate === "noReveal") return (ctx.targets.reveal ?? []).length === 0;
+  // W11 — EB01-050 "If you placed a card that is Lv.3 or higher with this effect" (a carta do topo do trash)
+  const trashTopLevelAtLeast = predicate.match(/^controllerTrashTopLevelAtLeast:(\d+)$/);
+  if (trashTopLevelAtLeast) {
+    const trash = ctx.state.players[ctx.controller].trash;
+    return (trash[trash.length - 1]?.def.level ?? 0) >= Number(trashTopLevelAtLeast[1]);
+  }
+  // W11 — EB01-003 "If this effect rested 3 or more Units": Units ativas antes do "rest all Units"
+  const activeUnitsInPlayAtLeast = predicate.match(/^activeUnitsInPlayAtLeast:(\d+)$/);
+  if (activeUnitsInPlayAtLeast) {
+    const all = [...ctx.state.players.A.battleArea, ...ctx.state.players.B.battleArea];
+    return all.filter((u) => u.def.cardType === "UNIT" && !u.rested).length >= Number(activeUnitsInPlayAtLeast[1]);
+  }
   const restedUnitsInPlayAtLeast = predicate.match(/^restedUnitsInPlayAtLeast:(\d+)$/);
   if (restedUnitsInPlayAtLeast) {
     const all = [...ctx.state.players.A.battleArea, ...ctx.state.players.B.battleArea];
@@ -731,6 +748,11 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
     return target !== "player" && target.unitId === self.instanceId && combat.attackerId === candidate.instanceId;
   }
   // W2c — GD03-102 "1 of your … Units battling an enemy Unit"
+  // W11 — EB01-033 "1 other Unit that is being attacked"
+  if (filter === "beingAttacked") {
+    const target = ctx.state.combat?.currentTarget;
+    return !!target && target !== "player" && target.unitId === candidate.instanceId;
+  }
   if (filter === "battlingUnit") {
     const combat = ctx.state.combat;
     if (!combat || combat.currentTarget === "player") return false;

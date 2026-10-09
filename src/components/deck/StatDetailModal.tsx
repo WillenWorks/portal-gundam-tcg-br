@@ -73,7 +73,7 @@ export function StatDetailModal({ title, rows, onClose, onPreviewCard }: StatDet
                   className="group relative block aspect-[63/88] overflow-hidden border border-white/15 transition hover:border-primary hover:scale-[1.02]"
                 >
                   {image ? (
-                    <img src={image} alt={row.namePt || row.name} className="h-full w-full object-cover" />
+                    <img loading="lazy" decoding="async" src={image} alt={row.namePt || row.name} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full items-center justify-center bg-slate-900 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">
                       {row.namePt || row.name}
@@ -98,7 +98,7 @@ export function StatDetailModal({ title, rows, onClose, onPreviewCard }: StatDet
                   className="flex w-full items-center gap-3 border border-white/10 bg-white/5 p-2 text-left transition hover:border-primary/40 hover:bg-white/10"
                 >
                   <div className="h-14 w-10 shrink-0 overflow-hidden border border-white/10 bg-slate-900">
-                    {image ? <img src={image} alt={row.namePt || row.name} className="h-full w-full object-cover" /> : null}
+                    {image ? <img loading="lazy" decoding="async" src={image} alt={row.namePt || row.name} className="h-full w-full object-cover" /> : null}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium heading-portal">{row.namePt || row.name}</p>

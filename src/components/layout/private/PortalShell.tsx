@@ -141,7 +141,7 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
               <span className="ml-2">Painel</span>
             </Button>
             <Link href={isAdmin ? "/admin" : "/portal"} className="flex min-w-0 items-center gap-3 text-white transition-opacity hover:opacity-95">
-              <img src={anaheimLogo} alt="Anaheim Hub - Gundam Card Game" className="h-11 sm:h-12 w-auto object-contain drop-shadow-[0_0_12px_rgba(56,189,248,0.25)]" />
+              <img loading="lazy" decoding="async" src={anaheimLogo} alt="Anaheim Hub - Gundam Card Game" className="h-11 sm:h-12 w-auto object-contain drop-shadow-[0_0_12px_rgba(56,189,248,0.25)]" />
               <div className="hidden min-w-0 border-l border-white/15 pl-3.5 md:block">
                 <p className="font-heading text-xl uppercase tracking-[0.2em]">Anaheim Hub</p>
               </div>

@@ -1,0 +1,186 @@
+[
+  {
+    "code": "ST08-001",
+    "name": "Ξ Gundam",
+    "set": "ST08",
+    "effectEn": "While you have no Units that are Lv.6 or higher in play, this card in your hand gets Lv. -1 and cost -1 for each enemy Unit in play.\n【When Paired】Choose 1 enemy Unit with the highest Lv. Deal 3 damage to it.",
+    "effectPt": "Enquanto você não tiver Unidades que sejam Lv.6 ou maior em jogo, esta carta na sua mão recebe Lv. -1 e custo -1 para cada Unidade inimiga em jogo.\n【When Paired】Escolha 1 Unidade inimiga com o maior Lv. Cause 3 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【When Paired】",
+      "Lv.6"
+    ]
+  },
+  {
+    "code": "ST08-002",
+    "name": "Ξ Gundam",
+    "set": "ST08",
+    "effectEn": "【Deploy】Choose 1 enemy Unit. Deal 1 damage to it.",
+    "effectPt": "【Deploy】Escolha 1 Unidade inimiga. Cause 1 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】"
+    ]
+  },
+  {
+    "code": "ST08-003",
+    "name": "Messer (Type-F Naked) (Commander Type)",
+    "set": "ST08",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST08-004",
+    "name": "Messer Type-F01",
+    "set": "ST08",
+    "effectEn": "【Attack】If this Unit is attacking an enemy Unit, choose 1 enemy Unit. Deal 1 damage to it.",
+    "effectPt": "【Attack】Se esta Unidade estiver atacando uma Unidade inimiga, escolha 1 Unidade inimiga. Cause 1 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【Attack】"
+    ]
+  },
+  {
+    "code": "ST08-005",
+    "name": "Messer Type-F02 Minelayer",
+    "set": "ST08",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST08-006",
+    "name": "Penelope",
+    "set": "ST08",
+    "effectEn": "【During Pair】【Attack】【Once per Turn】If this Unit is attacking the enemy player, reveal 1 (Earth Federation) Unit card from your hand. Return it to the bottom of your deck. If you do, draw 2.",
+    "effectPt": "【During Pair】【Attack】【Once per Turn】Se esta Unidade estiver atacando o jogador inimigo, revele 1 carta de Unidade (Earth Federation) da sua mão. Coloque-a no fundo do seu deck. Se fizer isso, compre 2 cartas.",
+    "status": "OK",
+    "tokens": [
+      "【During Pair】",
+      "【Attack】",
+      "【Once per Turn】",
+      "(Earth Federation)"
+    ]
+  },
+  {
+    "code": "ST08-007",
+    "name": "Penelope",
+    "set": "ST08",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST08-008",
+    "name": "Gustav Karl Type-00",
+    "set": "ST08",
+    "effectEn": "While 3 or more enemy Units are in play, this Unit gains <Blocker>.\n\n(Rest this Unit to change the attack target to it.)",
+    "effectPt": "Enquanto 3 ou mais Unidades inimigas estiverem em jogo, esta Unidade ganha <Blocker>.\n\n(Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST08-009",
+    "name": "Jegan Ground Type-A (Man Hunter)",
+    "set": "ST08",
+    "effectEn": "【Deploy】Choose 1 rested enemy Unit that is Lv.2 or lower. It won' t be set as active during the start phase of your opponent' s next turn.",
+    "effectPt": "【Deploy】Escolha 1 Unidade inimiga descansada de Lv.2 ou menor. Ela não volta a ficar ativa na fase inicial do próximo turno do seu oponente.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "Lv.2"
+    ]
+  },
+  {
+    "code": "ST08-010",
+    "name": "Hathaway Noa",
+    "set": "ST08",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Paired】If this is a (Mafty) Unit, choose 1 of your (Mafty) Units. During this turn, it may choose a damaged active enemy Unit as its attack target.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Paired】Se esta for uma Unidade (Mafty), escolha 1 das suas Unidades (Mafty). Durante este turno, ela pode escolher uma Unidade inimiga ativa danificada como alvo de ataque.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Paired】",
+      "(Mafty)",
+      "(Mafty)"
+    ]
+  },
+  {
+    "code": "ST08-011",
+    "name": "Lane Aim",
+    "set": "ST08",
+    "effectEn": "【Burst】Add this card to your hand.\nWhen you draw with an effect, if this is a blue Unit, it gains <High-Maneuver> during this turn.\n\n(This Unit can' t be blocked.)",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\nQuando você comprar cartas com um efeito, se esta for uma Unidade azul, ela ganha <High-Maneuver> durante este turno.\n\n(Esta Unidade não pode ser bloqueada.)",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "<High-Maneuver>"
+    ]
+  },
+  {
+    "code": "ST08-012",
+    "name": "Words for Hathaway",
+    "set": "ST08",
+    "effectEn": "【Main】Choose 1 friendly Link Unit. It gains <Breach 1> during this turn.\n\n(When this Unit' s attack destroys an enemy Unit, deal the specified amount of damage to the first card in that opponent' s shield area.)\n【Pilot】[Gawman Nobile]",
+    "effectPt": "【Main】Escolha 1 Unidade com Link aliada. Ela ganha <Breach 1> durante este turno.\n\n(Quando o ataque desta Unidade destruir uma Unidade inimiga, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)\n【Pilot】[Gawman Nobile]",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Pilot】",
+      "[Gawman Nobile]",
+      "<Breach 1>"
+    ]
+  },
+  {
+    "code": "ST08-013",
+    "name": "Lady Luck",
+    "set": "ST08",
+    "effectEn": "【Main】/【Action】Choose 1 enemy Unit. Deal 1 damage to it. If a friendly (Mafty) Link Unit is in play, deal 2 damage instead.",
+    "effectPt": "【Main】/【Action】Escolha 1 Unidade inimiga. Cause 1 de dano a ela. Se uma Unidade com Link (Mafty) aliada estiver em jogo, cause 2 de dano em vez disso.",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Action】",
+      "(Mafty)"
+    ]
+  },
+  {
+    "code": "ST08-014",
+    "name": "Valiant",
+    "set": "ST08",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, choose 1 of your Units. It gets AP+2 during this turn.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão. Então, escolha 1 das suas Unidades. Ela recebe AP+2 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "AP+2"
+    ]
+  },
+  {
+    "code": "ST08-015",
+    "name": "Davao",
+    "set": "ST08",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Activate･Main】【Once per Turn】②：Choose 1 of your Units. It recovers 2 HP.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\n【Activate･Main】【Once per Turn】②：Escolha 1 das suas Unidades. Ela recupera 2 de HP.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "【Activate･Main】",
+      "【Once per Turn】",
+      "②",
+      "HP"
+    ]
+  }
+]

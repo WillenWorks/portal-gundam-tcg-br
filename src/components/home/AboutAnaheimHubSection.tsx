@@ -19,7 +19,7 @@ export function AboutAnaheimHubSection() {
           <div className="relative z-10 flex flex-col items-center text-center space-y-8 max-w-4xl mx-auto">
             {/* Ícone do Site: Elmo do Gundam com A. H. */}
             <div className="relative flex size-28 sm:size-36 items-center justify-center rounded-2xl border border-cyan-400/40 bg-slate-950/80 p-3 shadow-[0_0_32px_rgba(6,182,212,0.35)] transition-transform duration-500 hover:scale-105">
-              <img
+              <img loading="lazy" decoding="async"
                 src={anaheimLogoTransparent || anaheimLogo}
                 alt="Anaheim HUB - Elmo do Gundam com A.H."
                 className="size-full object-contain filter drop-shadow-[0_0_12px_rgba(6,182,212,0.6)]"

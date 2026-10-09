@@ -26,6 +26,7 @@ import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { Worker } from "node:worker_threads";
+import { computeEngineSha } from "./train/engineHash.mjs";
 
 register();
 
@@ -156,6 +157,6 @@ const outPath = path.resolve(ROOT, String(args.out ?? `docs/bot/matchups-${date}
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
 fs.writeFileSync(
   outPath,
-  `${JSON.stringify({ date, commit, params: { level, pool: poolSpec, gamesPerPair: games, seed, maxTurns, workers: parts.length, focus, shard: args.shard ?? null }, durationSeconds: Math.round((Date.now() - started) / 1000), decks: ids, wins, played, rate, average, excluded, results: [...results].sort((x, y) => x.index - y.index) }, null, 2)}\n`,
+  `${JSON.stringify({ date, commit, rulesSha: computeEngineSha(ROOT), params: { level, pool: poolSpec, gamesPerPair: games, seed, maxTurns, workers: parts.length, focus, shard: args.shard ?? null }, durationSeconds: Math.round((Date.now() - started) / 1000), decks: ids, wins, played, rate, average, excluded, results: [...results].sort((x, y) => x.index - y.index) }, null, 2)}\n`,
 );
 console.log(`\n[matchups] relatório: ${path.relative(ROOT, outPath)}`);

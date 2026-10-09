@@ -60,7 +60,7 @@ function PixPanel() {
   return (
     <div className="flex flex-col items-center gap-4 text-center">
       <div className="flex size-64 items-center justify-center border border-white/10 bg-white p-3">
-        {qrDataUrl ? <img src={qrDataUrl} alt="QR Code Pix" className="h-full w-full object-contain" /> : <p className="text-xs text-slate-500">Gerando QR Code...</p>}
+        {qrDataUrl ? <img loading="lazy" decoding="async" src={qrDataUrl} alt="QR Code Pix" className="h-full w-full object-contain" /> : <p className="text-xs text-slate-500">Gerando QR Code...</p>}
       </div>
       <div className="w-full space-y-2">
         <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Pix copia e cola</p>

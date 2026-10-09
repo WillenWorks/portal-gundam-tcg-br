@@ -30,7 +30,7 @@ const KEYWORD_SPECS: BaseKeywordSpec[] = [
     name: "Blocker",
     raw: "<Blocker>",
     category: "effect_keyword",
-    rulesSection: "CR 13-1-1",
+    rulesSection: "CR 13-1-4",
     formatPt: () =>
       "Quando o oponente declara ataque, você pode descansar esta Unidade para mudar o alvo do ataque para ela.",
     formatEn: () =>
@@ -58,7 +58,7 @@ const KEYWORD_SPECS: BaseKeywordSpec[] = [
     raw: "<Repair N>",
     category: "effect_keyword",
     hasValue: true,
-    rulesSection: "CR 13-1-3",
+    rulesSection: "CR 13-1-1",
     formatPt: (v) =>
       `No fim do seu turno, esta Unidade recupera ${v ?? "N"} pontos de HP.`,
     formatEn: (v) =>
@@ -71,7 +71,7 @@ const KEYWORD_SPECS: BaseKeywordSpec[] = [
     name: "High-Maneuver",
     raw: "<High-Maneuver>",
     category: "effect_keyword",
-    rulesSection: "CR 13-1-4",
+    rulesSection: "CR 13-1-6",
     formatPt: () =>
       "Esta Unidade não pode ser bloqueada. Ataques dela sempre atingem o alvo original escolhido, mesmo que o oponente tenha Blocker disponível.",
     formatEn: () =>
@@ -86,9 +86,9 @@ const KEYWORD_SPECS: BaseKeywordSpec[] = [
     category: "effect_keyword",
     rulesSection: "CR 13-1-5",
     formatPt: () =>
-      "Durante uma batalha, esta Unidade causa dano de batalha ANTES da Unidade inimiga. Se o dano for suficiente para destruir o alvo, o inimigo não chega a causar dano de volta.",
+      "Quando esta Unidade ataca, ela causa dano de batalha ANTES do alvo do ataque. Se o dano destruir a Unidade ou a Base alvo, o alvo não causa dano de volta.",
     formatEn: () =>
-      "During battle, this Unit deals battle damage BEFORE the enemy Unit. If the damage destroys the enemy, it deals no return damage.",
+      "When this Unit attacks, it deals battle damage BEFORE the attack target. If that damage destroys the target Unit or Base, the target deals no return damage.",
     examplePt: "Se destruir a unidade defensora antecipadamente, sobrevive ilesa à batalha.",
     exampleEn: "Wins trades without taking damage if dealing lethal damage first.",
   },
@@ -97,7 +97,7 @@ const KEYWORD_SPECS: BaseKeywordSpec[] = [
     name: "Suppression",
     raw: "<Suppression>",
     category: "effect_keyword",
-    rulesSection: "CR 13-1-6",
+    rulesSection: "CR 13-1-7",
     formatPt: () =>
       "Quando o dano de batalha desta Unidade atinge a área de escudo do oponente, atinge os 2 primeiros escudos simultaneamente, em vez de apenas 1.",
     formatEn: () =>
@@ -111,7 +111,7 @@ const KEYWORD_SPECS: BaseKeywordSpec[] = [
     raw: "<Support N>",
     category: "effect_keyword",
     hasValue: true,
-    rulesSection: "CR 13-1-7",
+    rulesSection: "CR 13-1-3",
     formatPt: (v) =>
       `Descansando esta Unidade durante a sua Fase Principal, você concede AP+${v ?? "N"} para 1 outra Unidade aliada durante este turno.`,
     formatEn: (v) =>
@@ -126,7 +126,7 @@ const KEYWORD_SPECS: BaseKeywordSpec[] = [
     name: "Deploy",
     raw: "【Deploy】",
     category: "trigger_keyword",
-    rulesSection: "CR 9-2",
+    rulesSection: "CR 13-2-6",
     formatPt: () =>
       "Ativa automaticamente no instante em que a carta entra em jogo no campo de batalha.",
     formatEn: () =>
@@ -137,7 +137,7 @@ const KEYWORD_SPECS: BaseKeywordSpec[] = [
     name: "Burst",
     raw: "【Burst】",
     category: "trigger_keyword",
-    rulesSection: "CR 10-3",
+    rulesSection: "CR 13-2-5",
     formatPt: () =>
       "Ativa quando esta carta é revelada na área de escudo ao receber dano de batalha, concedendo um efeito imediato antes de ir para a lixeira.",
     formatEn: () =>
@@ -148,7 +148,7 @@ const KEYWORD_SPECS: BaseKeywordSpec[] = [
     name: "When Paired",
     raw: "【When Paired】",
     category: "trigger_keyword",
-    rulesSection: "CR 9-4",
+    rulesSection: "CR 13-2-9",
     formatPt: () =>
       "Dispara no exato momento em que um Piloto é pareado com esta Unidade.",
     formatEn: () =>
@@ -159,7 +159,7 @@ const KEYWORD_SPECS: BaseKeywordSpec[] = [
     name: "During Pair",
     raw: "【During Pair】",
     category: "trigger_keyword",
-    rulesSection: "CR 9-4",
+    rulesSection: "CR 13-2-10",
     formatPt: () =>
       "Efeito estático continuamente ativo enquanto esta Unidade estiver pareada com um Piloto.",
     formatEn: () =>
@@ -170,7 +170,7 @@ const KEYWORD_SPECS: BaseKeywordSpec[] = [
     name: "During Link",
     raw: "【During Link】",
     category: "trigger_keyword",
-    rulesSection: "CR 9-4",
+    rulesSection: "CR 13-2-12",
     formatPt: () =>
       "Efeito estático continuamente ativo enquanto esta Unidade estiver linkada com o Piloto indicado no seu requisito de Link.",
     formatEn: () =>
@@ -181,7 +181,7 @@ const KEYWORD_SPECS: BaseKeywordSpec[] = [
     name: "Activate･Main",
     raw: "【Activate･Main】",
     category: "trigger_keyword",
-    rulesSection: "CR 9-3",
+    rulesSection: "CR 13-2-1",
     formatPt: () =>
       "Habilidade de ativação manual que pode ser declarada durante a sua Fase Principal, pagando os custos especificados.",
     formatEn: () =>
@@ -192,7 +192,7 @@ const KEYWORD_SPECS: BaseKeywordSpec[] = [
     name: "Activate･Action",
     raw: "【Activate･Action】",
     category: "trigger_keyword",
-    rulesSection: "CR 9-3",
+    rulesSection: "CR 13-2-2",
     formatPt: () =>
       "Habilidade de ativação manual utilizável durante a Etapa de Ação de uma batalha ou na Etapa de Ação da Fase Final.",
     formatEn: () =>
@@ -203,7 +203,7 @@ const KEYWORD_SPECS: BaseKeywordSpec[] = [
     name: "Attack",
     raw: "【Attack】",
     category: "trigger_keyword",
-    rulesSection: "CR 8-2",
+    rulesSection: "CR 13-2-7",
     formatPt: () =>
       "Dispara no momento em que esta Unidade é descansada para declarar um ataque.",
     formatEn: () =>
@@ -214,7 +214,7 @@ const KEYWORD_SPECS: BaseKeywordSpec[] = [
     name: "Destroyed",
     raw: "【Destroyed】",
     category: "trigger_keyword",
-    rulesSection: "CR 11-1",
+    rulesSection: "CR 13-2-8",
     formatPt: () =>
       "Dispara quando esta carta é destruída em batalha ou por efeito e enviada para o lixo.",
     formatEn: () =>
@@ -225,7 +225,7 @@ const KEYWORD_SPECS: BaseKeywordSpec[] = [
     name: "Once per Turn",
     raw: "【Once per Turn】",
     category: "trigger_keyword",
-    rulesSection: "CR 9-1",
+    rulesSection: "CR 13-2-13",
     formatPt: () =>
       "Limite de resolução: esta habilidade só pode ser ativada uma única vez por turno por esta carta.",
     formatEn: () =>
@@ -238,7 +238,7 @@ const KEYWORD_SPECS: BaseKeywordSpec[] = [
     name: "Link",
     raw: "Link",
     category: "mechanic",
-    rulesSection: "CR 9-4",
+    rulesSection: "CR 3-2-6",
     formatPt: () =>
       "Condição de afinidade de Piloto (por nome ou característica). Quando cumprida, ativa efeitos estáticos 【During Link】 e bônus da Unidade.",
     formatEn: () =>
@@ -249,11 +249,11 @@ const KEYWORD_SPECS: BaseKeywordSpec[] = [
     name: "EX Resource",
     raw: "EX Resource",
     category: "mechanic",
-    rulesSection: "CR 7-3",
+    rulesSection: "CR 4-4",
     formatPt: () =>
-      "Recurso adicional concedido na Área de Recursos (máximo 5). Pode ser descansado para pagar custo ou nível como um recurso normal.",
+      "Token de Recurso na área de recursos (máximo 5), usado temporariamente para pagar custos: ao pagar, ele é removido do jogo. Conta para o Lv. do jogador enquanto estiver lá.",
     formatEn: () =>
-      "Bonus resource placed in the resource area (maximum 5), usable to pay costs.",
+      "Resource token in the resource area (maximum 5), used temporarily to pay costs: when used to pay, it is removed from the game. It counts toward the player's Lv. while there.",
   },
   {
     id: "development",
@@ -261,7 +261,7 @@ const KEYWORD_SPECS: BaseKeywordSpec[] = [
     raw: "Development N",
     category: "mechanic",
     hasValue: true,
-    rulesSection: "CR 9-5",
+    rulesSection: "CR 13-1-8",
     formatPt: (v) =>
       `Mecânica avançada: exile ${v ?? "N"} cartas com a característica especificada da sua lixeira para ativar o efeito subsequente (■).`,
     formatEn: (v) =>
@@ -274,7 +274,7 @@ const KEYWORD_SPECS: BaseKeywordSpec[] = [
     name: "Rest",
     raw: "Rest",
     category: "mechanic",
-    rulesSection: "CR 5-2",
+    rulesSection: "CR 5-4",
     formatPt: () =>
       "Estado descansado (carta na horizontal). Indica que a carta já agiu, atacou ou pagou um custo neste turno.",
     formatEn: () =>
@@ -285,7 +285,7 @@ const KEYWORD_SPECS: BaseKeywordSpec[] = [
     name: "Active",
     raw: "Active",
     category: "mechanic",
-    rulesSection: "CR 5-2",
+    rulesSection: "CR 5-4",
     formatPt: () =>
       "Estado ativo (carta na vertical). Indica que a carta está pronta para atacar, agir ou usar habilidades.",
     formatEn: () =>
@@ -300,7 +300,7 @@ export const PHASE_STEP_LABELS: Record<string, PhaseStepLabel> = {
     id: "start_phase",
     pt: "Fase de Início",
     en: "Start Phase",
-    detailPt: "Reativa todas as cartas descansadas do jogador ativo.",
+    detailPt: "O jogador ativo coloca como ativas todas as suas cartas em Rest (battle area, área de recursos e base).",
     detailEn: "Sets all rested cards of the active player to active.",
   },
   draw_phase: {
@@ -314,8 +314,8 @@ export const PHASE_STEP_LABELS: Record<string, PhaseStepLabel> = {
     id: "resource_phase",
     pt: "Fase de Recurso",
     en: "Resource Phase",
-    detailPt: "Coloca 1 carta de Recurso da mão ou EX Resource na área de recursos.",
-    detailEn: "Place 1 resource card into the resource area.",
+    detailPt: "Coloca 1 carta de Recurso do resource deck na área de recursos, com a face para cima e ativa.",
+    detailEn: "Place 1 Resource card from the resource deck into the resource area, face up and active.",
   },
   main_phase: {
     id: "main_phase",
@@ -337,8 +337,8 @@ export const PHASE_STEP_LABELS: Record<string, PhaseStepLabel> = {
     id: "attack_step",
     pt: "Etapa de Ataque",
     en: "Attack Step",
-    detailPt: "Declaração de atacante e escolha do alvo (Unidade em Rest, Base ou Escudo).",
-    detailEn: "Attacker declaration and target choice.",
+    detailPt: "Coloque em Rest 1 Unidade ativa e declare o alvo: o jogador inimigo ou uma Unidade inimiga em Rest.",
+    detailEn: "Rest 1 active Unit and declare the target: the opposing player or a rested enemy Unit.",
   },
   blocker_step: {
     id: "blocker_step",

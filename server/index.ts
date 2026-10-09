@@ -25,6 +25,7 @@ import { GD04_TEST_DECKS } from "../src/modules/simulator/fixtures/gd04Decks.ts"
 import { ST09_DECKS } from "../src/modules/simulator/fixtures/st09Decks.ts";
 import { GD05_DECKS } from "../src/modules/simulator/fixtures/gd05Decks.ts";
 import { ST10_TEST_DECKS } from "../src/modules/simulator/fixtures/st10Decks.ts";
+import { EB01_TEST_DECKS } from "../src/modules/simulator/fixtures/eb01Decks.ts";
 import { validateDeckPayload, checkUserDeckSimulatorCoverage } from "./deckCoverageGate.ts";
 import {
   computeSwissStandings,
@@ -70,7 +71,7 @@ import {
 } from "../src/modules/simulator/server/matchStore.ts";
 import { viewStateFor } from "../src/modules/simulator/engine/viewState.ts";
 import { buildBattleLog } from "../src/modules/simulator/ui/battleLog.ts";
-import { saveBugReportToDisk } from "./services/bugReportDiskService.ts";
+import { removeBugReportFromDisk, saveBugReportToDisk } from "./services/bugReportDiskService.ts";
 import { hydrateMatch } from "../src/modules/simulator/server/hydrateMatch.ts";
 import {
   createTrainingMatch,
@@ -101,7 +102,7 @@ import {
 } from "../src/modules/simulator/server/matchStats.ts";
 import { attachSimulatorSocket } from "./simulatorSocket.ts";
 import { attachSimulatorArena4pSocket } from "./simulatorSocket4p.ts";
-import { cardStatusRouter } from "./routes/cardStatus.ts";
+import { cardStatusRouter, playabilityWhere } from "./routes/cardStatus.ts";
 import {
   getMetaArchetypes,
   getArchetypeBreakdown,
@@ -1973,6 +1974,9 @@ app.get("/api/cards", async (req, res) => {
   const hp = parseIntegerFilter(req.query.hp);
   const cost = parseIntegerFilter(req.query.cost);
   const level = parseIntegerFilter(req.query.level);
+  // "Só aptas" no servidor (antes a página baixava o catálogo inteiro pra filtrar): mesmo veredito do
+  // `/api/simulator/card-status` (`isCardPlayable`), em cache até o próximo deploy.
+  const playabilityFilter = playabilityWhere(normalizeQueryValue(req.query.playability));
   const sort = normalizeQueryValue(req.query.sort) || "code_asc";
   const pagination = getPagination(req.query, { pageSize: 24, maxPageSize: 100 });
 
@@ -2014,6 +2018,7 @@ app.get("/api/cards", async (req, res) => {
     link === "pilot-reference" ? { AND: [{ cardType: { in: [CardType.COMMAND, CardType.COMMAND_PILOT] } }, { OR: [{ effectEn: { contains: "[Pilot]", mode: "insensitive" } }, { effectPt: { contains: "[Pilot]", mode: "insensitive" } }] }] } : {},
     link === "none" ? { linkText: null, pilotName: null } : {},
     relation === "missing" ? { AND: [{ outgoingRelations: { none: { isActive: true } } }, { incomingRelations: { none: { isActive: true } } }] } : {},
+    playabilityFilter,
     relation === "confirmed" ? { OR: [{ outgoingRelations: { some: { isActive: true } } }, { incomingRelations: { some: { isActive: true } } }] } : {},
     hasPrintFilter ? { prints: { some: printWhere } } : {},
   ];
@@ -4880,6 +4885,7 @@ const SIMULATOR_DECKS: Record<string, () => DeckList> = {
   ...Object.fromEntries(Object.entries(ST09_DECKS).map(([key, deck]) => [key, deck.build])),
   ...Object.fromEntries(Object.entries(GD05_DECKS).map(([key, deck]) => [key, deck.build])),
   ...Object.fromEntries(Object.entries(ST10_TEST_DECKS).map(([key, deck]) => [key, deck.build])),
+  ...Object.fromEntries(Object.entries(EB01_TEST_DECKS).map(([key, deck]) => [key, deck.build])),
 };
 
 function resolveDeckKey(raw: unknown): { key: string; build: () => DeckList } | null {
@@ -5051,6 +5057,9 @@ app.post("/api/simulator/training/new", authRequired, async (req: RequestWithUse
       if (Object.hasOwn(ST10_TEST_DECKS, upper)) {
         return { key: upper, list: ST10_TEST_DECKS[upper].build() };
       }
+      if (Object.hasOwn(EB01_TEST_DECKS, upper)) {
+        return { key: upper, list: EB01_TEST_DECKS[upper].build() };
+      }
       // Busca deck do usuário no banco
       const dbDeck = await prisma.deck.findFirst({
         where: { id, userId: req.user!.userId },
@@ -5058,7 +5067,7 @@ app.post("/api/simulator/training/new", authRequired, async (req: RequestWithUse
       });
       if (!dbDeck) {
         throw new TrainingMatchError(
-          `Deck "${id}" não encontrado no seu perfil nem entre os starters (${[...Object.keys(VALIDATED_DECKS), ...Object.keys(GD01_TEST_DECKS), ...Object.keys(META_DECKS_GD02_ERA), ...Object.keys(GD03_TEST_DECKS), ...Object.keys(GD04_TEST_DECKS), ...Object.keys(ST09_DECKS), ...Object.keys(GD05_DECKS), ...Object.keys(ST10_TEST_DECKS)].sort().join(", ")}).`,
+          `Deck "${id}" não encontrado no seu perfil nem entre os starters (${[...Object.keys(VALIDATED_DECKS), ...Object.keys(GD01_TEST_DECKS), ...Object.keys(META_DECKS_GD02_ERA), ...Object.keys(GD03_TEST_DECKS), ...Object.keys(GD04_TEST_DECKS), ...Object.keys(ST09_DECKS), ...Object.keys(GD05_DECKS), ...Object.keys(ST10_TEST_DECKS), ...Object.keys(EB01_TEST_DECKS)].sort().join(", ")}).`,
         );
       }
       const list = buildDeckListFromUserDeck(dbDeck);
@@ -5314,7 +5323,7 @@ app.post("/api/simulator/matches/:id/report", authRequired, async (req: RequestW
     const battleLog = buildBattleLog(view);
     const cardsInvolved = collectCardsInvolved(match.state);
 
-    // Salva o relatório de bug no disco com Markdown, print e dados completos para agentes de IA
+    // Grava o relato em `bug-reports/` (pasta única) até o bug ser corrigido; ver `POST /api/simulator/bug-reports/:shortCode/resolve`.
     void saveBugReportToDisk({
       shortCode: result.shortCode,
       matchId: String(req.params.id),
@@ -5369,6 +5378,16 @@ app.get("/api/simulator/bug-reports/:shortCode", authRequired, roleRequired([Use
   const row = await prisma.simulatorBugReport.findUnique({ where: { shortCode: String(req.params.shortCode) } });
   if (!row) return res.status(404).json({ error: "Bug report não encontrado." });
   res.json(row);
+});
+
+// Bug corrigido: marca `status = "fixed"` e apaga a pasta do relato em `bug-reports/` (o registro no banco fica para histórico).
+app.post("/api/simulator/bug-reports/:shortCode/resolve", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
+  const shortCode = String(req.params.shortCode).toUpperCase();
+  const row = await prisma.simulatorBugReport.findUnique({ where: { shortCode }, select: { id: true } });
+  if (!row) return res.status(404).json({ error: "Bug report não encontrado." });
+  await prisma.simulatorBugReport.update({ where: { shortCode }, data: { status: "fixed" } });
+  const removedFromDisk = await removeBugReportFromDisk(shortCode);
+  res.json({ shortCode, status: "fixed", removedFromDisk });
 });
 
 // Status de cartas para o simulador ("apta" / "em revisão" / "fora do simulador")

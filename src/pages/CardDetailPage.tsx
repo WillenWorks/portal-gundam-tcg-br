@@ -34,7 +34,7 @@ function MiniCard({ item, eyebrow, detail, isEffectivePt }: { item: any; eyebrow
   const name = isEffectivePt !== false ? (item.namePt || item.nameEn) : (item.nameEn || item.namePt);
   return <Link href={`/cards/${item.id}`} className="group block panel-cut border surface-strong p-3 transition hover:border-primary/60 hover:bg-primary/[0.06]">
     <div className="grid grid-cols-[58px_1fr] gap-3">
-      <div className="aspect-[3/4] overflow-hidden border border-white/10 bg-slate-950/60">{item.imageSmallUrl || item.thumbUrl || item.imageUrl ? <img src={item.imageSmallUrl || item.thumbUrl || item.imageUrl} alt={name} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" /> : null}</div>
+      <div className="aspect-[3/4] overflow-hidden border border-white/10 bg-slate-950/60">{item.imageSmallUrl || item.thumbUrl || item.imageUrl ? <img loading="lazy" decoding="async" src={item.imageSmallUrl || item.thumbUrl || item.imageUrl} alt={name} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" /> : null}</div>
       <div className="min-w-0">{eyebrow ? <p className="text-[10px] uppercase tracking-[0.18em] text-primary">{eyebrow}</p> : null}<p className="mt-1 truncate text-xs uppercase tracking-[0.14em] text-slate-500">{item.code}</p><p className="mt-1 text-sm font-medium dark:text-white light:text-slate-900">{name}</p>{detail ? <p className="mt-1 line-clamp-2 text-xs text-slate-400">{detail}</p> : <p className="mt-1 text-xs text-slate-400">{TYPE_LABELS[item.cardType] || item.cardType} · {item.set?.code || "sem coleção"}</p>}</div>
     </div>
   </Link>;
@@ -130,7 +130,7 @@ export default function CardDetailPage() {
         <section className="grid gap-6 lg:grid-cols-[minmax(320px,0.7fr)_minmax(0,1.3fr)] 2xl:grid-cols-[480px_1fr] 3xl:grid-cols-[540px_1fr]">
           <div className="mx-auto w-full max-w-[460px] 2xl:max-w-[480px] 3xl:max-w-[540px] space-y-3">
             <button type="button" onClick={() => artUrl && setZoomOpen(true)} className="group relative block w-full overflow-hidden border border-primary/30 bg-slate-950/60 text-left" aria-label="Ampliar imagem da carta">
-              <div className="aspect-[63/88]">{artUrl ? <img src={artUrl} alt={displayName} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]" /> : <div className="flex h-full items-center justify-center text-sm text-slate-500">Sem arte vinculada</div>}</div>
+              <div className="aspect-[63/88]">{artUrl ? <img decoding="async" fetchPriority="high" src={artUrl} alt={displayName} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]" /> : <div className="flex h-full items-center justify-center text-sm text-slate-500">Sem arte vinculada</div>}</div>
               {artUrl ? <span className="absolute bottom-3 right-3 inline-flex items-center gap-2 border border-white/20 bg-slate-950/85 px-3 py-2 text-xs uppercase tracking-[0.14em] text-white"><Expand className="size-4" />Ampliar</span> : null}
             </button>
             {prints.length > 1 ? (
@@ -142,7 +142,7 @@ export default function CardDetailPage() {
                     <button key={print.id} type="button" onClick={() => setSelectedPrintId(print.id)}
                       className={`aspect-[63/88] overflow-hidden border transition ${active ? "border-primary ring-2 ring-primary/50" : "border-white/15 opacity-70 hover:opacity-100"}`}
                       aria-label={`Ver arte: ${print.printLabel || print.rarity || "impressão"}`} title={print.printLabel || print.rarity || undefined}>
-                      {thumb ? <img src={thumb} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/60 text-[9px] text-slate-500">?</div>}
+                      {thumb ? <img loading="lazy" decoding="async" src={thumb} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/60 text-[9px] text-slate-500">?</div>}
                     </button>
                   );
                 })}
@@ -336,7 +336,7 @@ export default function CardDetailPage() {
     <Dialog open={zoomOpen} onOpenChange={setZoomOpen}><DialogContent aria-describedby={undefined} className="max-h-[96vh] max-w-5xl overflow-auto border-white/10 bg-slate-950 p-3 text-white">
       <DialogTitle className="sr-only">{`Arte ampliada: ${displayName || "Carta"}`}</DialogTitle>
       <div className="relative">
-        {artUrl ? <img src={artUrl} alt={displayName || "Carta"} className="mx-auto max-h-[84vh] w-auto" /> : null}
+        {artUrl ? <img loading="lazy" decoding="async" src={artUrl} alt={displayName || "Carta"} className="mx-auto max-h-[84vh] w-auto" /> : null}
         {prints.length > 1 ? <>
           <button type="button" onClick={() => goToPrint(-1)} aria-label="Arte anterior" className="absolute left-2 top-1/2 -translate-y-1/2 border border-white/20 bg-slate-950/80 p-2 hover:bg-slate-900"><ChevronLeft className="size-5" /></button>
           <button type="button" onClick={() => goToPrint(1)} aria-label="Próxima arte" className="absolute right-2 top-1/2 -translate-y-1/2 border border-white/20 bg-slate-950/80 p-2 hover:bg-slate-900"><ChevronRight className="size-5" /></button>

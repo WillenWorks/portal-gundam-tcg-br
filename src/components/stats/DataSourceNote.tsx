@@ -57,7 +57,7 @@ export function DataSourceNote({
   endDate: directEnd,
   tournaments: directTournamentsList,
   labelPrefix = "Baseado em",
-  weightNote = "Regionais e eventos maiores têm maior peso amostral.",
+  weightNote,
   className = "",
   variant = "inline",
   archetypeName,

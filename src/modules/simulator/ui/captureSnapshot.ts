@@ -1,4 +1,4 @@
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import type { PlayerId } from "@/modules/simulator/engine/types";
 import type { ViewGameState, ViewCardInstance } from "@/modules/simulator/engine/viewState";
 import type { BattleLogEntry } from "./battleLog";
@@ -40,6 +40,9 @@ export interface CaptureContext {
   battleLog: BattleLogEntry[];
 }
 
+const SCREENSHOT_MAX_WIDTH = 1600;
+const SCREENSHOT_JPEG_QUALITY = 0.8;
+
 function extractUnitCodes(cards: ViewCardInstance[]): string[] {
   return cards
     .filter((c) => !("hidden" in c && c.hidden))
@@ -48,7 +51,7 @@ function extractUnitCodes(cards: ViewCardInstance[]): string[] {
 
 /**
  * Captura um snapshot integral da partida: estado atual, contagens, bot status,
- * log de combate recente e print visual da tela via html2canvas.
+ * log de combate recente e print visual da tela via html2canvas-pro (o html2canvas 1.x não lê as cores oklch do Tailwind v4).
  */
 export async function captureSimulatorSnapshot(
   containerElement: HTMLElement | null,
@@ -78,14 +81,17 @@ export async function captureSimulatorSnapshot(
 
   if (containerElement && typeof window !== "undefined") {
     try {
+      // Sem `allowTaint`: com ele uma arte de outro domínio "contamina" o canvas e o `toDataURL` lança — por isso
+      // nenhum relato tinha print. Com só `useCORS`, imagem sem CORS fica de fora e o resto da mesa sai.
+      // JPEG e largura limitada: o POST do relato precisa caber com folga no `express.json({ limit: "4mb" })`.
+      const width = containerElement.clientWidth || window.innerWidth || SCREENSHOT_MAX_WIDTH;
       const canvas = await html2canvas(containerElement, {
         useCORS: true,
-        allowTaint: true,
         logging: false,
         backgroundColor: "#020617",
-        scale: Math.min(window.devicePixelRatio || 1, 1.5), // equilíbrio ideal entre qualidade e payload
+        scale: Math.min(window.devicePixelRatio || 1, SCREENSHOT_MAX_WIDTH / width),
       });
-      screenshotBase64 = canvas.toDataURL("image/png");
+      screenshotBase64 = canvas.toDataURL("image/jpeg", SCREENSHOT_JPEG_QUALITY);
     } catch (err) {
       console.warn("[BugReport] Não foi possível capturar o screenshot via canvas:", err);
     }

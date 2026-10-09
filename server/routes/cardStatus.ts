@@ -314,6 +314,20 @@ export function getCardStatus(code: string): CardStatusEntry {
 }
 
 /**
+ * Filtro do catálogo (`GET /api/cards?playability=apta|revisao|fora`) com o mesmo veredito deste endpoint.
+ * "apta"/"revisao" = códigos com esse status; "fora" = tudo que não é apta nem revisão (inclui cartas que nem
+ * estão no catálogo do motor). Valor desconhecido ou vazio = sem filtro.
+ */
+export function playabilityWhere(value: string | undefined): { code?: { in: string[] } | { notIn: string[] } } {
+  if (value !== "apta" && value !== "revisao" && value !== "fora") return {};
+  const cards = Object.values(getAllCardStatuses().cards);
+  if (value === "fora") {
+    return { code: { notIn: cards.filter((c) => c.status !== "fora").map((c) => c.code) } };
+  }
+  return { code: { in: cards.filter((c) => c.status === value).map((c) => c.code) } };
+}
+
+/**
  * Handler HTTP principal: GET /api/simulator/card-status
  */
 export function handleGetCardStatus(req: Request, res: Response): void {

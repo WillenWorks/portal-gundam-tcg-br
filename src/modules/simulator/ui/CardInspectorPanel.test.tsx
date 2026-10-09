@@ -1,9 +1,14 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { CardDef, CardInstance } from "@/modules/simulator/engine/types";
 import { CardInspectorPanel } from "./CardInspectorPanel";
+
+// O selo vem do endpoint do A3 (`/api/simulator/card-status`) pelo cache `useCardPlayability`.
+vi.mock("@/components/catalog/useCardPlayability", () => ({
+  useCardPlayability: () => ({ entry: { code: "ST01-001", set: "ST01", status: "apta" }, isLoading: false, status: "apta" }),
+}));
 
 afterEach(cleanup);
 

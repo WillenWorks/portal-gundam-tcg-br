@@ -31,6 +31,10 @@ export type NormalizedEvent = {
   dateStart: string | null;
   organizerLabel: string | null;
   locationLabel: string | null;
+  /** jogadores declarados no evento (nem sempre todos têm lista cadastrada) */
+  playerCount: number | null;
+  /** página oficial do evento, quando houver */
+  sourceUrl: string | null;
   vodUrls: string[];
   topCutSize: number | null;
   participants: NormalizedParticipant[];
@@ -64,6 +68,8 @@ export function normalizeTournament(tournament: any): NormalizedEvent {
     dateStart: tournament.dateStart,
     organizerLabel: tournament.organizer || null,
     locationLabel: tournament.city ? `${tournament.city}${tournament.country ? `, ${tournament.country}` : ""}` : null,
+    playerCount: tournament.participantCount ?? null,
+    sourceUrl: tournament.sourceUrl || null,
     vodUrls: tournament.vodUrls || [],
     topCutSize: tournament.topCutSize ?? null,
     participants: entries.map((entry) => ({
@@ -93,6 +99,8 @@ export function normalizeHostedEvent(event: any): NormalizedEvent {
     dateStart: event.dateStart,
     organizerLabel: event.hoster?.displayName || null,
     locationLabel: event.venueName || event.city ? `${event.venueName || ""}${event.venueName && event.city ? " · " : ""}${event.city || ""}` : null,
+    playerCount: standings.length || null,
+    sourceUrl: null,
     vodUrls: event.vodUrls || [],
     topCutSize: null,
     participants: standings.map((row, index) => ({

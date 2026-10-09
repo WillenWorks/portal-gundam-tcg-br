@@ -111,6 +111,8 @@ import { attackTargetError } from "@/modules/simulator/engine/combat";
 import { otherPlayer, hasKeyword, effectiveAp, effectiveHp, effectiveCost, effectiveDeployCost, effectiveLevel, effectivePilotDef, satisfiesLinkCondition, type AttackTarget, type CardDef, type CardInstance, type GameState, type PlayerId, type CombatState } from "@/modules/simulator/engine/types";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
 import { playerHasActionStepPlay } from "@/modules/simulator/engine/actions";
+import { actionStepAutoPass, isDecisionResponse } from "@/modules/simulator/ui/actionStepAutoPass";
+import { useCardLanguage } from "@/i18n/useCardLanguage";
 import type { HiddenCard, ViewCardInstance, ViewGameState, ViewPlayerState } from "@/modules/simulator/engine/viewState";
 import { pairingNeedsExtraTarget, resolveDeploySelection } from "@/modules/simulator/ui/deployIntent";
 import { fieldAbilityFor, type FieldAbility } from "@/modules/simulator/ui/abilityIntent";
@@ -135,6 +137,7 @@ import {
   ActionDock,
   type ActionDockState,
   ArenaPlaymat,
+  AbilityTargetLane,
   type ArenaSide,
   BaseCardGauge,
   BattleLogDrawer,
@@ -145,6 +148,7 @@ import {
   cardBackUrl,
   CardDepartureAnimation,
   type DepartingCard,
+  EffectResolutionOverlay,
   CardInspectorModal,
   CardInspectorPanel,
   CenterDecisionModal,
@@ -1104,8 +1108,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     };
   }, []);
 
+  // BUG-HGGAG0 (P-2): depois de uma resposta aceita, a view seguinte pode ficar alguns instantes na fila (saída das
+  // cartas exiladas, banners) e o modal antigo segue clicável. Um 2º clique reenviava a mesma resposta para uma decisão
+  // que o servidor já tinha trocado (passo 2 do Development) e voltava erro. Uma resposta de decisão por versão.
+  const decisionSentForVersionRef = useRef<number | null>(null);
   const runAction = useCallback(
     async (action: PlayerAction) => {
+      const resolvesDecision = isDecisionResponse(action);
+      if (resolvesDecision && matchView && decisionSentForVersionRef.current === matchView.version) return;
+      if (resolvesDecision && matchView) decisionSentForVersionRef.current = matchView.version;
       setBusy(true);
       try {
         // Áudio e feedback sensorial Gundam com micro-delays antes do despacho
@@ -1161,6 +1172,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         // jogada recusada pelo motor (ex.: atacar com Unit rested) — faixa
         // própria no topo, não `toast` no canto (que tapava o log — Feedback.pdf §5).
         showActionError(errorMessage(err, "Ação inválida."));
+        // recusada: a mesma decisão continua pendente e pode ser respondida de novo
+        if (resolvesDecision) decisionSentForVersionRef.current = null;
       } finally {
         setBusy(false);
       }
@@ -1586,18 +1599,18 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   // literalmente não há jogada nenhuma, então não tira nenhuma decisão real
   // do jogador (o toggle continua servindo pra quem quer pular Comandos
   // 【Action】 que EXISTEM mas não quer considerar).
+  // Um passe por versão: a view seguinte pode ficar na fila (banners) depois da resposta, e sem essa trava o
+  // efeito reenviava o passe para uma prioridade que o servidor já tinha encerrado.
+  const autoPassSentForVersionRef = useRef<number | null>(null);
+  const { language: cardLanguage } = useCardLanguage();
   useEffect(() => {
     if (!matchView || introStage !== "complete" || busy) return;
-    const v = matchView.view;
-    const meSeat = matchView.seat;
-    const combatNow = v.combat;
-    const iHavePriorityNow = combatNow?.step === "action" && combatNow.actionPriority === meSeat;
-    const iHaveEndPhasePriorityNow = v.endPhaseAction !== null && v.endPhaseAction.priority === meSeat;
-    if (!iHavePriorityNow && !iHaveEndPhasePriorityNow) return;
-    if (playerHasActionStepPlay(v, meSeat, ALL_EFFECT_SPECS)) return;
-    if (phaseBannerQueue.length > 0) return;
-    runAction(iHavePriorityNow ? { kind: "passAction" } : { kind: "passEndPhaseAction" });
-  }, [matchView, introStage, busy, runAction, phaseBannerQueue.length]);
+    if (autoPassSentForVersionRef.current === matchView.version) return;
+    const pass = actionStepAutoPass(matchView.view, matchView.seat, ALL_EFFECT_SPECS);
+    if (!pass) return;
+    autoPassSentForVersionRef.current = matchView.version;
+    runAction(pass);
+  }, [matchView, introStage, busy, runAction]);
 
   // docs/55 tarefa 3 — Auto-pass do Passo de Bloqueio: se o defensor não tem
   // NENHUMA Unit ativa com <Blocker>, pula sozinho — não trava o jogo
@@ -1630,7 +1643,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   // Battle Areas (nunca redigidas — ver viewState.ts). O cast é seguro pra os
   // cálculos de stat e deixa os badges incluírem 【During Pair】/【During Link】.
   const boardForStats = view as unknown as GameState;
-  const battleLog = buildBattleLog(view); // docs/19, Sessão 4 — feed traduzido; barato (eventLog é janelado no servidor)
+  const battleLog = buildBattleLog(view, cardLanguage); // docs/19, Sessão 4 — feed traduzido; barato (eventLog é janelado no servidor)
   const combat = view.combat;
   const endPhaseAction = view.endPhaseAction;
   const myTurnMain = !combat && view.phase === "main" && view.activePlayer === seat;
@@ -2191,6 +2204,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
    *  anyUnit) — Recurso/Base/mão/deck/lixeira continuam só no modal (ver
    *  `usesBoardTargetingForPrimary`/`usesBoardTargetingForSecondary`). */
   const abilityDecision = myPendingDecision?.kind === "abilityResolution" ? myPendingDecision : null;
+  const abilityLanePool = (id: string): "ally" | "enemy" => {
+    const mine = view.players[seat];
+    return mine.battleArea.some((c) => c.instanceId === id) || mine.baseSection.some((c) => c.instanceId === id) ? "ally" : "enemy";
+  };
 
   function sideOfUnit(instanceId: string): "ally" | "enemy" | null {
     if (publicUnits(view.players[seat]).some((u) => u.instanceId === instanceId)) return "ally";
@@ -2342,6 +2359,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           state={boardForStats}
           abilityTargetPool={abilityTarget?.side ?? null}
           abilitySelected={isAbilitySelected}
+          isAbilitySource={Boolean(unit && abilityDecision?.queue.some((q) => q.sourceInstanceId === unit.instanceId))}
           onSelect={(u) => {
             if (isPhaseBannerActive) return;
             // "Nova leva de correções" (item 4) — clique num alvo de habilidade
@@ -2681,6 +2699,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     }
     if (attackerId) return "Escolha o alvo do ataque (Unit ou jogador)";
     if (iAmDefending) return "Defenda: ative um <Blocker> ou não bloqueie";
+    if (inActionStep && !playerHasActionStepPlay(view, seat, ALL_EFFECT_SPECS)) {
+      return "Sem jogada de 【Action】 — passando…";
+    }
     if (inActionStep) {
       return iHaveEndPhasePriority
         ? "Fim de Turno — jogue um Comando 【Action】 ou passe"
@@ -3429,6 +3450,24 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         art={art}
         onDone={(id) => setDepartures((cur) => cur.filter((g) => g.id !== id))}
       />
+
+      {/* Números/efeitos flutuantes por GameEvent (dano, buff, keyword, token, EX…) — CONTRATO-MOTOR §7. */}
+      <EffectResolutionOverlay eventLog={view.eventLog} rectOf={board.rectOf} viewerSeat={seat} />
+
+      {/* Linha de mira da carta de origem até os alvos já escolhidos na resolução da habilidade. */}
+      {abilityDecision?.queue.map((q) => {
+        const primary = (abilityTargets[q.specId] ?? []).map((id) => ({ id, pool: abilityLanePool(id) }));
+        const secondary = (abilitySecondaryTargets[q.specId] ?? []).map((id) => ({ id, pool: "secondary" as const }));
+        if (primary.length + secondary.length === 0) return null;
+        return (
+          <AbilityTargetLane
+            key={`${q.sourceInstanceId}:${q.specId}`}
+            sourceId={q.sourceInstanceId}
+            targets={[...primary, ...secondary]}
+            rectOf={board.rectOf}
+          />
+        );
+      })}
 
       {/* Slim Floating Action Ribbon (docs/52) — canto: fase/turno/timer,
           Passar turno, toggle de log e indicador discreto de ping/auto-pass.

@@ -8,6 +8,7 @@ import { Bar, BarChart, CartesianGrid, Cell, PolarAngleAxis, PolarGrid, Radar, R
 import { MapPin, Radar as RadarIcon, ShieldAlert, Store, TriangleAlert } from "lucide-react";
 
 import { PublicShell } from "@/components/layout/PublicShell";
+import { DataSourceNote } from "@/components/stats/DataSourceNote";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from "@/components/ui/chart";
@@ -93,6 +94,14 @@ export default function RegionalMetaPage() {
               </div>
               <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">{data ? `${data.totalDecks} decks analisados` : "Carregando..."}</Badge>
             </div>
+            {data?.provenance ? (
+              <DataSourceNote
+                provenance={data.provenance}
+                labelPrefix={`${focusLabel}: baseado em`}
+                weightNote="Cada lista conta igual, independente do tamanho do torneio."
+                className="mt-4"
+              />
+            ) : null}
 
             <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-white/10 pt-5">
               <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Circuito</p>

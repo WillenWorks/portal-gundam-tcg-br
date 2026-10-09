@@ -125,7 +125,7 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
           <DataSourceNote
             provenance={provenance}
             labelPrefix="Power Rankings baseado em"
-            weightNote="Eventos maiores e com maior competitividade têm maior peso amostral no score."
+            weightNote="Score = 60% taxa de vitória ajustada + 40% presença no meta. Cada lista conta igual, independente do tamanho do torneio."
             className="mt-4"
           />
         )}
@@ -193,7 +193,7 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
                 <div className="flex size-10 shrink-0 items-center justify-center panel-cut border border-primary/40 bg-primary/10 font-heading text-lg text-primary">#{index + 1}</div>
 
                 {entry.signatureCard?.imageMediumUrl ? (
-                  <img src={entry.signatureCard.imageMediumUrl} alt="" className="h-14 w-10 shrink-0 rounded object-cover" />
+                  <img loading="lazy" decoding="async" src={entry.signatureCard.imageMediumUrl} alt="" className="h-14 w-10 shrink-0 rounded object-cover" />
                 ) : (
                   <div className="h-14 w-10 shrink-0 rounded bg-white/5" />
                 )}

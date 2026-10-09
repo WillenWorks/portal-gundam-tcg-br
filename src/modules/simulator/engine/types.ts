@@ -235,7 +235,7 @@ export interface CardDef {
     requiresTrashCountAtLeast?: number;
   };
   /** W2b (C2) — GD03-070: "While this Unit is rested, friendly Shields can't receive battle damage from enemy Units." */
-  protectsShieldsWhileRested?: boolean;
+  protectsShieldsWhileRested?: boolean | { boardCondition: StaticBoardCondition };
   /**
    * W5 (C2) — redução/imunidade CONTÍNUA de dano recebido de inimigo, aplicada por `engine/damageLayer.ts`
    * (Damage Step e `damageUnit`). Num Piloto, protege a Unit pareada ("this Unit"); numa Base, a Base.
@@ -318,7 +318,15 @@ export interface CardDef {
    * `allyCombatTriggerEvents` em `combat.ts`) — "this Unit" já é o próprio dono do campo (não
    * precisa resolver Pilot->Unit pareada, ao contrário de outros campos "this Unit").
    */
-  onSelfHeal?: { duringLinkOnly?: boolean; oncePerTurn?: boolean; requiresHandCountAtMost?: number; drawAmount: number };
+  onSelfHeal?: {
+    duringLinkOnly?: boolean;
+    oncePerTurn?: boolean;
+    requiresHandCountAtMost?: number;
+    drawAmount?: number;
+    /** W11 — EB01-004 "choose 1 rested enemy Unit. Deal 1 damage to it." (alvo escolhido pelo motor — ver deferred.ts) */
+    damageRestedEnemy?: number;
+    sourceText?: string;
+  };
   /**
    * Lote 5 (docs/debates 2026-09-13) — GD01-046 "【During Pair･(Coordinator) Pilot】【Once per
    * Turn】When you use this Unit's <Support> to increase a (ZAFT) Unit's AP, set this Unit as
@@ -379,7 +387,8 @@ export interface CardDef {
 }
 
 export type StaticEffectCondition = "duringPair" | "duringLink" | "always";
-export type StaticEffectScope = "self" | "pairedUnit" | "allFriendlyUnits";
+/** "allUnits" (W11 — EB01-042 "all Units gain <Blocker>"): Units dos 2 lados */
+export type StaticEffectScope = "self" | "pairedUnit" | "allFriendlyUnits" | "allUnits";
 
 /**
  * Gate adicional de condição de BOARD (não de pareamento) pra `StaticAbility`
@@ -459,7 +468,17 @@ export type StaticBoardCondition =
   /** GD03-033 — 【During Pair･(ZAFT) Pilot】: trait do Piloto pareado com a fonte. */
   | { kind: "pairedPilotHasTrait"; trait: string }
   /** GD02-090 — "while you have another Unit with <High-Maneuver> in play". */
-  | { kind: "friendlyOtherUnitWithKeywordCountAtLeast"; keyword: string; n: number };
+  | { kind: "friendlyOtherUnitWithKeywordCountAtLeast"; keyword: string; n: number }
+  /** W11 — EB01-055/058 "If there are 2 or more enemy players": o simulador é 1v1 (1 jogador inimigo) */
+  | { kind: "enemyPlayerCountAtLeast"; n: number }
+  /** W11 — EB01-037 "while this Unit is battling an enemy Unit with <Blocker>" (a própria fonte, via `excludeInstanceId`) */
+  | { kind: "battlingEnemyHasKeyword"; keyword: string }
+  /** W11 — EB01-025 "While your opponent has an EX Resource" */
+  | { kind: "opponentHasExResource" }
+  /** W11 — EB01-063 "If there are 2 or more other rested Units in play" (os 2 lados; exclui a fonte e, num Piloto, a Unit pareada) */
+  | { kind: "otherRestedUnitCountAtLeast"; n: number }
+  /** W11 — EB01-049 "While a friendly (G Generation) Unit with <Blocker> is in play" (a própria fonte conta) */
+  | { kind: "friendlyUnitWithTraitAndKeyword"; trait: string; keyword: string };
 
 /**
  * Gate adicional de condição sobre a carta RECEPTORA do bônus (o alvo de
@@ -482,7 +501,9 @@ export type StaticTargetCondition =
   /** GD02-124 — "all friendly green (Earth Federation) Units": todas as condições juntas. */
   | { kind: "allOf"; conditions: StaticTargetCondition[] }
   /** W8 — GD05-088 "Units with \"Gundam Lfrith\" or \"Gundnode\" in their card name" */
-  | { kind: "nameContainsAny"; texts: string[] };
+  | { kind: "nameContainsAny"; texts: string[] }
+  /** W11 — EB01-036/088 "Units that are Lv.3" (nível impresso exato) */
+  | { kind: "levelIs"; n: number };
 
 export interface StaticAbility {
   /** trecho literal do texto oficial que esta entrada implementa — a auditoria por cláusula (content/coverage/clauseAudit.ts) casa por ele */
@@ -610,6 +631,9 @@ export interface PendingCombatTriggerChoice {
   label: string;
 }
 
+/** código do token de EX Resource (re-exportado por setup.ts — types.ts não importa nada) */
+export const TOKEN_EX_RESOURCE_CODE = "TOKEN-EX-RESOURCE";
+
 export type StatKey = "ap" | "hp";
 export type Duration = "endOfTurn" | "thisBattle" | "permanent";
 
@@ -679,6 +703,8 @@ export interface CardInstance {
     unpairedOnly?: boolean;
     /** W4 — GD04-045 "a damaged active enemy Unit" */
     damagedOnly?: boolean;
+    /** W11 — EB01-066 "an active enemy Unit with <Blocker>" */
+    keyword?: string;
     turn: number;
   };
   /**
@@ -725,6 +751,8 @@ export interface DamageReduction {
   oncePerTurn?: boolean;
   /** 【During Link】 — a Unit protegida é Link Unit (com o Piloto dono do texto, se for de Piloto) */
   duringLink?: boolean;
+  /** W11 — EB01-025 【During Pair】: a Unit protegida tem Piloto pareado */
+  duringPair?: boolean;
   /** "If/While …" sobre o board do dono do alvo */
   boardCondition?: StaticBoardCondition;
   /** "from enemy Units that are Lv.N or lower" — a FONTE do dano (atacante ou carta do efeito) */
@@ -1022,6 +1050,32 @@ export function isBoardConditionMet(
   if (cond.kind === "noEnemyBase") {
     return (state.players[otherPlayer(owner)].baseSection ?? []).length === 0;
   }
+  if (cond.kind === "enemyPlayerCountAtLeast") return 1 >= cond.n;
+  if (cond.kind === "opponentHasExResource") {
+    return state.players[otherPlayer(owner)].resourceArea.some((r) => r.def.code === TOKEN_EX_RESOURCE_CODE);
+  }
+  if (cond.kind === "battlingEnemyHasKeyword") {
+    const combat = state.combat;
+    if (!combat || !excludeInstanceId || combat.currentTarget === "player") return false;
+    const targetId = combat.currentTarget.unitId;
+    const enemyId = combat.attackerId === excludeInstanceId ? targetId : targetId === excludeInstanceId ? combat.attackerId : undefined;
+    const enemy = enemyId ? state.players[otherPlayer(owner)].battleArea.find((c) => c.instanceId === enemyId) : undefined;
+    return !!enemy && hasKeyword(enemy, cond.keyword, state);
+  }
+  if (cond.kind === "otherRestedUnitCountAtLeast") {
+    const src = excludeInstanceId ? findInBattleArea(state, owner, excludeInstanceId) : undefined;
+    const excluded = new Set([excludeInstanceId, src?.pairedUnitId].filter((id): id is string => !!id));
+    return (
+      [...state.players.A.battleArea, ...state.players.B.battleArea].filter(
+        (c) => c.def.cardType === "UNIT" && c.rested && !excluded.has(c.instanceId),
+      ).length >= cond.n
+    );
+  }
+  if (cond.kind === "friendlyUnitWithTraitAndKeyword") {
+    return state.players[owner].battleArea.some(
+      (c) => c.def.cardType === "UNIT" && hasTrait(c, cond.trait, state) && hasKeyword(c, cond.keyword, state),
+    );
+  }
   const ownerState = state.players[owner];
   const source = excludeInstanceId ? ownerState.battleArea.find((c) => c.instanceId === excludeInstanceId) : undefined;
   if (cond.kind === "controllerLevelAtLeast") return ownerState.resourceArea.length >= cond.n;
@@ -1065,11 +1119,13 @@ export function isTargetConditionMet(target: CardInstance, state: GameState, con
   if (cond.kind === "remainingHpAtMost") return effectiveHp(target, state) - target.damage <= cond.n;
   if (cond.kind === "isToken") return !!target.def.isToken;
   if (cond.kind === "allOf") return cond.conditions.every((c) => isTargetConditionMet(target, state, c));
+  if (cond.kind === "levelIs") return (target.def.level ?? 0) === cond.n;
   return hasKeyword(target, cond.keyword, state);
 }
 
 function matchesStaticScope(source: CardInstance, target: CardInstance, scope: StaticEffectScope): boolean {
-  if (scope === "allFriendlyUnits") return target.def.cardType === "UNIT";
+  if (scope === "allFriendlyUnits") return target.def.cardType === "UNIT" && target.owner === source.owner;
+  if (scope === "allUnits") return target.def.cardType === "UNIT";
   if (scope === "pairedUnit") return source.pairedUnitId === target.instanceId;
   return source.instanceId === target.instanceId; // "self"
 }
@@ -1090,11 +1146,20 @@ function staticAmountCount(state: GameState, owner: PlayerId, from: NonNullable<
   return names.size;
 }
 
-function computeStaticStatBonus(target: CardInstance, state: GameState, stat: StatKey): number {
-  let bonus = 0;
+/** fontes de estático que podem valer para `target`: o lado do dono (Battle Area + Base) e, do lado inimigo, só quem tem escopo "allUnits" */
+function staticSourcesFor(target: CardInstance, state: GameState): CardInstance[] {
   const owner = state.players[target.owner];
   // Base também tem estático (GD02-124 "all friendly green (Earth Federation) Units get AP+1")
-  for (const source of [...owner.battleArea, ...(owner.baseSection ?? [])]) {
+  const sources = [...owner.battleArea, ...(owner.baseSection ?? [])];
+  for (const c of state.players[otherPlayer(target.owner)].battleArea) {
+    if (c.def.staticAbilities?.some((a) => a.scope === "allUnits")) sources.push(c);
+  }
+  return sources;
+}
+
+function computeStaticStatBonus(target: CardInstance, state: GameState, stat: StatKey): number {
+  let bonus = 0;
+  for (const source of staticSourcesFor(target, state)) {
     for (const ability of source.def.staticAbilities ?? []) {
       if (ability.stat !== stat || ability.amount === undefined) continue;
       if (!isStaticAbilityActive(state, source, ability.condition)) continue;
@@ -1250,9 +1315,7 @@ function friendlyUnitsWithTrait(state: GameState, player: PlayerId, trait: strin
 
 /** Acha a 1ª `StaticAbility.keyword` ativa de alguma fonte na Battle Area de `card` que concede `keyword` (Lote 3) — mesmas regras de gate de `computeStaticStatBonus`; base pra `hasKeyword`/`keywordValue`. */
 function findActiveStaticKeywordAbility(card: CardInstance, keyword: string, state: GameState): StaticAbility | undefined {
-  const owner = state.players[card.owner];
-  // Base também tem estático (GD02-124 "all friendly green (Earth Federation) Units get AP+1")
-  for (const source of [...owner.battleArea, ...(owner.baseSection ?? [])]) {
+  for (const source of staticSourcesFor(card, state)) {
     for (const ability of source.def.staticAbilities ?? []) {
       if (ability.keyword !== keyword) continue;
       if (!isStaticAbilityActive(state, source, ability.condition)) continue;
@@ -1805,6 +1868,7 @@ export type GameEvent =
       apAtMostSelf?: boolean;
       unpairedOnly?: boolean;
       damagedOnly?: boolean;
+      keyword?: string;
       turn: number;
     }
   /** GD02-040 Gundam Ashtaron — ver `CardInstance.battleDamageImmunityUntilTurn`. */
