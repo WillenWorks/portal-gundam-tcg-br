@@ -125,7 +125,18 @@ export const UNITS_GREEN: Record<string, CardDef> = {
     },
     "triggerKeywords": [
       "Deploy"
-    ]
+    ],
+    damageReductions: [
+      {
+        immune: true,
+        kind: "battle",
+        duringPair: true,
+        sourceUnitOnly: true,
+        sourceMaxLevel: 5,
+        boardCondition: { kind: "opponentHasExResource" },
+        sourceText: "【During Pair】While your opponent has an EX Resource, this Unit can't receive battle damage from enemy Units that are Lv.5 or lower.",
+      },
+    ],
   },
   "EB01-026": {
     "code": "EB01-026",
@@ -236,7 +247,9 @@ export const UNITS_GREEN: Record<string, CardDef> = {
     "hp": 2,
     "traits": [
       "G Generation"
-    ]
+    ],
+    attackTargetRules: { mayTargetActiveEnemyUnit: { maxLevel: 3 } },
+    structuredSourceText: { attackTargetRules: "This Unit may choose an active enemy Unit that is Lv.3 or lower as its attack target." },
   },
   "EB01-032": {
     "code": "EB01-032",
@@ -319,7 +332,19 @@ export const UNITS_GREEN: Record<string, CardDef> = {
     "hp": 3,
     "traits": [
       "G Generation"
-    ]
+    ],
+    staticAbilities: [
+      {
+        condition: "always",
+        scope: "allFriendlyUnits",
+        excludeSelf: true,
+        duringYourTurnOnly: true,
+        stat: "ap",
+        amount: 1,
+        targetCondition: { kind: "allOf", conditions: [{ kind: "traitIs", trait: "G Generation" }, { kind: "levelIs", n: 3 }] },
+        sourceText: "During your turn, all other (G Generation) Units that are Lv.3 get AP+1.",
+      },
+    ],
   },
   "EB01-037": {
     "code": "EB01-037",
@@ -338,7 +363,11 @@ export const UNITS_GREEN: Record<string, CardDef> = {
       "values": [
         "Jean Luc Duvall"
       ]
-    }
+    },
+    innateDamageProtection: { unconditional: true, duringYourTurnOnly: true, boardCondition: { kind: "battlingEnemyHasKeyword", keyword: "Blocker" } },
+    structuredSourceText: {
+      innateDamageProtection: "During your turn, while this Unit is battling an enemy Unit with <Blocker>, this Unit can't receive battle damage.",
+    },
   },
   "EB01-038": {
     "code": "EB01-038",
@@ -373,7 +402,13 @@ export const UNITS_GREEN: Record<string, CardDef> = {
       "values": [
         "Support"
       ]
-    }
+    },
+    // "play it as if it has 3 Lv. and cost" — impresso Lv.6/custo 5
+    dynamicCost: { condition: { kind: "enemyUnitCountAtLeast", n: 3 }, amount: -2 },
+    dynamicLevel: { condition: { kind: "enemyUnitCountAtLeast", n: 3 }, amount: -3 },
+    structuredSourceText: {
+      dynamicCost: "When playing this card from your hand, if 3 or more enemy Units are in play, play it as if it has 3 Lv. and cost.",
+    },
   },
   "EB01-040": {
     "code": "EB01-040",

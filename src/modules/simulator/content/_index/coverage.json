@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "983 specs",
+  "generatedFrom": "1014 specs",
   "sets": {
     "ST01": {
       "cards": [
@@ -4974,6 +4974,559 @@
         "impl": 111,
         "implStar": 0,
         "vanilla": 19,
+        "deferida": 0,
+        "faltando": 0
+      }
+    },
+    "EB01": {
+      "cards": [
+        {
+          "code": "EB01-001",
+          "name": "Gundam Astray Red Frame Custom (EX)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-002",
+          "name": "Hi-Nu Gundam (EX)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-003",
+          "name": "Narrative Gundam A-Packs (EX)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-004",
+          "name": "Gundam Barbatos Lupus Rex (EX)",
+          "status": "implementada*",
+          "deferredClauses": [
+            "【Once per Turn】During your turn, when this Unit recovers HP, choose 1 rested enemy Unit. Deal 1 damage to it."
+          ]
+        },
+        {
+          "code": "EB01-005",
+          "name": "Zeta Gundam Ⅲ P2 Type",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-006",
+          "name": "Gundam Astray Gold Frame Amatsu",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-007",
+          "name": "Gundam TR-1 \"Hazel-Rah\"",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-008",
+          "name": "Gundam Delta Kai",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-009",
+          "name": "Gundam Full Armor (Thunderbolt) (EX)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-010",
+          "name": "Gundam Barbatos 6th Form",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-011",
+          "name": "Beginning Gundam",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-012",
+          "name": "Dom Bein Nichts",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-013",
+          "name": "Red Gundam(0085)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-014",
+          "name": "Gouf Vijayanta",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-015",
+          "name": "Prototype Asshimar TR-3 \"Kehaar\"",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-016",
+          "name": "Tornado Gundam",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-017",
+          "name": "Haro",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-018",
+          "name": "Gundam Astray Blue Frame Second L",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-019",
+          "name": "Gundam Pixy",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-020",
+          "name": "Gundam Mk-Ⅲ",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-021",
+          "name": "Build Strike Gundam (Full Package) (EX)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-022",
+          "name": "Gundam Exia (EX)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-023",
+          "name": "Le Cygne (EX)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-024",
+          "name": "GQuuuuuuX (Omega Psycommu)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-025",
+          "name": "Tallgeese Ⅱ",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-026",
+          "name": "Gundam Astaroth Origin",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-027",
+          "name": "Tallgeese",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-028",
+          "name": "Gundam Plutone",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-029",
+          "name": "Gundam Astaroth Rinascimento (EX)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-030",
+          "name": "Big-Rang",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-031",
+          "name": "Oggo",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-032",
+          "name": "Gundam Ez8 High Mobility Custom",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-033",
+          "name": "Taurus (Sanc Kingdom)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-034",
+          "name": "Gundam Lfrith Ur",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-035",
+          "name": "Gundam Lfrith Thorn",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-036",
+          "name": "Darilbalde",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-037",
+          "name": "Zudah Unit 1",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-038",
+          "name": "G-Self",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-039",
+          "name": "Rising Freedom Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-040",
+          "name": "Gundam Epyon",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-041",
+          "name": "Strike Freedom Gundam (EX)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-042",
+          "name": "Psycho Haro (EX)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-043",
+          "name": "Blue Destiny Unit-1 (EX)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-044",
+          "name": "Justice Gundam (EX)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-045",
+          "name": "Psycho Zaku (EX)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-046",
+          "name": "Striker Custom (EX)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-047",
+          "name": "Casval's Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-048",
+          "name": "S Gundam",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-049",
+          "name": "Pale Rider (Ground Heavy Equipment Type)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-050",
+          "name": "Saikoro Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-051",
+          "name": "Ze'Gok",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-052",
+          "name": "Hildolfr",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-053",
+          "name": "Gundam GP00",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-054",
+          "name": "Gaplant TR-5 \"Hrairoo\" Unit 1",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-055",
+          "name": "Dom Gross Beil",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-056",
+          "name": "Gundam Geminass 01",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-057",
+          "name": "Gundam Geminass 02",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-058",
+          "name": "Extreme Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-059",
+          "name": "Psycho Zaku",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-060",
+          "name": "Gundam Aquarius",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-061",
+          "name": "Ellis Claude",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-062",
+          "name": "Jona Basta",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-063",
+          "name": "Io Fleming",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-064",
+          "name": "Rondo Gina Sahaku",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-065",
+          "name": "Meir Siva",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-066",
+          "name": "Reiji",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-067",
+          "name": "Asuna Elmarit",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-068",
+          "name": "Chall Acustica",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-069",
+          "name": "Beside Pain",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-070",
+          "name": "Daryl Lorenz",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-071",
+          "name": "Ittou Tsurugi",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-072",
+          "name": "Yuu Kajima",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-073",
+          "name": "Character Requests",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-074",
+          "name": "Eternal Road",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-075",
+          "name": "Fierce Enemy Assault",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-076",
+          "name": "Gerbera Straight",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-077",
+          "name": "Master League Begins",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-078",
+          "name": "Premium Unit Assembly",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-079",
+          "name": "Modification",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-080",
+          "name": "Sturm Faust",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-081",
+          "name": "MAP Weapon",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-082",
+          "name": "Warship Cruise",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-083",
+          "name": "SP Conversion Chips",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-084",
+          "name": "30cm Cannon (APFSDS Round)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-085",
+          "name": "Kudelia Aina Bernstein & Isaribi",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-086",
+          "name": "Kycilia Zabi & Gwazine",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-087",
+          "name": "Marina Ismail & Ptolemaios 2",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-088",
+          "name": "Miorine Rembran & Academy Ship",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-089",
+          "name": "Lacus Clyne & Eternal",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "EB01-090",
+          "name": "Tiffa Adill & Freeden",
+          "status": "implementada",
+          "deferredClauses": []
+        }
+      ],
+      "counts": {
+        "impl": 78,
+        "implStar": 1,
+        "vanilla": 11,
         "deferida": 0,
         "faltando": 0
       }

@@ -285,6 +285,10 @@
     "firstRestedFriendlyUnitWithTrait": {
       "description": "A 1ª Unit amiga descansada com o trait (aproximação de \"choose 1\" sem pausa).",
       "since": "GD04-069"
+    },
+    "firstRestedResourceOf": {
+      "description": "Um Resource descansado do jogador (PlayerRef) — \"choose 1 of their Resources. Set them as active\", onde a escolha não muda o resultado.",
+      "since": "EB01-059"
     }
   },
   "targetScopes": {
@@ -624,6 +628,22 @@
     "controllerUnitNameContainsLevelAtLeast:<value>:<n>": {
       "description": "O controlador tem em jogo uma Unit com o texto no nome e Lv. N ou mais.",
       "since": "GD05-126"
+    },
+    "noReveal": {
+      "description": "Na continuação de lookAtTopFilterReveal: nenhuma carta foi revelada (ctx.targets.reveal vazio).",
+      "since": "EB01-023"
+    },
+    "enemyPlayerCountAtLeast:<n>": {
+      "description": "Há N ou mais jogadores inimigos — no 1v1 só vale pra N <= 1.",
+      "since": "EB01-040"
+    },
+    "controllerTrashTopLevelAtLeast:<n>": {
+      "description": "A carta do topo do trash do controlador (a recém-colocada) tem Lv. N ou mais.",
+      "since": "EB01-050"
+    },
+    "activeUnitsInPlayAtLeast:<n>": {
+      "description": "N ou mais Units ativas em jogo (os 2 lados).",
+      "since": "EB01-003"
     }
   },
   "targetFilters": {
@@ -786,6 +806,10 @@
     "battlingFriendlyLevelAtLeast:<n>": {
       "description": "Unit inimiga em batalha com uma Unit do controlador de Lv. N ou mais.",
       "since": "GD05-119"
+    },
+    "beingAttacked": {
+      "description": "A Unit é o alvo do ataque em andamento.",
+      "since": "EB01-033"
     }
   }
 }

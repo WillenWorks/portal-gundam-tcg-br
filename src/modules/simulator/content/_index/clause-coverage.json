@@ -17227,9 +17227,9 @@
     "EB01": {
       "counts": {
         "vanilla": 11,
-        "full": 48,
-        "partial": 0,
-        "missing": 31,
+        "full": 78,
+        "partial": 1,
+        "missing": 0,
         "withErrors": 0
       },
       "cards": [
@@ -17282,7 +17282,7 @@
         },
         {
           "code": "EB01-003",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -17297,15 +17297,17 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "EB01-003-EndOfTurn"
+              ],
               "text": "At the end of your turn, if this Unit is rested, rest all Units. If this effect rested 3 or more Units, draw 1."
             }
           ]
         },
         {
           "code": "EB01-004",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
@@ -17320,8 +17322,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "approximated",
+              "refs": [
+                "engine:heal-reaction-choice (aproximação aceita)"
+              ],
               "text": "【Once per Turn】During your turn, when this Unit recovers HP, choose 1 rested enemy Unit. Deal 1 damage to it."
             }
           ]
@@ -17467,14 +17471,16 @@
         },
         {
           "code": "EB01-014",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "damageReductions"
+              ],
               "text": "During your opponent's turn, this Unit can't receive effect damage from enemy Units that are Lv.5 or lower."
             }
           ]
@@ -17629,7 +17635,7 @@
         },
         {
           "code": "EB01-023",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -17637,10 +17643,13 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "EB01-023-Attack",
+                "EB01-023-LookYours",
+                "EB01-023-PlaceYours",
+                "EB01-023-LookOpponent",
+                "EB01-023-PlaceOpponent"
               ],
               "text": "【Attack】All players each look at the top card of their deck. If it is a card that is Lv.5 or higher, they may reveal it and add it to their hand. They return any remaining card to the top or bottom of their deck."
             }
@@ -17675,7 +17684,7 @@
         },
         {
           "code": "EB01-025",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -17683,18 +17692,20 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "EB01-025-Deploy",
+                "EB01-025-Then"
               ],
               "text": "【Deploy·Development 2】You may exile the specified number of (G Generation) cards in your trash from the game. If you do, activate the following effect:\n■All players place 1 EX Resource."
             },
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "damageReductions"
+              ],
               "text": "【During Pair】While your opponent has an EX Resource, this Unit can't receive battle damage from enemy Units that are Lv.5 or lower."
             }
           ]
@@ -17726,21 +17737,23 @@
         },
         {
           "code": "EB01-028",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "EB01-028-AllyAttack"
+              ],
               "text": "【Once per Turn】When another Unit attacks an enemy Unit, if this Unit is rested, the attacking Unit gains <Breach 2> during this battle."
             }
           ]
         },
         {
           "code": "EB01-029",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -17748,10 +17761,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "EB01-029-Deploy"
               ],
               "text": "【Deploy】If 5 or more enemy Units are in play, deal 2 damage to all Units with <Blocker> that are Lv.4 or lower."
             }
@@ -17777,14 +17789,16 @@
         },
         {
           "code": "EB01-031",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "attackTargetRules"
+              ],
               "text": "This Unit may choose an active enemy Unit that is Lv.3 or lower as its attack target."
             }
           ]
@@ -17797,7 +17811,7 @@
         },
         {
           "code": "EB01-033",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -17805,10 +17819,9 @@
               "triggers": [
                 "Activate·Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Action"
+              "by": "spec",
+              "refs": [
+                "EB01-033-ActivateAction"
               ],
               "text": "【Activate·Action】【Once per Turn】①:Choose 1 other Unit that is being attacked. It gets AP+1 during this battle."
             }
@@ -17850,28 +17863,32 @@
         },
         {
           "code": "EB01-036",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "During your turn, all other (G Generation) Units that are Lv.3 get AP+1."
             }
           ]
         },
         {
           "code": "EB01-037",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "innateDamageProtection"
+              ],
               "text": "During your turn, while this Unit is battling an enemy Unit with <Blocker>, this Unit can't receive battle damage."
             }
           ]
@@ -17896,21 +17913,23 @@
         },
         {
           "code": "EB01-039",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "dynamicCost"
+              ],
               "text": "When playing this card from your hand, if 3 or more enemy Units are in play, play it as if it has 3 Lv. and cost."
             }
           ]
         },
         {
           "code": "EB01-040",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -17918,10 +17937,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "EB01-040-Deploy"
               ],
               "text": "【Deploy】If there are 2 or more enemy players, choose 1 to 3 friendly Units. They gain <Breach 3> during this turn."
             }
@@ -17956,14 +17974,16 @@
         },
         {
           "code": "EB01-042",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "While this Unit is rested, all Units gain <Blocker>."
             },
             {
@@ -17971,10 +17991,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "EB01-042-Attack"
               ],
               "text": "【Attack】Units that are Lv.7 or lower can't activate <Blocker> during this battle."
             }
@@ -18000,7 +18019,7 @@
         },
         {
           "code": "EB01-044",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -18017,10 +18036,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "EB01-044-Deploy"
               ],
               "text": "【Deploy】If there are 2 or more enemy players, choose 1 Unit belonging to an enemy player with the most Units. Return it to its owner's hand."
             }
@@ -18108,21 +18126,23 @@
         },
         {
           "code": "EB01-049",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "While a friendly (G Generation) Unit with <Blocker> is in play, this Unit gains <Suppression>."
             }
           ]
         },
         {
           "code": "EB01-050",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -18130,10 +18150,10 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "EB01-050-Attack",
+                "EB01-050-Then"
               ],
               "text": "【Attack】Place the top card of your deck into your trash. If you placed a card that is Lv.3 or higher with this effect, choose 1 enemy Unit. It gets AP-2 during this battle."
             }
@@ -18187,14 +18207,16 @@
         },
         {
           "code": "EB01-055",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "protectsShieldsWhileRested"
+              ],
               "text": "If there are 2 or more enemy players and this Unit is rested, friendly Shields can't receive battle damage from enemy Units."
             }
           ]
@@ -18226,21 +18248,23 @@
         },
         {
           "code": "EB01-058",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "If there are 2 or more enemy players, this Unit gains <Blocker>."
             }
           ]
         },
         {
           "code": "EB01-059",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -18248,10 +18272,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "EB01-059-Attack"
               ],
               "text": "【During Link】【Attack】【Once per Turn】All players each choose 1 of their Resources. Set them as active."
             }
@@ -18307,7 +18330,7 @@
         },
         {
           "code": "EB01-062",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -18326,10 +18349,11 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "EB01-062-Attack",
+                "EB01-062-Choice",
+                "EB01-062-Draw"
               ],
               "text": "【Attack】【Once per Turn】Choose 1 enemy player. They may draw 1. If they draw with this effect, draw 1."
             }
@@ -18337,7 +18361,7 @@
         },
         {
           "code": "EB01-063",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -18354,15 +18378,17 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "If there are 2 or more other rested Units in play, this Unit gains <Repair 2>."
             }
           ]
         },
         {
           "code": "EB01-064",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -18379,8 +18405,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "While this Unit has <Repair>, it gains <Breach 1>."
             }
           ]
@@ -18416,7 +18444,7 @@
         },
         {
           "code": "EB01-066",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -18435,10 +18463,9 @@
               "triggers": [
                 "When Paired"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Paired"
+              "by": "spec",
+              "refs": [
+                "EB01-066-WhenPaired"
               ],
               "text": "【When Paired】Choose 1 friendly (G Generation) Unit. During this turn, it may choose an active enemy Unit with <Blocker> as its attack target."
             }
@@ -18446,7 +18473,7 @@
         },
         {
           "code": "EB01-067",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -18465,10 +18492,9 @@
               "triggers": [
                 "When Paired"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Paired"
+              "by": "spec",
+              "refs": [
+                "EB01-067-WhenPaired"
               ],
               "text": "【When Paired】Look at the top 3 cards of your deck. You may reveal 1 (G Generation) Unit card among them and return it to the top of your deck. Return the remaining cards randomly to the bottom of your deck."
             }
@@ -18476,7 +18502,7 @@
         },
         {
           "code": "EB01-068",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -18495,10 +18521,9 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Destroyed"
+              "by": "spec",
+              "refs": [
+                "EB01-068-Destroyed"
               ],
               "text": "【During Link】【Destroyed】You may return the card paired with this Unit to the top of its owner's deck."
             }
@@ -18564,7 +18589,7 @@
         },
         {
           "code": "EB01-071",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -18581,8 +18606,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "【During Link】This Unit gets AP+1."
             }
           ]
@@ -18728,7 +18755,7 @@
         },
         {
           "code": "EB01-077",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -18747,10 +18774,9 @@
               "triggers": [
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Action"
+              "by": "spec",
+              "refs": [
+                "EB01-077-Action"
               ],
               "text": "【Action】Choose 1 rested friendly (G Generation) Unit. Change a battling enemy Unit's attack target to it."
             }
@@ -18758,7 +18784,7 @@
         },
         {
           "code": "EB01-078",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -18766,10 +18792,13 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "EB01-078-Main",
+                "EB01-078-LookYours",
+                "EB01-078-PlaceYours",
+                "EB01-078-LookOpponent",
+                "EB01-078-PlaceOpponent"
               ],
               "text": "【Main】All players each look at the top card of their deck. If it is a Unit card, they may reveal it and add it to their hand. They return any remaining card to the top or bottom of their deck."
             }
@@ -18777,7 +18806,7 @@
         },
         {
           "code": "EB01-079",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -18785,10 +18814,9 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "EB01-079-Main"
               ],
               "text": "【Main】Choose 1 friendly (G Generation) Unit. It can't receive battle damage from enemy Units that are Lv.3 or lower during this turn."
             }
@@ -19038,7 +19066,7 @@
         },
         {
           "code": "EB01-088",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -19057,18 +19085,19 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "EB01-088-Deploy"
               ],
               "text": "【Deploy】Add 1 of your Shields to your hand."
             },
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "All friendly (G Generation) Units that are Lv.3 get AP+1 during your opponent's turn."
             }
           ]

@@ -17,8 +17,10 @@ describe("similarSpecsClient — casos canônicos (docs/44)", () => {
   });
 
   it('"Look at the top 3 cards of your deck..." → Char\'s Zaku Ⅱ (ST03-006) no topo (empatada com GD01-045 e GD02, mesmo texto de abertura)', () => {
-    const r = similarSpecsClient("Look at the top 3 cards of your deck...", index, 12);
-    expect(codesOf(r)).toContain("ST03-006");
+    // o grupo empatado no topo cresce a cada set (W11: 15 specs) — confere o empate inteiro, não um corte fixo
+    const r = similarSpecsClient("Look at the top 3 cards of your deck...", index, 50);
+    const top = r.results[0].score;
+    expect(r.results.filter((x) => x.score === top).map((x) => x.cardCode)).toContain("ST03-006");
   });
 
   it("cada resultado carrega id, cardCode, trigger, sourceText, score e ops[]", () => {

@@ -38,6 +38,18 @@
     "sourceText": "【Deploy】If another friendly (G Generation) Unit is in play, choose 1 Unit belonging to each enemy player. Rest them."
   },
   {
+    "id": "EB01-003-EndOfTurn",
+    "cardCode": "EB01-003",
+    "trigger": "Reaction:endOfTurn",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "selfIsRested",
+    "sourceText": "At the end of your turn, if this Unit is rested, rest all Units. If this effect rested 3 or more Units, draw 1."
+  },
+  {
     "id": "EB01-005-Deploy",
     "cardCode": "EB01-005",
     "trigger": "Deploy",
@@ -235,6 +247,69 @@
     "sourceText": "【During Pair･(G Generation) Pilot】At the end of your turn, you may destroy this Unit. If you do, deploy 3 [Gundam Exia]((G Generation)･AP2･HP2) Unit tokens."
   },
   {
+    "id": "EB01-023-Attack",
+    "cardCode": "EB01-023",
+    "trigger": "Attack",
+    "ops": [
+      "thenTrigger",
+      "thenTrigger"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Attack】All players each look at the top card of their deck."
+  },
+  {
+    "id": "EB01-023-LookOpponent",
+    "cardCode": "EB01-023",
+    "trigger": "Then:3",
+    "ops": [
+      "thenTrigger",
+      "lookAtTopFilterReveal"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "noReveal",
+    "sourceText": "If it is a card that is Lv.5 or higher, they may reveal it and add it to their hand."
+  },
+  {
+    "id": "EB01-023-LookYours",
+    "cardCode": "EB01-023",
+    "trigger": "Then:1",
+    "ops": [
+      "thenTrigger",
+      "lookAtTopFilterReveal"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "noReveal",
+    "sourceText": "If it is a card that is Lv.5 or higher, they may reveal it and add it to their hand."
+  },
+  {
+    "id": "EB01-023-PlaceOpponent",
+    "cardCode": "EB01-023",
+    "trigger": "Then:4",
+    "ops": [
+      "moveTopCardToChosenPosition"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "They return any remaining card to the top or bottom of their deck."
+  },
+  {
+    "id": "EB01-023-PlaceYours",
+    "cardCode": "EB01-023",
+    "trigger": "Then:2",
+    "ops": [
+      "moveTopCardToChosenPosition"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "They return any remaining card to the top or bottom of their deck."
+  },
+  {
     "id": "EB01-024-Attack",
     "cardCode": "EB01-024",
     "trigger": "Attack",
@@ -245,6 +320,32 @@
     "targetFilter": "hasKeyword:Blocker;level<=5",
     "predicate": null,
     "sourceText": "【Attack】Choose 1 enemy Unit with <Blocker> that is Lv.5 or lower. Deal 2 damage to it."
+  },
+  {
+    "id": "EB01-025-Deploy",
+    "cardCode": "EB01-025",
+    "trigger": "Deploy",
+    "ops": [
+      "moveZone",
+      "thenTrigger"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerTrashCardCountWithAnyTraitAtLeast:G Generation:2",
+    "sourceText": "【Deploy･Development 2】You may exile the specified number of (G Generation) cards in your trash from the game. If you do, activate the following effect:"
+  },
+  {
+    "id": "EB01-025-Then",
+    "cardCode": "EB01-025",
+    "trigger": "Then:1",
+    "ops": [
+      "spawnToken",
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "■All players place 1 EX Resource."
   },
   {
     "id": "EB01-027-Deploy",
@@ -272,6 +373,30 @@
     "sourceText": "■Choose 1 friendly (G Generation) Unit. It gains <Breach 1> during this turn."
   },
   {
+    "id": "EB01-028-AllyAttack",
+    "cardCode": "EB01-028",
+    "trigger": "Reaction:attack",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "selfIsRested;attackingEnemyUnit",
+    "sourceText": "【Once per Turn】When another Unit attacks an enemy Unit, if this Unit is rested, the attacking Unit gains <Breach 2> during this battle."
+  },
+  {
+    "id": "EB01-029-Deploy",
+    "cardCode": "EB01-029",
+    "trigger": "Deploy",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "enemyUnitCountAtLeast:5",
+    "sourceText": "【Deploy】If 5 or more enemy Units are in play, deal 2 damage to all Units with <Blocker> that are Lv.4 or lower."
+  },
+  {
     "id": "EB01-030-Deploy",
     "cardCode": "EB01-030",
     "trigger": "Deploy",
@@ -282,6 +407,19 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Deploy】Look at the top 3 cards of your deck. You may reveal 1 (G Generation) Unit card that is Lv.3 among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
+  },
+  {
+    "id": "EB01-033-ActivateAction",
+    "cardCode": "EB01-033",
+    "trigger": "Activate·Action",
+    "ops": [
+      "payResourceCost",
+      "modifyStat"
+    ],
+    "targetScope": "anyUnit",
+    "targetFilter": "notSelf;beingAttacked",
+    "predicate": null,
+    "sourceText": "【Activate･Action】【Once per Turn】①：Choose 1 other Unit that is being attacked. It gets AP+1 during this battle."
   },
   {
     "id": "EB01-034-WhenLinked",
@@ -320,6 +458,18 @@
     "sourceText": "【Deploy】Place 1 EX Resource."
   },
   {
+    "id": "EB01-040-Deploy",
+    "cardCode": "EB01-040",
+    "trigger": "Deploy",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": "enemyPlayerCountAtLeast:2",
+    "sourceText": "【Deploy】If there are 2 or more enemy players, choose 1 to 3 friendly Units. They gain <Breach 3> during this turn."
+  },
+  {
     "id": "EB01-041-Deploy",
     "cardCode": "EB01-041",
     "trigger": "Deploy",
@@ -332,6 +482,18 @@
     "sourceText": "【Deploy】Choose 1 Unit with 4 or less HP belonging to each enemy player. Return them to their owners' hands."
   },
   {
+    "id": "EB01-042-Attack",
+    "cardCode": "EB01-042",
+    "trigger": "Attack",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Attack】Units that are Lv.7 or lower can't activate <Blocker> during this battle."
+  },
+  {
     "id": "EB01-043-Attack",
     "cardCode": "EB01-043",
     "trigger": "Attack",
@@ -342,6 +504,18 @@
     "targetFilter": "level<=5",
     "predicate": "controllerUnitWithKeywordInPlay:Blocker",
     "sourceText": "【Attack】If a friendly Unit with <Blocker> is in play, choose 1 enemy Unit that is Lv.5 or lower. It gets AP-2 during this battle."
+  },
+  {
+    "id": "EB01-044-Deploy",
+    "cardCode": "EB01-044",
+    "trigger": "Deploy",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": "enemyPlayerCountAtLeast:2",
+    "sourceText": "【Deploy】If there are 2 or more enemy players, choose 1 Unit belonging to an enemy player with the most Units. Return it to its owner's hand."
   },
   {
     "id": "EB01-045-WhenPaired",
@@ -393,6 +567,31 @@
     "sourceText": "【When Paired･Development 1】You may exile the specified number of (G Generation) cards in your trash from the game. If you do, activate the following effect:"
   },
   {
+    "id": "EB01-050-Attack",
+    "cardCode": "EB01-050",
+    "trigger": "Attack",
+    "ops": [
+      "millToTrash",
+      "thenTrigger"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Attack】Place the top card of your deck into your trash."
+  },
+  {
+    "id": "EB01-050-Then",
+    "cardCode": "EB01-050",
+    "trigger": "Then:1",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": "controllerTrashTopLevelAtLeast:3",
+    "sourceText": "If you placed a card that is Lv.3 or higher with this effect, choose 1 enemy Unit. It gets AP-2 during this battle."
+  },
+  {
     "id": "EB01-052-Deploy",
     "cardCode": "EB01-052",
     "trigger": "Deploy",
@@ -428,6 +627,19 @@
     "targetFilter": "level<=2",
     "predicate": null,
     "sourceText": "If you do, choose 1 enemy Unit that is Lv.2 or lower. Return it to its owner's hand."
+  },
+  {
+    "id": "EB01-059-Attack",
+    "cardCode": "EB01-059",
+    "trigger": "Attack",
+    "ops": [
+      "setActive",
+      "setActive"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【During Link】【Attack】【Once per Turn】All players each choose 1 of their Resources. Set them as active."
   },
   {
     "id": "EB01-060-Then",
@@ -479,6 +691,18 @@
     "sourceText": "【When Paired】If a friendly (G Generation) Unit is in play, choose 1 enemy Unit that is Lv.3 or lower. Rest it."
   },
   {
+    "id": "EB01-062-Attack",
+    "cardCode": "EB01-062",
+    "trigger": "Attack",
+    "ops": [
+      "thenTrigger"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Attack】【Once per Turn】Choose 1 enemy player."
+  },
+  {
     "id": "EB01-062-Burst",
     "cardCode": "EB01-062",
     "trigger": "Burst",
@@ -489,6 +713,31 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "EB01-062-Choice",
+    "cardCode": "EB01-062",
+    "trigger": "Then:1",
+    "ops": [
+      "chooseMode"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "They may draw 1."
+  },
+  {
+    "id": "EB01-062-Draw",
+    "cardCode": "EB01-062",
+    "trigger": "Mode:draw",
+    "ops": [
+      "draw",
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "If they draw with this effect, draw 1."
   },
   {
     "id": "EB01-063-Burst",
@@ -551,6 +800,18 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
+    "id": "EB01-066-WhenPaired",
+    "cardCode": "EB01-066",
+    "trigger": "When Paired",
+    "ops": [
+      "grantAttackTargetRelax"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:G Generation",
+    "predicate": null,
+    "sourceText": "【When Paired】Choose 1 friendly (G Generation) Unit. During this turn, it may choose an active enemy Unit with <Blocker> as its attack target."
+  },
+  {
     "id": "EB01-067-Burst",
     "cardCode": "EB01-067",
     "trigger": "Burst",
@@ -563,6 +824,18 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
+    "id": "EB01-067-WhenPaired",
+    "cardCode": "EB01-067",
+    "trigger": "When Paired",
+    "ops": [
+      "lookAtTopFilterReveal"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【When Paired】Look at the top 3 cards of your deck. You may reveal 1 (G Generation) Unit card among them and return it to the top of your deck. Return the remaining cards randomly to the bottom of your deck."
+  },
+  {
     "id": "EB01-068-Burst",
     "cardCode": "EB01-068",
     "trigger": "Burst",
@@ -573,6 +846,19 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "EB01-068-Destroyed",
+    "cardCode": "EB01-068",
+    "trigger": "Destroyed",
+    "ops": [
+      "moveZone",
+      "moveWithinDeck"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【During Link】【Destroyed】You may return the card paired with this Unit to the top of its owner's deck."
   },
   {
     "id": "EB01-069-Attack",
@@ -783,6 +1069,18 @@
     "sourceText": "【Main】/【Action】Choose 1 friendly (G Generation) Unit. It recovers 3 HP."
   },
   {
+    "id": "EB01-077-Action",
+    "cardCode": "EB01-077",
+    "trigger": "Action",
+    "ops": [
+      "changeAttackTarget"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "rested;trait:G Generation",
+    "predicate": null,
+    "sourceText": "【Action】Choose 1 rested friendly (G Generation) Unit. Change a battling enemy Unit's attack target to it."
+  },
+  {
     "id": "EB01-077-Burst",
     "cardCode": "EB01-077",
     "trigger": "Burst",
@@ -793,6 +1091,81 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "EB01-078-LookOpponent",
+    "cardCode": "EB01-078",
+    "trigger": "Then:3",
+    "ops": [
+      "thenTrigger",
+      "lookAtTopFilterReveal"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "noReveal",
+    "sourceText": "If it is a Unit card, they may reveal it and add it to their hand."
+  },
+  {
+    "id": "EB01-078-LookYours",
+    "cardCode": "EB01-078",
+    "trigger": "Then:1",
+    "ops": [
+      "thenTrigger",
+      "lookAtTopFilterReveal"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "noReveal",
+    "sourceText": "If it is a Unit card, they may reveal it and add it to their hand."
+  },
+  {
+    "id": "EB01-078-Main",
+    "cardCode": "EB01-078",
+    "trigger": "Main",
+    "ops": [
+      "thenTrigger",
+      "thenTrigger"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】All players each look at the top card of their deck."
+  },
+  {
+    "id": "EB01-078-PlaceOpponent",
+    "cardCode": "EB01-078",
+    "trigger": "Then:4",
+    "ops": [
+      "moveTopCardToChosenPosition"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "They return any remaining card to the top or bottom of their deck."
+  },
+  {
+    "id": "EB01-078-PlaceYours",
+    "cardCode": "EB01-078",
+    "trigger": "Then:2",
+    "ops": [
+      "moveTopCardToChosenPosition"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "They return any remaining card to the top or bottom of their deck."
+  },
+  {
+    "id": "EB01-079-Main",
+    "cardCode": "EB01-079",
+    "trigger": "Main",
+    "ops": [
+      "grantDamageModifier"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:G Generation",
+    "predicate": null,
+    "sourceText": "【Main】Choose 1 friendly (G Generation) Unit. It can't receive battle damage from enemy Units that are Lv.3 or lower during this turn."
   },
   {
     "id": "EB01-080-Action",
@@ -1036,6 +1409,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "EB01-088-Deploy",
+    "cardCode": "EB01-088",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
   },
   {
     "id": "EB01-089-Burst",

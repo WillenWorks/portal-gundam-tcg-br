@@ -31,8 +31,10 @@ describe("rankSimilarSpecs", () => {
   });
 
   it("\"Look at the top 3 cards of your deck...\" -> Char's Zaku II (ST03-006) no topo (empatada com GD01-045 e GD02, mesmo texto de abertura)", () => {
-    const r = rankSimilarSpecs(signatures, "Look at the top 3 cards of your deck...", 12);
-    expect(codesOf(r)).toContain("ST03-006");
+    // o grupo empatado no topo cresce a cada set (W11: 15 specs) — confere o empate inteiro, não um corte fixo
+    const r = rankSimilarSpecs(signatures, "Look at the top 3 cards of your deck...", 50);
+    const top = r.results[0].score;
+    expect(r.results.filter((x) => x.score === top).map((x) => x.cardCode)).toContain("ST03-006");
   });
 
   it("devolve no máximo `limit` resultados, ordenados por score desc", () => {

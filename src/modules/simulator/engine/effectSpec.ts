@@ -122,7 +122,9 @@ export type TargetGroup =
   /** W4 — GD04-043 "Choose 1 enemy Base" (no máximo 1 Base por jogador — sem escolha) */
   | { kind: "enemyBase" }
   /** W5 — GD04-069 (aproximação de "choose 1 of your (Militia) Units" no fim do turno): a 1ª descansada com o trait */
-  | { kind: "firstRestedFriendlyUnitWithTrait"; trait: string };
+  | { kind: "firstRestedFriendlyUnitWithTrait"; trait: string }
+  /** W11 — EB01-059 "All players each choose 1 of their Resources. Set them as active.": um Resource descansado (todos pagam igual) */
+  | { kind: "firstRestedResourceOf"; player: PlayerRef };
 
 
 function isLinkUnit(state: GameState, unit: CardInstance): boolean {
@@ -212,6 +214,10 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
   }
   if (group.kind === "enemyBase") {
     return (ctx.state.players[otherPlayer(ctx.controller)].baseSection ?? []).map((b) => b.instanceId);
+  }
+  if (group.kind === "firstRestedResourceOf") {
+    const resource = ctx.state.players[resolvePlayerRef(group.player, ctx.controller)].resourceArea.find((r) => r.rested);
+    return resource ? [resource.instanceId] : [];
   }
   if (group.kind === "firstNInTrash") {
     const owner = ctx.state.players[ctx.controller];
@@ -441,7 +447,17 @@ export type PrimitiveCall =
    * nível ("... com 4/6 ou menos AP") — `maxLevel`/`maxAp` são independentes,
    * quem autora passa só o que o texto oficial pede.
    */
-  | { op: "grantAttackTargetRelax"; target: TargetRef; maxLevel?: number; maxAp?: number; apAtMostSelf?: boolean; unpairedOnly?: boolean; damagedOnly?: boolean }
+  | {
+      op: "grantAttackTargetRelax";
+      target: TargetRef;
+      maxLevel?: number;
+      maxAp?: number;
+      apAtMostSelf?: boolean;
+      unpairedOnly?: boolean;
+      damagedOnly?: boolean;
+      /** W11 — EB01-066 "an active enemy Unit with <Blocker>" */
+      keyword?: string;
+    }
   /** GD02-040 Gundam Ashtaron 【Deploy】 — ver `CardInstance.battleDamageImmunityUntilTurn`. */
   | { op: "grantBattleDamageImmunityUntilTurn"; target: TargetRef; maxAttackerHp: number }
   /**
@@ -517,7 +533,10 @@ export type PrimitiveCall =
       filter: CardDefFilter;
       revealName?: string;
       /** W7 — GD05-052 "place the top 3 cards of your deck into your trash. Add 1 … you placed": o resto vai pro trash, não pro fundo */
-      restTo?: "bottom" | "trash";
+      /** W11 — "keep": as não reveladas ficam onde estão (EB01-023/078 "return … to the top or bottom" vem na continuação) */
+      restTo?: "bottom" | "trash" | "keep";
+      /** W11 — EB01-067 "reveal 1 … and return it to the top of your deck" (padrão: mão) */
+      revealTo?: "hand" | "top";
     }
   /**
    * "You may deploy 1 <filtro> card from your hand." disparado por gatilho
@@ -1087,6 +1106,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
           apAtMostSelf: call.apAtMostSelf,
           unpairedOnly: call.unpairedOnly,
           damagedOnly: call.damagedOnly,
+          keyword: call.keyword,
           turn: ctx.turnNumber,
         }),
       );
@@ -1130,16 +1150,17 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
         if (!matchesCardDefFilter(card.def, call.filter)) {
           throw new Error(`lookAtTopFilterReveal: carta revelada "${card.def.code}" não casa o filtro exigido pelo efeito`);
         }
-        events.push({ type: "MOVE_CARD", instanceId: revealed, toZone: "hand" });
+        if (call.revealTo !== "top") events.push({ type: "MOVE_CARD", instanceId: revealed, toZone: "hand" });
       }
       for (const card of top) {
-        if (card.instanceId === revealed) continue;
+        if (card.instanceId === revealed || call.restTo === "keep") continue;
         events.push(
           call.restTo === "trash"
             ? { type: "MOVE_CARD", instanceId: card.instanceId, toZone: "trash" }
             : { type: "MOVE_WITHIN_DECK", instanceId: card.instanceId, position: "bottom" },
         );
       }
+      if (revealed && call.revealTo === "top") events.push({ type: "MOVE_WITHIN_DECK", instanceId: revealed, position: "top" });
       return events;
     }
     case "deployThisCard": {
