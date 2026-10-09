@@ -18,6 +18,37 @@
 import { HostedEventStatus, HostedEventMatchResult, type PrismaClient } from "@prisma/client";
 import { NON_STATS_SECTIONS, NON_STATS_CARD_TYPES } from "../../src/lib/deck-legality.ts";
 import ibgeCityToUfData from "../../data/ibge-municipios-uf.json";
+import type { MetagameProvenance, TournamentProvenanceItem } from "../metagameTrendsService.ts";
+
+type EventInfo = Omit<TournamentProvenanceItem, "deckCount" | "date"> & { date: Date | null };
+
+/** De quais torneios vieram as listas de um recorte (mesmo formato do `DataSourceNote` das outras estatísticas). */
+export function buildRegionalProvenance(ids: string[], eventBySnapshot: Map<string, EventInfo>): MetagameProvenance {
+  const byEvent = new Map<string, TournamentProvenanceItem>();
+  let earliest: Date | null = null;
+  let latest: Date | null = null;
+  for (const id of ids) {
+    const ev = eventBySnapshot.get(id);
+    if (!ev) continue;
+    if (ev.date) {
+      if (!earliest || ev.date < earliest) earliest = ev.date;
+      if (!latest || ev.date > latest) latest = ev.date;
+    }
+    const existing = byEvent.get(ev.id);
+    if (existing) existing.deckCount += 1;
+    else byEvent.set(ev.id, { ...ev, date: ev.date ? ev.date.toISOString() : null, deckCount: 1 });
+  }
+  const tournaments = [...byEvent.values()].sort(
+    (a, b) => (b.date ? Date.parse(b.date) : 0) - (a.date ? Date.parse(a.date) : 0) || b.deckCount - a.deckCount,
+  );
+  return {
+    totalDecks: ids.length,
+    totalTournaments: tournaments.length,
+    startDate: earliest ? earliest.toISOString() : null,
+    endDate: latest ? latest.toISOString() : null,
+    tournaments,
+  };
+}
 
 const TOP_CARDS_LIMIT = 8;
 const TOP_GROUPS_LIMIT = 20;
@@ -190,6 +221,8 @@ export interface RegionalAnomaly {
 }
 export interface RegionalMetaResult {
   totalDecks: number;
+  /** Torneios de onde vieram as listas do recorte em foco (loja > cidade > estado > nacional). */
+  provenance: MetagameProvenance;
   national: RegionGroupStats;
   states: RegionGroupStats[];
   cities: RegionGroupStats[];
@@ -310,13 +343,13 @@ export async function getRegionalMetagame(prisma: PrismaClient, params: Regional
   const [reportEntries, hostedParticipants] = await Promise.all([
     prisma.tournamentEntry.findMany({
       where: { deckSnapshotId: { not: null }, tournament: { isActive: true, ...(seasonId ? { seasonId } : {}) } },
-      select: { deckSnapshotId: true, wins: true, losses: true, draws: true, tournament: { select: { country: true, city: true, organizer: true } } },
+      select: { deckSnapshotId: true, wins: true, losses: true, draws: true, tournament: { select: { id: true, name: true, dateStart: true, participantCount: true, tier: true, sourceUrl: true, country: true, city: true, organizer: true } } },
     }),
     prisma.hostedEventParticipant.findMany({
       where: { deckSnapshotId: { not: null }, event: { status: HostedEventStatus.COMPLETED, isActive: true, ...(seasonId ? { seasonId } : {}) } },
       select: {
         deckSnapshotId: true,
-        event: { select: { country: true, city: true, venueName: true } },
+        event: { select: { id: true, name: true, dateStart: true, tier: true, _count: { select: { participants: true } }, country: true, city: true, venueName: true } },
         matchesAsA: { select: { result: true } },
         matchesAsB: { select: { result: true } },
       },
@@ -325,6 +358,7 @@ export async function getRegionalMetagame(prisma: PrismaClient, params: Regional
 
   const outcomeBySnapshot = new Map<string, Outcome>();
   const geoBySnapshot = new Map<string, SnapshotGeo>();
+  const eventBySnapshot = new Map<string, EventInfo>();
 
   for (const entry of reportEntries) {
     if (!entry.deckSnapshotId || geoBySnapshot.has(entry.deckSnapshotId)) continue;
@@ -337,6 +371,15 @@ export async function getRegionalMetagame(prisma: PrismaClient, params: Regional
       stateLabel: derived.stateLabel,
       city: derived.cityLabel,
       store: (entry.tournament.organizer || "").trim() || INDEPENDENT_STORE_LABEL,
+    });
+    eventBySnapshot.set(entry.deckSnapshotId, {
+      id: entry.tournament.id,
+      name: entry.tournament.name,
+      date: entry.tournament.dateStart ?? null,
+      organizer: entry.tournament.organizer ?? null,
+      playerCount: entry.tournament.participantCount ?? null,
+      tier: String(entry.tournament.tier),
+      sourceUrl: entry.tournament.sourceUrl ?? null,
     });
   }
   for (const participant of hostedParticipants) {
@@ -362,12 +405,21 @@ export async function getRegionalMetagame(prisma: PrismaClient, params: Regional
       city: derived.cityLabel,
       store: (participant.event.venueName || "").trim() || INDEPENDENT_STORE_LABEL,
     });
+    eventBySnapshot.set(participant.deckSnapshotId, {
+      id: participant.event.id,
+      name: participant.event.name,
+      date: participant.event.dateStart ?? null,
+      organizer: participant.event.venueName ?? null,
+      playerCount: participant.event._count?.participants ?? null,
+      tier: String(participant.event.tier),
+      sourceUrl: null,
+    });
   }
 
   const allSnapshotIds = Array.from(geoBySnapshot.keys());
   const emptyNational = emptyGroupStats("national", "Brasil (Nacional)");
   if (!allSnapshotIds.length) {
-    return { totalDecks: 0, national: emptyNational, states: [], cities: [], stores: [], anomalies: [], alerts: [] };
+    return { totalDecks: 0, provenance: buildRegionalProvenance([], eventBySnapshot), national: emptyNational, states: [], cities: [], stores: [], anomalies: [], alerts: [] };
   }
 
   const items: ItemRow[] = await prisma.deckSnapshotItem.findMany({
@@ -393,7 +445,7 @@ export async function getRegionalMetagame(prisma: PrismaClient, params: Regional
     : allSnapshotIds;
 
   if (!eligibleIds.length) {
-    return { totalDecks: 0, national: emptyNational, states: [], cities: [], stores: [], anomalies: [], alerts: [] };
+    return { totalDecks: 0, provenance: buildRegionalProvenance([], eventBySnapshot), national: emptyNational, states: [], cities: [], stores: [], anomalies: [], alerts: [] };
   }
 
   const national = aggregateGroup("national", "Brasil (Nacional)", eligibleIds, bySnapshotAll, outcomeBySnapshot);
@@ -455,5 +507,7 @@ export async function getRegionalMetagame(prisma: PrismaClient, params: Regional
   const anomalies = focusRegion && focusLabel ? detectAnomalies(focusLabel, focusRegion, national) : [];
   const alerts = focusLabel ? buildAlerts(focusLabel, anomalies) : [];
 
-  return { totalDecks: eligibleIds.length, national, states, cities, stores, anomalies, alerts };
+  const focusIds = store ? (byStore.get(normalizeCityKey(store))?.ids ?? []) : storeScopeIds;
+  const provenance = buildRegionalProvenance(focusIds, eventBySnapshot);
+  return { totalDecks: eligibleIds.length, provenance, national, states, cities, stores, anomalies, alerts };
 }
