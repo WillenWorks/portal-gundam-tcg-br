@@ -112,6 +112,17 @@ describe("scripts/train/promote", () => {
     expect(result.approved).toBe(false);
   });
 
+  it("evaluatePromotionCriteria: RECUSA amostra pequena mesmo com winrate alto (antes 11/20 passava)", () => {
+    const result = evaluatePromotionCriteria({
+      manifest: { featureSize: FEATURE_SIZE, actionSpace: ACTION_SPACE, engineSha: "rules-abc" },
+      evalReport: { evaluation: { vsHeuristic: { winrate: 0.7, decided: 20, wilson: { low: 0.48, high: 0.86 } } } },
+      currentEngineSha: "rules-abc",
+      goldenPassed: true,
+    });
+    expect(result.approved).toBe(false);
+    expect(result.checks.find((c) => c.name === "Superação do baseline heurístico")?.passed).toBe(false);
+  });
+
   it("evaluatePromotionCriteria: RECUSA modelo com engineSha divergente", () => {
     const manifest = {
       featureSize: FEATURE_SIZE,

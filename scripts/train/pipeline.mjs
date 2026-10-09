@@ -21,13 +21,14 @@
  *   --out=<path>           Caminho customizado para o relatório JSON final em docs/bot/
  */
 
-import { spawnSync, execSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { computeEngineSha } from "./engineHash.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 
@@ -191,13 +192,7 @@ function runStage(label, script, scriptArgs) {
 }
 
 export function getEngineSha() {
-  if (process.env.ENGINE_SHA) return process.env.ENGINE_SHA;
-  if (process.env.RENDER_GIT_COMMIT) return process.env.RENDER_GIT_COMMIT.slice(0, 7);
-  try {
-    return execSync("git rev-parse --short HEAD", { cwd: ROOT, encoding: "utf8" }).trim();
-  } catch {
-    return "dev-local";
-  }
+  return computeEngineSha(ROOT);
 }
 
 export async function main() {
