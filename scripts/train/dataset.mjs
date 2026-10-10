@@ -31,8 +31,8 @@ import { pathToFileURL } from "node:url";
 
 import {
   ENGINE_ROOT,
-  validatedDeckList,
-  validatedDeckPairs,
+  trainingDeckList,
+  trainingDeckPairs,
   FEATURE_SIZE,
   ACTION_SPACE,
 } from "./engine.mjs";
@@ -101,7 +101,7 @@ async function main() {
     }
   }
 
-  const deckList = validatedDeckList();
+  const deckList = trainingDeckList();
   const byId = Object.fromEntries(deckList.map((d) => [d.id, d]));
 
   let pairs;
@@ -113,7 +113,7 @@ async function main() {
     }
     pairs = [[byId[a], byId[b]]];
   } else {
-    pairs = validatedDeckPairs();
+    pairs = trainingDeckPairs();
   }
 
   const pool = policyPool(args.rapido);
