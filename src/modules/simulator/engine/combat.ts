@@ -5,6 +5,7 @@ import {
   effectivePilotDef,
   hasKeyword,
   isBoardConditionMet,
+  isStaticAbilityActive,
   keywordValue,
   otherPlayer,
   pairedPilotFollowEvents,
@@ -16,6 +17,7 @@ import { applyEvent, applyEvents, findCard } from "./events";
 import { battleDamageVictim, incomingDamage } from "./damageLayer";
 import { matchesCardDefFilter } from "./effectSpec";
 import { selfHealReactionEvents } from "./keywords";
+import { shieldAreaEffectReduction } from "./shieldArea";
 
 /**
  * Sequência de combate (Comprehensive Rules seção 8, ver docs/18 "Estrutura
@@ -48,6 +50,8 @@ export function attackIneligibilityReason(state: GameState, attacker: CardInstan
     return `${attacker.def.code}: esta Unit não pode atacar neste turno`;
   }
   if (state.phase !== "main") return "Ataque só pode ser declarado na Main Phase";
+  // W12 — T-029 Bit / Funnel "This Unit can't … attack."
+  if (attacker.def.cannotAttack) return `${attacker.def.code}: esta Unit não pode atacar`;
   // W2b (C4) — GD03-081: só ataca no turno em que uma Unit sua com o trait entrou em jogo.
   // Aproximação: conta as Units com o trait que ESTÃO em jogo e entraram neste turno.
   const restriction = attacker.def.attackRestriction;
@@ -91,6 +95,14 @@ export function attackIneligibilityReason(state: GameState, attacker: CardInstan
 /** keyword effects impressas no jogo (GD04-051 "with a keyword effect") */
 const KEYWORD_EFFECTS = ["Repair", "Breach", "Support", "Blocker", "First Strike", "High-Maneuver", "Suppression"];
 
+/** W12 — a Unit não pode ser escolhida como alvo de ataque agora (ST11-001 estático, ST11-014 concedido no turno) */
+export function cannotBeChosenAsAttackTarget(state: GameState, unit: CardInstance): boolean {
+  if (unit.cannotBeAttackTargetUntilTurn === state.turnNumber) return true;
+  const rule = unit.def.cannotBeAttackTarget;
+  if (!rule || !isStaticAbilityActive(state, unit, rule.condition)) return false;
+  return !rule.boardCondition || isBoardConditionMet(state, unit.owner, rule.boardCondition, unit.instanceId);
+}
+
 export function attackTargetError(state: GameState, attacker: CardInstance, target: AttackTarget): string | null {
   const defendingPlayer = otherPlayer(state.activePlayer);
   if (target === "player") {
@@ -119,6 +131,10 @@ export function attackTargetError(state: GameState, attacker: CardInstance, targ
     const targetUnit = findCard(state, target.unitId);
     if (targetUnit.owner !== defendingPlayer || targetUnit.zone !== "battleArea") {
       return "Alvo precisa ser uma Unit inimiga na Battle Area";
+    }
+    // W12 — ST11-001 (estático) / ST11-014 (este turno): "enemy Units can't choose this Unit as their attack target"
+    if (cannotBeChosenAsAttackTarget(state, targetUnit)) {
+      return `${targetUnit.def.code}: Units inimigas não podem escolher esta Unit como alvo de ataque`;
     }
     if (targetUnit.rested) {
       // sempre legal
@@ -290,7 +306,9 @@ function breachEvents(
   defendingPlayer: PlayerId,
   state: GameState,
 ): { events: GameEvent[]; destroyedShieldAreaCard: boolean } {
-  const breachValue = keywordValue(attacker, "Breach", state);
+  const rawBreach = keywordValue(attacker, "Breach", state);
+  // W12 — ST11-006: o dano do <Breach> é reduzido pela proteção da área de escudo (ruling Q431)
+  const breachValue = rawBreach === null ? null : rawBreach - shieldAreaEffectReduction(state, defendingPlayer);
   if (breachValue === null || breachValue <= 0) return { events: [], destroyedShieldAreaCard: false };
   const base = state.players[defendingPlayer].baseSection[0];
   if (base) {
@@ -742,8 +760,16 @@ export function resolveDamageStep(state: GameState): GameState {
     if (damaged(attackerVictimId)) {
       reactions.push({ event: "damagedByEnemy", subjectId: attackerVictimId, owner: findCard(state, attackerVictimId).owner, victimId: blockerOrTargetId });
     }
-    if (destroyed(defenderId)) reactions.push({ event: "destroyedEnemyInBattle", subjectId: attacker.instanceId, owner: attacker.owner, victimId: defenderId });
-    if (destroyed(attackerVictimId)) reactions.push({ event: "destroyedEnemyInBattle", subjectId: blockerOrTargetId, owner: defenderOwner, victimId: attackerVictimId });
+    // W12 — "destroys an enemy Unit with (battle) damage": o Piloto pareado NA destruição vai junto (Q436 — a Unit pode ter
+    // sido destruída na mesma troca); e o jogador marca "Unit pareada destruiu inimiga em batalha neste turno" (ST12-016)
+    const destroyedBy = (subjectId: string, owner: PlayerId, victimId: string) => {
+      const pilotId = findCard(state, subjectId).pairedPilotId;
+      const base = { subjectId, owner, victimId, ...(pilotId ? { subjectPairedPilotId: pilotId } : {}) };
+      reactions.push({ event: "destroyedEnemyInBattle", ...base }, { event: "destroyedEnemyWithDamage", ...base });
+      if (pilotId) next.players[owner].pairedUnitDestroyedEnemyInBattleOnTurn = state.turnNumber;
+    };
+    if (destroyed(defenderId)) destroyedBy(attacker.instanceId, attacker.owner, defenderId);
+    if (destroyed(attackerVictimId)) destroyedBy(blockerOrTargetId, defenderOwner, attackerVictimId);
   }
   // W8.5 — compra de gatilho de combate (CombatTrigger "draw", <Repair> com compra) é "draw with an effect" (ST08-011)
   for (const pid of [attacker.owner, combat.defendingPlayer]) {
@@ -783,6 +809,11 @@ export function resolveBattleEndStep(state: GameState): GameState {
         }
         if (card.battleDamageRedirect?.scope === "battle") card.battleDamageRedirect = undefined;
       }
+    }
+    // W12 — ST12-014: gatilho concedido "during this battle"
+    if (player.delayedReactions?.some((d) => d.battleOnly)) {
+      const left = player.delayedReactions.filter((d) => !d.battleOnly);
+      player.delayedReactions = left.length ? left : undefined;
     }
   }
 

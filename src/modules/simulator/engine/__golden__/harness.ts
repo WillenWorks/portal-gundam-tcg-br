@@ -33,6 +33,7 @@ import { ST09_DECKS } from "../../fixtures/st09Decks";
 import { GD05_DECKS } from "../../fixtures/gd05Decks";
 import { ST10_TEST_DECKS } from "../../fixtures/st10Decks";
 import { EB01_TEST_DECKS } from "../../fixtures/eb01Decks";
+import { ST11_TO_14_DECKS } from "../../fixtures/st11to14Decks";
 
 export type DeckKey =
   | "ST01" | "ST02" | "ST03" | "ST04" | "ST05" | "GD01"
@@ -43,7 +44,8 @@ export type DeckKey =
   | "ST09-PURPLE-WHITE" | "ST09-RED-PURPLE"
   | "GD05-G-GUNDAM" | "GD05-NEO-ZEON"
   | "ST10-G-GENERATION" | "GD05-ORB"
-  | "EB01-AZUL-BRANCO" | "EB01-VERDE-BRANCO";
+  | "EB01-AZUL-BRANCO" | "EB01-VERDE-BRANCO"
+  | "ST11-MARINE" | "ST12-CLOSE-COMBAT" | "ST13-BIT-FUNNEL" | "ST14-HEAVY-ARMED";
 
 const DECK_BUILDERS: Record<DeckKey, () => DeckList> = {
   ST01: buildSt01DeckList,
@@ -73,6 +75,10 @@ const DECK_BUILDERS: Record<DeckKey, () => DeckList> = {
   "GD05-ORB": GD05_DECKS["GD05-ORB"].build,
   "EB01-AZUL-BRANCO": EB01_TEST_DECKS["EB01-AZUL-BRANCO"].build,
   "EB01-VERDE-BRANCO": EB01_TEST_DECKS["EB01-VERDE-BRANCO"].build,
+  "ST11-MARINE": ST11_TO_14_DECKS["ST11-MARINE"].build,
+  "ST12-CLOSE-COMBAT": ST11_TO_14_DECKS["ST12-CLOSE-COMBAT"].build,
+  "ST13-BIT-FUNNEL": ST11_TO_14_DECKS["ST13-BIT-FUNNEL"].build,
+  "ST14-HEAVY-ARMED": ST11_TO_14_DECKS["ST14-HEAVY-ARMED"].build,
 };
 
 /** limite de turnos da partida golden — fixado aqui pra não depender do default de `runSelfPlay`. */
@@ -206,6 +212,13 @@ const EB01_PAIRS: GoldenPair[] = [
   { key: `EB01-VERDE-BRANCO_vs_EB01-AZUL-BRANCO_seed${EB01_SEED}`, a: "EB01-VERDE-BRANCO", b: "EB01-AZUL-BRANCO", seed: EB01_SEED },
 ];
 
+/** W12 — ST11–ST14 fechados: 2 pares das receitas oficiais (Marine × Close Combat, Bit / Funnel × Heavy Armed), seeds 34–35. */
+const ST11_14_SEED = EB01_SEED + EB01_PAIRS.length;
+const ST11_14_PAIRS: GoldenPair[] = [
+  { key: `ST11-MARINE_vs_ST12-CLOSE-COMBAT_seed${ST11_14_SEED}`, a: "ST11-MARINE", b: "ST12-CLOSE-COMBAT", seed: ST11_14_SEED },
+  { key: `ST13-BIT-FUNNEL_vs_ST14-HEAVY-ARMED_seed${ST11_14_SEED + 1}`, a: "ST13-BIT-FUNNEL", b: "ST14-HEAVY-ARMED", seed: ST11_14_SEED + 1 },
+];
+
 export const GOLDEN_PAIRS: GoldenPair[] = [
   ...ST01_04_PAIRS,
   ...GD01_PAIRS,
@@ -217,6 +230,7 @@ export const GOLDEN_PAIRS: GoldenPair[] = [
   ...GD05_PAIRS,
   ...ST10_PAIRS,
   ...EB01_PAIRS,
+  ...ST11_14_PAIRS,
 ];
 
 /**

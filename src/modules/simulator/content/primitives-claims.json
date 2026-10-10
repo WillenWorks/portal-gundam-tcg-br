@@ -213,6 +213,10 @@
     "deployAsUnit": {
       "description": "A carta entra na Battle Area como Unit com AP/HP dados (não é Pilot), mantém Lv./traits; volta à CardDef original ao sair.",
       "since": "GD05-089"
+    },
+    "preventBeingAttackTarget": {
+      "description": "As Units escolhidas não podem ser escolhidas como alvo de ataque inimigo neste turno.",
+      "since": "ST11-014"
     }
   },
   "targetRefKinds": {
@@ -644,6 +648,30 @@
     "activeUnitsInPlayAtLeast:<n>": {
       "description": "N ou mais Units ativas em jogo (os 2 lados).",
       "since": "EB01-003"
+    },
+    "pairedUnitDestroyedEnemyInBattleThisTurn": {
+      "description": "Neste turno, uma Unit do controlador PAREADA com Piloto destruiu uma Unit inimiga com dano de batalha (pareamento no momento da destruição).",
+      "since": "ST12-016"
+    },
+    "anyPlayerShieldsAtMost:<n>": {
+      "description": "Algum jogador (inclusive o controlador) tem N ou menos escudos; a Base não conta.",
+      "since": "ST12-009"
+    },
+    "controllerTrashUnitLevelAtLeast:<n>": {
+      "description": "O trash do controlador tem uma carta de Unit de Lv. N ou mais.",
+      "since": "ST12-009"
+    },
+    "selfIsAttacking": {
+      "description": "A Unit da fonte (num Piloto, a pareada) é a atacante do combate em andamento.",
+      "since": "ST13-012"
+    },
+    "controllerSetResourceActiveByEffectThisTurn": {
+      "description": "O controlador já ativou um Resource dele por efeito neste turno.",
+      "since": "ST14-015"
+    },
+    "controllerTrashCardTypeCountAtLeast:<value>:<n>": {
+      "description": "O trash do controlador tem N ou mais cartas do tipo (UNIT, PILOT, COMMAND, BASE).",
+      "since": "ST14-014"
     }
   },
   "targetFilters": {

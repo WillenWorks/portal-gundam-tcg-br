@@ -1,0 +1,312 @@
+{
+  "ST11-001": [
+    {
+      "id": "Q427",
+      "date": "September 11, 2026",
+      "question": "If I return a Unit with a paired Pilot to the bottom of its owner's deck with this 【Deploy】 effect, which player determines the order to return them in?",
+      "answer": "The owner of the cards being returned determines the order and returns them to the bottom of the deck."
+    }
+  ],
+  "ST11-003": [
+    {
+      "id": "Q428",
+      "date": "September 11, 2026",
+      "question": "With the conditions for its effect fulfilled, this Unit gains <Blocker> and blocks an enemy Unit. After that, the conditions become unfulfilled and it loses <Blocker>. At this time, what happens to this Unit's block?",
+      "answer": "Since the block is already established, the two Units continue their battle."
+    }
+  ],
+  "ST11-004": [
+    {
+      "id": "Q429",
+      "date": "September 11, 2026",
+      "question": "I deploy this Unit when there are already five Units deployed into my battle area. At this time, what happens to the token deployed by this 【Deploy】 effect?",
+      "answer": "Place one Unit from among the Units already in your battle area into your trash, then deploy the token."
+    }
+  ],
+  "ST11-006": [
+    {
+      "id": "Q430",
+      "date": "September 11, 2026",
+      "question": "What does \"reduce\" mean?",
+      "answer": "It means to decrease the damage received. For example, when three damage is received and you are told to \"reduce it by 1,\" that damage becomes two."
+    },
+    {
+      "id": "Q431",
+      "date": "September 11, 2026",
+      "question": "If <Breach> activates during a turn while the first effect on this card is active, is that damage reduced?",
+      "answer": "Yes, it is reduced."
+    }
+  ],
+  "ST11-009": [
+    {
+      "id": "Q432",
+      "date": "September 11, 2026",
+      "question": "Will this effect activate during my opponent's turn even if there are no other friendly (Marine) Units in play?",
+      "answer": "Yes, it will."
+    }
+  ],
+  "ST11-012": [
+    {
+      "id": "Q433",
+      "date": "September 11, 2026",
+      "question": "What does \"reduce\" mean?",
+      "answer": "It means to decrease the damage received. For example, when three damage is received and you are told to \"reduce it by 1,\" that damage becomes two."
+    }
+  ],
+  "ST11-015": [
+    {
+      "id": "Q434",
+      "date": "September 11, 2026",
+      "question": "When deploying a Unit with this effect, do I have to pay that Unit's cost?",
+      "answer": "No, you do not."
+    },
+    {
+      "id": "Q435",
+      "date": "September 11, 2026",
+      "question": "If the Unit deployed with this effect has a 【Deploy】 effect, does it activate?",
+      "answer": "Yes, it does."
+    }
+  ],
+  "ST12-001": [
+    {
+      "id": "Q436",
+      "date": "September 11, 2026",
+      "question": "Does this card's first effect activate even when both Units are destroyed in battle?",
+      "answer": "Yes, it does."
+    },
+    {
+      "id": "Q437",
+      "date": "September 11, 2026",
+      "question": "Does this card's first effect activate even when it destroys the enemy Unit with effect damage?",
+      "answer": "Yes, it does."
+    }
+  ],
+  "ST12-003": [
+    {
+      "id": "Q438",
+      "date": "September 11, 2026",
+      "question": "Does this effect activate even when both Units are destroyed in battle?",
+      "answer": "Yes, it does."
+    },
+    {
+      "id": "Q439",
+      "date": "September 11, 2026",
+      "question": "Does this effect activate even when it destroys the enemy Unit with effect damage?",
+      "answer": "Yes, it does."
+    }
+  ],
+  "ST12-006": [
+    {
+      "id": "Q440",
+      "date": "September 11, 2026",
+      "question": "Can this Unit activate its first 【During Pair】【Activate･Main】 effect while it is gaining <First Strike> from some effect?",
+      "answer": "It can activate the effect, but it can't gain any additional <First Strike> effects."
+    },
+    {
+      "id": "Q441",
+      "date": "September 11, 2026",
+      "question": "Can this Unit activate its second 【Activate･Action】 effect while it is gaining <Suppression> from some effect?",
+      "answer": "It can activate the effect, but it can't gain any additional <Suppression> effects."
+    }
+  ],
+  "ST12-009": [
+    {
+      "id": "Q442",
+      "date": "September 11, 2026",
+      "question": "Does \"If there is a player with 3 or less Shields\" include myself?",
+      "answer": "Yes, it does."
+    },
+    {
+      "id": "Q443",
+      "date": "September 11, 2026",
+      "question": "Does \"3 or less Shields\" include the Base in the shield area?",
+      "answer": "No, it does not."
+    }
+  ],
+  "ST12-012": [
+    {
+      "id": "Q444",
+      "date": "September 11, 2026",
+      "question": "Does \"If there is a player with 3 or less Shields\" include myself?",
+      "answer": "Yes, it does."
+    },
+    {
+      "id": "Q445",
+      "date": "September 11, 2026",
+      "question": "Does \"3 or less Shields\" include the Base in the shield area?",
+      "answer": "No, it does not."
+    }
+  ],
+  "ST12-013": [
+    {
+      "id": "Q446",
+      "date": "September 11, 2026",
+      "question": "What does \"Begin a battle between them and only perform the damage step\" mean?",
+      "answer": "Begin a battle between the two Units specified by this effect and perform the damage step. Do not perform the attack step, block step, or action step at this time. Like a normal battle, the Units deal damage to each other, and after resolving all triggered effects you advance to the battle end step before returning to the main phase."
+    },
+    {
+      "id": "Q447",
+      "date": "September 11, 2026",
+      "question": "When I use this effect to begin a battle with an enemy GD02-073 Carta's Graze Ritter (Ground Type), does its \"During your opponent's turn, the enemy Unit battling this Unit gains <First Strike>\" effect activate?",
+      "answer": "Yes, it does. Effects that activate during battle apart from effects like 【Attack】 and \"When [...] attacks\" activate even during battles initiated by effects."
+    },
+    {
+      "id": "Q448",
+      "date": "September 11, 2026",
+      "question": "When I destroy an enemy Unit in a battle initiated by this effect, does that fall within the criterion \"when this Unit destroys an enemy Unit with battle damage\"?",
+      "answer": "Yes, it does."
+    }
+  ],
+  "ST12-014": [
+    {
+      "id": "Q449",
+      "date": "September 11, 2026",
+      "question": "Does this effect activate even when both Units are destroyed in battle?",
+      "answer": "Yes, it does."
+    }
+  ],
+  "ST12-015": [
+    {
+      "id": "Q450",
+      "date": "September 11, 2026",
+      "question": "When there are no enemy Units that are Lv.2 or lower in play, can I play this card and choose to activate the effect \"Choose 1 enemy Unit that is Lv.2 or lower. Destroy it\"?",
+      "answer": "No. If the chosen effect requires the selection of a target, then this card can only be played if the target can be selected."
+    },
+    {
+      "id": "Q451",
+      "date": "September 11, 2026",
+      "question": "When there are no friendly Units or no enemy Units that are Lv.5 or higher in play, can I play this card and choose to activate the effect \"Choose 1 friendly Unit and 1 enemy Unit that is Lv.5 or higher. Deal 2 damage to them\"?",
+      "answer": "No. If the chosen effect requires the selection of a target, then this card can only be played if the target can be selected."
+    }
+  ],
+  "ST12-016": [
+    {
+      "id": "Q452",
+      "date": "September 11, 2026",
+      "question": "Does this 【Activate･Main】 effect activate even when both Units are destroyed in battle?",
+      "answer": "Yes, it does."
+    },
+    {
+      "id": "Q453",
+      "date": "September 11, 2026",
+      "question": "If a Pilot is paired with a friendly Unit after that Unit has destroyed an enemy Unit with battle damage, can I activate this 【Activate･Main】 effect?",
+      "answer": "No, you cannot."
+    }
+  ],
+  "ST13-001": [
+    {
+      "id": "Q454",
+      "date": "September 11, 2026",
+      "question": "What does \"Begin a battle between them and only perform the damage step\" mean?",
+      "answer": "Begin a battle between the two Units specified by this effect and perform the damage step. Do not perform the attack step, block step, or action step at this time. Like a normal battle, the Units deal damage to each other, and after resolving all triggered effects you advance to the battle end step before returning to the main phase."
+    },
+    {
+      "id": "Q455",
+      "date": "September 11, 2026",
+      "question": "When I use this effect to begin a battle with an enemy GD02-073 Carta's Graze Ritter (Ground Type), does its \"During your opponent's turn, the enemy Unit battling this Unit gains <First Strike>\" effect activate?",
+      "answer": "Yes, it does. Effects that activate during battle apart from effects like 【Attack】 and \"When [...] attacks\" activate even during battles initiated by effects."
+    },
+    {
+      "id": "Q456",
+      "date": "September 11, 2026",
+      "question": "When I destroy an enemy Unit in a battle initiated by this effect, does that fall within the criterion \"when this Unit destroys an enemy Unit with battle damage\"?",
+      "answer": "Yes, it does."
+    }
+  ],
+  "ST13-005": [
+    {
+      "id": "Q457",
+      "date": "September 11, 2026",
+      "question": "Can I choose not to activate this 【Deploy】 effect even if there are four or more enemy Units in play?",
+      "answer": "No. If there are four or more enemy Units in play, you are forced to activate this effect up to and including the portion \"look at the top 5 cards of your deck.\" Whether or not you add eligible cards among them to your hand is your choice."
+    }
+  ],
+  "ST13-011": [
+    {
+      "id": "Q458",
+      "date": "September 11, 2026",
+      "question": "Can I choose not to activate this 【When Paired】 ability?",
+      "answer": "No. You are forced to activate this effect up to and including the portion \"Look at the top 5 cards of your deck.\" Whether or not you add eligible cards among them to your hand is your choice."
+    }
+  ],
+  "ST13-012": [
+    {
+      "id": "Q459",
+      "date": "September 11, 2026",
+      "question": "If I destroy a damaged Link Unit with an effect that says to \"destroy\" a Unit, does this effect activate?",
+      "answer": "No, it does not."
+    }
+  ],
+  "ST13-014": [
+    {
+      "id": "Q460",
+      "date": "September 11, 2026",
+      "question": "When deploying a Unit with this effect, do I have to pay that Unit's cost?",
+      "answer": "No, you do not."
+    },
+    {
+      "id": "Q461",
+      "date": "September 11, 2026",
+      "question": "If the Unit deployed by this effect has a 【Deploy】 effect, does it activate?",
+      "answer": "Yes, it does."
+    }
+  ],
+  "ST14-001": [
+    {
+      "id": "Q462",
+      "date": "September 11, 2026",
+      "question": "If I use this second effect when there are two Units that are Lv.3 and one Unit that is Lv.5 on my opponent's field, the two Units that are Lv.3 won't be set as active during the start phase of their turn, right?",
+      "answer": "Yes. If there are multiple Units with the lowest Lv., none of them will be set as active during the start phase of the opponent's turn."
+    },
+    {
+      "id": "Q463",
+      "date": "September 11, 2026",
+      "question": "Do Units affected by this second effect get set as active by the 【Main】 effect on GD01-121 Midair Modifications after that card's 【Burst】 effect activates it?",
+      "answer": "Yes, they are set as active. During the specified turn's start phase is the only time when they won't be set as active. Setting them as active in a different phase with an effect is valid."
+    },
+    {
+      "id": "Q464",
+      "date": "September 11, 2026",
+      "question": "If I use this second effect in a multiplayer battle, the rested Units with the lowest Lv. on each opponent's field won't be set as active during the start phase of that player's turn, right?",
+      "answer": "Yes, that is correct."
+    }
+  ],
+  "ST14-004": [
+    {
+      "id": "Q465",
+      "date": "September 11, 2026",
+      "question": "Does \"This Unit can't choose the enemy player as its attack target\" mean it can't attack the enemy Base or Shields either?",
+      "answer": "Yes, that is correct."
+    }
+  ],
+  "ST14-005": [
+    {
+      "id": "Q466",
+      "date": "September 11, 2026",
+      "question": "If there are seven or more cards in my trash and enemy Units that are Lv.6 or less that I want to give AP-2 to that are already rested, can I choose one of those Units with this 【Deploy】 effect and give it AP-2 during this turn?",
+      "answer": "Yes, you can give it AP-2."
+    }
+  ],
+  "ST14-006": [
+    {
+      "id": "Q467",
+      "date": "September 11, 2026",
+      "question": "Can I choose not to activate this 【Deploy】 ability?",
+      "answer": "No. You are forced to activate this effect up to and including the portion \"Look at the top 3 cards of your deck.\" Whether or not you add eligible cards among them to your hand is your choice."
+    }
+  ],
+  "ST14-013": [
+    {
+      "id": "Q468",
+      "date": "September 11, 2026",
+      "question": "When there are no enemy Units with 3 or less HP in play, can I play this card and choose to activate the effect \"■Choose 1 to 2 enemy Units with 3 or less HP. Rest them\"?",
+      "answer": "No. If the chosen effect requires the selection of a target, then this card can only be played if the target can be selected."
+    },
+    {
+      "id": "Q469",
+      "date": "September 11, 2026",
+      "question": "When there are no enemy Units in play, can I play this card and choose to activate the effect \"■Choose 1 enemy Unit. It gets AP-3 during this turn\"?",
+      "answer": "No. If the chosen effect requires the selection of a target, then this card can only be played if the target can be selected."
+    }
+  ]
+}

@@ -34,10 +34,10 @@ import { register } from "tsx/esm/api";
 register();
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-// GD02 entrou no gate na W0.4 (auditoria cláusula a cláusula zerada); GD03 na W2c, GD04 na W5, ST09 na W6, GD05 na W8, ST10 na W9 e EB01 na W11 (sets fechados —
+// GD02 entrou no gate na W0.4 (auditoria cláusula a cláusula zerada); GD03 na W2c, GD04 na W5, ST09 na W6, GD05 na W8, ST10 na W9, EB01 na W11 e ST11–ST14 na W12 (sets fechados —
 // as cláusulas que dependem de motor novo estão em `content/deferred.ts` e seguem bloqueadas em
 // runtime por `server/deckCoverageGate.ts`).
-const GATED_SETS = ["ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "ST09", "ST10", "GD01", "GD02", "GD03", "GD04", "GD05", "EB01"];
+const GATED_SETS = ["ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "ST09", "ST10", "GD01", "GD02", "GD03", "GD04", "GD05", "EB01", "ST11", "ST12", "ST13", "ST14"];
 
 function parseArgs(argv) {
   const out = { sets: GATED_SETS, all: false, gate: false, strict: false, outFile: null };
@@ -68,6 +68,10 @@ const { GD05_CARD_DEFS } = await import("../src/modules/simulator/content/gd05/i
 const { ST09_CARD_DEFS } = await import("../src/modules/simulator/content/st09/index.ts");
 const { ST10_CARD_DEFS } = await import("../src/modules/simulator/content/st10/index.ts");
 const { EB01_CARD_DEFS } = await import("../src/modules/simulator/content/eb01/index.ts");
+const { ST11_CARD_DEFS } = await import("../src/modules/simulator/content/st11/index.ts");
+const { ST12_CARD_DEFS } = await import("../src/modules/simulator/content/st12/index.ts");
+const { ST13_CARD_DEFS } = await import("../src/modules/simulator/content/st13/index.ts");
+const { ST14_CARD_DEFS } = await import("../src/modules/simulator/content/st14/index.ts");
 
 const DEF_BY_CODE = new Map();
 for (const defs of [
@@ -82,6 +86,10 @@ for (const defs of [
   ST09_CARD_DEFS,
   ST10_CARD_DEFS,
   EB01_CARD_DEFS,
+  ST11_CARD_DEFS,
+  ST12_CARD_DEFS,
+  ST13_CARD_DEFS,
+  ST14_CARD_DEFS,
   GD01_CARD_DEFS,
   GD02_CARD_DEFS,
   GD03_CARD_DEFS,
@@ -328,7 +336,7 @@ function auditCode(code) {
     deferrals: DEFERRALS_BY_CODE.get(code) ?? [],
   });
 }
-const CLAUSE_AUDIT_SETS = [...new Set([...GATED_SETS, "GD02", "GD03", "GD04", "ST09", "GD05", "EB01"])];
+const CLAUSE_AUDIT_SETS = [...new Set([...GATED_SETS, "GD02", "GD03", "GD04", "ST09", "GD05", "EB01", "ST11", "ST12", "ST13", "ST14"])];
 const clauseTotalsBySet = {};
 const clauseJsonSets = {};
 for (const set of [...new Set([...CLAUSE_AUDIT_SETS, ...sets])]) {

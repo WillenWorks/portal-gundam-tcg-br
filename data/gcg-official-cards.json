@@ -2,7 +2,7 @@
 "source": "https://github.com/yzRobo/gcg-api (scrape semanal do site oficial gundam-gcg.com)",
 "generatedAt": "2026-08-03",
 "datasetVersion": "10-f122ee54b75f9d43e62034782c2c0cd86bedc8bd",
-"cardCount": 1072,
+"cardCount": 1138,
 "cards": [
 {
 "code": "GD01-001",
@@ -15769,6 +15769,993 @@
 "linkRefs": [],
 "effect": "(At the start of the game, the second-turn player places 1 active EX Resource into their resource area.)\n(Rest an EX Resource then exile it from the game when paying a cost.)",
 "detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=EXRP-014"
+},
+{
+"code": "ST11-001",
+"name": "Char's Z'Gok",
+"cardType": "UNIT",
+"setCode": "ST11",
+"sourceTitle": "Mobile Suit Gundam",
+"traits": [
+"Zeon",
+"Marine"
+],
+"link": "[Char Aznable]",
+"linkRefs": [
+"Char Aznable"
+],
+"effect": "【During Pair】While 2 or more other friendly (Marine) Units are in play, enemy Units can't choose this Unit as their attack target.\n【Deploy】If another friendly (Marine) Unit is in play, choose 1 enemy Unit that is Lv.2 or lower. Return it to the bottom of its owner's deck.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST11-001"
+},
+{
+"code": "ST11-002",
+"name": "Acguy",
+"cardType": "UNIT",
+"setCode": "ST11",
+"sourceTitle": "Mobile Suit Gundam",
+"traits": [
+"Zeon",
+"Marine"
+],
+"link": "(Zeon) Trait",
+"linkRefs": [],
+"effect": "During your opponent's turn, while this Unit is rested, friendly (Marine) Units with 2 or less HP can't receive enemy effect damage.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST11-002"
+},
+{
+"code": "ST11-003",
+"name": "Zock",
+"cardType": "UNIT",
+"setCode": "ST11",
+"sourceTitle": "Mobile Suit Gundam",
+"traits": [
+"Zeon",
+"Marine"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "While another friendly (Marine) Unit is in play, this Unit gains <Blocker>.\n\n(Rest this Unit to change the attack target to it.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST11-003"
+},
+{
+"code": "ST11-004",
+"name": "ZnO",
+"cardType": "UNIT",
+"setCode": "ST11",
+"sourceTitle": "Mobile Suit Gundam SEED",
+"traits": [
+"ZAFT",
+"Marine"
+],
+"link": "[Marco Morassim]",
+"linkRefs": [
+"Marco Morassim"
+],
+"effect": "【Deploy】Deploy 1 rested [GOOhN]((ZAFT) (Marine)･AP1･HP1) Unit token.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST11-004"
+},
+{
+"code": "ST11-005",
+"name": "Ash",
+"cardType": "UNIT",
+"setCode": "ST11",
+"sourceTitle": "Mobile Suit Gundam SEED DESTINY",
+"traits": [
+"ZAFT",
+"Marine"
+],
+"link": "(ZAFT) Trait",
+"linkRefs": [],
+"effect": "<Repair 2> (At the end of your turn, this Unit recovers the specified number of HP.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST11-005"
+},
+{
+"code": "ST11-006",
+"name": "Shamblo",
+"cardType": "UNIT",
+"setCode": "ST11",
+"sourceTitle": "Mobile Suit Gundam Unicorn",
+"traits": [
+"Zeon",
+"Marine"
+],
+"link": "[Loni Garvey]",
+"linkRefs": [
+"Loni Garvey"
+],
+"effect": "If another friendly (Marine) Unit is in play at the start of your opponent's turn, during this turn, when a friendly shield area card receives enemy effect damage, reduce it by 5.\n【Deploy】Choose 1 (Marine) Unit card from your trash. Add it to your hand.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST11-006"
+},
+{
+"code": "ST11-007",
+"name": "Gundam Leopard",
+"cardType": "UNIT",
+"setCode": "ST11",
+"sourceTitle": "After War Gundam X",
+"traits": [
+"Vulture",
+"Marine"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST11-007"
+},
+{
+"code": "ST11-008",
+"name": "Daughseat",
+"cardType": "UNIT",
+"setCode": "ST11",
+"sourceTitle": "After War Gundam X",
+"traits": [
+"Vulture",
+"Marine"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST11-008"
+},
+{
+"code": "ST11-009",
+"name": "Kapool",
+"cardType": "UNIT",
+"setCode": "ST11",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Militia",
+"Marine"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Destroyed】If it is your opponent's turn and a friendly (Marine) Unit is in play, draw 1.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST11-009"
+},
+{
+"code": "ST11-010",
+"name": "Abyss Gundam",
+"cardType": "UNIT",
+"setCode": "ST11",
+"sourceTitle": "Mobile Suit Gundam SEED DESTINY",
+"traits": [
+"Earth Alliance",
+"Phantom Pain",
+"Marine"
+],
+"link": "[Auel Neider]",
+"linkRefs": [
+"Auel Neider"
+],
+"effect": "<Blocker> (Rest this Unit to change the attack target to it.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST11-010"
+},
+{
+"code": "ST11-011",
+"name": "Char Aznable",
+"cardType": "PILOT",
+"setCode": "ST11",
+"sourceTitle": "Mobile Suit Gundam",
+"traits": [
+"Zeon",
+"Newtype"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【When Paired】All friendly (Marine) Units get AP+1 during this turn.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST11-011"
+},
+{
+"code": "ST11-012",
+"name": "Loni Garvey",
+"cardType": "PILOT",
+"setCode": "ST11",
+"sourceTitle": "Mobile Suit Gundam Unicorn",
+"traits": [
+"Zeon",
+"Newtype"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【When Paired】Choose 1 friendly (Marine) Unit. During this turn, when it receives battle damage from an enemy Unit, reduce it by 2.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST11-012"
+},
+{
+"code": "ST11-013",
+"name": "Poorly Planned Offensive",
+"cardType": "COMMAND",
+"setCode": "ST11",
+"sourceTitle": "Mobile Suit Gundam",
+"traits": [],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Choose 1 rested enemy Unit with 3 or less HP. Return it to its owner's hand.\n【Main】/【Action】Choose 1 rested enemy Unit with 3 or less HP. Return it to its owner's hand. If you do, draw 1.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST11-013"
+},
+{
+"code": "ST11-014",
+"name": "The Orca of Red Sea",
+"cardType": "COMMAND",
+"setCode": "ST11",
+"sourceTitle": "Mobile Suit Gundam SEED",
+"traits": [
+"ZAFT",
+"Coordinator"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Action】Choose 1 friendly (Marine) Unit. Enemy Units can't choose it as their attack target this turn.\n【Pilot】[Marco Morassim]",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST11-014"
+},
+{
+"code": "ST11-015",
+"name": "A Twinkle from the Abyss",
+"cardType": "COMMAND",
+"setCode": "ST11",
+"sourceTitle": "Mobile Suit Gundam SEED DESTINY",
+"traits": [],
+"link": "-",
+"linkRefs": [],
+"effect": "【Main】Choose 1 (Marine) Unit card that is Lv.4 or lower from your trash. Deploy it rested.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST11-015"
+},
+{
+"code": "ST11-016",
+"name": "Mad Angler",
+"cardType": "BASE",
+"setCode": "ST11",
+"sourceTitle": "Mobile Suit Gundam",
+"traits": [
+"Zeon",
+"Warship",
+"Marine"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, if 4 or more enemy Units are in play, choose 1 rested enemy Unit. Deal 2 damage to it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST11-016"
+},
+{
+"code": "T-028",
+"name": "GOOhN",
+"cardType": "UNIT TOKEN",
+"setCode": "ST11",
+"sourceTitle": "Mobile Suit Gundam SEED",
+"traits": [
+"ZAFT",
+"Marine"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=T-028"
+},
+{
+"code": "ST12-001",
+"name": "Gundam Epyon",
+"cardType": "UNIT",
+"setCode": "ST12",
+"sourceTitle": "Mobile Suit Gundam Wing",
+"traits": [
+"White Fang"
+],
+"link": "[Zechs Merquise]",
+"linkRefs": [
+"Zechs Merquise"
+],
+"effect": "【During Pair･Lv.5 or Higher Pilot】During your turn, when this Unit destroys an enemy Unit with damage, deal 2 damage to all enemy Units with 5 or less AP.\n【Deploy】Choose 1 enemy Base. Deal 5 damage to it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST12-001"
+},
+{
+"code": "ST12-002",
+"name": "Shining Gundam",
+"cardType": "UNIT",
+"setCode": "ST12",
+"sourceTitle": "Mobile Fighter G Gundam",
+"traits": [
+"MF",
+"Shuffle Alliance"
+],
+"link": "[Domon Kasshu]",
+"linkRefs": [
+"Domon Kasshu"
+],
+"effect": "【Deploy】Choose 1 friendly Unit with 5 or more AP. It gains <Breach 3> during this turn.\n\n(During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST12-002"
+},
+{
+"code": "ST12-003",
+"name": "Tallgeese Ⅲ",
+"cardType": "UNIT",
+"setCode": "ST12",
+"sourceTitle": "Mobile Suit Gundam Wing: Endless Waltz",
+"traits": [
+"Preventer"
+],
+"link": "[Zechs Merquise]",
+"linkRefs": [
+"Zechs Merquise"
+],
+"effect": "【Once per Turn】During your turn, when this Unit destroys an enemy Unit with damage, deal 1 damage to all enemy Units with 3 or less AP.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST12-003"
+},
+{
+"code": "ST12-004",
+"name": "Gundam Exia",
+"cardType": "UNIT",
+"setCode": "ST12",
+"sourceTitle": "Mobile Suit Gundam 00",
+"traits": [
+"CB",
+"GN Drive"
+],
+"link": "[Setsuna F. Seiei]",
+"linkRefs": [
+"Setsuna F. Seiei"
+],
+"effect": "<Breach 3> (During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST12-004"
+},
+{
+"code": "ST12-005",
+"name": "GQuuuuuuX (Omega Psycommu)",
+"cardType": "UNIT",
+"setCode": "ST12",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [
+"Clan"
+],
+"link": "[Amate Yuzuriha (Machu)] / [Nyaan]",
+"linkRefs": [
+"Amate Yuzuriha (Machu)",
+"Nyaan"
+],
+"effect": "【Attack】You may discard 1. If you do, draw 1.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST12-005"
+},
+{
+"code": "ST12-006",
+"name": "Unicorn Gundam 02 Banshee (Destroy Mode)",
+"cardType": "UNIT",
+"setCode": "ST12",
+"sourceTitle": "Mobile Suit Gundam Unicorn",
+"traits": [
+"Earth Federation"
+],
+"link": "[Marida Cruz]",
+"linkRefs": [
+"Marida Cruz"
+],
+"effect": "【During Pair】【Activate･Main】Exile 4 cards in your trash from the game：This Unit gains <First Strike> during this turn.\n\n(While this Unit is attacking, it deals damage before the enemy Unit.)\n【Activate･Action】Exile 4 cards in your trash from the game：This Unit gains <Suppression> during this battle.\n\n(Damage to Shields by an attack is dealt to the first 2 cards simultaneously.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST12-006"
+},
+{
+"code": "ST12-007",
+"name": "Gyan",
+"cardType": "UNIT",
+"setCode": "ST12",
+"sourceTitle": "Mobile Suit Gundam",
+"traits": [
+"Zeon"
+],
+"link": "[M'Quve]",
+"linkRefs": [
+"M'Quve"
+],
+"effect": "【When Linked】This Unit gains <First Strike> during this turn.\n\n(While this Unit is attacking, it deals damage before the enemy Unit.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST12-007"
+},
+{
+"code": "ST12-008",
+"name": "Efreet Schneid",
+"cardType": "UNIT",
+"setCode": "ST12",
+"sourceTitle": "Mobile Suit Gundam Unicorn",
+"traits": [
+"Zeon"
+],
+"link": "(Zeon) Trait",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST12-008"
+},
+{
+"code": "ST12-009",
+"name": "Unicorn Gundam 02 Banshee (Unicorn Mode)",
+"cardType": "UNIT",
+"setCode": "ST12",
+"sourceTitle": "Mobile Suit Gundam Unicorn",
+"traits": [
+"Earth Federation"
+],
+"link": "[Marida Cruz]",
+"linkRefs": [
+"Marida Cruz"
+],
+"effect": "【Destroyed】If there is a player with 3 or less Shields, choose 1 Unit card that is Lv.6 or higher from your trash. Add it to your hand. If you do, discard 1.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST12-009"
+},
+{
+"code": "ST12-010",
+"name": "Slash Zaku Phantom",
+"cardType": "UNIT",
+"setCode": "ST12",
+"sourceTitle": "Mobile Suit Gundam SEED DESTINY",
+"traits": [
+"ZAFT"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST12-010"
+},
+{
+"code": "ST12-011",
+"name": "Milliardo Peacecraft",
+"cardType": "PILOT",
+"setCode": "ST12",
+"sourceTitle": "Mobile Suit Gundam Wing",
+"traits": [
+"White Fang"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "This card's name is also treated as [Zechs Merquise].\n\n【Burst】Add this card to your hand.\n【Activate･Action】【Once per Turn】Choose 1 damaged enemy Unit battling this Unit. Deal 2 damage to it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST12-011"
+},
+{
+"code": "ST12-012",
+"name": "Ple-Twelve",
+"cardType": "PILOT",
+"setCode": "ST12",
+"sourceTitle": "Mobile Suit Gundam Unicorn",
+"traits": [
+"Earth Federation",
+"Cyber-Newtype"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "This card's name is also treated as [Marida Cruz].\n\n【Burst】Add this card to your hand.\n【When Linked】Look at the top 2 cards of your deck and return 1 to the top. Place the remaining card into your trash. If there is a player with 3 or less Shields, add the card to your hand instead of returning it to your deck.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST12-012"
+},
+{
+"code": "ST12-013",
+"name": "The Final Victor",
+"cardType": "COMMAND",
+"setCode": "ST12",
+"sourceTitle": "Mobile Suit Gundam Wing",
+"traits": [],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Choose 1 enemy Unit. Deal 1 damage to it.\n【Main】Choose 1 enemy player. You and that player each choose 1 of your own Units. Begin a battle between them and only perform the damage step.\n\n(You choose first, then your opponent.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST12-013"
+},
+{
+"code": "ST12-014",
+"name": "Wise Leader's Pride",
+"cardType": "COMMAND",
+"setCode": "ST12",
+"sourceTitle": "Mobile Suit Gundam",
+"traits": [
+"Zeon"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Action】Choose 1 friendly Unit. It gains the following effect during this battle：\n\n■When this Unit destroys an enemy Unit with battle damage, choose 1 enemy Unit with 2 or less AP. Destroy it.\n【Pilot】[M'Quve]",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST12-014"
+},
+{
+"code": "ST12-015",
+"name": "Two Unicorns",
+"cardType": "COMMAND",
+"setCode": "ST12",
+"sourceTitle": "Mobile Suit Gundam Unicorn",
+"traits": [],
+"link": "-",
+"linkRefs": [],
+"effect": "【Action】When playing this card, choose 1 of the following effects and activate it：\n\n■Choose 1 enemy Unit that is Lv.2 or lower. Destroy it.\n\n■Choose 1 friendly Unit and 1 enemy Unit that is Lv.5 or higher. Deal 2 damage to them.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST12-015"
+},
+{
+"code": "ST12-016",
+"name": "Libra",
+"cardType": "BASE",
+"setCode": "ST12",
+"sourceTitle": "Mobile Suit Gundam Wing",
+"traits": [
+"White Fang",
+"Warship"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Activate･Main】Rest this Base：If a friendly Unit paired with a Pilot has destroyed an enemy Unit with battle damage this turn, choose 1 enemy Unit that is Lv.4 or lower. Deal 1 damage to it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST12-016"
+},
+{
+"code": "ST13-001",
+"name": "Qubeley",
+"cardType": "UNIT",
+"setCode": "ST13",
+"sourceTitle": "Mobile Suit Z Gundam",
+"traits": [
+"Neo Zeon"
+],
+"link": "[Haman Karn]",
+"linkRefs": [
+"Haman Karn"
+],
+"effect": "【Once per Turn】During your turn, when you pair a Pilot with one of your Units, deploy 1 to 2 [Bit / Funnel]((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack) Unit tokens.\n【Activate･Main】【Once per Turn】①：Choose 1 of your Unit tokens and 1 enemy Unit. Begin a battle between them and only perform the damage step.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST13-001"
+},
+{
+"code": "ST13-002",
+"name": "Elmeth",
+"cardType": "UNIT",
+"setCode": "ST13",
+"sourceTitle": "Mobile Suit Gundam",
+"traits": [
+"Zeon"
+],
+"link": "[Lalah Sune]",
+"linkRefs": [
+"Lalah Sune"
+],
+"effect": "【Deploy】Deploy 1 [Bit / Funnel]((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack) Unit token.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST13-002"
+},
+{
+"code": "ST13-003",
+"name": "Bertigo",
+"cardType": "UNIT",
+"setCode": "ST13",
+"sourceTitle": "After War Gundam X",
+"traits": [
+"SRA"
+],
+"link": "[Carris Nautilus]",
+"linkRefs": [
+"Carris Nautilus"
+],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST13-003"
+},
+{
+"code": "ST13-004",
+"name": "GX-Bit",
+"cardType": "UNIT",
+"setCode": "ST13",
+"sourceTitle": "After War Gundam X",
+"traits": [
+"Old UNE",
+"Vulture",
+"Long-Range Weapon"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Deploy】Look at the top card of your deck. Return it to the top or bottom of your deck.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST13-004"
+},
+{
+"code": "ST13-005",
+"name": "GFreD",
+"cardType": "UNIT",
+"setCode": "ST13",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [
+"Zeon"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Deploy】If 4 or more enemy Units are in play, look at the top 5 cards of your deck. You may reveal 1 Pilot card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST13-005"
+},
+{
+"code": "ST13-006",
+"name": "Gundam Aerial",
+"cardType": "UNIT",
+"setCode": "ST13",
+"sourceTitle": "Mobile Suit Gundam the Witch from Mercury",
+"traits": [
+"Academy"
+],
+"link": "[Suletta Mercury]",
+"linkRefs": [
+"Suletta Mercury"
+],
+"effect": "【During Pair】【Attack】If you are attacking the enemy player, choose 1 enemy Unit. Deal 2 damage to it.\n【Activate･Action】【Once per Turn】Rest 1 friendly Unit：Choose 1 enemy Unit that is Lv.4 or lower. Deal 1 damage to it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST13-006"
+},
+{
+"code": "ST13-007",
+"name": "Gyunei's Jagd Doga",
+"cardType": "UNIT",
+"setCode": "ST13",
+"sourceTitle": "Mobile Suit Gundam: Char's Counterattack",
+"traits": [
+"Neo Zeon"
+],
+"link": "(Neo Zeon) Trait",
+"linkRefs": [],
+"effect": "【Activate･Main】<Support 1> (Rest this Unit. 1 other friendly Unit gets AP+(specified amount) during this turn.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST13-007"
+},
+{
+"code": "ST13-008",
+"name": "Gundam Throne Zwei",
+"cardType": "UNIT",
+"setCode": "ST13",
+"sourceTitle": "Mobile Suit Gundam 00",
+"traits": [
+"CB",
+"Trinity"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST13-008"
+},
+{
+"code": "ST13-009",
+"name": "Gundam Pharact",
+"cardType": "UNIT",
+"setCode": "ST13",
+"sourceTitle": "Mobile Suit Gundam the Witch from Mercury",
+"traits": [
+"Academy"
+],
+"link": "(Academy) Trait",
+"linkRefs": [],
+"effect": "【Attack】Choose 1 enemy player. That player chooses 2 Unit cards from their trash. Exile them from the game.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST13-009"
+},
+{
+"code": "ST13-010",
+"name": "Red Gundam (0079)",
+"cardType": "UNIT",
+"setCode": "ST13",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [
+"Zeon"
+],
+"link": "(Newtype) Trait",
+"linkRefs": [],
+"effect": "【Activate･Main】【Once per Turn】Destroy 1 friendly Unit token：This Unit gains <Breach 3> during this turn.\n\n(During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST13-010"
+},
+{
+"code": "ST13-011",
+"name": "Haman Karn",
+"cardType": "PILOT",
+"setCode": "ST13",
+"sourceTitle": "Mobile Suit Z Gundam",
+"traits": [
+"Neo Zeon",
+"Newtype"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【When Paired】Look at the top 5 cards of your deck. You may reveal 1 Pilot card whose Lv. is equal to or lower than this Unit among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST13-011"
+},
+{
+"code": "ST13-012",
+"name": "Suletta Mercury",
+"cardType": "PILOT",
+"setCode": "ST13",
+"sourceTitle": "Mobile Suit Gundam the Witch from Mercury",
+"traits": [
+"Academy"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【Once per Turn】When an enemy Unit is destroyed with effect damage while this Unit is attacking, draw 1.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST13-012"
+},
+{
+"code": "ST13-013",
+"name": "I'm a Newtype",
+"cardType": "COMMAND",
+"setCode": "ST13",
+"sourceTitle": "After War Gundam X",
+"traits": [
+"SRA",
+"Newtype"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Main】Deploy 1 to 2 [Bit / Funnel]((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack) Unit tokens.\n【Pilot】[Carris Nautilus]",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST13-013"
+},
+{
+"code": "ST13-014",
+"name": "Final Duty",
+"cardType": "COMMAND",
+"setCode": "ST13",
+"sourceTitle": "Mobile Suit Gundam the Witch from Mercury",
+"traits": [],
+"link": "-",
+"linkRefs": [],
+"effect": "【Main】Choose 1 of your Units. Destroy it. If you do, look at the top 4 cards of your deck. You may deploy 1 Unit card that is Lv.4 or lower among them. Return the remaining cards randomly to the bottom of your deck.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST13-014"
+},
+{
+"code": "ST13-015",
+"name": "Operation to Intercept Solomon",
+"cardType": "COMMAND",
+"setCode": "ST13",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【Main】/【Action】Choose 3 Unit cards from your trash. Exile them from the game. If you do, choose 1 enemy Unit. Deal 3 damage to it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST13-015"
+},
+{
+"code": "ST13-016",
+"name": "Sodon",
+"cardType": "BASE",
+"setCode": "ST13",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [
+"Zeon",
+"Warship"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, deploy 1 [Bit / Funnel]((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack) Unit token.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST13-016"
+},
+{
+"code": "T-029",
+"name": "Bit / Funnel",
+"cardType": "UNIT TOKEN",
+"setCode": "ST13",
+"sourceTitle": "Mobile Suit Gundam",
+"traits": [
+"Long-Range Weapon"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "This Unit can't be paired with a Pilot or attack.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=T-029"
+},
+{
+"code": "ST14-001",
+"name": "The-O",
+"cardType": "UNIT",
+"setCode": "ST14",
+"sourceTitle": "Mobile Suit Z Gundam",
+"traits": [
+"Titans",
+"Jupitris"
+],
+"link": "[Paptimus Scirocco]",
+"linkRefs": [
+"Paptimus Scirocco"
+],
+"effect": "<Suppression> (Damage to Shields by an attack is dealt to the first 2 cards simultaneously.)\nEach enemy player's rested Units with the lowest Lv. won't be set as active during the start phase of their turn.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST14-001"
+},
+{
+"code": "ST14-002",
+"name": "Gundam NT-1 Full Armor",
+"cardType": "UNIT",
+"setCode": "ST14",
+"sourceTitle": "Mobile Suit Gundam 0080: War in the Pocket",
+"traits": [
+"Earth Federation"
+],
+"link": "(Newtype) Trait / [Christina Mackenzie]",
+"linkRefs": [
+"Christina Mackenzie"
+],
+"effect": "<Blocker> (Rest this Unit to change the attack target to it.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST14-002"
+},
+{
+"code": "ST14-003",
+"name": "Palace Athene",
+"cardType": "UNIT",
+"setCode": "ST14",
+"sourceTitle": "Mobile Suit Z Gundam",
+"traits": [
+"Titans",
+"Jupitris"
+],
+"link": "(Jupitris) Trait",
+"linkRefs": [],
+"effect": "【Deploy】Choose 1 enemy player. That player chooses 2 Unit cards from their trash. Exile them from the game.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST14-003"
+},
+{
+"code": "ST14-004",
+"name": "Geara Doga (Heavy Armed Type)",
+"cardType": "UNIT",
+"setCode": "ST14",
+"sourceTitle": "Mobile Suit Gundam Unicorn",
+"traits": [
+"Neo Zeon"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "<Blocker> (Rest this Unit to change the attack target to it.)\nThis Unit can't choose the enemy player as its attack target.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST14-004"
+},
+{
+"code": "ST14-005",
+"name": "G-Falcon DX",
+"cardType": "UNIT",
+"setCode": "ST14",
+"sourceTitle": "After War Gundam X",
+"traits": [
+"Vulture"
+],
+"link": "(Vulture) Trait / (Newtype) Trait",
+"linkRefs": [],
+"effect": "【Deploy】Choose 1 enemy Unit that is Lv.6 or lower. Rest it. Then, if there are 7 or more cards in your trash, it gets AP-2 during this turn.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST14-005"
+},
+{
+"code": "ST14-006",
+"name": "Full Armor Unicorn Gundam (Destroy Mode)",
+"cardType": "UNIT",
+"setCode": "ST14",
+"sourceTitle": "Mobile Suit Gundam Unicorn",
+"traits": [
+"Civilian"
+],
+"link": "[Banagher Links]",
+"linkRefs": [
+"Banagher Links"
+],
+"effect": "【Deploy】Look at the top 3 cards of your deck. You may reveal a number of cards equal to the number of enemy players among them and add them to your hand. Return the remaining cards randomly to the bottom of your deck.\n【During Pair】【Once per Turn】When this Unit would receive battle damage from an enemy Unit with AP equal to or less than it, it doesn't receive that damage.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST14-006"
+},
+{
+"code": "ST14-007",
+"name": "Full Armor Unicorn Gundam (Unicorn Mode)",
+"cardType": "UNIT",
+"setCode": "ST14",
+"sourceTitle": "Mobile Suit Gundam Unicorn",
+"traits": [
+"Civilian"
+],
+"link": "[Banagher Links]",
+"linkRefs": [
+"Banagher Links"
+],
+"effect": "<Breach 3> (During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST14-007"
+},
+{
+"code": "ST14-008",
+"name": "Gundam Heavyarms Custom (EW)",
+"cardType": "UNIT",
+"setCode": "ST14",
+"sourceTitle": "Mobile Suit Gundam Wing: Endless Waltz",
+"traits": [
+"G Team"
+],
+"link": "(G Team) Trait / (Operation Meteor) Trait",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST14-008"
+},
+{
+"code": "ST14-009",
+"name": "Duel Gundam (Assault Shroud)",
+"cardType": "UNIT",
+"setCode": "ST14",
+"sourceTitle": "Mobile Suit Gundam SEED",
+"traits": [
+"ZAFT"
+],
+"link": "[Yzak Jule]",
+"linkRefs": [
+"Yzak Jule"
+],
+"effect": "【Destroyed】Place 1 EX Resource.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST14-009"
+},
+{
+"code": "ST14-010",
+"name": "Perfect Strike Gundam",
+"cardType": "UNIT",
+"setCode": "ST14",
+"sourceTitle": "Mobile Suit Gundam SEED",
+"traits": [
+"Triple Ship Alliance"
+],
+"link": "[Mu La Flaga]",
+"linkRefs": [
+"Mu La Flaga"
+],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST14-010"
+},
+{
+"code": "ST14-011",
+"name": "Paptimus Scirocco",
+"cardType": "PILOT",
+"setCode": "ST14",
+"sourceTitle": "Mobile Suit Z Gundam",
+"traits": [
+"Titans",
+"Jupitris",
+"Newtype"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【Attack】Choose 1 enemy Unit. Reduce its AP during this battle by an amount equal to the number of rested enemy Units.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST14-011"
+},
+{
+"code": "ST14-012",
+"name": "Banagher Links",
+"cardType": "PILOT",
+"setCode": "ST14",
+"sourceTitle": "Mobile Suit Gundam Unicorn",
+"traits": [
+"Civilian",
+"Newtype"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【When Paired】Choose 1 friendly Unit that is Lv.5 or higher. During this turn, it may choose an active enemy Unit with 5 or less AP as its attack target.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST14-012"
+},
+{
+"code": "ST14-013",
+"name": "Natural Talent",
+"cardType": "COMMAND",
+"setCode": "ST14",
+"sourceTitle": "Mobile Suit Z Gundam",
+"traits": [],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Choose 1 enemy Unit. It gets AP-3 during this turn.\n【Main】/【Action】When playing this card, choose 1 of the following effects and activate it：\n\n■Choose 1 to 2 enemy Units with 3 or less HP. Rest them.\n\n■Choose 1 enemy Unit. It gets AP-3 during this turn.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST14-013"
+},
+{
+"code": "ST14-014",
+"name": "Blazing Mobile Suit Rider",
+"cardType": "COMMAND",
+"setCode": "ST14",
+"sourceTitle": "After War Gundam X",
+"traits": [
+"Vulture",
+"Newtype"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Main】/【Action】Choose 1 enemy Unit that is Lv.5 or lower. It gets AP-3 during this turn. If there are 4 or more Command cards in your trash, choose 1 enemy Unit instead.\n\n(This card that is being activated is not counted.)\n【Pilot】[Garrod Ran & Tiffa Adill]",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST14-014"
+},
+{
+"code": "ST14-015",
+"name": "Battlefield Emotions",
+"cardType": "COMMAND",
+"setCode": "ST14",
+"sourceTitle": "Mobile Suit Gundam Unicorn",
+"traits": [],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Place 1 EX Resource.\n【Main】Place 1 rested Resource. Then, if you have not set one of your Resources as active with an effect this turn, choose a number of your Resources equal to the number of enemy players. Set them as active.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST14-015"
+},
+{
+"code": "ST14-016",
+"name": "Gryphios 2",
+"cardType": "BASE",
+"setCode": "ST14",
+"sourceTitle": "Mobile Suit Z Gundam",
+"traits": [
+"Titans",
+"Stronghold"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Once per Turn】During your turn, when a friendly Unit links, choose 1 enemy Unit that is Lv.5 or lower. It gets AP-1 during this turn.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST14-016"
 }
 ]
 }
