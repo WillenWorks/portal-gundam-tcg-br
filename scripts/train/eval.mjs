@@ -32,8 +32,8 @@ import {
   ALL_EFFECT_SPECS,
   defaultPredicateResolver,
   defaultTargetFilterResolver,
-  validatedDeckList,
-  validatedDeckPairs,
+  trainingDeckList,
+  trainingDeckPairs,
   getEngineSha,
 } from "./engine.mjs";
 import { readModelArtifacts } from "./model.mjs";
@@ -192,7 +192,7 @@ async function main() {
   }
   const neuralFn = (view, legal, rng) => handle.chooseAction(view, legal, rng);
 
-  const deckList = validatedDeckList();
+  const deckList = trainingDeckList();
   const byId = Object.fromEntries(deckList.map((d) => [d.id, d]));
   let pairs;
   if (args.decks) {
@@ -203,7 +203,7 @@ async function main() {
     }
     pairs = [[byId[a], byId[b]]];
   } else {
-    pairs = validatedDeckPairs();
+    pairs = trainingDeckPairs();
   }
 
   const heuristicFn = heuristicPolicy({ level: "normal" });

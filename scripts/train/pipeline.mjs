@@ -17,6 +17,7 @@
  *   --epochs=N             Épocas de treino do fit
  *   --evalGames=N          Partidas de avaliação por par
  *   --decks=ST01,ST02      Decks específicos
+ *   --pool=pool-GD05.json  Decks de torneio (pool de scripts/gundam-bot-season-pool.mjs) no lugar de ST01–ST04
  *   --seed=N               Seed base
  *   --out=<path>           Caminho customizado para o relatório JSON final em docs/bot/
  *   --zero                 Fase 4: também gera a matriz de confrontos (pool all) para o counter do Zero System e o
@@ -91,6 +92,7 @@ export function parseArgs(argv) {
     else if (k === "seed") args.seed = Number(v);
     else if (k === "out") args.out = v;
     else if (k === "zeroGames") args.zeroGames = Number(v);
+    else if (k === "pool") process.env.TRAIN_POOL_FILE = path.resolve(v); // decks de torneio (ver engine.mjs)
   }
 
   return args;
@@ -110,7 +112,8 @@ export function resolveConfig(cliArgs) {
   const nice = cliArgs.nice !== null ? cliArgs.nice : (isLocal ? true : false);
   const resume = cliArgs.clean ? false : (cliArgs.resume !== null ? cliArgs.resume : true);
 
-  const defaultDecks = rapido ? ["ST01", "ST02"] : null;
+  // com pool de torneio não existem ST01/ST02: o rápido usa os pares amostrados do pool
+  const defaultDecks = rapido && !process.env.TRAIN_POOL_FILE ? ["ST01", "ST02"] : null;
   const decks = cliArgs.decks ?? defaultDecks;
 
   let games;

@@ -21,6 +21,11 @@ on:
       max_shards:
         description: "Fatias no total (até 256; 20 rodam ao mesmo tempo)"
         default: "64"
+      fonte:
+        description: "Listas dos arquétipos: egman (núcleos versionados no repo) ou todos (todas as fontes importadas no site)"
+        type: choice
+        options: [egman, todos]
+        default: egman
 
 permissions:
   contents: read
@@ -42,6 +47,13 @@ jobs:
           node-version: 24
       - run: corepack enable
       - run: corepack pnpm install --frozen-lockfile
+      - name: Núcleos com todos os torneios do site (Egman + DigiLab + reportes)
+        if: inputs.fonte == 'todos'
+        env:
+          DADOS_TOKEN: ${{ secrets.DADOS_TOKEN }}
+        run: |
+          node scripts/meta-sources/site-export.mjs --out=meta-raw-site.json
+          node scripts/gundam-meta-cores.mjs --raw=meta-raw-site.json
       - name: Pools por temporada (com validação dos decks)
         run: |
           mkdir -p pools

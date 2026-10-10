@@ -2,6 +2,9 @@
 # Coleta no runner (site oficial, Egman, DigiLab) e roda os scripts de prisma/ na VPS, contra o banco de produção.
 # Por padrão é SIMULAÇÃO: os scripts só relatam o que mudariam. Gravar exige marcar "aplicar" ao disparar.
 # O agendamento semanal só coleta torneios e só grava se a variável DADOS_APLICAR_AGENDADO = true.
+# Torneios: Egman + Brasil na DigiLab (páginas públicas, até a chave da API chegar), incremental: só lê o que o site
+# ainda não tem ou foi importado há menos de 21 dias. "digilab-br" roda só a parte da DigiLab.
+# Disparo também pela rota POST/GET /api/admin/dados/disparar do site (Postman ou URL, ver CONTRATO-VEDA).
 name: Dados do site
 
 on:
@@ -10,7 +13,7 @@ on:
       tarefa:
         description: "O que fazer"
         type: choice
-        options: [auditoria, impressoes, faq, relacoes, torneios, tudo]
+        options: [auditoria, impressoes, faq, relacoes, torneios, digilab-br, tudo]
         default: auditoria
       aplicar:
         description: "Gravar no banco de produção (senão só simula)"
@@ -33,7 +36,7 @@ env:
 jobs:
   coletar:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -58,6 +61,18 @@ jobs:
         env:
           DIGILAB_API_KEY: ${{ secrets.DIGILAB_API_KEY }}
         run: node scripts/meta-sources/digilab.mjs --out=payload/digilab
+      - name: País das lojas da DigiLab (guardado entre execuções)
+        if: env.TAREFA == 'digilab-br' || env.TAREFA == 'torneios' || env.TAREFA == 'tudo'
+        uses: actions/cache@v4
+        with:
+          path: .cache/digilab-lojas.json
+          key: digilab-lojas-${{ github.run_id }}
+          restore-keys: digilab-lojas-
+      - name: Torneios do Brasil na DigiLab (páginas públicas, 5 s entre requisições, incremental)
+        if: env.TAREFA == 'digilab-br' || env.TAREFA == 'torneios' || env.TAREFA == 'tudo'
+        run: >-
+          node scripts/meta-sources/digilab-br.mjs --out=payload/events-digilab-br.json --cache=.cache/digilab
+          --stores-cache=.cache/digilab-lojas.json --known=https://anaheimhub.com
       - uses: actions/upload-artifact@v4
         with:
           name: dados-site-coleta
@@ -116,4 +131,5 @@ jobs:
             fi
             if quer relacoes; then run prisma/apply-gcg-official-curation.mjs $FLAG; fi
             if quer torneios && [ -f "$P/events-egman.json" ]; then run prisma/import-tournaments.mjs --file="$P/events-egman.json" $FLAG; fi
+            if { quer torneios || [ "$TAREFA" = "digilab-br" ]; } && [ -f "$P/events-digilab-br.json" ]; then run prisma/import-tournaments.mjs --file="$P/events-digilab-br.json" $FLAG; fi
             run prisma/audit-catalog.mjs
