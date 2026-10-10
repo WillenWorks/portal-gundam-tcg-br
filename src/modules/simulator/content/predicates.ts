@@ -243,6 +243,11 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   // W10 — EB01: "this Unit is rested", "2 or more OTHER rested Units in play" (dos dois lados, Q310/Q317),
   // "destroyed with battle damage" (morreu no Damage Step), "a friendly Unit with <X> is in play"
   if (predicate === "selfIsRested") return findCard(ctx.state, ctx.sourceInstanceId).rested;
+  // W12 — ST13-012 "while this Unit is attacking" (num Piloto, a Unit pareada)
+  if (predicate === "selfIsAttacking") {
+    const self = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
+    return !!self && ctx.state.combat?.attackerId === self.instanceId;
+  }
   if (predicate === "duringDamageStep") return ctx.state.combat?.step === "damage";
   const otherRestedUnitsInPlayAtLeast = predicate.match(/^otherRestedUnitsInPlayAtLeast:(\d+)$/);
   if (otherRestedUnitsInPlayAtLeast) {
@@ -255,6 +260,30 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     return ctx.state.players[ctx.controller].battleArea.some((u) => u.def.cardType === "UNIT" && hasKeyword(u, controllerUnitWithKeywordInPlay[1], ctx.state));
   }
   // W9 — ST10-011 "If 2 or more rested Units are in play" (dos dois lados, FAQ Q307)
+  // W12 — ST12-009/012 "If there is a player with 3 or less Shields": qualquer jogador (Q442/Q444), sem contar a Base (Q443/Q445)
+  const anyPlayerShieldsAtMost = predicate.match(/^anyPlayerShieldsAtMost:(\d+)$/);
+  if (anyPlayerShieldsAtMost) {
+    const n = Number(anyPlayerShieldsAtMost[1]);
+    return ctx.state.players.A.shields.length <= n || ctx.state.players.B.shields.length <= n;
+  }
+  // W12 — ST12-009 "choose 1 Unit card that is Lv.6 or higher from your trash" (existe alguma)
+  const trashUnitLevelAtLeast = predicate.match(/^controllerTrashUnitLevelAtLeast:(\d+)$/);
+  if (trashUnitLevelAtLeast) {
+    return ctx.state.players[ctx.controller].trash.some((c) => c.def.cardType === "UNIT" && (c.def.level ?? 0) >= Number(trashUnitLevelAtLeast[1]));
+  }
+  // W12 — ST14-014 "If there are 4 or more Command cards in your trash"
+  const trashTypeCount = predicate.match(/^controllerTrashCardTypeCountAtLeast:(.+):(\d+)$/);
+  if (trashTypeCount) {
+    return ctx.state.players[ctx.controller].trash.filter((c) => c.def.cardType === trashTypeCount[1]).length >= Number(trashTypeCount[2]);
+  }
+  // W12 — ST14-015 "if you have not set one of your Resources as active with an effect this turn" (negado no spec)
+  if (predicate === "controllerSetResourceActiveByEffectThisTurn") {
+    return ctx.state.players[ctx.controller].resourceSetActiveByEffectOnTurn === ctx.state.turnNumber;
+  }
+  // W12 — ST12-016 "If a friendly Unit paired with a Pilot has destroyed an enemy Unit with battle damage this turn"
+  if (predicate === "pairedUnitDestroyedEnemyInBattleThisTurn") {
+    return ctx.state.players[ctx.controller].pairedUnitDestroyedEnemyInBattleOnTurn === ctx.state.turnNumber;
+  }
   // W11 — EB01-040/044 "If there are 2 or more enemy players": o simulador é 1v1
   const enemyPlayerCountAtLeast = predicate.match(/^enemyPlayerCountAtLeast:(\d+)$/);
   if (enemyPlayerCountAtLeast) return 1 >= Number(enemyPlayerCountAtLeast[1]);

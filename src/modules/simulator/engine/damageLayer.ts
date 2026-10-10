@@ -1,5 +1,6 @@
 import { findCard } from "./events";
 import {
+  effectiveAp,
   effectivePilotDef,
   isBoardConditionMet,
   isTargetConditionMet,
@@ -61,11 +62,13 @@ function reductionApplies(state: GameState, target: CardInstance, holder: CardIn
   if (r.oncePerTurn && holder.usedKeywordsThisTurn.includes(marker)) return false;
   if (r.duringLink && !isLinked(state, target)) return false;
   if (r.duringPair && !target.pairedPilotId) return false;
-  if (r.boardCondition && !isBoardConditionMet(state, target.owner, r.boardCondition, target.instanceId)) return false;
+  // aura: a condição é de quem tem o texto (ST11-002 "while this Unit is rested"), não da Unit protegida
+  if (r.boardCondition && !isBoardConditionMet(state, holder.owner, r.boardCondition, r.aura ? holder.instanceId : target.instanceId)) return false;
   const unit = sourceUnit(state, src);
   if (r.sourceUnitOnly && !unit) return false;
   if (r.sourceNotToken && (!unit || unit.def.isToken)) return false;
   if (r.sourceMaxLevel !== undefined && (!unit || (unit.def.level ?? 0) > r.sourceMaxLevel)) return false;
+  if (r.sourceApAtMostSelf && (!unit || effectiveAp(unit, state) > effectiveAp(target, state))) return false;
   if (r.whenBlockedByMaxLevel !== undefined) {
     const combat = state.combat;
     if (src.kind !== "battle" || !combat?.blockerUsedBy || combat.attackerId !== target.instanceId) return false;

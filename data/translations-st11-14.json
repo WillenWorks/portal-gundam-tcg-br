@@ -1,0 +1,743 @@
+[
+  {
+    "code": "ST11-001",
+    "name": "Char's Z'Gok",
+    "set": "ST11",
+    "effectEn": "【During Pair】While 2 or more other friendly (Marine) Units are in play, enemy Units can't choose this Unit as their attack target.\n【Deploy】If another friendly (Marine) Unit is in play, choose 1 enemy Unit that is Lv.2 or lower. Return it to the bottom of its owner's deck.",
+    "effectPt": "【During Pair】Enquanto 2 ou mais outras Unidades (Marine) aliadas estiverem em jogo, Unidades inimigas não podem escolher esta Unidade como alvo de ataque.\n【Deploy】Se outra Unidade (Marine) aliada estiver em jogo, escolha 1 Unidade inimiga de Lv.2 ou menor. Coloque-a no fundo do deck do dono.",
+    "status": "OK",
+    "tokens": [
+      "【During Pair】",
+      "【Deploy】",
+      "(Marine)",
+      "(Marine)",
+      "Lv.2"
+    ]
+  },
+  {
+    "code": "ST11-002",
+    "name": "Acguy",
+    "set": "ST11",
+    "effectEn": "During your opponent's turn, while this Unit is rested, friendly (Marine) Units with 2 or less HP can't receive enemy effect damage.",
+    "effectPt": "Durante o turno do seu oponente, enquanto esta Unidade estiver descansada, Unidades (Marine) aliadas com HP 2 ou menos não podem receber dano de efeito inimigo.",
+    "status": "OK",
+    "tokens": [
+      "(Marine)",
+      "HP"
+    ]
+  },
+  {
+    "code": "ST11-003",
+    "name": "Zock",
+    "set": "ST11",
+    "effectEn": "While another friendly (Marine) Unit is in play, this Unit gains <Blocker>.\n\n(Rest this Unit to change the attack target to it.)",
+    "effectPt": "Enquanto outra Unidade (Marine) aliada estiver em jogo, esta Unidade ganha <Blocker>.\n\n(Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "(Marine)",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST11-004",
+    "name": "ZnO",
+    "set": "ST11",
+    "effectEn": "【Deploy】Deploy 1 rested [GOOhN]((ZAFT) (Marine)･AP1･HP1) Unit token.",
+    "effectPt": "【Deploy】Faça o Deploy de 1 ficha de Unidade [GOOhN]((ZAFT) (Marine)･AP1･HP1) descansada.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "[GOOhN]",
+      "(ZAFT)",
+      "(Marine)",
+      "AP1",
+      "HP1"
+    ]
+  },
+  {
+    "code": "ST11-005",
+    "name": "Ash",
+    "set": "ST11",
+    "effectEn": "<Repair 2> (At the end of your turn, this Unit recovers the specified number of HP.)",
+    "effectPt": "<Repair 2> (No fim do seu turno, esta Unidade recupera a quantidade especificada de HP.)",
+    "status": "OK",
+    "tokens": [
+      "<Repair 2>",
+      "HP"
+    ]
+  },
+  {
+    "code": "ST11-006",
+    "name": "Shamblo",
+    "set": "ST11",
+    "effectEn": "If another friendly (Marine) Unit is in play at the start of your opponent's turn, during this turn, when a friendly shield area card receives enemy effect damage, reduce it by 5.\n【Deploy】Choose 1 (Marine) Unit card from your trash. Add it to your hand.",
+    "effectPt": "Se outra Unidade (Marine) aliada estiver em jogo no início do turno do seu oponente, durante esse turno, quando uma carta da área de escudo aliada receber dano de efeito inimigo, reduza-o em 5.\n【Deploy】Escolha 1 carta de Unidade (Marine) do seu lixo. Adicione-a à sua mão.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "(Marine)",
+      "(Marine)"
+    ]
+  },
+  {
+    "code": "ST11-009",
+    "name": "Kapool",
+    "set": "ST11",
+    "effectEn": "【Destroyed】If it is your opponent's turn and a friendly (Marine) Unit is in play, draw 1.",
+    "effectPt": "【Destroyed】Se for o turno do seu oponente e uma Unidade (Marine) aliada estiver em jogo, compre 1 carta.",
+    "status": "OK",
+    "tokens": [
+      "【Destroyed】",
+      "(Marine)"
+    ]
+  },
+  {
+    "code": "ST11-010",
+    "name": "Abyss Gundam",
+    "set": "ST11",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST11-011",
+    "name": "Char Aznable",
+    "set": "ST11",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Paired】All friendly (Marine) Units get AP+1 during this turn.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Paired】Todas as Unidades (Marine) aliadas recebem AP+1 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Paired】",
+      "(Marine)",
+      "AP+1"
+    ]
+  },
+  {
+    "code": "ST11-012",
+    "name": "Loni Garvey",
+    "set": "ST11",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Paired】Choose 1 friendly (Marine) Unit. During this turn, when it receives battle damage from an enemy Unit, reduce it by 2.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Paired】Escolha 1 Unidade (Marine) aliada. Durante este turno, quando ela receber dano de batalha de uma Unidade inimiga, reduza-o em 2.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Paired】",
+      "(Marine)"
+    ]
+  },
+  {
+    "code": "ST11-013",
+    "name": "Poorly Planned Offensive",
+    "set": "ST11",
+    "effectEn": "【Burst】Choose 1 rested enemy Unit with 3 or less HP. Return it to its owner's hand.\n【Main】/【Action】Choose 1 rested enemy Unit with 3 or less HP. Return it to its owner's hand. If you do, draw 1.",
+    "effectPt": "【Burst】Escolha 1 Unidade inimiga descansada com HP 3 ou menos. Devolva-a à mão do dono.\n【Main】/【Action】Escolha 1 Unidade inimiga descansada com HP 3 ou menos. Devolva-a à mão do dono. Se fizer isso, compre 1 carta.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Main】",
+      "【Action】",
+      "HP",
+      "HP"
+    ]
+  },
+  {
+    "code": "ST11-014",
+    "name": "The Orca of Red Sea",
+    "set": "ST11",
+    "effectEn": "【Action】Choose 1 friendly (Marine) Unit. Enemy Units can't choose it as their attack target this turn.\n【Pilot】[Marco Morassim]",
+    "effectPt": "【Action】Escolha 1 Unidade (Marine) aliada. Unidades inimigas não podem escolhê-la como alvo de ataque neste turno.\n【Pilot】[Marco Morassim]",
+    "status": "OK",
+    "tokens": [
+      "【Action】",
+      "【Pilot】",
+      "[Marco Morassim]",
+      "(Marine)"
+    ]
+  },
+  {
+    "code": "ST11-015",
+    "name": "A Twinkle from the Abyss",
+    "set": "ST11",
+    "effectEn": "【Main】Choose 1 (Marine) Unit card that is Lv.4 or lower from your trash. Deploy it rested.",
+    "effectPt": "【Main】Escolha 1 carta de Unidade (Marine) de Lv.4 ou menor do seu lixo. Faça o Deploy dela descansada.",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "(Marine)",
+      "Lv.4"
+    ]
+  },
+  {
+    "code": "ST11-016",
+    "name": "Mad Angler",
+    "set": "ST11",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, if 4 or more enemy Units are in play, choose 1 rested enemy Unit. Deal 2 damage to it.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão. Então, se 4 ou mais Unidades inimigas estiverem em jogo, escolha 1 Unidade inimiga descansada. Cause 2 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】"
+    ]
+  },
+  {
+    "code": "ST12-001",
+    "name": "Gundam Epyon",
+    "set": "ST12",
+    "effectEn": "【During Pair･Lv.5 or Higher Pilot】During your turn, when this Unit destroys an enemy Unit with damage, deal 2 damage to all enemy Units with 5 or less AP.\n【Deploy】Choose 1 enemy Base. Deal 5 damage to it.",
+    "effectPt": "【During Pair･Lv.5 or Higher Pilot】Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano, cause 2 de dano a todas as Unidades inimigas com AP 5 ou menos.\n【Deploy】Escolha 1 Base inimiga. Cause 5 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【During Pair･Lv.5 or Higher Pilot】",
+      "【Deploy】",
+      "AP"
+    ]
+  },
+  {
+    "code": "ST12-002",
+    "name": "Shining Gundam",
+    "set": "ST12",
+    "effectEn": "【Deploy】Choose 1 friendly Unit with 5 or more AP. It gains <Breach 3> during this turn.\n\n(During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)",
+    "effectPt": "【Deploy】Escolha 1 Unidade aliada com AP 5 ou mais. Ela recebe <Breach 3> durante este turno.\n\n(Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano de batalha, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "<Breach 3>",
+      "AP"
+    ]
+  },
+  {
+    "code": "ST12-003",
+    "name": "Tallgeese Ⅲ",
+    "set": "ST12",
+    "effectEn": "【Once per Turn】During your turn, when this Unit destroys an enemy Unit with damage, deal 1 damage to all enemy Units with 3 or less AP.",
+    "effectPt": "【Once per Turn】Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano, cause 1 de dano a todas as Unidades inimigas com AP 3 ou menos.",
+    "status": "OK",
+    "tokens": [
+      "【Once per Turn】",
+      "AP"
+    ]
+  },
+  {
+    "code": "ST12-004",
+    "name": "Gundam Exia",
+    "set": "ST12",
+    "effectEn": "<Breach 3> (During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)",
+    "effectPt": "<Breach 3> (Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano de batalha, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)",
+    "status": "OK",
+    "tokens": [
+      "<Breach 3>"
+    ]
+  },
+  {
+    "code": "ST12-005",
+    "name": "GQuuuuuuX (Omega Psycommu)",
+    "set": "ST12",
+    "effectEn": "【Attack】You may discard 1. If you do, draw 1.",
+    "effectPt": "【Attack】Você pode descartar 1 carta. Se fizer isso, compre 1 carta.",
+    "status": "OK",
+    "tokens": [
+      "【Attack】"
+    ]
+  },
+  {
+    "code": "ST12-006",
+    "name": "Unicorn Gundam 02 Banshee (Destroy Mode)",
+    "set": "ST12",
+    "effectEn": "【During Pair】【Activate･Main】Exile 4 cards in your trash from the game：This Unit gains <First Strike> during this turn.\n\n(While this Unit is attacking, it deals damage before the enemy Unit.)\n【Activate･Action】Exile 4 cards in your trash from the game：This Unit gains <Suppression> during this battle.\n\n(Damage to Shields by an attack is dealt to the first 2 cards simultaneously.)",
+    "effectPt": "【During Pair】【Activate･Main】Exile do jogo 4 cartas do seu lixo：Esta Unidade recebe <First Strike> durante este turno.\n\n(Enquanto esta Unidade estiver atacando, ela causa dano antes da Unidade inimiga.)\n【Activate･Action】Exile do jogo 4 cartas do seu lixo：Esta Unidade recebe <Suppression> durante esta batalha.\n\n(O dano de um ataque aos escudos é causado às 2 primeiras cartas ao mesmo tempo.)",
+    "status": "OK",
+    "tokens": [
+      "【During Pair】",
+      "【Activate･Main】",
+      "【Activate･Action】",
+      "<First Strike>",
+      "<Suppression>"
+    ]
+  },
+  {
+    "code": "ST12-007",
+    "name": "Gyan",
+    "set": "ST12",
+    "effectEn": "【When Linked】This Unit gains <First Strike> during this turn.\n\n(While this Unit is attacking, it deals damage before the enemy Unit.)",
+    "effectPt": "【When Linked】Esta Unidade recebe <First Strike> durante este turno.\n\n(Enquanto esta Unidade estiver atacando, ela causa dano antes da Unidade inimiga.)",
+    "status": "OK",
+    "tokens": [
+      "【When Linked】",
+      "<First Strike>"
+    ]
+  },
+  {
+    "code": "ST12-009",
+    "name": "Unicorn Gundam 02 Banshee (Unicorn Mode)",
+    "set": "ST12",
+    "effectEn": "【Destroyed】If there is a player with 3 or less Shields, choose 1 Unit card that is Lv.6 or higher from your trash. Add it to your hand. If you do, discard 1.",
+    "effectPt": "【Destroyed】Se houver um jogador com 3 ou menos escudos, escolha 1 carta de Unidade de Lv.6 ou maior do seu lixo. Adicione-a à sua mão. Se fizer isso, descarte 1 carta.",
+    "status": "OK",
+    "tokens": [
+      "【Destroyed】",
+      "Lv.6"
+    ]
+  },
+  {
+    "code": "ST12-011",
+    "name": "Milliardo Peacecraft",
+    "set": "ST12",
+    "effectEn": "This card's name is also treated as [Zechs Merquise].\n\n【Burst】Add this card to your hand.\n【Activate･Action】【Once per Turn】Choose 1 damaged enemy Unit battling this Unit. Deal 2 damage to it.",
+    "effectPt": "O nome desta carta também é tratado como [Zechs Merquise].\n\n【Burst】Adicione esta carta à sua mão.\n【Activate･Action】【Once per Turn】Escolha 1 Unidade inimiga danificada que esteja batalhando com esta Unidade. Cause 2 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Activate･Action】",
+      "【Once per Turn】",
+      "[Zechs Merquise]"
+    ]
+  },
+  {
+    "code": "ST12-012",
+    "name": "Ple-Twelve",
+    "set": "ST12",
+    "effectEn": "This card's name is also treated as [Marida Cruz].\n\n【Burst】Add this card to your hand.\n【When Linked】Look at the top 2 cards of your deck and return 1 to the top. Place the remaining card into your trash. If there is a player with 3 or less Shields, add the card to your hand instead of returning it to your deck.",
+    "effectPt": "O nome desta carta também é tratado como [Marida Cruz].\n\n【Burst】Adicione esta carta à sua mão.\n【When Linked】Olhe as 2 cartas do topo do seu deck e devolva 1 ao topo. Coloque a carta restante no seu lixo. Se houver um jogador com 3 ou menos escudos, adicione a carta à sua mão em vez de devolvê-la ao deck.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Linked】",
+      "[Marida Cruz]"
+    ]
+  },
+  {
+    "code": "ST12-013",
+    "name": "The Final Victor",
+    "set": "ST12",
+    "effectEn": "【Burst】Choose 1 enemy Unit. Deal 1 damage to it.\n【Main】Choose 1 enemy player. You and that player each choose 1 of your own Units. Begin a battle between them and only perform the damage step.\n\n(You choose first, then your opponent.)",
+    "effectPt": "【Burst】Escolha 1 Unidade inimiga. Cause 1 de dano a ela.\n【Main】Escolha 1 jogador inimigo. Você e esse jogador escolhem, cada um, 1 das próprias Unidades. Inicie uma batalha entre elas e realize apenas o passo de dano.\n\n(Você escolhe primeiro e depois o seu oponente.)",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Main】"
+    ]
+  },
+  {
+    "code": "ST12-014",
+    "name": "Wise Leader's Pride",
+    "set": "ST12",
+    "effectEn": "【Action】Choose 1 friendly Unit. It gains the following effect during this battle：\n\n■When this Unit destroys an enemy Unit with battle damage, choose 1 enemy Unit with 2 or less AP. Destroy it.\n【Pilot】[M'Quve]",
+    "effectPt": "【Action】Escolha 1 Unidade aliada. Ela recebe o efeito a seguir durante esta batalha：\n\n■Quando esta Unidade destruir uma Unidade inimiga com dano de batalha, escolha 1 Unidade inimiga com AP 2 ou menos. Destrua-a.\n【Pilot】[M'Quve]",
+    "status": "OK",
+    "tokens": [
+      "【Action】",
+      "【Pilot】",
+      "[M'Quve]",
+      "AP"
+    ]
+  },
+  {
+    "code": "ST12-015",
+    "name": "Two Unicorns",
+    "set": "ST12",
+    "effectEn": "【Action】When playing this card, choose 1 of the following effects and activate it：\n\n■Choose 1 enemy Unit that is Lv.2 or lower. Destroy it.\n\n■Choose 1 friendly Unit and 1 enemy Unit that is Lv.5 or higher. Deal 2 damage to them.",
+    "effectPt": "【Action】Ao jogar esta carta, escolha 1 dos efeitos a seguir e ative-o：\n\n■Escolha 1 Unidade inimiga de Lv.2 ou menor. Destrua-a.\n\n■Escolha 1 Unidade aliada e 1 Unidade inimiga de Lv.5 ou maior. Cause 2 de dano a elas.",
+    "status": "OK",
+    "tokens": [
+      "【Action】",
+      "Lv.2",
+      "Lv.5"
+    ]
+  },
+  {
+    "code": "ST12-016",
+    "name": "Libra",
+    "set": "ST12",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Activate･Main】Rest this Base：If a friendly Unit paired with a Pilot has destroyed an enemy Unit with battle damage this turn, choose 1 enemy Unit that is Lv.4 or lower. Deal 1 damage to it.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\n【Activate･Main】Coloque esta Base em Rest：Se uma Unidade aliada pareada com um Piloto tiver destruído uma Unidade inimiga com dano de batalha neste turno, escolha 1 Unidade inimiga de Lv.4 ou menor. Cause 1 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "【Activate･Main】",
+      "Lv.4",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST13-001",
+    "name": "Qubeley",
+    "set": "ST13",
+    "effectEn": "【Once per Turn】During your turn, when you pair a Pilot with one of your Units, deploy 1 to 2 [Bit / Funnel]((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack) Unit tokens.\n【Activate･Main】【Once per Turn】①：Choose 1 of your Unit tokens and 1 enemy Unit. Begin a battle between them and only perform the damage step.",
+    "effectPt": "【Once per Turn】Durante o seu turno, quando você parear um Piloto com uma das suas Unidades, faça o Deploy de 1 a 2 fichas de Unidade [Bit / Funnel]((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack).\n【Activate･Main】【Once per Turn】①：Escolha 1 das suas fichas de Unidade e 1 Unidade inimiga. Inicie uma batalha entre elas e realize apenas o passo de dano.",
+    "status": "OK",
+    "tokens": [
+      "【Once per Turn】",
+      "【Activate･Main】",
+      "【Once per Turn】",
+      "[Bit / Funnel]",
+      "((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack)",
+      "①"
+    ]
+  },
+  {
+    "code": "ST13-002",
+    "name": "Elmeth",
+    "set": "ST13",
+    "effectEn": "【Deploy】Deploy 1 [Bit / Funnel]((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack) Unit token.",
+    "effectPt": "【Deploy】Faça o Deploy de 1 ficha de Unidade [Bit / Funnel]((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack).",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "[Bit / Funnel]",
+      "((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack)"
+    ]
+  },
+  {
+    "code": "ST13-004",
+    "name": "GX-Bit",
+    "set": "ST13",
+    "effectEn": "【Deploy】Look at the top card of your deck. Return it to the top or bottom of your deck.",
+    "effectPt": "【Deploy】Olhe a carta do topo do seu deck. Devolva-a ao topo ou ao fundo do seu deck.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】"
+    ]
+  },
+  {
+    "code": "ST13-005",
+    "name": "GFreD",
+    "set": "ST13",
+    "effectEn": "【Deploy】If 4 or more enemy Units are in play, look at the top 5 cards of your deck. You may reveal 1 Pilot card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck.",
+    "effectPt": "【Deploy】Se 4 ou mais Unidades inimigas estiverem em jogo, olhe as 5 cartas do topo do seu deck. Você pode revelar 1 carta de Piloto entre elas e adicioná-la à sua mão. Coloque as cartas restantes no fundo do seu deck em ordem aleatória.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】"
+    ]
+  },
+  {
+    "code": "ST13-006",
+    "name": "Gundam Aerial",
+    "set": "ST13",
+    "effectEn": "【During Pair】【Attack】If you are attacking the enemy player, choose 1 enemy Unit. Deal 2 damage to it.\n【Activate･Action】【Once per Turn】Rest 1 friendly Unit：Choose 1 enemy Unit that is Lv.4 or lower. Deal 1 damage to it.",
+    "effectPt": "【During Pair】【Attack】Se você estiver atacando o jogador inimigo, escolha 1 Unidade inimiga. Cause 2 de dano a ela.\n【Activate･Action】【Once per Turn】Coloque 1 Unidade aliada em Rest：Escolha 1 Unidade inimiga de Lv.4 ou menor. Cause 1 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【During Pair】",
+      "【Attack】",
+      "【Activate･Action】",
+      "【Once per Turn】",
+      "Lv.4",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST13-007",
+    "name": "Gyunei's Jagd Doga",
+    "set": "ST13",
+    "effectEn": "【Activate･Main】<Support 1> (Rest this Unit. 1 other friendly Unit gets AP+(specified amount) during this turn.)",
+    "effectPt": "【Activate･Main】<Support 1> (Coloque esta Unidade em Rest. 1 outra Unidade aliada recebe AP+(quantidade especificada) durante este turno.)",
+    "status": "OK",
+    "tokens": [
+      "【Activate･Main】",
+      "<Support 1>",
+      "AP",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST13-009",
+    "name": "Gundam Pharact",
+    "set": "ST13",
+    "effectEn": "【Attack】Choose 1 enemy player. That player chooses 2 Unit cards from their trash. Exile them from the game.",
+    "effectPt": "【Attack】Escolha 1 jogador inimigo. Esse jogador escolhe 2 cartas de Unidade do lixo dele. Exile-as do jogo.",
+    "status": "OK",
+    "tokens": [
+      "【Attack】"
+    ]
+  },
+  {
+    "code": "ST13-010",
+    "name": "Red Gundam (0079)",
+    "set": "ST13",
+    "effectEn": "【Activate･Main】【Once per Turn】Destroy 1 friendly Unit token：This Unit gains <Breach 3> during this turn.\n\n(During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)",
+    "effectPt": "【Activate･Main】【Once per Turn】Destrua 1 ficha de Unidade aliada：Esta Unidade recebe <Breach 3> durante este turno.\n\n(Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano de batalha, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)",
+    "status": "OK",
+    "tokens": [
+      "【Activate･Main】",
+      "【Once per Turn】",
+      "<Breach 3>"
+    ]
+  },
+  {
+    "code": "ST13-011",
+    "name": "Haman Karn",
+    "set": "ST13",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Paired】Look at the top 5 cards of your deck. You may reveal 1 Pilot card whose Lv. is equal to or lower than this Unit among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Paired】Olhe as 5 cartas do topo do seu deck. Você pode revelar 1 carta de Piloto de Lv. igual ou menor que o desta Unidade entre elas e adicioná-la à sua mão. Coloque as cartas restantes no fundo do seu deck em ordem aleatória.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Paired】"
+    ]
+  },
+  {
+    "code": "ST13-012",
+    "name": "Suletta Mercury",
+    "set": "ST13",
+    "effectEn": "【Burst】Add this card to your hand.\n【Once per Turn】When an enemy Unit is destroyed with effect damage while this Unit is attacking, draw 1.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Once per Turn】Quando uma Unidade inimiga for destruída com dano de efeito enquanto esta Unidade estiver atacando, compre 1 carta.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Once per Turn】"
+    ]
+  },
+  {
+    "code": "ST13-013",
+    "name": "I'm a Newtype",
+    "set": "ST13",
+    "effectEn": "【Main】Deploy 1 to 2 [Bit / Funnel]((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack) Unit tokens.\n【Pilot】[Carris Nautilus]",
+    "effectPt": "【Main】Faça o Deploy de 1 a 2 fichas de Unidade [Bit / Funnel]((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack).\n【Pilot】[Carris Nautilus]",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Pilot】",
+      "[Bit / Funnel]",
+      "[Carris Nautilus]",
+      "((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack)"
+    ]
+  },
+  {
+    "code": "ST13-014",
+    "name": "Final Duty",
+    "set": "ST13",
+    "effectEn": "【Main】Choose 1 of your Units. Destroy it. If you do, look at the top 4 cards of your deck. You may deploy 1 Unit card that is Lv.4 or lower among them. Return the remaining cards randomly to the bottom of your deck.",
+    "effectPt": "【Main】Escolha 1 das suas Unidades. Destrua-a. Se fizer isso, olhe as 4 cartas do topo do seu deck. Você pode fazer o Deploy de 1 carta de Unidade de Lv.4 ou menor entre elas. Coloque as cartas restantes no fundo do seu deck em ordem aleatória.",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "Lv.4"
+    ]
+  },
+  {
+    "code": "ST13-015",
+    "name": "Operation to Intercept Solomon",
+    "set": "ST13",
+    "effectEn": "【Burst】Add this card to your hand.\n【Main】/【Action】Choose 3 Unit cards from your trash. Exile them from the game. If you do, choose 1 enemy Unit. Deal 3 damage to it.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Main】/【Action】Escolha 3 cartas de Unidade do seu lixo. Exile-as do jogo. Se fizer isso, escolha 1 Unidade inimiga. Cause 3 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Main】",
+      "【Action】"
+    ]
+  },
+  {
+    "code": "ST13-016",
+    "name": "Sodon",
+    "set": "ST13",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, deploy 1 [Bit / Funnel]((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack) Unit token.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão. Então, faça o Deploy de 1 ficha de Unidade [Bit / Funnel]((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack).",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "[Bit / Funnel]",
+      "((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack)"
+    ]
+  },
+  {
+    "code": "T-029",
+    "name": "Bit / Funnel",
+    "set": "ST13",
+    "effectEn": "This Unit can't be paired with a Pilot or attack.",
+    "effectPt": "Esta Unidade não pode ser pareada com um Piloto nem atacar.",
+    "status": "OK",
+    "tokens": []
+  },
+  {
+    "code": "ST14-001",
+    "name": "The-O",
+    "set": "ST14",
+    "effectEn": "<Suppression> (Damage to Shields by an attack is dealt to the first 2 cards simultaneously.)\nEach enemy player's rested Units with the lowest Lv. won't be set as active during the start phase of their turn.",
+    "effectPt": "<Suppression> (O dano de um ataque aos escudos é causado às 2 primeiras cartas ao mesmo tempo.)\nAs Unidades descansadas de menor Lv. de cada jogador inimigo não voltam a ficar ativas na fase inicial do turno dele.",
+    "status": "OK",
+    "tokens": [
+      "<Suppression>"
+    ]
+  },
+  {
+    "code": "ST14-002",
+    "name": "Gundam NT-1 Full Armor",
+    "set": "ST14",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST14-003",
+    "name": "Palace Athene",
+    "set": "ST14",
+    "effectEn": "【Deploy】Choose 1 enemy player. That player chooses 2 Unit cards from their trash. Exile them from the game.",
+    "effectPt": "【Deploy】Escolha 1 jogador inimigo. Esse jogador escolhe 2 cartas de Unidade do lixo dele. Exile-as do jogo.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】"
+    ]
+  },
+  {
+    "code": "ST14-004",
+    "name": "Geara Doga (Heavy Armed Type)",
+    "set": "ST14",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)\nThis Unit can't choose the enemy player as its attack target.",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)\nEsta Unidade não pode escolher o jogador inimigo como alvo de ataque.",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST14-005",
+    "name": "G-Falcon DX",
+    "set": "ST14",
+    "effectEn": "【Deploy】Choose 1 enemy Unit that is Lv.6 or lower. Rest it. Then, if there are 7 or more cards in your trash, it gets AP-2 during this turn.",
+    "effectPt": "【Deploy】Escolha 1 Unidade inimiga de Lv.6 ou menor. Coloque-a em Rest. Então, se houver 7 ou mais cartas no seu lixo, ela recebe AP-2 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "AP-2",
+      "Lv.6",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST14-006",
+    "name": "Full Armor Unicorn Gundam (Destroy Mode)",
+    "set": "ST14",
+    "effectEn": "【Deploy】Look at the top 3 cards of your deck. You may reveal a number of cards equal to the number of enemy players among them and add them to your hand. Return the remaining cards randomly to the bottom of your deck.\n【During Pair】【Once per Turn】When this Unit would receive battle damage from an enemy Unit with AP equal to or less than it, it doesn't receive that damage.",
+    "effectPt": "【Deploy】Olhe as 3 cartas do topo do seu deck. Você pode revelar uma quantidade de cartas igual ao número de jogadores inimigos entre elas e adicioná-las à sua mão. Coloque as cartas restantes no fundo do seu deck em ordem aleatória.\n【During Pair】【Once per Turn】Quando esta Unidade fosse receber dano de batalha de uma Unidade inimiga com AP igual ou menor que o dela, ela não recebe esse dano.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "【During Pair】",
+      "【Once per Turn】",
+      "AP"
+    ]
+  },
+  {
+    "code": "ST14-007",
+    "name": "Full Armor Unicorn Gundam (Unicorn Mode)",
+    "set": "ST14",
+    "effectEn": "<Breach 3> (During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)",
+    "effectPt": "<Breach 3> (Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano de batalha, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)",
+    "status": "OK",
+    "tokens": [
+      "<Breach 3>"
+    ]
+  },
+  {
+    "code": "ST14-009",
+    "name": "Duel Gundam (Assault Shroud)",
+    "set": "ST14",
+    "effectEn": "【Destroyed】Place 1 EX Resource.",
+    "effectPt": "【Destroyed】Coloque 1 EX Resource.",
+    "status": "OK",
+    "tokens": [
+      "【Destroyed】"
+    ]
+  },
+  {
+    "code": "ST14-011",
+    "name": "Paptimus Scirocco",
+    "set": "ST14",
+    "effectEn": "【Burst】Add this card to your hand.\n【Attack】Choose 1 enemy Unit. Reduce its AP during this battle by an amount equal to the number of rested enemy Units.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Attack】Escolha 1 Unidade inimiga. Reduza o AP dela durante esta batalha em uma quantidade igual ao número de Unidades inimigas descansadas.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Attack】",
+      "AP"
+    ]
+  },
+  {
+    "code": "ST14-012",
+    "name": "Banagher Links",
+    "set": "ST14",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Paired】Choose 1 friendly Unit that is Lv.5 or higher. During this turn, it may choose an active enemy Unit with 5 or less AP as its attack target.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Paired】Escolha 1 Unidade aliada de Lv.5 ou maior. Durante este turno, ela pode escolher uma Unidade inimiga ativa com AP 5 ou menos como alvo de ataque.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Paired】",
+      "AP",
+      "Lv.5"
+    ]
+  },
+  {
+    "code": "ST14-013",
+    "name": "Natural Talent",
+    "set": "ST14",
+    "effectEn": "【Burst】Choose 1 enemy Unit. It gets AP-3 during this turn.\n【Main】/【Action】When playing this card, choose 1 of the following effects and activate it：\n\n■Choose 1 to 2 enemy Units with 3 or less HP. Rest them.\n\n■Choose 1 enemy Unit. It gets AP-3 during this turn.",
+    "effectPt": "【Burst】Escolha 1 Unidade inimiga. Ela recebe AP-3 durante este turno.\n【Main】/【Action】Ao jogar esta carta, escolha 1 dos efeitos a seguir e ative-o：\n\n■Escolha de 1 a 2 Unidades inimigas com HP 3 ou menos. Coloque-as em Rest.\n\n■Escolha 1 Unidade inimiga. Ela recebe AP-3 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Main】",
+      "【Action】",
+      "AP-3",
+      "HP",
+      "AP-3",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST14-014",
+    "name": "Blazing Mobile Suit Rider",
+    "set": "ST14",
+    "effectEn": "【Main】/【Action】Choose 1 enemy Unit that is Lv.5 or lower. It gets AP-3 during this turn. If there are 4 or more Command cards in your trash, choose 1 enemy Unit instead.\n\n(This card that is being activated is not counted.)\n【Pilot】[Garrod Ran & Tiffa Adill]",
+    "effectPt": "【Main】/【Action】Escolha 1 Unidade inimiga de Lv.5 ou menor. Ela recebe AP-3 durante este turno. Se houver 4 ou mais cartas de Comando no seu lixo, escolha 1 Unidade inimiga em vez disso.\n\n(Esta carta que está sendo ativada não é contada.)\n【Pilot】[Garrod Ran & Tiffa Adill]",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Action】",
+      "【Pilot】",
+      "[Garrod Ran & Tiffa Adill]",
+      "AP-3",
+      "Lv.5"
+    ]
+  },
+  {
+    "code": "ST14-015",
+    "name": "Battlefield Emotions",
+    "set": "ST14",
+    "effectEn": "【Burst】Place 1 EX Resource.\n【Main】Place 1 rested Resource. Then, if you have not set one of your Resources as active with an effect this turn, choose a number of your Resources equal to the number of enemy players. Set them as active.",
+    "effectPt": "【Burst】Coloque 1 EX Resource.\n【Main】Coloque 1 Resource descansado. Então, se você não tiver colocado nenhum dos seus Resources como ativo com um efeito neste turno, escolha uma quantidade dos seus Resources igual ao número de jogadores inimigos. Coloque-os como ativos.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Main】"
+    ]
+  },
+  {
+    "code": "ST14-016",
+    "name": "Gryphios 2",
+    "set": "ST14",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Once per Turn】During your turn, when a friendly Unit links, choose 1 enemy Unit that is Lv.5 or lower. It gets AP-1 during this turn.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\n【Once per Turn】Durante o seu turno, quando uma Unidade aliada formar Link, escolha 1 Unidade inimiga de Lv.5 ou menor. Ela recebe AP-1 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "【Once per Turn】",
+      "AP-1",
+      "Lv.5"
+    ]
+  }
+]

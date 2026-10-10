@@ -184,6 +184,7 @@ export function dispatchTrigger(
 
     // W2a (C1) — "when this Unit receives effect damage / is rested by an effect…"
     next = dispatchReactionsFromEffect(before, next, events, current.owner, allSpecs, {
+      sourceInstanceId,
       predicateResolver: opts.predicateResolver,
       targetFilterResolver: opts.targetFilterResolver,
       cascadeDepth: cascadeDepth + 1,

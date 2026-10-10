@@ -179,6 +179,9 @@ function cloneManualPlayer(player: PlayerState): PlayerState {
     ...(player.delayedReactions ? { delayedReactions: player.delayedReactions } : {}),
     ...(player.indestructibleByEnemyEffectsTurn !== undefined ? { indestructibleByEnemyEffectsTurn: player.indestructibleByEnemyEffectsTurn } : {}),
     ...(player.discardedByEnemyEffectOnTurn !== undefined ? { discardedByEnemyEffectOnTurn: player.discardedByEnemyEffectOnTurn } : {}),
+    ...(player.shieldAreaEffectReduction ? { shieldAreaEffectReduction: { ...player.shieldAreaEffectReduction } } : {}),
+    ...(player.pairedUnitDestroyedEnemyInBattleOnTurn !== undefined ? { pairedUnitDestroyedEnemyInBattleOnTurn: player.pairedUnitDestroyedEnemyInBattleOnTurn } : {}),
+    ...(player.resourceSetActiveByEffectOnTurn !== undefined ? { resourceSetActiveByEffectOnTurn: player.resourceSetActiveByEffectOnTurn } : {}),
     ...(player.commandTraitsActivatedOnTurn ? { commandTraitsActivatedOnTurn: { ...player.commandTraitsActivatedOnTurn, traits: [...player.commandTraitsActivatedOnTurn.traits] } } : {}),
     ...(player.ownUnitDestroyedByOwnEffectOnTurn ? { ownUnitDestroyedByOwnEffectOnTurn: { ...player.ownUnitDestroyedByOwnEffectOnTurn, traits: [...player.ownUnitDestroyedByOwnEffectOnTurn.traits] } } : {}),
   };
@@ -250,6 +253,7 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
         card.pairedUnitId = undefined;
         card.attackTargetRelaxUntilTurn = undefined;
         card.cannotAttackUntilTurn = undefined;
+        card.cannotBeAttackTargetUntilTurn = undefined;
         card.damageModifiers = undefined;
         card.battleDamageRedirect = undefined;
       }
@@ -406,6 +410,9 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
             if (card.cannotAttackUntilTurn !== undefined && card.cannotAttackUntilTurn <= event.turnNumber) {
               card.cannotAttackUntilTurn = undefined;
             }
+            if (card.cannotBeAttackTargetUntilTurn !== undefined && card.cannotBeAttackTargetUntilTurn <= event.turnNumber) {
+              card.cannotBeAttackTargetUntilTurn = undefined;
+            }
             if (card.cannotActivateUntilTurn !== undefined && card.cannotActivateUntilTurn <= event.turnNumber) {
               card.cannotActivateUntilTurn = undefined;
             }
@@ -478,6 +485,20 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
     }
     case "SET_INDESTRUCTIBLE_BY_ENEMY_EFFECTS": {
       state.players[event.player].indestructibleByEnemyEffectsTurn = event.turn;
+      return state;
+    }
+    case "SET_SHIELD_AREA_EFFECT_REDUCTION": {
+      const player = state.players[event.player];
+      const current = player.shieldAreaEffectReduction?.turn === event.turn ? player.shieldAreaEffectReduction.amount : 0;
+      player.shieldAreaEffectReduction = { turn: event.turn, amount: current + event.amount };
+      return state;
+    }
+    case "MARK_RESOURCE_SET_ACTIVE_BY_EFFECT": {
+      state.players[event.player].resourceSetActiveByEffectOnTurn = event.turn;
+      return state;
+    }
+    case "PREVENT_BEING_ATTACK_TARGET": {
+      findCard(state, event.instanceId).cannotBeAttackTargetUntilTurn = event.turn;
       return state;
     }
     case "ATTACK_TARGET_CHANGED": {

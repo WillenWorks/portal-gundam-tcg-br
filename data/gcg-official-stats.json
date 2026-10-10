@@ -1,0 +1,596 @@
+{
+  "ST11-001": {
+    "Level": "4",
+    "Cost": "3",
+    "Color": "Blue",
+    "Attack Points": "3",
+    "Hit Points": "3",
+    "Zone": "Earth",
+    "Rarity": "LR"
+  },
+  "ST11-002": {
+    "Level": "3",
+    "Cost": "2",
+    "Color": "Blue",
+    "Attack Points": "3",
+    "Hit Points": "1",
+    "Zone": "Earth",
+    "Rarity": "C"
+  },
+  "ST11-003": {
+    "Level": "3",
+    "Cost": "2",
+    "Color": "Blue",
+    "Attack Points": "3",
+    "Hit Points": "3",
+    "Zone": "Earth",
+    "Rarity": "C"
+  },
+  "ST11-004": {
+    "Level": "3",
+    "Cost": "3",
+    "Color": "Blue",
+    "Attack Points": "3",
+    "Hit Points": "2",
+    "Zone": "Earth",
+    "Rarity": "C"
+  },
+  "ST11-005": {
+    "Level": "5",
+    "Cost": "4",
+    "Color": "Blue",
+    "Attack Points": "4",
+    "Hit Points": "4",
+    "Zone": "Earth",
+    "Rarity": "C"
+  },
+  "ST11-006": {
+    "Level": "6",
+    "Cost": "5",
+    "Color": "Purple",
+    "Attack Points": "4",
+    "Hit Points": "5",
+    "Zone": "Earth",
+    "Rarity": "LR"
+  },
+  "ST11-007": {
+    "Level": "3",
+    "Cost": "2",
+    "Color": "Purple",
+    "Attack Points": "4",
+    "Hit Points": "3",
+    "Zone": "Earth",
+    "Rarity": "C"
+  },
+  "ST11-008": {
+    "Level": "2",
+    "Cost": "1",
+    "Color": "Purple",
+    "Attack Points": "2",
+    "Hit Points": "2",
+    "Zone": "Earth",
+    "Rarity": "C"
+  },
+  "ST11-009": {
+    "Level": "1",
+    "Cost": "1",
+    "Color": "Purple",
+    "Attack Points": "1",
+    "Hit Points": "1",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST11-010": {
+    "Level": "4",
+    "Cost": "3",
+    "Color": "Purple",
+    "Attack Points": "4",
+    "Hit Points": "3",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST11-011": {
+    "Level": "4",
+    "Cost": "1",
+    "Color": "Blue",
+    "Attack Points": "+2",
+    "Hit Points": "+1",
+    "Zone": "-",
+    "Rarity": "C"
+  },
+  "ST11-012": {
+    "Level": "4",
+    "Cost": "1",
+    "Color": "Purple",
+    "Attack Points": "+2",
+    "Hit Points": "+1",
+    "Zone": "-",
+    "Rarity": "C"
+  },
+  "ST11-013": {
+    "Level": "4",
+    "Cost": "2",
+    "Color": "Blue",
+    "Attack Points": "-",
+    "Hit Points": "-",
+    "Zone": "-",
+    "Rarity": "C"
+  },
+  "ST11-014": {
+    "Level": "3",
+    "Cost": "1",
+    "Color": "Blue",
+    "Attack Points": "+1",
+    "Hit Points": "+1",
+    "Zone": "-",
+    "Rarity": "C"
+  },
+  "ST11-015": {
+    "Level": "5",
+    "Cost": "2",
+    "Color": "Purple",
+    "Attack Points": "-",
+    "Hit Points": "-",
+    "Zone": "-",
+    "Rarity": "C"
+  },
+  "ST11-016": {
+    "Level": "3",
+    "Cost": "1",
+    "Color": "Blue",
+    "Attack Points": "-",
+    "Hit Points": "5",
+    "Zone": "Earth",
+    "Rarity": "C"
+  },
+  "ST12-001": {
+    "Level": "7",
+    "Cost": "6",
+    "Color": "Red",
+    "Attack Points": "5",
+    "Hit Points": "5",
+    "Zone": "Space Earth",
+    "Rarity": "LR"
+  },
+  "ST12-002": {
+    "Level": "5",
+    "Cost": "4",
+    "Color": "Red",
+    "Attack Points": "5",
+    "Hit Points": "4",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST12-003": {
+    "Level": "5",
+    "Cost": "4",
+    "Color": "Red",
+    "Attack Points": "4",
+    "Hit Points": "4",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST12-004": {
+    "Level": "4",
+    "Cost": "3",
+    "Color": "Red",
+    "Attack Points": "3",
+    "Hit Points": "4",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST12-005": {
+    "Level": "3",
+    "Cost": "2",
+    "Color": "Red",
+    "Attack Points": "3",
+    "Hit Points": "2",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST12-006": {
+    "Level": "6",
+    "Cost": "5",
+    "Color": "Purple",
+    "Attack Points": "5",
+    "Hit Points": "4",
+    "Zone": "Space Earth",
+    "Rarity": "LR"
+  },
+  "ST12-007": {
+    "Level": "2",
+    "Cost": "2",
+    "Color": "Purple",
+    "Attack Points": "3",
+    "Hit Points": "1",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST12-008": {
+    "Level": "4",
+    "Cost": "2",
+    "Color": "Purple",
+    "Attack Points": "4",
+    "Hit Points": "3",
+    "Zone": "Earth",
+    "Rarity": "C"
+  },
+  "ST12-009": {
+    "Level": "4",
+    "Cost": "3",
+    "Color": "Purple",
+    "Attack Points": "3",
+    "Hit Points": "4",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST12-010": {
+    "Level": "2",
+    "Cost": "1",
+    "Color": "Purple",
+    "Attack Points": "2",
+    "Hit Points": "2",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST12-011": {
+    "Level": "5",
+    "Cost": "1",
+    "Color": "Red",
+    "Attack Points": "+3",
+    "Hit Points": "+1",
+    "Zone": "-",
+    "Rarity": "C"
+  },
+  "ST12-012": {
+    "Level": "4",
+    "Cost": "1",
+    "Color": "Purple",
+    "Attack Points": "+1",
+    "Hit Points": "+2",
+    "Zone": "-",
+    "Rarity": "C"
+  },
+  "ST12-013": {
+    "Level": "6",
+    "Cost": "2",
+    "Color": "Red",
+    "Attack Points": "-",
+    "Hit Points": "-",
+    "Zone": "-",
+    "Rarity": "C"
+  },
+  "ST12-014": {
+    "Level": "3",
+    "Cost": "1",
+    "Color": "Purple",
+    "Attack Points": "+1",
+    "Hit Points": "+0",
+    "Zone": "-",
+    "Rarity": "C"
+  },
+  "ST12-015": {
+    "Level": "4",
+    "Cost": "1",
+    "Color": "Purple",
+    "Attack Points": "-",
+    "Hit Points": "-",
+    "Zone": "-",
+    "Rarity": "C"
+  },
+  "ST12-016": {
+    "Level": "3",
+    "Cost": "1",
+    "Color": "Red",
+    "Attack Points": "-",
+    "Hit Points": "5",
+    "Zone": "Space",
+    "Rarity": "C"
+  },
+  "ST13-001": {
+    "Level": "7",
+    "Cost": "5",
+    "Color": "Green",
+    "Attack Points": "5",
+    "Hit Points": "5",
+    "Zone": "Space Earth",
+    "Rarity": "LR"
+  },
+  "ST13-002": {
+    "Level": "4",
+    "Cost": "3",
+    "Color": "Green",
+    "Attack Points": "3",
+    "Hit Points": "3",
+    "Zone": "Space",
+    "Rarity": "C"
+  },
+  "ST13-003": {
+    "Level": "4",
+    "Cost": "2",
+    "Color": "Green",
+    "Attack Points": "3",
+    "Hit Points": "4",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST13-004": {
+    "Level": "2",
+    "Cost": "2",
+    "Color": "Green",
+    "Attack Points": "3",
+    "Hit Points": "1",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST13-005": {
+    "Level": "3",
+    "Cost": "2",
+    "Color": "Green",
+    "Attack Points": "3",
+    "Hit Points": "2",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST13-006": {
+    "Level": "6",
+    "Cost": "5",
+    "Color": "Red",
+    "Attack Points": "5",
+    "Hit Points": "4",
+    "Zone": "Space Earth",
+    "Rarity": "LR"
+  },
+  "ST13-007": {
+    "Level": "4",
+    "Cost": "3",
+    "Color": "Red",
+    "Attack Points": "3",
+    "Hit Points": "4",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST13-008": {
+    "Level": "3",
+    "Cost": "2",
+    "Color": "Red",
+    "Attack Points": "4",
+    "Hit Points": "3",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST13-009": {
+    "Level": "3",
+    "Cost": "2",
+    "Color": "Red",
+    "Attack Points": "3",
+    "Hit Points": "3",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST13-010": {
+    "Level": "5",
+    "Cost": "4",
+    "Color": "Red",
+    "Attack Points": "4",
+    "Hit Points": "4",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST13-011": {
+    "Level": "6",
+    "Cost": "1",
+    "Color": "Green",
+    "Attack Points": "+2",
+    "Hit Points": "+2",
+    "Zone": "-",
+    "Rarity": "C"
+  },
+  "ST13-012": {
+    "Level": "4",
+    "Cost": "1",
+    "Color": "Red",
+    "Attack Points": "+2",
+    "Hit Points": "+1",
+    "Zone": "-",
+    "Rarity": "C"
+  },
+  "ST13-013": {
+    "Level": "4",
+    "Cost": "1",
+    "Color": "Green",
+    "Attack Points": "+1",
+    "Hit Points": "+1",
+    "Zone": "-",
+    "Rarity": "C"
+  },
+  "ST13-014": {
+    "Level": "6",
+    "Cost": "2",
+    "Color": "Red",
+    "Attack Points": "-",
+    "Hit Points": "-",
+    "Zone": "-",
+    "Rarity": "C"
+  },
+  "ST13-015": {
+    "Level": "4",
+    "Cost": "2",
+    "Color": "Red",
+    "Attack Points": "-",
+    "Hit Points": "-",
+    "Zone": "-",
+    "Rarity": "C"
+  },
+  "ST13-016": {
+    "Level": "2",
+    "Cost": "1",
+    "Color": "Green",
+    "Attack Points": "-",
+    "Hit Points": "5",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST14-001": {
+    "Level": "9",
+    "Cost": "8",
+    "Color": "White",
+    "Attack Points": "6",
+    "Hit Points": "7",
+    "Zone": "Space Earth",
+    "Rarity": "LR"
+  },
+  "ST14-002": {
+    "Level": "5",
+    "Cost": "4",
+    "Color": "White",
+    "Attack Points": "4",
+    "Hit Points": "4",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST14-003": {
+    "Level": "4",
+    "Cost": "3",
+    "Color": "White",
+    "Attack Points": "3",
+    "Hit Points": "4",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST14-004": {
+    "Level": "1",
+    "Cost": "1",
+    "Color": "White",
+    "Attack Points": "2",
+    "Hit Points": "1",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST14-005": {
+    "Level": "7",
+    "Cost": "6",
+    "Color": "White",
+    "Attack Points": "5",
+    "Hit Points": "5",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST14-006": {
+    "Level": "8",
+    "Cost": "6",
+    "Color": "Green",
+    "Attack Points": "3",
+    "Hit Points": "6",
+    "Zone": "Space Earth",
+    "Rarity": "LR"
+  },
+  "ST14-007": {
+    "Level": "5",
+    "Cost": "3",
+    "Color": "Green",
+    "Attack Points": "4",
+    "Hit Points": "4",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST14-008": {
+    "Level": "6",
+    "Cost": "4",
+    "Color": "Green",
+    "Attack Points": "6",
+    "Hit Points": "4",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST14-009": {
+    "Level": "3",
+    "Cost": "3",
+    "Color": "Green",
+    "Attack Points": "3",
+    "Hit Points": "2",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST14-010": {
+    "Level": "4",
+    "Cost": "2",
+    "Color": "Green",
+    "Attack Points": "4",
+    "Hit Points": "3",
+    "Zone": "Space Earth",
+    "Rarity": "C"
+  },
+  "ST14-011": {
+    "Level": "4",
+    "Cost": "1",
+    "Color": "White",
+    "Attack Points": "+2",
+    "Hit Points": "+1",
+    "Zone": "-",
+    "Rarity": "C"
+  },
+  "ST14-012": {
+    "Level": "4",
+    "Cost": "1",
+    "Color": "Green",
+    "Attack Points": "+2",
+    "Hit Points": "+1",
+    "Zone": "-",
+    "Rarity": "C"
+  },
+  "ST14-013": {
+    "Level": "4",
+    "Cost": "2",
+    "Color": "White",
+    "Attack Points": "-",
+    "Hit Points": "-",
+    "Zone": "-",
+    "Rarity": "C"
+  },
+  "ST14-014": {
+    "Level": "5",
+    "Cost": "1",
+    "Color": "White",
+    "Attack Points": "+2",
+    "Hit Points": "+1",
+    "Zone": "-",
+    "Rarity": "C"
+  },
+  "ST14-015": {
+    "Level": "4",
+    "Cost": "4",
+    "Color": "Green",
+    "Attack Points": "-",
+    "Hit Points": "-",
+    "Zone": "-",
+    "Rarity": "C"
+  },
+  "ST14-016": {
+    "Level": "3",
+    "Cost": "1",
+    "Color": "White",
+    "Attack Points": "-",
+    "Hit Points": "5",
+    "Zone": "Space",
+    "Rarity": "C"
+  },
+  "T-028": {
+    "Level": "-",
+    "Cost": "-",
+    "Color": "-",
+    "Attack Points": "1",
+    "Hit Points": "1",
+    "Zone": "-",
+    "Rarity": "C"
+  },
+  "T-029": {
+    "Level": "-",
+    "Cost": "-",
+    "Color": "-",
+    "Attack Points": "2",
+    "Hit Points": "2",
+    "Zone": "-",
+    "Rarity": "C"
+  }
+}

@@ -2,7 +2,7 @@
 /**
  * Gera os CardDefs de um set a partir do texto oficial (`data/gcg-official-cards.json`: nome,
  * tipo, traits, link, efeito) + stats do apitcg (`data/apitcg-gundam.json`: Lv., custo, cor,
- * AP/HP). Plano "simulador até GD05", W3.
+ * AP/HP) ou, nos sets que ele não tem, do site oficial (`data/gcg-official-stats.json`). Plano "simulador até GD05", W3.
  *
  * Só dados impressos: `effectKeywords`/`keywordTags` vêm das cláusulas de keyword pura (a
  * mesma leitura de `content/coverage/clauseAudit.ts`), `triggerKeywords` dos gatilhos de
@@ -41,6 +41,11 @@ const official = JSON.parse(readFileSync(path.join(REPO, "data/gcg-official-card
 const apitcgRaw = JSON.parse(readFileSync(path.join(REPO, "data/apitcg-gundam.json"), "utf8"));
 const apitcg = Array.isArray(apitcgRaw) ? apitcgRaw : (apitcgRaw.cards ?? apitcgRaw.data ?? Object.values(apitcgRaw));
 const statsByCode = new Map(apitcg.filter((c) => c.code && c.attributes).map((c) => [c.code, c.attributes]));
+// W12 — sets que o apitcg ainda não tem (ST11–ST14): stats lidos do site oficial por `scripts/gundam-fetch-official-set.mjs`
+const officialStatsFile = path.join(REPO, "data/gcg-official-stats.json");
+if (existsSync(officialStatsFile)) {
+  for (const [code, st] of Object.entries(JSON.parse(readFileSync(officialStatsFile, "utf8")))) if (!statsByCode.has(code)) statsByCode.set(code, st);
+}
 
 function fileKey(def) {
   if (def.cardType === "UNIT") return `units${def.color[0].toUpperCase()}${def.color.slice(1)}`;

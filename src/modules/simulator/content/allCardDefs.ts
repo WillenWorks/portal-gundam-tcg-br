@@ -15,6 +15,10 @@ import { GD05_CARD_DEFS } from "./gd05";
 import { ST09_CARD_DEFS } from "./st09";
 import { ST10_CARD_DEFS } from "./st10";
 import { EB01_CARD_DEFS } from "./eb01";
+import { ST11_CARD_DEFS } from "./st11";
+import { ST12_CARD_DEFS } from "./st12";
+import { ST13_CARD_DEFS } from "./st13";
+import { ST14_CARD_DEFS } from "./st14";
 
 /**
  * Catálogo canônico de todas as definições de cartas (CardDef) oficiais
@@ -34,6 +38,10 @@ export const ALL_CARD_DEFS: Record<string, CardDef> = {
   ...Object.values(ST09_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
   ...Object.values(ST10_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
   ...Object.values(EB01_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
+  ...Object.values(ST11_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
+  ...Object.values(ST12_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
+  ...Object.values(ST13_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
+  ...Object.values(ST14_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
   ...Object.values(GD01_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
   ...Object.values(GD02_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
   ...Object.values(GD03_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),

@@ -32,7 +32,7 @@ export const SIMULATOR_DECK_PRESETS: SimulatorDeckPreset[] = [
   { key: "META-GD02-AGE-WING", label: "Meta GD02 · AGE × Wing" },
   { key: "META-GD02-TITANS", label: "Meta GD02 · Titans × Cyber-Newtype" },
   { key: "META-ST06-GQUUUUUUX", label: "Meta ST06 × GD02 · GQuuuuuuX" },
-  // Decks do fechamento de cada set (fuzz + golden) — `fixtures/gd03Decks.ts`, `fixtures/gd04Decks.ts`, `fixtures/st09Decks.ts`, `fixtures/gd05Decks.ts`, `fixtures/st10Decks.ts`, `fixtures/eb01Decks.ts`
+  // Decks do fechamento de cada set (fuzz + golden) — `fixtures/gd03Decks.ts`, `fixtures/gd04Decks.ts`, `fixtures/st09Decks.ts`, `fixtures/gd05Decks.ts`, `fixtures/st10Decks.ts`, `fixtures/eb01Decks.ts`, `fixtures/st11to14Decks.ts`
   { key: "GD03-CYCLOPS", label: "Cyclops Team / Zeon (GD03)" },
   { key: "GD03-TITANS-VAGAN", label: "Titans / Vagan (GD03)" },
   { key: "GD04-ACADEMY-CB", label: "Academy / CB Trinity (GD04)" },
@@ -48,4 +48,8 @@ export const SIMULATOR_DECK_PRESETS: SimulatorDeckPreset[] = [
   { key: "ST10-ST01-MISTO", label: "G Generation + White Base (ST10/ST01)" },
   { key: "EB01-AZUL-BRANCO", label: "G Generation Azul/Branco (EB01)" },
   { key: "EB01-VERDE-BRANCO", label: "G Generation Verde/Branco (EB01)" },
+  { key: "ST11-MARINE", label: "Marine Azul/Roxo (ST11)" },
+  { key: "ST12-CLOSE-COMBAT", label: "Close Combat Vermelho/Roxo (ST12)" },
+  { key: "ST13-BIT-FUNNEL", label: "Bit / Funnel Verde/Vermelho (ST13)" },
+  { key: "ST14-HEAVY-ARMED", label: "Heavy Armed Branco/Verde (ST14)" },
 ];

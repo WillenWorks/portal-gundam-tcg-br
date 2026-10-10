@@ -42,14 +42,19 @@ describe("cardStatus — lógica de playability", () => {
     expect(eb01Playable.motivo).toBeUndefined();
   });
 
-  it("um código inexistente ou fora do catálogo é fora (GD01-999 e ST11-001)", () => {
+  it("um código inexistente ou fora do catálogo é fora (GD01-999 e o promo de recurso R-002)", () => {
     const forged = getCardStatus("GD01-999");
     expect(forged.status).toBe("fora");
     expect(forged.motivo).toMatch(/fora do simulador/i);
 
-    const outside = getCardStatus("ST11-001");
+    const outside = getCardStatus("R-002");
     expect(outside.status).toBe("fora");
     expect(outside.motivo).toMatch(/fora do simulador/i);
+  });
+
+  it("W12 — ST11–ST14 entraram no simulador (ST11-001 e ST14-016 aptas)", () => {
+    expect(getCardStatus("ST11-001").status).toBe("apta");
+    expect(getCardStatus("ST14-016").status).toBe("apta");
   });
 
   it("critério de aceite: o veredito bate 100% com isCardPlayable para todo o catálogo do motor", () => {

@@ -99,6 +99,13 @@ export interface CardDef {
   /** W2b — T-014 Ad Balloon: "This Unit can't be set as active or paired with a Pilot." */
   cannotBeSetActive?: boolean;
   cannotBePaired?: boolean;
+  /** W12 — T-029 Bit / Funnel "This Unit can't be paired with a Pilot or attack." */
+  cannotAttack?: boolean;
+  /**
+   * W12 — ST14-001 The-O "Each enemy player's rested Units with the lowest Lv. won't be set as active during the start
+   * phase of their turn." Empate no menor Lv.: todas ficam (Q462); efeito que ativa fora da start phase vale (Q463).
+   */
+  lowestLevelEnemyRestedStayRested?: { sourceText?: string };
   /** W2c — GD03-058 "This card in your trash gets cost -1." (deploy a partir do trash pagando o custo) */
   costModifierInTrash?: number;
   /** W2c — GD03-085 "When playing this card from your hand and pairing it with a Unit with \"Gundam NT-1\" in its card name, play this card as if it has 0 cost." */
@@ -234,6 +241,17 @@ export interface CardDef {
     /** W4 — GD04-061 "This Unit can't attack while there are 6 or less cards in your trash." */
     requiresTrashCountAtLeast?: number;
   };
+  /**
+   * W12 — ST11-001 "【During Pair】While 2 or more other friendly (Marine) Units are in play, enemy Units can't choose this
+   * Unit as their attack target." Barra a declaração de ataque contra esta Unit enquanto vale (`attackTargetError`).
+   */
+  cannotBeAttackTarget?: { condition: StaticEffectCondition; boardCondition?: StaticBoardCondition; sourceText?: string };
+  /**
+   * W12 — ST11-006 "If another friendly (Marine) Unit is in play at the start of your opponent's turn, during this turn,
+   * when a friendly shield area card receives enemy effect damage, reduce it by 5." A condição é olhada no início do
+   * turno do oponente (`computeStartPhaseEvents`) e vale o turno todo (`PlayerState.shieldAreaEffectReduction`).
+   */
+  shieldAreaEffectDamageReduction?: { amount: number; boardCondition?: StaticBoardCondition; sourceText?: string };
   /** W2b (C2) — GD03-070: "While this Unit is rested, friendly Shields can't receive battle damage from enemy Units." */
   protectsShieldsWhileRested?: boolean | { boardCondition: StaticBoardCondition };
   /**
@@ -503,7 +521,9 @@ export type StaticTargetCondition =
   /** W8 — GD05-088 "Units with \"Gundam Lfrith\" or \"Gundnode\" in their card name" */
   | { kind: "nameContainsAny"; texts: string[] }
   /** W11 — EB01-036/088 "Units that are Lv.3" (nível impresso exato) */
-  | { kind: "levelIs"; n: number };
+  | { kind: "levelIs"; n: number }
+  /** W12 — ST11-002 "friendly (Marine) Units with 2 or less HP" (HP efetivo, não o restante) */
+  | { kind: "hpAtMost"; n: number };
 
 export interface StaticAbility {
   /** trecho literal do texto oficial que esta entrada implementa — a auditoria por cláusula (content/coverage/clauseAudit.ts) casa por ele */
@@ -713,6 +733,8 @@ export interface CardInstance {
    * enquanto `=== state.turnNumber`. Limpo em `CLEAR_TURN_MODIFIERS`.
    */
   cannotAttackUntilTurn?: number;
+  /** W12 — ST11-014 "Enemy Units can't choose it as their attack target this turn." (turno em que vale) */
+  cannotBeAttackTargetUntilTurn?: number;
   /**
    * ST08-009 Jegan Ground Type-A 【Deploy】 — "It won't be set as active during
    * the start phase of your opponent's next turn." Guarda o `turnNumber` do
@@ -759,6 +781,8 @@ export interface DamageReduction {
   sourceMaxLevel?: number;
   /** "from enemy Units" — a fonte é uma Unit */
   sourceUnitOnly?: boolean;
+  /** W12 — ST14-006 "from an enemy Unit with AP equal to or less than it" (AP de agora dos dois) */
+  sourceApAtMostSelf?: boolean;
   /** "other than Unit tokens" */
   sourceNotToken?: boolean;
   /** GD04-088 "When this Unit is blocked by an enemy Unit that is Lv.N or lower" — só o dano dessa batalha */
@@ -798,6 +822,8 @@ export interface DelayedReaction {
   /** só eventos desta carta ("When it destroys …") */
   subjectId?: string;
   turn: number;
+  /** W12 — ST12-014 "It gains the following effect during this battle": some no fim da batalha */
+  battleOnly?: boolean;
 }
 
 /** W5 (C2) — o que um dano consome ao ser aplicado (calculado em `incomingDamage`, aplicado no evento) */
@@ -882,7 +908,7 @@ export function specPairGateOpen(state: GameState, source: CardInstance, spec: {
   return isStaticAbilityActive(state, source, "duringPair");
 }
 
-function isStaticAbilityActive(state: GameState, source: CardInstance, condition: StaticEffectCondition): boolean {
+export function isStaticAbilityActive(state: GameState, source: CardInstance, condition: StaticEffectCondition): boolean {
   if (condition === "always") return true;
   if (condition === "duringPair") {
     if (source.def.cardType === "UNIT") return !!source.pairedPilotId;
@@ -1120,6 +1146,7 @@ export function isTargetConditionMet(target: CardInstance, state: GameState, con
   if (cond.kind === "isToken") return !!target.def.isToken;
   if (cond.kind === "allOf") return cond.conditions.every((c) => isTargetConditionMet(target, state, c));
   if (cond.kind === "levelIs") return (target.def.level ?? 0) === cond.n;
+  if (cond.kind === "hpAtMost") return effectiveHp(target, state) <= cond.n;
   return hasKeyword(target, cond.keyword, state);
 }
 
@@ -1650,12 +1677,14 @@ export type PendingDecision =
 
 /** W2b — ocorrência de reação de combate (ver `ReactionEvent` em effectSpec.ts) */
 export interface PendingCombatReaction {
-  event: "battleDamageToEnemyUnit" | "destroyedEnemyInBattle" | "destroyedShieldInBattle" | "damagedByEnemy" | "drewByEffect";
+  event: "battleDamageToEnemyUnit" | "destroyedEnemyInBattle" | "destroyedShieldInBattle" | "damagedByEnemy" | "drewByEffect" | "destroyedEnemyWithDamage";
   /** a Unit que causou o dano / destruiu */
   subjectId: string;
   owner: PlayerId;
   /** a Unit inimiga que levou o dano / foi destruída (alvo implícito `battleVictim`) */
   victimId?: string;
+  /** W12 — Piloto pareado com a Unit do evento no momento (ela pode ter sido destruída na mesma troca, Q436) */
+  subjectPairedPilotId?: string;
 }
 
 export interface CombatState {
@@ -1717,6 +1746,12 @@ export interface PlayerState {
   delayedReactions?: DelayedReaction[];
   /** W7 (C10) — turno em que este jogador descartou por efeito do OPONENTE (GD05-041 "your opponent has discarded due to one of your effects") */
   discardedByEnemyEffectOnTurn?: number;
+  /** W12 — ST11-006: redução do dano de efeito inimigo nas cartas da área de escudo deste jogador, no turno `turn` */
+  shieldAreaEffectReduction?: { turn: number; amount: number };
+  /** W12 — ST12-016 "If a friendly Unit paired with a Pilot has destroyed an enemy Unit with battle damage this turn" (Q453: pareada NA destruição) */
+  pairedUnitDestroyedEnemyInBattleOnTurn?: number;
+  /** W12 — ST14-015 "if you have not set one of your Resources as active with an effect this turn" */
+  resourceSetActiveByEffectOnTurn?: number;
   /** W7 — traits de Command cujo 【Main】/【Action】 este jogador ativou no turno (só `TRACKED_COMMAND_TRAITS`) */
   commandTraitsActivatedOnTurn?: { turn: number; traits: string[] };
   /** W7 — traits das cartas cujo efeito, controlado por ESTE jogador, destruiu uma Unit dele no turno (só `TRACKED_DESTROYER_TRAITS`) */
@@ -1820,6 +1855,12 @@ export type GameEvent =
   | { type: "GRANT_DAMAGE_MODIFIER"; instanceId: string; modifier: DamageModifier }
   /** GD04-101 — ver `PlayerState.indestructibleByEnemyEffectsTurn` */
   | { type: "SET_INDESTRUCTIBLE_BY_ENEMY_EFFECTS"; player: PlayerId; turn: number }
+  /** W12 — ST11-006 (ver `PlayerState.shieldAreaEffectReduction`) */
+  | { type: "SET_SHIELD_AREA_EFFECT_REDUCTION"; player: PlayerId; turn: number; amount: number }
+  /** W12 — ST14-015 (ver `PlayerState.resourceSetActiveByEffectOnTurn`) */
+  | { type: "MARK_RESOURCE_SET_ACTIVE_BY_EFFECT"; player: PlayerId; turn: number }
+  /** W12 — ST11-014 (ver `CardInstance.cannotBeAttackTargetUntilTurn`) */
+  | { type: "PREVENT_BEING_ATTACK_TARGET"; instanceId: string; turn: number }
   /** auditoria A3 — ST07-013: o ataque em andamento passa a mirar esta Unit (sem ser bloqueio) */
   | { type: "ATTACK_TARGET_CHANGED"; unitId: string }
   /** W5 — ver `PlayerState.delayedReactions` */
