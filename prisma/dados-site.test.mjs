@@ -145,3 +145,26 @@ describe("DigiLab Brasil (páginas públicas)", async () => {
     expect(digilabTier("Online")).toBe("UNOFFICIAL");
   });
 });
+
+describe("coleta incremental e duplicidade entre fontes", async () => {
+  const { planTournamentFetch } = await import("../scripts/meta-sources/digilab-br.mjs");
+  const { crossSourceDuplicate } = await import("./import-tournaments.mjs");
+
+  it("relê só os torneios novos ou importados há menos de 21 dias", () => {
+    const known = new Map([
+      [1, "2026-08-01T00:00:00.000Z"], // antigo: pula
+      [2, "2026-10-01T00:00:00.000Z"], // recente: relê (decklists chegam depois)
+      [3, null],
+    ]);
+    expect(planTournamentFetch([1, 2, 3, 4], known, "2026-10-10T12:00:00.000Z")).toEqual([2, 3, 4]);
+  });
+
+  it("o mesmo evento de outra fonte é reconhecido pelo campeão, data e temporada", () => {
+    const ev = { sourceUrl: "https://gundam.digilab.cards/tournament/9", format: "GD05", date: "2026-09-20", entries: [{ player: "José Silva", placement: 1 }] };
+    const egman = { id: "t1", sourceUrl: "https://deckbuilder.egmanevents.com/gundam/tournaments#x", season: "GD05", date: "2026-09-21T00:00:00.000Z", champion: "Jose silva", lists: 8 };
+    expect(crossSourceDuplicate(ev, [egman])?.id).toBe("t1");
+    expect(crossSourceDuplicate(ev, [{ ...egman, champion: "Outro" }])).toBeNull();
+    expect(crossSourceDuplicate(ev, [{ ...egman, date: "2026-09-25T00:00:00.000Z" }])).toBeNull();
+    expect(crossSourceDuplicate(ev, [{ ...egman, sourceUrl: "https://gundam.digilab.cards/tournament/7" }])).toBeNull(); // mesma fonte: são eventos diferentes
+  });
+});
