@@ -21,9 +21,9 @@ describe("benchmarkDeckPools", () => {
     expect(all.length).toBe(deckPool("meta-gd02").length + deckPool("starters").length + deckPool("sets-novos").length);
   });
 
-  it("sets-novos = GD03, GD04, ST09 e GD05, sem knownGaps", () => {
+  it("sets-novos = GD03, GD04, ST09, GD05, ST10, EB01 e ST11–ST14, sem knownGaps", () => {
     const ids = deckPool("sets-novos").map((d) => d.id);
-    for (const set of ["GD03", "GD04", "ST09", "GD05"]) expect(ids.some((id) => id.startsWith(`${set}-`)), set).toBe(true);
+    for (const set of ["GD03", "GD04", "ST09", "GD05", "ST10", "EB01", "ST11", "ST12", "ST13", "ST14"]) expect(ids.some((id) => id.startsWith(`${set}-`)), set).toBe(true);
     expect(deckPool("sets-novos").every((d) => d.knownGaps.length === 0)).toBe(true);
   });
 
