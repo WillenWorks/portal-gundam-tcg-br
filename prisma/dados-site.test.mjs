@@ -107,3 +107,41 @@ describe("torneios (Veda)", () => {
     expect(missing).toEqual(["XX-999"]);
   });
 });
+
+describe("DigiLab Brasil (páginas públicas)", async () => {
+  const { digilabTier, parseDecklist, parseStore, parseTournament, sitemapStores } = await import("../scripts/meta-sources/digilab-br.mjs");
+  const ld = (o) => `<script type="application/ld+json">${JSON.stringify(o)}</script>`;
+  const row = (place, cls, player, deck, record, decklist) =>
+    `<tr><td class="col-place"><span class="${cls}"> ${place} </span></td><td><a href="/player/x" class="player-chip-name" title="${player}">${player}</a></td>` +
+    `<td><a href="/deck/x" class="deck-link"><span class="deck-dots"><span class="deck-dot">●</span></span> ${deck} </a></td><td class="mono-cell">${record}</td>` +
+    `<td>${decklist ? `<a href="/decklist/${decklist}" class="decklist-chip">` : ""}</td></tr>`;
+
+  it("lojas do sitemap e endereço da loja", () => {
+    expect(sitemapStores("<loc>https://gundam.digilab.cards/store/loja-a</loc><loc>https://gundam.digilab.cards/player/p</loc>")).toEqual(["loja-a"]);
+    const html = ld({ "@type": "LocalBusiness", name: "Loja A", address: { addressLocality: "Curitiba", addressRegion: "Paraná", addressCountry: "Brazil" } }) + '<a href="/tournament/7"></a><a href="/tournament/7"></a><a href="/tournament/9"></a>';
+    expect(parseStore(html)).toEqual({ name: "Loja A", country: "Brazil", city: "Curitiba", region: "Paraná", tournamentIds: [7, 9] });
+  });
+
+  it("torneio: cabeçalho, classificação (com e sem selo) e decklist", () => {
+    const html =
+      ld({ "@type": "SportsEvent", name: "Regionals @ Hakka", description: "Regionals @ Hakka — 202 players, GD05, Sep 20, 2026.", startDate: "2026-09-20", numberOfAthletes: 202, location: { name: "Hakka Eventos", address: "São Paulo, São Paulo, Brazil" } }) +
+      "<table><caption>Tournament standings</caption><tbody>" +
+      row("1st", "placement-badge place-1st", "Ana &amp; Bia", "Purple / Red Banshee", "6-1", 55) +
+      row("12", "placement-num", "Caio", "Red / White MF", "2-3-1", null) +
+      "</tbody></table>";
+    const ev = parseTournament(html, 42);
+    expect(ev).toMatchObject({ key: "digilab:42", format: "GD05", date: "2026-09-20", tier: "LARGE_OFFICIAL", organizer: "Hakka Eventos", country: "Brasil", city: "São Paulo", participantCount: 202 });
+    expect(ev.entries).toEqual([
+      { player: "Ana & Bia", placement: 1, wins: 6, losses: 1, draws: null, archetype: "Purple / Red Banshee", decklistId: 55 },
+      { player: "Caio", placement: 12, wins: 2, losses: 3, draws: 1, archetype: "Red / White MF", decklistId: null },
+    ]);
+    expect(parseDecklist('<a href="https://x/?decklist=ST13-006:3,GD01-044:4,">')).toEqual({ "ST13-006": 3, "GD01-044": 4 });
+  });
+
+  it("tipo de evento → categoria", () => {
+    expect(digilabTier("Locals")).toBe("SMALL_OFFICIAL");
+    expect(digilabTier("Store Championship")).toBe("SMALL_OFFICIAL");
+    expect(digilabTier("Area Finals")).toBe("LARGE_OFFICIAL");
+    expect(digilabTier("Online")).toBe("UNOFFICIAL");
+  });
+});

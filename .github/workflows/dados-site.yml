@@ -2,6 +2,8 @@
 # Coleta no runner (site oficial, Egman, DigiLab) e roda os scripts de prisma/ na VPS, contra o banco de produção.
 # Por padrão é SIMULAÇÃO: os scripts só relatam o que mudariam. Gravar exige marcar "aplicar" ao disparar.
 # O agendamento semanal só coleta torneios e só grava se a variável DADOS_APLICAR_AGENDADO = true.
+# "digilab-br" é a cópia única dos torneios do Brasil das páginas públicas da DigiLab (até a chave da API chegar):
+# só roda quando disparada à mão, nunca no agendamento nem no "tudo".
 name: Dados do site
 
 on:
@@ -10,7 +12,7 @@ on:
       tarefa:
         description: "O que fazer"
         type: choice
-        options: [auditoria, impressoes, faq, relacoes, torneios, tudo]
+        options: [auditoria, impressoes, faq, relacoes, torneios, digilab-br, tudo]
         default: auditoria
       aplicar:
         description: "Gravar no banco de produção (senão só simula)"
@@ -58,6 +60,9 @@ jobs:
         env:
           DIGILAB_API_KEY: ${{ secrets.DIGILAB_API_KEY }}
         run: node scripts/meta-sources/digilab.mjs --out=payload/digilab
+      - name: Torneios do Brasil na DigiLab (páginas públicas, 5 s entre requisições)
+        if: env.TAREFA == 'digilab-br'
+        run: node scripts/meta-sources/digilab-br.mjs --out=payload/events-digilab-br.json --cache=.cache/digilab
       - uses: actions/upload-artifact@v4
         with:
           name: dados-site-coleta
@@ -116,4 +121,5 @@ jobs:
             fi
             if quer relacoes; then run prisma/apply-gcg-official-curation.mjs $FLAG; fi
             if quer torneios && [ -f "$P/events-egman.json" ]; then run prisma/import-tournaments.mjs --file="$P/events-egman.json" $FLAG; fi
+            if [ "$TAREFA" = "digilab-br" ] && [ -f "$P/events-digilab-br.json" ]; then run prisma/import-tournaments.mjs --file="$P/events-digilab-br.json" $FLAG; fi
             run prisma/audit-catalog.mjs
