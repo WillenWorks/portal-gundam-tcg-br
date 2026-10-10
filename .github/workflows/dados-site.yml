@@ -1,0 +1,119 @@
+# Dados do site em produção (catálogo, FAQ, relações entre cartas e resultados de torneio do Veda System).
+# Coleta no runner (site oficial, Egman, DigiLab) e roda os scripts de prisma/ na VPS, contra o banco de produção.
+# Por padrão é SIMULAÇÃO: os scripts só relatam o que mudariam. Gravar exige marcar "aplicar" ao disparar.
+# O agendamento semanal só coleta torneios e só grava se a variável DADOS_APLICAR_AGENDADO = true.
+name: Dados do site
+
+on:
+  workflow_dispatch:
+    inputs:
+      tarefa:
+        description: "O que fazer"
+        type: choice
+        options: [auditoria, impressoes, faq, relacoes, torneios, tudo]
+        default: auditoria
+      aplicar:
+        description: "Gravar no banco de produção (senão só simula)"
+        type: boolean
+        default: false
+  schedule:
+    - cron: "0 9 * * 1" # segunda, 06:00 de Brasília
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dados-site
+  cancel-in-progress: false
+
+env:
+  TAREFA: ${{ inputs.tarefa || 'torneios' }}
+  APLICAR: ${{ (github.event_name == 'workflow_dispatch' && inputs.aplicar) || (github.event_name == 'schedule' && vars.DADOS_APLICAR_AGENDADO == 'true') }}
+
+jobs:
+  coletar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: corepack pnpm install --frozen-lockfile
+      - run: mkdir -p payload && echo "$TAREFA" > payload/tarefa.txt
+      - name: FAQ oficial de todas as coleções (gundam-gcg.com)
+        if: env.TAREFA == 'faq' || env.TAREFA == 'tudo'
+        run: |
+          node scripts/gundam-fetch-official-set.mjs --package=616101,616102,616103,616104,616105,616001,616002,616003,616004,616005,616006,616007,616008,616009,616010,616011,616012,616013,616014,616201,616301,616701,616801,616901
+          cp data/gcg-official-faq.json payload/faq.json
+      - name: Torneios da Egman (deckbuilder)
+        if: env.TAREFA == 'torneios' || env.TAREFA == 'tudo'
+        run: |
+          corepack pnpm exec playwright install --with-deps chromium
+          node scripts/gundam-meta-scrape.mjs --formats=GD01,GD02,GD03,GD04,GD05 --refresh --cache=.cache/egman --out=payload/meta-raw.json
+          node scripts/meta-sources/egman.mjs --in=payload/meta-raw.json --out=payload/events-egman.json
+      - name: Torneios da DigiLab (coleta bruta, se houver chave)
+        if: env.TAREFA == 'torneios' || env.TAREFA == 'tudo'
+        env:
+          DIGILAB_API_KEY: ${{ secrets.DIGILAB_API_KEY }}
+        run: node scripts/meta-sources/digilab.mjs --out=payload/digilab
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dados-site-coleta
+          path: payload/
+          retention-days: 30
+          if-no-files-found: ignore
+
+  producao:
+    needs: coletar
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dados-site-coleta
+          path: payload
+        continue-on-error: true
+      - run: mkdir -p payload && ls -la payload
+      - name: Envia a coleta para a VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          source: payload
+          target: /root/dados-site
+          rm: true
+          overwrite: true
+      - name: Roda os scripts na VPS
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          TAREFA: ${{ env.TAREFA }}
+          APLICAR: ${{ env.APLICAR }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          envs: TAREFA,APLICAR
+          command_timeout: 50m
+          script_stop: true
+          script: |
+            export NVM_DIR="$HOME/.nvm"
+            . "$NVM_DIR/nvm.sh"
+            cd /root/portal-gundam-tcg-br
+            P=/root/dados-site/payload
+            FLAG=""
+            if [ "$APLICAR" = "true" ]; then FLAG="--apply"; echo "### GRAVANDO no banco de produção"; else echo "### SIMULAÇÃO (nada é gravado)"; fi
+            run() { echo; echo "=== $*"; node --env-file=.env "$@"; }
+            quer() { [ "$TAREFA" = "$1" ] || [ "$TAREFA" = "tudo" ]; }
+            if quer impressoes; then run prisma/fix-seed-prints.mjs $FLAG; fi
+            if quer faq; then
+              run prisma/import-rulings.mjs $FLAG
+              if [ -f "$P/faq.json" ]; then run prisma/import-card-faq.mjs --file="$P/faq.json" $FLAG; else run prisma/import-card-faq.mjs $FLAG; fi
+            fi
+            if quer relacoes; then run prisma/apply-gcg-official-curation.mjs $FLAG; fi
+            if quer torneios && [ -f "$P/events-egman.json" ]; then run prisma/import-tournaments.mjs --file="$P/events-egman.json" $FLAG; fi
+            run prisma/audit-catalog.mjs

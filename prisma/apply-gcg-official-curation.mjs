@@ -78,22 +78,31 @@ async function loadOurCodes() {
 
 /** Monta as duas listas de trabalho a partir do dataset oficial: atualizações de série
  *  e candidatos a relação PILOT_OF (só vínculo direto por nome). */
-function buildPlan(officialCards) {
+/** Nomes alternativos impressos na carta: "This card's name is also treated as [Zechs Merquise]." */
+export function nameAliases(effect) {
+  if (!effect) return [];
+  return Array.from(effect.matchAll(/name is also treated as ((?:\[[^\]]+\](?:\s*(?:,|and|or)\s*)?)+)/gi), (m) =>
+    Array.from(m[1].matchAll(/\[([^\]]+)\]/g), (r) => r[1].trim()),
+  ).flat();
+}
+
+export function buildPlan(officialCards) {
   const seriesUpdates = []; // { code, sourceTitle }
   const seriesSkipped = []; // { code, name, rawSourceTitle } - ambíguo, precisa revisão manual
 
-  const pilotNameToCodes = new Map(); // nome oficial do piloto -> [codes]
-  const unitNameToCodes = new Map(); // nome oficial da unidade -> [codes]
+  // nome oficial -> [codes]; inclui os nomes alternativos (Milliardo Peacecraft também é [Zechs Merquise])
+  const pilotNameToCodes = new Map();
+  const unitNameToCodes = new Map();
+  const addName = (map, name, code) => {
+    const list = map.get(name) || [];
+    if (!list.includes(code)) list.push(code);
+    map.set(name, list);
+  };
   for (const c of officialCards) {
-    if (c.cardType === "PILOT") {
-      const list = pilotNameToCodes.get(c.name) || [];
-      list.push(c.code);
-      pilotNameToCodes.set(c.name, list);
-    } else if (c.cardType === "UNIT") {
-      const list = unitNameToCodes.get(c.name) || [];
-      list.push(c.code);
-      unitNameToCodes.set(c.name, list);
-    }
+    const map = c.cardType === "PILOT" ? pilotNameToCodes : c.cardType === "UNIT" ? unitNameToCodes : null;
+    if (!map) continue;
+    addName(map, c.name, c.code);
+    for (const alias of nameAliases(c.effect)) addName(map, alias, c.code);
   }
 
   const pilotUnitRelations = []; // { pilotCode, unitCode, unitName, pilotName, sourceUrl }
@@ -126,9 +135,9 @@ function buildPlan(officialCards) {
 
     if (c.cardType !== "UNIT" || !c.link || c.link === "-") continue;
 
-    if (c.link.startsWith("[")) {
-      const pilotName = c.linkRefs?.[0];
-      if (!pilotName) continue;
+    // o link pode citar mais de um piloto ("[Kira Yamato] / [Athrun Zala]") e misturar traço "(OZ)"
+    const pilotNames = Array.from(c.link.matchAll(/\[([^\]]+)\]/g), (m) => m[1].trim());
+    for (const pilotName of pilotNames) {
       const pilotCodes = pilotNameToCodes.get(pilotName);
       if (!pilotCodes || !pilotCodes.length) {
         traitLinkedSkipped.push({ unitCode: c.code, unitName: c.name, traitName: `[nome não encontrado: ${pilotName}]` });
@@ -137,8 +146,9 @@ function buildPlan(officialCards) {
       for (const pilotCode of pilotCodes) {
         pilotUnitRelations.push({ pilotCode, unitCode: c.code, unitName: c.name, pilotName, sourceUrl: c.detailUrl || null });
       }
-    } else if (c.link.startsWith("(")) {
-      traitLinkedSkipped.push({ unitCode: c.code, unitName: c.name, traitName: c.linkRefs?.[0] || c.link });
+    }
+    for (const m of c.link.replace(/\[[^\]]*\]/g, "").matchAll(/\(([^)]+)\)/g)) {
+      traitLinkedSkipped.push({ unitCode: c.code, unitName: c.name, traitName: m[1].trim() });
     }
   }
 

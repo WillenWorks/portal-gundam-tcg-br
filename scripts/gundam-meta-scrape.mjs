@@ -2,8 +2,8 @@
 /**
  * Coleta as listas de torneio do deckbuilder da Egman Events (spec bot-zero-system-meta-temporada,
  * fase 1). Renderiza a página pública de torneios de cada formato num Chromium headless e lê a
- * tabela do DOM — sem API interna. Só roda local (nunca no CI): a saída tem nome de jogador e vai
- * para `docs/bot/` (fora do git).
+ * tabela do DOM — sem API interna. A saída tem nome de jogador: nunca vai para o git (local: `docs/bot/`;
+ * no Actions: artefato do workflow dados-site.yml, que alimenta os resultados do Veda System no site).
  *
  *   pnpm gundam:meta:scrape                          # GD01..GD05, usa o cache
  *   pnpm gundam:meta:scrape -- --formats=GD05 --refresh
