@@ -2265,6 +2265,18 @@ app.post("/api/cards/usage-stats", async (req, res) => {
   }
 });
 
+// A mesma pergunta pode ter sido gravada uma vez por impressão (ex.: GD01-001 tinha a FAQ na impressão
+// principal e na gêmea do TCGplayer) -- a página da carta mostra cada pergunta uma vez só.
+function dedupeRulings<T extends { questionEn: string | null; questionPt: string | null; title: string }>(rulings: T[]): T[] {
+  const seen = new Set<string>();
+  return rulings.filter((r) => {
+    const key = (r.questionEn || r.questionPt || r.title).trim().toLowerCase().replace(/\s+/g, " ");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 app.get("/api/cards/:id", async (req, res) => {
   setPublicCache(res, 30, 120);
   const id = String(req.params.id);
@@ -2297,8 +2309,8 @@ app.get("/api/cards/:id", async (req, res) => {
     : 0;
 
   const selectedPrint = (requestedPrintId && model.prints.find((p) => p.id === requestedPrintId)) || model.prints[0];
-  const { prints, ...modelFields } = model;
-  res.json({ ...modelFields, ...selectedPrint, id: model.id, printId: selectedPrint?.id ?? null, prints, publicDeckCount });
+  const { prints, rulings, ...modelFields } = model;
+  res.json({ ...modelFields, ...selectedPrint, id: model.id, printId: selectedPrint?.id ?? null, prints, rulings: dedupeRulings(rulings), publicDeckCount });
 });
 
 // Estatísticas competitivas por CardModel -- agrega os dois "informes" que o site
