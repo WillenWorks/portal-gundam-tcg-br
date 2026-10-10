@@ -1,0 +1,130 @@
+# Matriz de confrontos por temporada (Zero System e relatório de desempenho por deck).
+# Só sob demanda (Actions → Bot matrix → Run workflow). Cada temporada vira um pool: as versões (variantes) dos
+# arquétipos de torneio de `fixtures/metaCores.ts` + as receitas oficiais da temporada; os decks são validados antes
+# (50 cartas, até 4 cópias, tudo jogável no motor). As partidas são divididas em fatias (< 6 h cada) que rodam em
+# paralelo; no fim, as fatias são juntadas por temporada e sai o relatório (artefato `bot-matrix-relatorio` +
+# resumo do run). Fatia que falhar não derruba as outras: o relatório usa o que chegou e diz o que faltou.
+name: Bot matrix
+
+on:
+  workflow_dispatch:
+    inputs:
+      formats:
+        description: "Temporadas (metaCores), separadas por vírgula"
+        default: "GD01,GD02,GD03,GD04,GD05,GD05.5"
+      level:
+        description: "Nível do bot nos dois lados (normal, dificil)"
+        default: "dificil"
+      games:
+        description: "Partidas por par de decks"
+        default: "20"
+      max_shards:
+        description: "Fatias no total (até 256; 20 rodam ao mesmo tempo)"
+        default: "64"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bot-matrix-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      include: ${{ steps.plan.outputs.include }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: corepack pnpm install --frozen-lockfile
+      - name: Pools por temporada (com validação dos decks)
+        run: |
+          mkdir -p pools
+          for f in $(echo "${{ inputs.formats }}" | tr ',' ' '); do
+            node scripts/gundam-bot-season-pool.mjs --format="$f" --out="pools/pool-$f.json"
+          done
+      - name: Fatias
+        id: plan
+        run: |
+          include=$(node scripts/gundam-bot-matrix-plan.mjs --dir=pools --formats="${{ inputs.formats }}" --games="${{ inputs.games }}" --max-shards="${{ inputs.max_shards }}")
+          echo "include=$include" >> "$GITHUB_OUTPUT"
+          echo "fatias: $(echo "$include" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>console.log(JSON.parse(d).length))')"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bot-matrix-pools
+          path: pools/
+          retention-days: 30
+
+  measure:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.include) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: corepack pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: bot-matrix-pools
+          path: pools
+      - name: Mede ${{ matrix.format }} ${{ matrix.shard }}/${{ matrix.of }}
+        run: |
+          mkdir -p parts
+          node scripts/gundam-bot-matchups.mjs --pool="pools/pool-${{ matrix.format }}.json" --level="${{ inputs.level }}" \
+            --games="${{ inputs.games }}" --shard="${{ matrix.shard }}/${{ matrix.of }}" --workers=4 \
+            --out="parts/${{ matrix.format }}-${{ matrix.shard }}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bot-matrix-part-${{ matrix.format }}-${{ matrix.shard }}
+          path: parts/
+          retention-days: 30
+
+  report:
+    needs: [plan, measure]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: corepack pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: bot-matrix-pools
+          path: out
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: bot-matrix-part-*
+          path: parts
+          merge-multiple: true
+      - name: Junta por temporada e gera o relatório
+        run: |
+          for f in $(echo "${{ inputs.formats }}" | tr ',' ' '); do
+            files=$(ls parts/"$f"-*.json 2>/dev/null || true)
+            if [ -n "$files" ]; then node scripts/gundam-bot-merge.mjs --out="out/matrix-$f.json" $files; fi
+            echo "$f: $(echo "$files" | grep -c . ) fatias" >> out/fatias.txt
+          done
+          node scripts/gundam-bot-season-report.mjs --dir=out --formats="${{ inputs.formats }}" --out=out/relatorio-bot-matriz.md
+          cat out/fatias.txt >> "$GITHUB_STEP_SUMMARY"
+          cat out/relatorio-bot-matriz.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bot-matrix-relatorio
+          path: out/
+          retention-days: 90
