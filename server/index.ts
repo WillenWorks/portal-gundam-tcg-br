@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import bcrypt from "bcryptjs";
 import cors from "cors";
-import express, { type NextFunction, type Request, type Response } from "express";
+import express, { type NextFunction, type Request, type RequestHandler, type Response } from "express";
 import crypto from "node:crypto";
 import { createServer } from "node:http";
 import fs from "node:fs";
@@ -118,6 +118,7 @@ import { getRegionalMetagame } from "./services/regionalMetaService.ts";
 import { engineShaFromEnv } from "./engineSha.ts";
 import { purgeStaleSimulatorMatches, SIMULATOR_MATCH_PURGE_INTERVAL_MS } from "./simulatorMatchCleanup.ts";
 import { registerVedaRoutes } from "./vedaService.ts";
+import { createMailer, registerAuthEmailRoutes, sendVerificationEmail } from "./authEmailService.ts";
 
 const prisma = new PrismaClient();
 
@@ -1100,6 +1101,7 @@ function serializeUser(user: any, stats?: { deckCount: number; publicDeckCount: 
     preferredCardLanguage: user.preferredCardLanguage,
     preferredTheme: user.preferredTheme,
     hasPassword: Boolean(user.passwordHash),
+    emailVerified: Boolean(user.emailVerifiedAt),
     stats,
   };
 }
@@ -1205,6 +1207,11 @@ app.post("/api/auth/register", async (req, res) => {
     displayName?: string;
   };
   if (!email || !password || !displayName) return res.status(400).json({ error: "Email, senha e nome são obrigatórios." });
+  if (password.length < 8) return res.status(400).json({ error: "A senha precisa ter pelo menos 8 caracteres." });
+  const normalizedEmail = email.trim().toLowerCase();
+  if (await prisma.user.findUnique({ where: { email: normalizedEmail } })) {
+    return res.status(409).json({ error: "Já existe uma conta com este e-mail. Entre ou use \"Esqueci minha senha\"." });
+  }
 
   const usernameBase = slugify(displayName || email.split("@")[0] || "user");
   let username = usernameBase;
@@ -1216,7 +1223,7 @@ app.post("/api/auth/register", async (req, res) => {
   const passwordHash = await bcrypt.hash(password, 10);
   const user = await prisma.user.create({
     data: {
-      email,
+      email: normalizedEmail,
       displayName,
       username,
       passwordHash,
@@ -1226,6 +1233,8 @@ app.post("/api/auth/register", async (req, res) => {
       preferredTheme: "dark",
     },
   });
+  // o link de confirmação vai em segundo plano: o cadastro não espera o SMTP
+  void sendVerificationEmail(authEmailDeps, user).catch((err) => console.error("[email] confirmação no cadastro:", err));
   const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username, isHoster: user.isHoster });
   res.status(201).json({ token, user: serializeUser(user) });
 });
@@ -1245,6 +1254,21 @@ function authRateLimitKey(req: Request, identifier?: string): string {
   const ip = req.ip || req.socket.remoteAddress || "unknown";
   return identifier ? `${ip}:${identifier}` : ip;
 }
+
+// Recuperação de senha e confirmação de e-mail (SMTP da Hostinger, remetente nao-responda@anaheimhub.com).
+const authEmailDeps = {
+  prisma,
+  mailer: createMailer(),
+  publicUrl: process.env.PUBLIC_APP_URL || "https://anaheimhub.com",
+  rateLimited: (req: Request, identifier?: string) => {
+    const key = authRateLimitKey(req, identifier);
+    if (authRateLimiter.isLimited(key)) return true;
+    authRateLimiter.record(key);
+    return false;
+  },
+  authRequired: authRequired as RequestHandler,
+};
+registerAuthEmailRoutes(app, authEmailDeps);
 
 app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body as { email?: string; password?: string };
@@ -1299,7 +1323,10 @@ app.post("/api/auth/google", async (req, res) => {
     const existingByEmail = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (existingByEmail) {
       // Já tinha conta por senha com esse e-mail — vincula o Google a ela em vez de duplicar.
-      user = await prisma.user.update({ where: { id: existingByEmail.id }, data: { googleId: payload.sub, avatarUrl: existingByEmail.avatarUrl || payload.picture || null } });
+      user = await prisma.user.update({
+        where: { id: existingByEmail.id },
+        data: { googleId: payload.sub, avatarUrl: existingByEmail.avatarUrl || payload.picture || null, emailVerifiedAt: existingByEmail.emailVerifiedAt ?? new Date() },
+      });
     } else {
       const displayName = payload.name || normalizedEmail.split("@")[0];
       const usernameBase = slugify(displayName);
@@ -1313,6 +1340,7 @@ app.post("/api/auth/google", async (req, res) => {
           username,
           googleId: payload.sub,
           avatarUrl: payload.picture || null,
+          emailVerifiedAt: new Date(), // o Google já confirmou o e-mail (email_verified)
           role: UserRole.USER,
           isActive: true,
           preferredCardLanguage: CardLanguage.PT_BR,

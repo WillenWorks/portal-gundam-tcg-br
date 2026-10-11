@@ -83,6 +83,13 @@ export function PublicShell({ children, breadcrumbs, title, description, heroBan
             <Separator className="mb-4 bg-white/10 lg:hidden dark:bg-white/10 light:bg-slate-300/70" />
             <p className="text-xs uppercase tracking-[0.26em] text-slate-500">Engenharia da Comunidade</p>
             <p className="mt-2 text-white dark:text-white light:text-slate-900">Arquivo Central · Regras em pt-BR · Hangar OZ · Arena Asticassia</p>
+            <p className="mt-3 text-xs">
+              <Link href="/privacidade" className="hover:text-primary hover:underline">Privacidade</Link>
+              {" · "}
+              <Link href="/termos" className="hover:text-primary hover:underline">Termos de Uso</Link>
+              {" · "}
+              <a href="mailto:admin@anaheimhub.com" className="hover:text-primary hover:underline">admin@anaheimhub.com</a>
+            </p>
           </div>
         </div>
       </footer>
