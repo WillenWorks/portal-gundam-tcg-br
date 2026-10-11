@@ -442,7 +442,7 @@ export function archetypeDetail(ix: VedaIndex, slug: string, f: TournamentFilter
       .filter((r) => r.hasDecklist)
       .sort((a, b) => (a.placement ?? 9999) - (b.placement ?? 9999) || byDateDesc(a, b))
       .slice(0, 6)
-      .map((r) => ({ entryId: r.entryId, player: r.player, placementLabel: r.placementLabel, tournamentName: r.tournamentName, date: r.date })),
+      .map((r) => ({ entryId: r.entryId, tournamentId: r.tournamentId, player: r.player, placementLabel: r.placementLabel, tournamentName: r.tournamentName, date: r.date })),
   };
 }
 
