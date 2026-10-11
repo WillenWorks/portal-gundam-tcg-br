@@ -7,7 +7,7 @@ import { parentPort, workerData } from "node:worker_threads";
 
 register();
 
-const { validatedDeckList } = await import("./engine.mjs");
+const { trainingDeckList } = await import("./engine.mjs");
 const { runPlannedDatasetGames } = await import("./datasetCore.mjs");
 
 const { plannedSpecs, outPath, rapido, nice } = workerData;
@@ -20,7 +20,7 @@ if (nice) {
   }
 }
 
-const deckList = validatedDeckList();
+const deckList = trainingDeckList();
 const byId = Object.fromEntries(deckList.map((d) => [d.id, d]));
 
 const plannedGames = plannedSpecs.map((spec) => ({

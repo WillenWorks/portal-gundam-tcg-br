@@ -4,11 +4,13 @@
  * diferença real entre metas de coleções/temporadas diferentes, então toda a página agora
  * responde ao filtro escolhido em vez de só mostrar um agregado de tudo desde sempre. */
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "wouter";
 import { Bar, BarChart, CartesianGrid, Pie, PieChart, Cell, XAxis, YAxis } from "recharts";
-import { Flame, TrendingUp, TrendingDown } from "lucide-react";
+import { Flame, TrendingUp, TrendingDown, Trophy, Layers } from "lucide-react";
 
 import { PublicShell } from "@/components/layout/PublicShell";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from "@/components/ui/chart";
 import { api, type MetagameStatsResponse } from "@/lib/api";
@@ -332,7 +334,21 @@ export default function StatsPage() {
                 <h2 className="mt-2 font-heading text-5xl uppercase">Sistema VEDA · Análise Operacional</h2>
                 <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">O Sistema VEDA processa a telemetria em tempo real do metagame: distribuição por coleção, cores dominantes, tipos e atividade competitiva por evento. O módulo de metagame competitivo abaixo opera exclusivamente com dados consolidados de torneios e resultados oficiais validados.</p>
               </div>
-              <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">Link VEDA Online</Badge>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">Link VEDA Online</Badge>
+                <Button size="sm" variant="outline" asChild className="rounded-none border-primary/40 bg-primary/10 text-xs font-mono uppercase text-primary hover:bg-primary/20">
+                  <Link href="/torneios">
+                    <Trophy className="size-3 mr-1" />
+                    Torneios & Reports
+                  </Link>
+                </Button>
+                <Button size="sm" variant="outline" asChild className="rounded-none border-primary/40 bg-primary/10 text-xs font-mono uppercase text-primary hover:bg-primary/20">
+                  <Link href="/arquetipos">
+                    <Layers className="size-3 mr-1" />
+                    Arquétipos
+                  </Link>
+                </Button>
+              </div>
             </div>
 
             <div className="mt-6 space-y-3 border-t border-white/10 pt-5">

@@ -36,9 +36,10 @@ export function selectDecks(decks, deckIds) {
   });
 }
 
-export function runPlannedGames({ poolSpec, deckIds, level, maxTurns, games }, onResult) {
+export function runPlannedGames({ poolSpec, deckIds, level, maxTurns, games }, onResult, onStart = () => {}) {
   const decks = selectDecks(resolvePool(poolSpec), deckIds);
   for (const g of games) {
+    onStart(g);
     const result = runSelfPlay({
       deckA: decks[g.a].build(),
       deckB: decks[g.b].build(),

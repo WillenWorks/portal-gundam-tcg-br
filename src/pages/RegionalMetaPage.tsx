@@ -24,12 +24,18 @@ const cardsConfig = {
   presenceRate: { label: "Presença (%)", color: "var(--primary)" },
 } satisfies ChartConfig;
 
+function urlParam(name: string): string {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get(name)?.trim() ?? "";
+}
+
 export default function RegionalMetaPage() {
   const [data, setData] = useState<RegionalMetaResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedState, setSelectedState] = useState<string>("");
-  const [selectedCity, setSelectedCity] = useState<string>("");
-  const [selectedStore, setSelectedStore] = useState<string>("");
+  // filtro inicial pela URL (?uf=SP&cidade=São Paulo&loja=…), usado pelos links de cidade/UF das páginas de torneio
+  const [selectedState, setSelectedState] = useState<string>(() => urlParam("uf").toUpperCase());
+  const [selectedCity, setSelectedCity] = useState<string>(() => urlParam("cidade"));
+  const [selectedStore, setSelectedStore] = useState<string>(() => urlParam("loja"));
 
   useEffect(() => {
     setLoading(true);

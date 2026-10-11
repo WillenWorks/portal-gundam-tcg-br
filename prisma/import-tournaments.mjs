@@ -20,6 +20,43 @@ export const SEASONS = [
   { code: "GD05", name: "GD05 — Freedom Ascension", startDate: "2026-07-24" },
 ];
 
+const DAY_MS = 86_400_000;
+const slug = (s) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+const hostOf = (url) => {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "";
+  }
+};
+
+function candidateOf(t) {
+  return {
+    id: t.id,
+    sourceUrl: t.sourceUrl,
+    season: t.season,
+    date: t.dateStart?.toISOString() ?? null,
+    champion: t.entries.find((e) => e.placement === 1)?.playerName ?? null,
+    lists: t.entries.filter((e) => e.deckSnapshotId).length,
+  };
+}
+
+/** Mesmo evento em outra fonte: outro site, mesma temporada, data a até 1 dia e o mesmo campeão. */
+export function crossSourceDuplicate(ev, candidates) {
+  const champion = slug(ev.entries.find((e) => e.placement === 1)?.player);
+  if (!champion || !ev.date) return null;
+  const day = Date.parse(`${ev.date}T00:00:00Z`);
+  return (
+    candidates.find(
+      (c) =>
+        hostOf(c.sourceUrl) !== hostOf(ev.sourceUrl) &&
+        (!c.season || !ev.format || c.season === ev.format) &&
+        c.date && Math.abs(Date.parse(c.date) - day) <= DAY_MS &&
+        slug(c.champion) === champion,
+    ) ?? null
+  );
+}
+
 export function seasonRows() {
   return SEASONS.map((s, i) => {
     const next = SEASONS[i + 1];
@@ -75,11 +112,31 @@ async function main() {
 
     let created = 0;
     let updated = 0;
+    let replaced = 0;
+    const skipped = [];
     const missingCodes = new Set();
     for (const ev of data.events) {
       const prepared = ev.entries.map((e) => ({ ...e, ...snapshotItems(e.main, printByCode) }));
       for (const e of prepared) for (const c of e.missing) missingCodes.add(c);
-      const existing = await prisma.tournament.findFirst({ where: { sourceUrl: ev.sourceUrl }, select: { id: true } });
+      let existing = await prisma.tournament.findFirst({ where: { sourceUrl: ev.sourceUrl }, select: { id: true } });
+      if (!existing && ev.date) {
+        // o mesmo evento vindo de outra fonte (ex.: um regional na Egman e na DigiLab) entra uma vez só
+        const day = Date.parse(`${ev.date}T00:00:00Z`);
+        const nearby = await prisma.tournament.findMany({
+          where: { isActive: true, sourceUrl: { not: ev.sourceUrl }, dateStart: { gte: new Date(day - DAY_MS), lte: new Date(day + DAY_MS) } },
+          select: { id: true, sourceUrl: true, season: true, dateStart: true, entries: { select: { playerName: true, placement: true, deckSnapshotId: true } } },
+        });
+        const dup = crossSourceDuplicate(ev, nearby.map(candidateOf));
+        if (dup) {
+          const ours = prepared.filter((e) => e.items.length).length;
+          if (ours <= dup.lists) {
+            skipped.push(`${ev.name} (${ev.date}) = ${dup.sourceUrl}`);
+            continue;
+          }
+          existing = { id: dup.id }; // a coleta nova tem mais listas: substitui a outra fonte
+          replaced += 1;
+        }
+      }
       if (existing) updated += 1;
       else created += 1;
       if (!apply) continue;
@@ -137,7 +194,8 @@ async function main() {
         }
       }, { timeout: 60_000 });
     }
-    console.log(`Torneios novos: ${created} · atualizados: ${updated}`);
+    console.log(`Torneios novos: ${created} · atualizados: ${updated}${replaced ? ` (${replaced} vindos de outra fonte, substituídos por esta coleta mais completa)` : ""}`);
+    if (skipped.length) console.log(`Já importados por outra fonte (ignorados): ${skipped.length}\n  ${skipped.slice(0, 20).join("\n  ")}`);
     if (missingCodes.size) console.log(`Códigos fora do catálogo (cartas ignoradas nas listas): ${[...missingCodes].sort().join(", ")}`);
     if (!apply) console.log("Para gravar: node prisma/import-tournaments.mjs --file=… --apply");
   } finally {

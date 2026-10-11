@@ -31,6 +31,15 @@ on:
         description: "Seed base para reprodutibilidade"
         required: false
         default: "1"
+      pool:
+        description: "Treinar com decks de torneio de uma temporada (ex.: GD05.5; vazio = ST01–ST04)"
+        required: false
+        default: ""
+      fonte:
+        description: "Com pool: egman (núcleos do repo) ou todos (todas as fontes importadas no site)"
+        type: choice
+        options: [egman, todos]
+        default: egman
 
 concurrency:
   group: train-bot-online
@@ -62,10 +71,25 @@ jobs:
       - name: Generate Prisma client
         run: corepack pnpm exec prisma generate
 
+      - name: Núcleos com todos os torneios do site
+        if: inputs.pool != '' && inputs.fonte == 'todos'
+        env:
+          DADOS_TOKEN: ${{ secrets.DADOS_TOKEN }}
+        run: |
+          node scripts/meta-sources/site-export.mjs --out=meta-raw-site.json
+          node scripts/gundam-meta-cores.mjs --raw=meta-raw-site.json
+
+      - name: Pool de decks de torneio
+        if: inputs.pool != ''
+        run: node scripts/gundam-bot-season-pool.mjs --format="${{ inputs.pool }}" --out=train-pool.json
+
       - name: Run Training Pipeline (online)
         id: pipeline
         run: |
           ARGS="--perfil=online"
+          if [ -n "${{ inputs.pool }}" ]; then
+            ARGS="$ARGS --pool=train-pool.json"
+          fi
           if [ "${{ inputs.rapido }}" = "true" ]; then
             ARGS="$ARGS --rapido"
           fi

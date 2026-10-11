@@ -117,6 +117,7 @@ import { runZeroForesightSimulationCached } from "./services/zeroForesightServic
 import { getRegionalMetagame } from "./services/regionalMetaService.ts";
 import { engineShaFromEnv } from "./engineSha.ts";
 import { purgeStaleSimulatorMatches, SIMULATOR_MATCH_PURGE_INTERVAL_MS } from "./simulatorMatchCleanup.ts";
+import { registerVedaRoutes } from "./vedaService.ts";
 
 const prisma = new PrismaClient();
 
@@ -2926,6 +2927,10 @@ const tournamentEntryInclude = {
     },
   },
 } as const;
+
+// Veda System: resultados de torneio paginados para as páginas (contrato em src/lib/veda/types.ts) e disparo do
+// workflow "Dados do site". A rota /api/tournaments abaixo devolve tudo de uma vez e fica para o admin.
+registerVedaRoutes(app, prisma, [authRequired, roleRequired([UserRole.ADMIN])]);
 
 app.get("/api/tournaments", async (_req, res) => {
   setPublicCache(res, 20, 90);
