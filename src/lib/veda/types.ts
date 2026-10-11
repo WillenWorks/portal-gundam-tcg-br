@@ -166,7 +166,7 @@ export interface VedaArchetypeDetail {
   sample: VedaSample;
   cards: VedaCardInclusion[];
   recentResults: Array<VedaPlayerResult & { player: VedaPlayerRef }>;
-  sampleDecklists: Array<{ entryId: string; player: VedaPlayerRef; placementLabel: string; tournamentName: string; date: string | null }>;
+  sampleDecklists: Array<{ entryId: string; tournamentId: string; player: VedaPlayerRef; placementLabel: string; tournamentName: string; date: string | null }>;
 }
 
 export interface VedaCardUsage {

@@ -156,7 +156,7 @@ describe("vedaCore — respostas", () => {
     const st12006 = d.cards.find((c) => c.card.code === "ST12-006")!;
     expect(st12006).toMatchObject({ inclusion: 1, tier: "core" });
     expect(d.sample).toMatchObject({ lists: 3, tournaments: 2, small: true });
-    expect(d.sampleDecklists[0].entryId).toBe("e1");
+    expect(d.sampleDecklists[0]).toMatchObject({ entryId: "e1", tournamentId: "sp" });
   });
 
   it("uso da carta em torneios junta impressões diferentes do mesmo código", () => {

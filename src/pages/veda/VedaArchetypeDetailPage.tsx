@@ -365,7 +365,7 @@ export default function VedaArchetypeDetailPage() {
                       asChild
                       className="w-full h-7 rounded-none border-primary/30 bg-primary/10 text-xs font-mono uppercase text-primary hover:bg-primary/20 hover:text-white"
                     >
-                      <Link href={`/torneios/${sampleList.entryId}/lista/${sampleList.entryId}`}>
+                      <Link href={`/torneios/${sampleList.tournamentId}/lista/${sampleList.entryId}`}>
                         Inspecionar Lista
                       </Link>
                     </Button>
