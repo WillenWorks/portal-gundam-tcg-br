@@ -1530,3 +1530,6 @@ export async function getSingleCardPlayability(code: string): Promise<CardStatus
   return request<CardStatusEntry>(`/simulator/card-status/${encodeURIComponent(code)}`, undefined, { ttlMs: 10 * 60 * 1000 });
 }
 
+export { vedaApi } from "@/lib/veda/api";
+
+

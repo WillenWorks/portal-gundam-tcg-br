@@ -17,6 +17,7 @@ import { CardInspectorPlayabilityBadge } from "@/modules/simulator/ui/CardInspec
 import type { CardLanguage } from "@/i18n/types";
 import { CardPlayabilityBadge } from "@/components/catalog/CardPlayabilityBadge";
 import { CardPlayabilityDetailBox } from "@/components/catalog/CardPlayabilityDetailBox";
+import { CardTournamentUsageSection } from "@/components/veda/CardTournamentUsageSection";
 
 const RELATION_LABELS: Record<string, string> = {
   PILOT_OF: "Piloto",
@@ -264,6 +265,14 @@ export default function CardDetailPage() {
         {/* Status de jogabilidade e o que falta no simulador (A3) */}
         <section>
           <CardPlayabilityDetailBox code={selectedPrint?.code || card.code} />
+        </section>
+
+        {/* Em Torneios Competitivos (Veda System) */}
+        <section>
+          <CardTournamentUsageSection
+            cardModelId={card?.cardModelId || card?.id}
+            cardCode={selectedPrint?.code || card?.code}
+          />
         </section>
 
         {cardStats?.hasEnoughData ? (

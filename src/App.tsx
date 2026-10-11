@@ -61,6 +61,14 @@ const LgsTvDisplayPage = lazy(() => import("@/pages/tournaments/LgsTvDisplayPage
 const EventCheckinPage = lazy(() => import("@/pages/tournaments/EventCheckinPage"));
 const ZeroTerminalPage = lazy(() => import("@/pages/ZeroTerminalPage"));
 
+// Páginas públicas do Veda System (resultados de torneios, reports, decklists, jogadores e arquétipos)
+const VedaTournamentsPage = lazy(() => import("@/pages/veda/VedaTournamentsPage"));
+const VedaTournamentReportPage = lazy(() => import("@/pages/veda/VedaTournamentReportPage"));
+const VedaDecklistPage = lazy(() => import("@/pages/veda/VedaDecklistPage"));
+const VedaPlayerPage = lazy(() => import("@/pages/veda/VedaPlayerPage"));
+const VedaArchetypesPage = lazy(() => import("@/pages/veda/VedaArchetypesPage"));
+const VedaArchetypeDetailPage = lazy(() => import("@/pages/veda/VedaArchetypeDetailPage"));
+
 function RouteLoader({ label }: { label: string }) {
   return <GlobalLoader label={`Abrindo ${label}`} />;
 }
@@ -120,6 +128,49 @@ function AppRouter() {
         <Route path="/novidades" component={ChangelogPage} />
         <Route path="/stats">{() => <LazyRoute label="Analytics"><StatsPage /></LazyRoute>}</Route>
         <Route path="/metagame/regional">{() => <LazyRoute label="Metagame Regional"><RegionalMetaPage /></LazyRoute>}</Route>
+        {/* Veda System — resultados de torneio, reports, decklists, jogadores e arquétipos */}
+        <Route path="/torneios/:id/lista/:entryId">
+          {() => (
+            <LazyRoute label="Decklist">
+              <VedaDecklistPage />
+            </LazyRoute>
+          )}
+        </Route>
+        <Route path="/torneios/:id">
+          {() => (
+            <LazyRoute label="Relatório do Torneio">
+              <VedaTournamentReportPage />
+            </LazyRoute>
+          )}
+        </Route>
+        <Route path="/torneios">
+          {() => (
+            <LazyRoute label="Torneios">
+              <VedaTournamentsPage />
+            </LazyRoute>
+          )}
+        </Route>
+        <Route path="/jogadores/:slug">
+          {() => (
+            <LazyRoute label="Jogador">
+              <VedaPlayerPage />
+            </LazyRoute>
+          )}
+        </Route>
+        <Route path="/arquetipos/:slug">
+          {() => (
+            <LazyRoute label="Arquétipo">
+              <VedaArchetypeDetailPage />
+            </LazyRoute>
+          )}
+        </Route>
+        <Route path="/arquetipos">
+          {() => (
+            <LazyRoute label="Arquétipos">
+              <VedaArchetypesPage />
+            </LazyRoute>
+          )}
+        </Route>
         <Route path="/tournaments" component={TournamentsPage} />
         <Route path="/cards/:id" component={CardDetailPage} />
         <Route path="/cards" component={CardsPage} />
