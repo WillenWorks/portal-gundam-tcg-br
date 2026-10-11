@@ -68,6 +68,11 @@ const VedaDecklistPage = lazy(() => import("@/pages/veda/VedaDecklistPage"));
 const VedaPlayerPage = lazy(() => import("@/pages/veda/VedaPlayerPage"));
 const VedaArchetypesPage = lazy(() => import("@/pages/veda/VedaArchetypesPage"));
 const VedaArchetypeDetailPage = lazy(() => import("@/pages/veda/VedaArchetypeDetailPage"));
+const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("@/pages/ResetPasswordPage"));
+const VerifyEmailPage = lazy(() => import("@/pages/VerifyEmailPage"));
+const PrivacyPage = lazy(() => import("@/pages/LegalPages").then((m) => ({ default: m.PrivacyPage })));
+const TermsPage = lazy(() => import("@/pages/LegalPages").then((m) => ({ default: m.TermsPage })));
 
 function RouteLoader({ label }: { label: string }) {
   return <GlobalLoader label={`Abrindo ${label}`} />;
@@ -111,6 +116,11 @@ function AppRouter() {
       <Suspense fallback={<GlobalLoader label="Carregando portal" />}>
         <Switch>
         <Route path="/login" component={AuthPage} />
+        <Route path="/recuperar-senha">{() => <LazyRoute label="Recuperar senha"><ForgotPasswordPage /></LazyRoute>}</Route>
+        <Route path="/redefinir-senha">{() => <LazyRoute label="Redefinir senha"><ResetPasswordPage /></LazyRoute>}</Route>
+        <Route path="/confirmar-email">{() => <LazyRoute label="Confirmar e-mail"><VerifyEmailPage /></LazyRoute>}</Route>
+        <Route path="/privacidade">{() => <LazyRoute label="Política de Privacidade"><PrivacyPage /></LazyRoute>}</Route>
+        <Route path="/termos">{() => <LazyRoute label="Termos de Uso"><TermsPage /></LazyRoute>}</Route>
         <Route path="/portal">{() => <RequireAuth><DashboardPage /></RequireAuth>}</Route>
         <Route path="/binders">{() => <RequireAuth><BinderListPage /></RequireAuth>}</Route>
         <Route path="/binders/:id">{() => <RequireAuth><BinderPage /></RequireAuth>}</Route>

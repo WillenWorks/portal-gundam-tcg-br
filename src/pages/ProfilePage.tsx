@@ -77,6 +77,18 @@ export default function ProfilePage() {
   };
 
   const loginMethod = user?.hasPassword ? "Email e senha" : "Login com Google";
+  const [resendingEmail, setResendingEmail] = useState(false);
+  const resendVerification = async () => {
+    setResendingEmail(true);
+    try {
+      const res = await api.resendVerificationEmail();
+      toast.success(res?.message ?? "Enviamos um novo link de confirmação.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível reenviar agora.");
+    } finally {
+      setResendingEmail(false);
+    }
+  };
 
   return (
     <PortalShell breadcrumbs={[{ label: "Configurações" }]}>
@@ -182,6 +194,19 @@ export default function ProfilePage() {
                 <div className="panel-cut flex items-center justify-between gap-4 border border-white/10 bg-slate-950/60 p-4 dark:bg-slate-950/60 light:bg-slate-50">
                   <span className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">Forma de acesso</span>
                   <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{loginMethod}</Badge>
+                </div>
+                <div className="panel-cut flex flex-wrap items-center justify-between gap-4 border border-white/10 bg-slate-950/60 p-4 dark:bg-slate-950/60 light:bg-slate-50">
+                  <span className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">E-mail</span>
+                  {user?.emailVerified ? (
+                    <Badge className="rounded-none border border-emerald-400/40 bg-emerald-400/10 text-emerald-300">Confirmado</Badge>
+                  ) : (
+                    <span className="flex flex-wrap items-center gap-3">
+                      <Badge className="rounded-none border border-amber-400/40 bg-amber-400/10 text-amber-300">Não confirmado</Badge>
+                      <Button type="button" variant="outline" size="sm" disabled={resendingEmail} onClick={resendVerification} className="rounded-none text-xs">
+                        {resendingEmail ? "Enviando..." : "Reenviar link"}
+                      </Button>
+                    </span>
+                  )}
                 </div>
                 <div className="panel-cut flex items-center justify-between gap-4 border border-white/10 bg-slate-950/60 p-4 dark:bg-slate-950/60 light:bg-slate-50">
                   <span className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">Usuário</span>

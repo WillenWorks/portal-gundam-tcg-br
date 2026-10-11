@@ -98,6 +98,7 @@ export default function AuthPage() {
         await login(cleanEmail, cleanPassword);
       } else {
         await register({ displayName: displayName.trim(), email: cleanEmail, password: cleanPassword });
+        toast.success(`Conta criada! Enviamos um link de confirmação para ${cleanEmail}.`);
       }
     } catch (err: any) {
       const msg = err?.message || (mode === "login" ? "Credenciais incorretas ou falha no servidor." : "Falha ao criar conta.");
@@ -199,6 +200,11 @@ export default function AuthPage() {
                 disabled={loading}
                 autoComplete={mode === "login" ? "current-password" : "new-password"}
               />
+              {mode === "login" ? (
+                <Link href="/recuperar-senha" className="text-xs text-primary hover:underline md:col-span-2">
+                  Esqueci minha senha
+                </Link>
+              ) : null}
 
               <div className="md:col-span-2 flex flex-wrap gap-3 pt-2">
                 <Button
