@@ -49,6 +49,8 @@ const poolSpec = String(args.pool ?? "all");
 const games = Number(args.games ?? 10);
 const seed = Number(args.seed ?? 1);
 const maxTurns = Number(args.maxTurns ?? 40);
+// partida acima disso é dada como travada (só no modo com workers)
+const gameTimeoutMs = Number(args.gameTimeoutMin ?? 10) * 60_000;
 const workers = args.workers ? Number(args.workers) : defaultWorkerCount({ cpus: os.cpus().length, freeMemBytes: os.freemem() });
 if (args.nice === "true") {
   // antes de criar os workers: as threads novas herdam a prioridade
@@ -110,24 +112,51 @@ if (parts.length === 1) {
   runPlannedGames({ poolSpec, deckIds: ids, level, maxTurns, games: plan }, onResult);
 } else {
   const workerUrl = new URL(pathToFileURL(path.join(ROOT, "scripts/lib/matchupWorker.mjs")));
-  const workerList = [];
-  await Promise.all(
-    parts.map(
-      (part) =>
-        new Promise((resolve, reject) => {
-          const worker = new Worker(workerUrl, { workerData: { runnerUrl, poolSpec, deckIds: ids, level, maxTurns, games: part } });
-          workerList.push(worker);
-          worker.on("message", (msg) => {
-            if (msg.type === "result") onResult(msg.result);
-            else if (msg.type === "done") resolve();
-          });
-          worker.on("error", reject);
-          worker.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`worker saiu com código ${code}`))));
-        }),
-    ),
-  ).catch(async (err) => {
+  const workerList = new Set();
+  // Vigia: o bot roda sem teto de tempo por decisão (resultado reproduzível), então uma posição em que a busca
+  // explode prende a partida para sempre. Partida acima de GAME_TIMEOUT_MS: encerra o worker, registra a partida
+  // como excluída ("travou", com decks e seed para reproduzir) e segue o resto da parte num worker novo.
+  const runPart = (part) =>
+    new Promise((resolve, reject) => {
+      if (!part.length) return resolve();
+      const worker = new Worker(workerUrl, { workerData: { runnerUrl, poolSpec, deckIds: ids, level, maxTurns, games: part } });
+      workerList.add(worker);
+      const done = new Set();
+      let current = null;
+      let since = Date.now();
+      let finished = false;
+      const finish = (fn) => {
+        if (finished) return;
+        finished = true;
+        clearInterval(watch);
+        workerList.delete(worker);
+        fn();
+      };
+      const watch = setInterval(() => {
+        if (current == null || Date.now() - since < gameTimeoutMs) return;
+        const g = part.find((x) => x.index === current);
+        console.log(`[matchups] partida travou (> ${Math.round(gameTimeoutMs / 60000)} min): ${ids[g.a]} x ${ids[g.b]} seed ${g.seed} — worker reiniciado`);
+        onResult({ index: g.index, a: g.a, b: g.b, seed: g.seed, error: `travou (> ${Math.round(gameTimeoutMs / 60000)} min)` });
+        done.add(g.index);
+        const rest = part.filter((x) => !done.has(x.index));
+        finish(() => worker.terminate().then(() => runPart(rest)).then(resolve, reject));
+      }, 15_000);
+      worker.on("message", (msg) => {
+        if (msg.type === "start") {
+          current = msg.index;
+          since = Date.now();
+        } else if (msg.type === "result") {
+          done.add(msg.result.index);
+          current = null;
+          onResult(msg.result);
+        } else if (msg.type === "done") finish(resolve);
+      });
+      worker.on("error", (err) => finish(() => reject(err)));
+      worker.on("exit", (code) => finish(() => (code === 0 ? resolve() : reject(new Error(`worker saiu com código ${code}`)))));
+    });
+  await Promise.all(parts.map((part) => runPart(part))).catch(async (err) => {
     // um worker falhou: para os outros em vez de deixá-los gastando CPU
-    await Promise.all(workerList.map((w) => w.terminate()));
+    await Promise.all([...workerList].map((w) => w.terminate()));
     console.error(`[matchups] ${err instanceof Error ? err.message : err}`);
     process.exit(1);
   });
@@ -144,7 +173,7 @@ const average = ids.map((id, i) => {
 average.sort((x, y) => (y.average ?? -1) - (x.average ?? -1));
 console.log("\n[matchups] taxa média contra o pool:");
 for (const a of average) console.log(`  ${a.id.padEnd(28)} ${a.average === null ? "-" : `${(a.average * 100).toFixed(1)}%`}`);
-if (excluded.length) console.log(`[matchups] ${excluded.length} partida(s) excluída(s) (crash/estado ilegal)`);
+if (excluded.length) console.log(`[matchups] ${excluded.length} partida(s) excluída(s) (crash, estado ilegal ou travada)`);
 
 let commit = "desconhecido";
 try {

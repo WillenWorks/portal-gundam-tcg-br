@@ -8,5 +8,9 @@ import { parentPort, workerData } from "node:worker_threads";
 
 register();
 const { runPlannedGames } = await import(workerData.runnerUrl);
-runPlannedGames(workerData, (result) => parentPort.postMessage({ type: "result", result }));
+runPlannedGames(
+  workerData,
+  (result) => parentPort.postMessage({ type: "result", result }),
+  (game) => parentPort.postMessage({ type: "start", index: game.index }),
+);
 parentPort.postMessage({ type: "done" });
