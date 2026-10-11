@@ -185,8 +185,16 @@ export default function TournamentsPage() {
       description="Calendário competitivo e resultados de torneios cadastrados pela comunidade."
     >
       <div className="space-y-6">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">Calendário e histórico</Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" asChild className="rounded-none border-primary/40 bg-primary/10 text-xs font-mono uppercase text-primary hover:bg-primary/20">
+              <Link href="/torneios">Resultados Oficiais Veda</Link>
+            </Button>
+            <Button size="sm" variant="outline" asChild className="rounded-none border-primary/40 bg-primary/10 text-xs font-mono uppercase text-primary hover:bg-primary/20">
+              <Link href="/arquetipos">Ranking de Arquétipos</Link>
+            </Button>
+          </div>
         </div>
 
         {/* Barra tática: abas de classificação, busca e chips de cor -- ?tab=/?q=/?colors=

@@ -1479,6 +1479,41 @@ export default function DeckbuilderPage() {
     }
   };
 
+  // Leitura automática de ?lista= na URL (ex: /deckbuilder/novo?lista=GD01-001:4,ST01-010:3)
+  const [urlListImported, setUrlListImported] = useState(false);
+  useEffect(() => {
+    if (deckId || urlListImported) return;
+    const searchPart = window.location.hash.includes("?")
+      ? window.location.hash.substring(window.location.hash.indexOf("?"))
+      : window.location.search;
+    const sp = new URLSearchParams(searchPart);
+    const listaParam = sp.get("lista");
+    if (!listaParam) return;
+
+    setUrlListImported(true);
+    // Converte formato "GD01-001:4,ST01-010:3" em linhas de texto
+    const lines = listaParam
+      .split(/[,;\n]/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((item) => {
+        const parts = item.split(":");
+        if (parts.length === 2) {
+          const code = parts[0].trim();
+          const qty = Number(parts[1]) || 1;
+          return `${qty} ${code}`;
+        }
+        return item;
+      })
+      .join("\n");
+
+    if (lines) {
+      importDecklistText(lines).then(() => {
+        setDeckName("Deck Importado de Torneio");
+      });
+    }
+  }, [deckId, urlListImported]);
+
   /** Modal de Exportação de Imagem com Prévia Reativa e Toggles (Exburst style) */
   const generateDeckImage = () => {
     if (!mainDeckRows.length && !resourceDeckRows.length) {
