@@ -475,6 +475,19 @@ type HandPreview = { card: CardInstance; blockedReason?: string; modes: HandPlay
 export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [, setLocation] = useLocation();
   const [matchView, setMatchView] = useState<SimulatorMatchView | null>(null);
+  const [loadTimedOut, setLoadTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (matchView) {
+      setLoadTimedOut(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      if (!matchView) setLoadTimedOut(true);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [matchView]);
+
   /** offset de relógio servidor↔cliente (`serverNow - Date.now()`) — corrige skew no countdown/idle. */
   const clockOffsetRef = useRef(0);
   /** limiares de aviso do timer de turno já disparados NESTE prazo (reseta quando `turnDeadlineAt` muda). */
@@ -1629,9 +1642,45 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   }, [matchView, introStage, busy, runAction]);
 
   if (!matchView || artLoading) {
+    if (!matchView && loadTimedOut) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4 text-sm text-muted-portal">
+          <div className="panel-cut flex max-w-md flex-col items-center gap-4 rounded-xl border border-destructive/40 bg-slate-900/90 p-8 text-center shadow-2xl backdrop-blur-md">
+            <AlertTriangle className="size-10 text-amber-400" />
+            <h2 className="font-heading text-lg uppercase tracking-wider text-slate-100">
+              Conexão com a partida demorando mais que o esperado
+            </h2>
+            <p className="text-xs leading-5 text-slate-400">
+              O simulador ainda não recebeu os dados do tabuleiro. Isso pode ocorrer por instabilidade de rede ou durante o handshake com o servidor.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.reload()}
+                className="rounded-none border-primary/50 text-xs uppercase tracking-wider"
+              >
+                <RefreshCw className="mr-2 size-3.5" />
+                Tentar Novamente
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setLocation("/simulador")}
+                className="rounded-none text-xs uppercase tracking-wider"
+              >
+                Voltar ao Simulador
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-sm text-muted-portal">
-        {!matchView ? "Conectando à partida…" : "Carregando as cartas…"}
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-slate-950 text-sm text-muted-portal">
+        <RefreshCw className="size-5 animate-spin text-primary" />
+        <p>{!matchView ? "Conectando à partida…" : "Carregando as cartas…"}</p>
       </div>
     );
   }
