@@ -100,30 +100,209 @@ async function getCardMap(prisma: PrismaClient): Promise<Map<string, any>> {
 }
 
 /**
- * Lista todos os formatos disponíveis em metaCores (GD01 a GD05) com métricas gerais.
+ * Agrega matematicamente múltiplos formatos (ex: GD05 + GD05.5 ou Todas as Temporadas)
+ * sem inventar dados, ponderando taxas de inclusão, shares, top8 e pontos pelas listas reais.
+ */
+function aggregateFormatData(formatKeys: string[]): {
+  lists: number;
+  events: number;
+  archetypes: any[];
+} {
+  let totalLists = 0;
+  let totalEvents = 0;
+  const archMap = new Map<
+    string,
+    {
+      id: string;
+      name: string;
+      colors: string[];
+      keyCard: string;
+      lists: number;
+      top8Weighted: number;
+      winWeighted: number;
+      pointsWeighted: number;
+      cardsMap: Map<
+        string,
+        {
+          code: string;
+          tierWeights: Record<string, number>;
+          totalRate: number;
+          totalAvg: number;
+          modeWeights: Record<number, number>;
+        }
+      >;
+      median: Record<string, number>;
+    }
+  >();
+
+  for (const fmtKey of formatKeys) {
+    const fmt = META_CORES.formats[fmtKey as keyof typeof META_CORES.formats];
+    if (!fmt) continue;
+    totalLists += fmt.lists;
+    totalEvents += fmt.events;
+
+    for (const a of fmt.archetypes || []) {
+      const normKey = a.name.toLowerCase().trim();
+      let existing = archMap.get(normKey);
+      if (!existing) {
+        existing = {
+          id: a.id,
+          name: a.name,
+          colors: [...a.colors],
+          keyCard: a.keyCard,
+          lists: 0,
+          top8Weighted: 0,
+          winWeighted: 0,
+          pointsWeighted: 0,
+          cardsMap: new Map(),
+          median: { ...(a.median || a.variants?.[0]?.median || {}) },
+        };
+        archMap.set(normKey, existing);
+      }
+
+      existing.lists += a.lists;
+      existing.top8Weighted += (a.top8Share || 0) * a.lists;
+      existing.winWeighted += (a.winShare || 0) * a.lists;
+      existing.pointsWeighted += (a.points || 0) * a.lists;
+
+      // Adota a mediana e keyCard da versão com maior amostragem
+      if (a.lists >= existing.lists - a.lists && a.median) {
+        existing.median = { ...a.median };
+        existing.keyCard = a.keyCard;
+      }
+
+      for (const card of a.cards || []) {
+        let cEntry = existing.cardsMap.get(card.code);
+        if (!cEntry) {
+          cEntry = {
+            code: card.code,
+            tierWeights: {},
+            totalRate: 0,
+            totalAvg: 0,
+            modeWeights: {},
+          };
+          existing.cardsMap.set(card.code, cEntry);
+        }
+        cEntry.tierWeights[card.tier] = (cEntry.tierWeights[card.tier] || 0) + a.lists;
+        cEntry.totalRate += card.rate * a.lists;
+        cEntry.totalAvg += card.avg * a.lists;
+        cEntry.modeWeights[card.mode] = (cEntry.modeWeights[card.mode] || 0) + a.lists;
+      }
+    }
+  }
+
+  const archetypes = Array.from(archMap.values()).map((arch) => {
+    const archLists = arch.lists;
+    const share = totalLists > 0 ? Number((archLists / totalLists).toFixed(3)) : 0;
+    const top8Share = archLists > 0 ? Number((arch.top8Weighted / archLists).toFixed(3)) : 0;
+    const winShare = archLists > 0 ? Number((arch.winWeighted / archLists).toFixed(3)) : 0;
+    const points = archLists > 0 ? Number((arch.pointsWeighted / archLists).toFixed(3)) : 0;
+
+    const cards = Array.from(arch.cardsMap.values()).map((c) => {
+      const rate = Number((c.totalRate / archLists).toFixed(3));
+      const avg = Number((c.totalAvg / archLists).toFixed(2));
+
+      let bestMode = 4;
+      let maxModeWeight = -1;
+      for (const [mStr, w] of Object.entries(c.modeWeights)) {
+        if (w > maxModeWeight) {
+          maxModeWeight = w;
+          bestMode = Number(mStr);
+        }
+      }
+
+      let bestTier: "core" | "flex" | "tech" = "tech";
+      if (rate >= 0.8) bestTier = "core";
+      else if (rate >= 0.3) bestTier = "flex";
+      else bestTier = "tech";
+
+      return {
+        code: c.code,
+        tier: bestTier,
+        rate,
+        mode: bestMode,
+        avg,
+      };
+    });
+
+    return {
+      id: arch.id,
+      name: arch.name,
+      colors: arch.colors,
+      keyCard: arch.keyCard,
+      lists: arch.lists,
+      share,
+      top8Share,
+      winShare,
+      points,
+      cards,
+      median: arch.median,
+      variants: [{ id: `${arch.id}-combined`, lists: arch.lists, points, median: arch.median, simulavel: true }],
+    };
+  });
+
+  return {
+    lists: totalLists,
+    events: totalEvents,
+    archetypes: archetypes.sort((a, b) => b.points - a.points || b.share - a.share),
+  };
+}
+
+/**
+ * Lista todos os formatos disponíveis em metaCores, ordenando a Temporada Atual (GD05 / GD05.5)
+ * no topo, seguida pelos formatos em ordem decrescente e pela opção de histórico geral (ALL).
  */
 export function getAvailableFormats(): FormatOverviewItem[] {
-  const formatsObj = META_CORES.formats || {};
   const result: FormatOverviewItem[] = [];
 
-  for (const [formatKey, formatData] of Object.entries(formatsObj)) {
-    const archetypes = formatData.archetypes || [];
-    const top = archetypes.slice(0, 3).map((a) => ({
+  // 1. Temporada Atual Combinada: GD05 + GD05.5
+  const currentSeason = aggregateFormatData(["GD05", "GD05.5"]);
+  result.push({
+    format: "GD05_COMBINED",
+    totalLists: currentSeason.lists,
+    totalEvents: currentSeason.events,
+    archetypeCount: currentSeason.archetypes.length,
+    topArchetypes: currentSeason.archetypes.slice(0, 3).map((a) => ({
       name: a.name,
       share: a.share,
       colors: a.colors,
-    }));
+    })),
+  });
 
+  // 2. Formatos individuais em ordem decrescente (mais recente para mais antigo)
+  const orderedKeys = ["GD05.5", "GD05", "GD04", "GD03", "GD02", "GD01"];
+  for (const formatKey of orderedKeys) {
+    const formatData = META_CORES.formats[formatKey as keyof typeof META_CORES.formats];
+    if (!formatData) continue;
+    const archetypes = formatData.archetypes || [];
     result.push({
       format: formatKey,
       totalLists: formatData.lists,
       totalEvents: formatData.events,
       archetypeCount: archetypes.length,
-      topArchetypes: top,
+      topArchetypes: archetypes.slice(0, 3).map((a) => ({
+        name: a.name,
+        share: a.share,
+        colors: a.colors,
+      })),
     });
   }
 
-  return result.sort((a, b) => a.format.localeCompare(b.format));
+  // 3. Histórico Geral (Todas as Temporadas)
+  const allSeasons = aggregateFormatData(["GD01", "GD02", "GD03", "GD04", "GD05", "GD05.5"]);
+  result.push({
+    format: "ALL",
+    totalLists: allSeasons.lists,
+    totalEvents: allSeasons.events,
+    archetypeCount: allSeasons.archetypes.length,
+    topArchetypes: allSeasons.archetypes.slice(0, 3).map((a) => ({
+      name: a.name,
+      share: a.share,
+      colors: a.colors,
+    })),
+  });
+
+  return result;
 }
 
 /**
@@ -135,8 +314,30 @@ export async function getFormatMetaBreakdown(
   format: string,
   options?: { color?: string; minLists?: number },
 ): Promise<FormatMetaResponse | null> {
-  const formatKey = format.toUpperCase();
-  const formatData = META_CORES.formats[formatKey as keyof typeof META_CORES.formats];
+  const normalizedKey = format.trim().toUpperCase().replace(/\s+/g, "");
+
+  let formatKey = format;
+  let formatData: { lists: number; events: number; archetypes: any[] } | undefined;
+  let tournamentLabel = `Torneios Competitivos Formato ${format} (Egman Events / Bandai)`;
+
+  if (
+    normalizedKey === "GD05_COMBINED" ||
+    normalizedKey === "CURRENT" ||
+    normalizedKey === "GD05/GD05.5" ||
+    normalizedKey === "GD05_GD05.5" ||
+    normalizedKey === "GD05+GD05.5"
+  ) {
+    formatKey = "GD05_COMBINED";
+    formatData = aggregateFormatData(["GD05", "GD05.5"]);
+    tournamentLabel = "Torneios Competitivos Temporada Atual GD05 & GD05.5 (Egman Events / Bandai)";
+  } else if (normalizedKey === "ALL" || normalizedKey === "TODAS") {
+    formatKey = "ALL";
+    formatData = aggregateFormatData(["GD01", "GD02", "GD03", "GD04", "GD05", "GD05.5"]);
+    tournamentLabel = "Torneios Competitivos de Todas as Temporadas (Egman Events / Bandai)";
+  } else {
+    formatKey = format.toUpperCase();
+    formatData = META_CORES.formats[formatKey as keyof typeof META_CORES.formats];
+  }
 
   if (!formatData) {
     return null;
@@ -243,7 +444,7 @@ export async function getFormatMetaBreakdown(
     tournaments: [
       {
         id: `meta-cores-${formatKey}`,
-        name: `Torneios Competitivos Formato ${formatKey} (Egman Events / Bandai)`,
+        name: tournamentLabel,
         date: META_CORES.generatedAt,
         organizer: "Circuitos Oficiais & Regionais",
         playerCount: null,

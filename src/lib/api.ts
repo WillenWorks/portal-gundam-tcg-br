@@ -346,6 +346,7 @@ export interface FormatMetaResponse {
 
 export interface FormatOverviewItem {
   format: string;
+  label?: string;
   totalLists: number;
   totalEvents: number;
   archetypeCount: number;

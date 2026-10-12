@@ -2621,12 +2621,14 @@ app.get("/api/stats/metagame", async (req, res) => {
   let season: { id: string; code: string; name: string } | null = null;
   if (seasonParam === "all") {
     seasonId = null;
-  } else if (seasonParam === "current") {
-    const current = await prisma.season.findFirst({ where: { isCurrent: true } });
+  } else if (seasonParam === "current" || seasonParam === "GD05_COMBINED") {
+    const current = (await prisma.season.findFirst({ where: { isCurrent: true } })) ||
+      (await prisma.season.findFirst({ where: { code: { in: ["GD05", "GD05.5"] } } }));
     seasonId = current?.id ?? null;
     season = current ? { id: current.id, code: current.code, name: current.name } : null;
   } else {
-    const found = await prisma.season.findUnique({ where: { id: seasonParam } });
+    const found = (await prisma.season.findUnique({ where: { id: seasonParam } })) ||
+      (await prisma.season.findFirst({ where: { code: seasonParam } }));
     if (!found) return res.status(404).json({ error: "Temporada não encontrada." });
     seasonId = found.id;
     season = { id: found.id, code: found.code, name: found.name };
@@ -2637,15 +2639,17 @@ app.get("/api/stats/metagame", async (req, res) => {
 });
 
 // Resolve o parâmetro seasonId da mesma forma que /api/stats/metagame ("current" ->
-// Season.isCurrent, "all" -> null/sem filtro, ou o id de uma season específica) --
+// Season.isCurrent, "all" -> null/sem filtro, ou o id/code de uma season específica) --
 // centralizado aqui pra Power Rankings e Matriz de Confrontos usarem o mesmo critério.
 async function resolveSeasonFilter(seasonParam: string): Promise<{ seasonId: string | null; season: { id: string; code: string; name: string } | null } | null> {
   if (seasonParam === "all") return { seasonId: null, season: null };
-  if (seasonParam === "current") {
-    const current = await prisma.season.findFirst({ where: { isCurrent: true } });
+  if (seasonParam === "current" || seasonParam === "GD05_COMBINED") {
+    const current = (await prisma.season.findFirst({ where: { isCurrent: true } })) ||
+      (await prisma.season.findFirst({ where: { code: { in: ["GD05", "GD05.5"] } } }));
     return { seasonId: current?.id ?? null, season: current ? { id: current.id, code: current.code, name: current.name } : null };
   }
-  const found = await prisma.season.findUnique({ where: { id: seasonParam } });
+  const found = (await prisma.season.findUnique({ where: { id: seasonParam } })) ||
+    (await prisma.season.findFirst({ where: { code: seasonParam } }));
   if (!found) return null;
   return { seasonId: found.id, season: { id: found.id, code: found.code, name: found.name } };
 }
@@ -2731,7 +2735,7 @@ app.get("/api/stats/formats/evolution", (_req, res) => {
 
 app.get("/api/stats/formats/:format", async (req, res) => {
   setPublicCache(res, 300, 1800);
-  const format = String(req.params.format);
+  const format = decodeURIComponent(String(req.params.format));
   const color = typeof req.query.color === "string" ? req.query.color : undefined;
   const minLists = typeof req.query.minLists === "string" ? Number(req.query.minLists) : undefined;
   const result = await getFormatMetaBreakdown(prisma, format, { color, minLists });

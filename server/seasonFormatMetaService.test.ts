@@ -79,13 +79,36 @@ describe("seasonFormatMetaService", () => {
     expect(res!.archetypes.every((a) => a.colors.includes("green"))).toBe(true);
   });
 
-  it("calcula evolução temporal dos arquétipos entre os formatos GD01..GD05", () => {
-    const evolution = getFormatsEvolution();
-    expect(evolution.length).toBeGreaterThan(0);
+  it("ordena GD05_COMBINED no topo de getAvailableFormats e inclui ALL", () => {
+    const formats = getAvailableFormats();
+    expect(formats[0].format).toBe("GD05_COMBINED");
+    expect(formats[0].totalLists).toBe(680);
+    expect(formats[0].totalEvents).toBe(177);
+    expect(formats.some((f) => f.format === "ALL")).toBe(true);
+  });
 
-    const wingZero = evolution.find((e) => e.name.toLowerCase().includes("wing zero"));
-    expect(wingZero).toBeDefined();
-    expect(wingZero!.points.length).toBeGreaterThanOrEqual(2);
-    expect(wingZero!.points.some((p) => p.format === "GD01")).toBe(true);
+  it("retorna agregação matemática precisa para a temporada GD05 / GD05.5", async () => {
+    const res = await getFormatMetaBreakdown(mockPrisma, "GD05_COMBINED");
+    expect(res).toBeDefined();
+    expect(res!.format).toBe("GD05_COMBINED");
+    expect(res!.totalLists).toBe(680);
+    expect(res!.totalEvents).toBe(177);
+    expect(res!.provenance.totalDecks).toBe(680);
+    expect(res!.provenance.tournaments[0].name).toContain("Temporada Atual GD05 & GD05.5");
+
+    // Strike Freedom Gundam é o líder absoluto com 171 listas (150 de GD05 + 21 de GD05.5)
+    const strikeFreedom = res!.archetypes.find((a) => a.name === "Strike Freedom Gundam");
+    expect(strikeFreedom).toBeDefined();
+    expect(strikeFreedom!.lists).toBe(171);
+    expect(strikeFreedom!.share).toBeCloseTo(0.251, 2);
+  });
+
+  it("retorna agregação de Todas as Temporadas (ALL)", async () => {
+    const res = await getFormatMetaBreakdown(mockPrisma, "ALL");
+    expect(res).toBeDefined();
+    expect(res!.format).toBe("ALL");
+    expect(res!.totalLists).toBe(1555);
+    expect(res!.totalEvents).toBe(265);
+    expect(res!.archetypes.length).toBeGreaterThan(20);
   });
 });

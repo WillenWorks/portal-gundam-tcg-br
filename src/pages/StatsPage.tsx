@@ -1,27 +1,37 @@
 /* Estatísticas públicas — visão de metagame por coleção, cor, tipo e atividade competitiva.
- * Filtro por coleção/temporada adicionado pra evitar leitura genérica sem contexto: os
- * números "gerais" (banco inteiro, todos os decks públicos, todos os eventos) escondem
- * diferença real entre metas de coleções/temporadas diferentes, então toda a página agora
- * responde ao filtro escolhido em vez de só mostrar um agregado de tudo desde sempre. */
+ * Reformulado com segmentação modular em 4 Abas Táticas (Metagame Atual GD05/GD05.5,
+ * Metagame Nacional/Brasil, Acervo Geral e Telemetria Avançada VEDA). */
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
-import { Bar, BarChart, CartesianGrid, Pie, PieChart, Cell, XAxis, YAxis } from "recharts";
-import { Flame, TrendingUp, TrendingDown, Trophy, Layers } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import {
+  Flame,
+  TrendingUp,
+  TrendingDown,
+  Trophy,
+  Layers,
+  Swords,
+  MapPin,
+  Database,
+  Cpu,
+  RotateCcw,
+} from "lucide-react";
 
 import { PublicShell } from "@/components/layout/PublicShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from "@/components/ui/chart";
-import { api, type MetagameStatsResponse } from "@/lib/api";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { api, type MetagameStatsResponse, type FormatOverviewItem } from "@/lib/api";
 import { NON_STATS_SECTIONS, NON_STATS_CARD_TYPES } from "@/lib/deck-legality";
 import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX, GAME_COLOR_LABEL_PT, COLOR_OPTIONS } from "@/lib/gundam-catalog";
 import { MetaAnalyticsPanel } from "@/components/stats/MetaAnalyticsPanel";
 import { PowerRankingsPanel } from "@/components/stats/PowerRankingsPanel";
 import { FormatArchetypeCoresPanel } from "@/components/stats/FormatArchetypeCoresPanel";
+import { RegionalMetaPanel } from "@/components/stats/RegionalMetaPanel";
 import { MatchupMatrixPanel } from "@/components/stats/MatchupMatrixPanel";
 import { WeeklyTrendsPanel } from "@/components/stats/WeeklyTrendsPanel";
-import { DataSourceNote } from "@/components/stats/DataSourceNote";
 
 const chartConfig = {
   value: { label: "Valor", color: "var(--primary)" },
@@ -30,9 +40,7 @@ const chartConfig = {
 const FALLBACK_SLICE_COLOR = "#94a3b8";
 const typeLabel = (raw: string) => CARD_TYPE_OPTIONS.find((opt) => opt.value === raw)?.label || raw;
 const ALL_VALUE = "__all__";
-// Season "current" é o default do endpoint de metagame (usa a Season com isCurrent=true
-// no backend) -- distinto de ALL_VALUE, que pede pra misturar tudo incluindo legado.
-const CURRENT_SEASON_VALUE = "current";
+const DEFAULT_FORMAT = "GD05_COMBINED";
 
 export default function StatsPage() {
   const [health, setHealth] = useState<{ userCount: number; cardCount: number; deckCount: number } | null>(null);
@@ -40,52 +48,60 @@ export default function StatsPage() {
   const [cards, setCards] = useState<any[]>([]);
   const [publicDecks, setPublicDecks] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
+  const [availableFormats, setAvailableFormats] = useState<FormatOverviewItem[]>([]);
 
+  // Filtro de formato / temporada (padrão oficial: GD05_COMBINED = GD05 / GD05.5)
+  const [selectedFormat, setSelectedFormat] = useState<string>(DEFAULT_FORMAT);
   const [selectedSetId, setSelectedSetId] = useState<string>(ALL_VALUE);
-  // Season de verdade agora -- "current" (default, usa a Season com isCurrent=true no
-  // backend), ALL_VALUE (mistura tudo incluindo legado) ou o id de uma Season específica
-  // (inclusive uma já legada, pra consulta isolada). Substitui o antigo filtro por texto
-  // livre (Tournament.season).
-  const [selectedSeasonId, setSelectedSeasonId] = useState<string>(CURRENT_SEASON_VALUE);
-  const [seasons, setSeasons] = useState<any[]>([]);
-  const [metagame, setMetagame] = useState<MetagameStatsResponse | null>(null);
-  const [metagameLoading, setMetagameLoading] = useState(true);
-  // Recorte fino do metagame competitivo -- cor/série/trait (deck elegível = tem >=1
-  // carta batendo o filtro) e intervalo de datas real do evento (não da season inteira).
   const [selectedColor, setSelectedColor] = useState<string>("");
   const [selectedTrait, setSelectedTrait] = useState<string>("");
   const [selectedSeries, setSelectedSeries] = useState<string>("");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [filterMeta, setFilterMeta] = useState<{ series: string[]; traits: string[] }>({ series: [], traits: [] });
-  // Fase 2 -- deep-link do Power Rankings ("Explorar Núcleos") pro painel ATMI/VEDA
-  // abaixo. token incrementa a cada clique pra forçar o foco mesmo em cliques repetidos
-  // no mesmo arquétipo (ver useEffect de focusKey em MetaAnalyticsPanel).
+
+  // Aba ativa selecionada
+  const [activeTab, setActiveTab] = useState<string>("competitive");
+
+  // Dados do endpoint de metagame competitivo
+  const [metagame, setMetagame] = useState<MetagameStatsResponse | null>(null);
+  const [metagameLoading, setMetagameLoading] = useState(true);
+
+  // Deep-link para o painel ATMI
   const [atmiFocusKey, setAtmiFocusKey] = useState<{ key: string; token: number } | null>(null);
-  const handleExploreArchetype = (key: string) => setAtmiFocusKey((prev) => ({ key, token: (prev?.token ?? 0) + 1 }));
+  const handleExploreArchetype = (key: string) => {
+    setActiveTab("telemetry");
+    setAtmiFocusKey((prev) => ({ key, token: (prev?.token ?? 0) + 1 }));
+  };
 
   useEffect(() => {
-    Promise.all([api.health(), api.listSets(), api.listCards(), api.listPublicDecks(), api.listTournaments(), api.listSeasons(), api.getCardFilters()])
-      .then(([healthRes, setsRes, cardsRes, decksRes, eventsRes, seasonsRes, cardFiltersRes]) => {
+    Promise.all([
+      api.health(),
+      api.listSets(),
+      api.listCards(),
+      api.listPublicDecks(),
+      api.listTournaments(),
+      api.getFormatList(),
+      api.getCardFilters(),
+    ])
+      .then(([healthRes, setsRes, cardsRes, decksRes, eventsRes, formatsRes, cardFiltersRes]) => {
         setHealth(healthRes);
         setSets(setsRes);
         setCards(cardsRes);
         setPublicDecks(decksRes);
         setEvents(eventsRes);
-        setSeasons(seasonsRes);
+        setAvailableFormats(formatsRes);
         setFilterMeta({ series: cardFiltersRes.series, traits: cardFiltersRes.traits });
       })
       .catch(() => undefined);
   }, []);
 
-  // Metagame competitivo (topCards/colorDistribution/colorCombos/tendência) vem de um
-  // endpoint à parte (GET /api/stats/metagame) porque a fonte é DeckSnapshot travado em
-  // resultado real de torneio/evento -- nunca Deck/DeckItem público, que o dono pode
-  // editar ou apagar a qualquer momento. Refaz a busca a cada troca de qualquer filtro.
+  // Metagame competitivo sincronizado com o filtro de formato/season
   useEffect(() => {
     setMetagameLoading(true);
+    const seasonParam = selectedFormat === "ALL" ? "all" : selectedFormat;
     api.getMetagameStats({
-      seasonId: selectedSeasonId,
+      seasonId: seasonParam,
       setId: selectedSetId === ALL_VALUE ? undefined : selectedSetId,
       color: selectedColor || undefined,
       trait: selectedTrait || undefined,
@@ -96,52 +112,47 @@ export default function StatsPage() {
       .then(setMetagame)
       .catch(() => setMetagame(null))
       .finally(() => setMetagameLoading(false));
-  }, [selectedSeasonId, selectedSetId, selectedColor, selectedTrait, selectedSeries, startDate, endDate]);
+  }, [selectedFormat, selectedSetId, selectedColor, selectedTrait, selectedSeries, startDate, endDate]);
 
-  /* Estatísticas de banco/comunidade (não-competitivas): leem o corpus de decks PUBLIC
-   * já carregado -- só pra dar um retrato de curadoria da comunidade (o que o pessoal
-   * está montando), nunca como dado de metagame competitivo (ver metagame acima, que é
-   * a única fonte tratada como "resultado real"). Cartas de referência de token não
-   * contam pra nenhuma leitura por carta. */
   const relevantItems = (deck: any) =>
-    (deck.items || []).filter((item: any) => item.card && !NON_STATS_SECTIONS.includes(item.section) && !NON_STATS_CARD_TYPES.includes(item.card.cardType));
+    (deck.items || []).filter(
+      (item: any) =>
+        item.card && !NON_STATS_SECTIONS.includes(item.section) && !NON_STATS_CARD_TYPES.includes(item.card.cardType),
+    );
 
-  // Recorte pelo filtro de coleção escolhido -- filtra o banco de cartas direto
-  // (Card.setId). Um deck público só entra no recorte se tiver pelo menos uma carta
-  // daquela coleção -- do contrário toda leitura "por coleção" ficaria vazia (a maioria
-  // dos decks mistura cartas de várias expansões).
-  const filteredCards = useMemo(() => (selectedSetId === ALL_VALUE ? cards : cards.filter((card) => card.setId === selectedSetId)), [cards, selectedSetId]);
-  // Recurso, Recurso EX e Base EX são componente fixo do jogo, não conteúdo de
-  // deckbuilding — ficam de fora de qualquer leitura por cor/tipo (o total bruto de
-  // "cartas cadastradas" continua usando filteredCards).
-  const statsCards = useMemo(() => filteredCards.filter((card) => !NON_STATS_CARD_TYPES.includes(card.cardType)), [filteredCards]);
+  const filteredCards = useMemo(
+    () => (selectedSetId === ALL_VALUE ? cards : cards.filter((card) => card.setId === selectedSetId)),
+    [cards, selectedSetId],
+  );
+
+  const statsCards = useMemo(
+    () => filteredCards.filter((card) => !NON_STATS_CARD_TYPES.includes(card.cardType)),
+    [filteredCards],
+  );
+
   const filteredDecks = useMemo(
-    () => (selectedSetId === ALL_VALUE ? publicDecks : publicDecks.filter((deck) => relevantItems(deck).some((item: any) => item.card.setId === selectedSetId))),
+    () =>
+      selectedSetId === ALL_VALUE
+        ? publicDecks
+        : publicDecks.filter((deck) => relevantItems(deck).some((item: any) => item.card.setId === selectedSetId)),
     [publicDecks, selectedSetId],
   );
-  // Torneios "report" (Tournament) filtrados pela mesma Season selecionada -- só entram
-  // no recorte por season específica os que já têm seasonId vinculado (torneios antigos
-  // sem essa reclassificação só aparecem em "todas as temporadas").
+
   const filteredEvents = useMemo(() => {
-    if (selectedSeasonId === ALL_VALUE) return events;
-    if (selectedSeasonId === CURRENT_SEASON_VALUE) {
-      const current = seasons.find((season) => season.isCurrent);
-      return current ? events.filter((event) => event.seasonId === current.id) : events;
-    }
-    return events.filter((event) => event.seasonId === selectedSeasonId);
-  }, [events, seasons, selectedSeasonId]);
+    if (selectedFormat === "ALL") return events;
+    return events;
+  }, [events, selectedFormat]);
+
   const activeSetLabel = useMemo(() => sets.find((set) => set.id === selectedSetId)?.code, [sets, selectedSetId]);
-  const activeSeasonLabel = useMemo(() => {
-    if (selectedSeasonId === ALL_VALUE) return null;
-    if (selectedSeasonId === CURRENT_SEASON_VALUE) return metagame?.season ? `${metagame.season.code} (atual)` : null;
-    const found = seasons.find((season) => season.id === selectedSeasonId);
-    return found ? `${found.code} (legado)` : null;
-  }, [selectedSeasonId, seasons, metagame]);
-  const isFiltered = selectedSetId !== ALL_VALUE || selectedSeasonId !== CURRENT_SEASON_VALUE;
-  const isMetagameFiltered = isFiltered || Boolean(selectedColor || selectedTrait || selectedSeries || startDate || endDate);
+
+  const isFiltered =
+    selectedFormat !== DEFAULT_FORMAT ||
+    selectedSetId !== ALL_VALUE ||
+    Boolean(selectedColor || selectedTrait || selectedSeries || startDate || endDate);
+
   const clearAllFilters = () => {
+    setSelectedFormat(DEFAULT_FORMAT);
     setSelectedSetId(ALL_VALUE);
-    setSelectedSeasonId(CURRENT_SEASON_VALUE);
     setSelectedColor("");
     setSelectedTrait("");
     setSelectedSeries("");
@@ -149,6 +160,7 @@ export default function StatsPage() {
     setEndDate("");
   };
 
+  // Gráficos de Acervo e Base Geral
   const setChart = useMemo(() => sets.map((set) => ({ name: set.code, value: set._count?.cards ?? 0 })), [sets]);
 
   const colorChart = useMemo(() => {
@@ -163,36 +175,27 @@ export default function StatsPage() {
     return Array.from(map.entries()).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name: typeLabel(name), value }));
   }, [statsCards]);
 
-  const deckColorMeta = useMemo(() => {
-    const map = new Map<string, number>();
-    filteredDecks.forEach((deck) => {
-      const seen = new Set<string>();
-      relevantItems(deck).forEach((item: any) => {
-        const color = item.card?.color || "Sem cor";
-        if (!seen.has(color)) {
-          map.set(color, (map.get(color) ?? 0) + 1);
-          seen.add(color);
-        }
-      });
-    });
-    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
-  }, [filteredDecks]);
-
-  const tournamentChart = useMemo(
-    () => filteredEvents.map((event) => ({ name: event.seasonRef?.code || event.season || event.name.slice(0, 10), value: event.participantCount || 0 })),
-    [filteredEvents],
+  // Metagame Competitivo
+  const cardPresence = useMemo(
+    () => (metagame?.topCards || []).map((entry) => ({ name: entry.name, value: entry.appearances, color: entry.color })),
+    [metagame],
   );
-
-  // Metagame competitivo, já formatado pro gráfico -- cardPresence/colorCombos vêm
-  // prontos do endpoint (contagem "por deck", não por cópia, igual antes).
-  const cardPresence = useMemo(() => (metagame?.topCards || []).map((entry) => ({ name: entry.name, value: entry.appearances, color: entry.color })), [metagame]);
-  const colorCombos = useMemo(() => (metagame?.colorCombos || []).map((entry) => ({ name: entry.combo, value: entry.decks })), [metagame]);
-  const metagameColorChart = useMemo(() => (metagame?.colorDistribution || []).map((entry) => ({ name: entry.color, value: entry.decks })), [metagame]);
-  const traitMetaChart = useMemo(() => (metagame?.traitDistribution || []).map((entry) => ({ name: entry.trait, value: entry.decks })), [metagame]);
-  const seriesMetaChart = useMemo(() => (metagame?.seriesDistribution || []).map((entry) => ({ name: entry.series, value: entry.decks })), [metagame]);
+  const colorCombos = useMemo(
+    () => (metagame?.colorCombos || []).map((entry) => ({ name: entry.combo, value: entry.decks })),
+    [metagame],
+  );
+  const traitMetaChart = useMemo(
+    () => (metagame?.traitDistribution || []).map((entry) => ({ name: entry.trait, value: entry.decks })),
+    [metagame],
+  );
+  const seriesMetaChart = useMemo(
+    () => (metagame?.seriesDistribution || []).map((entry) => ({ name: entry.series, value: entry.decks })),
+    [metagame],
+  );
   const risingCards = metagame?.risingCards ?? [];
   const decliningCards = metagame?.decliningCards ?? [];
 
+  // Padrões consolidados do Gundam TCG
   const popularArchetypes = useMemo(() => {
     const archetypesMap = new Map<
       string,
@@ -261,12 +264,8 @@ export default function StatsPage() {
     });
 
     const calculated = [...archetypesMap.values()].sort((a, b) => b.deckCount - a.deckCount);
+    if (calculated.length >= 2) return calculated.slice(0, 4);
 
-    if (calculated.length >= 2) {
-      return calculated.slice(0, 4);
-    }
-
-    // Padrões consolidados do Gundam TCG
     return [
       {
         name: "Azul · Earth Federation",
@@ -298,51 +297,56 @@ export default function StatsPage() {
       {
         name: "Branco · After Colony",
         color: "Branco",
-        trait: "Colony",
-        deckCount: Math.max(1, Math.floor(filteredDecks.length * 0.5)),
-        avgCost: 3.7,
-        sampleNames: ["Wing Gundam", "Heero Yuy", "Tallgeese"],
-        description: "Finalização devastadora e mobilidade tática com capacidade de romper defesas pesadas.",
+        trait: "After Colony",
+        deckCount: Math.max(1, Math.floor(filteredDecks.length * 0.4)),
+        avgCost: 3.8,
+        sampleNames: ["Wing Gundam", "Deathscythe", "Heero Yuy"],
+        description: "Postura reativa com defensores pesados, anulação de ataques e bombas de dano em área.",
       },
     ];
   }, [filteredDecks]);
 
-  const intelligenceNotes = useMemo(() => {
-    const topColor = [...colorChart].sort((a, b) => b.value - a.value)[0];
-    const topType = [...typeChart].sort((a, b) => b.value - a.value)[0];
-    const topMetaCard = cardPresence[0];
-    const topSet = isFiltered ? null : [...setChart].sort((a, b) => b.value - a.value)[0];
-
-    return [
-      isFiltered
-        ? { label: "Filtro ativo", value: `${activeSetLabel ? `Coleção ${activeSetLabel}` : "Todas as coleções"}${activeSeasonLabel ? ` · temporada ${activeSeasonLabel}` : ""} — ${filteredCards.length} carta(s) cadastradas, ${metagame?.totalDecks ?? 0} deck(s) de metagame (evento) nesse recorte.` }
-        : { label: "Cobertura dominante", value: topSet ? `${topSet.name} com ${topSet.value} cartas cadastradas.` : "Sem coleções suficientes ainda." },
-      { label: "Cor mais presente no banco", value: topColor ? `${topColor.name} aparece em ${topColor.value} cartas.` : "Sem cartas suficientes ainda." },
-      { label: "Tipo mais representado", value: topType ? `${topType.name} lidera com ${topType.value} cartas.` : "Sem tipos suficientes ainda." },
-      { label: "Carta mais usada no metagame", value: topMetaCard ? `${topMetaCard.name} aparece em ${topMetaCard.value} deck(s) de resultado real.` : "Ainda não há decks suficientes travados em evento." },
-    ];
-  }, [setChart, colorChart, typeChart, cardPresence, isFiltered, activeSetLabel, activeSeasonLabel, filteredCards.length, metagame]);
-
   return (
     <PublicShell breadcrumbs={[{ label: "Sistema VEDA" }]}>
       <div className="space-y-6">
+        {/* HERO TÁTICO VEDA */}
         <Card className="panel-cut rounded-none border-primary/30 hero-surface">
           <CardContent className="p-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-primary font-semibold">Terminal Quântico VEDA · Metagame & Previsão Tática</p>
-                <h2 className="mt-2 font-heading text-5xl uppercase">Sistema VEDA · Análise Operacional</h2>
-                <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">O Sistema VEDA processa a telemetria em tempo real do metagame: distribuição por coleção, cores dominantes, tipos e atividade competitiva por evento. O módulo de metagame competitivo abaixo opera exclusivamente com dados consolidados de torneios e resultados oficiais validados.</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-primary font-semibold font-mono">
+                  Terminal Quântico VEDA · Metagame & Previsão Tática
+                </p>
+                <h2 className="mt-2 font-heading text-4xl sm:text-5xl uppercase tracking-wider text-white">
+                  Sistema VEDA · Metagame & Estatísticas
+                </h2>
+                <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-300">
+                  Processamento em tempo real do metagame competitivo oficial: presença de arquétipos, núcleos de cartas
+                  (Core, Flex e Tech), telemetria regional brasileira e sinergias de Mobile Suits.
+                </p>
               </div>
+
               <div className="flex flex-wrap items-center gap-2">
-                <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">Link VEDA Online</Badge>
-                <Button size="sm" variant="outline" asChild className="rounded-none border-primary/40 bg-primary/10 text-xs font-mono uppercase text-primary hover:bg-primary/20">
+                <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent font-mono text-xs">
+                  Link VEDA Online
+                </Badge>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  asChild
+                  className="rounded-none border-primary/40 bg-primary/10 text-xs font-mono uppercase text-primary hover:bg-primary/20"
+                >
                   <Link href="/torneios">
                     <Trophy className="size-3 mr-1" />
-                    Torneios & Reports
+                    Torneios Oficiais
                   </Link>
                 </Button>
-                <Button size="sm" variant="outline" asChild className="rounded-none border-primary/40 bg-primary/10 text-xs font-mono uppercase text-primary hover:bg-primary/20">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  asChild
+                  className="rounded-none border-primary/40 bg-primary/10 text-xs font-mono uppercase text-primary hover:bg-primary/20"
+                >
                   <Link href="/arquetipos">
                     <Layers className="size-3 mr-1" />
                     Arquétipos
@@ -351,502 +355,399 @@ export default function StatsPage() {
               </div>
             </div>
 
-            <div className="mt-6 space-y-3 border-t border-white/10 pt-5">
+            {/* BARRA UNIFICADA DE FILTRO DE METAGAME */}
+            <div className="mt-6 border-t border-white/10 pt-5 space-y-3 font-mono">
               <div className="flex flex-wrap items-center gap-3">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Filtrar por</p>
+                <span className="text-xs uppercase tracking-[0.2em] text-slate-400 font-bold">Temporada:</span>
+
+                {/* Seletor de Temporada / Formato com GD05 / GD05.5 no Topo */}
+                <select
+                  value={selectedFormat}
+                  onChange={(event) => setSelectedFormat(event.target.value)}
+                  className="field-shell h-9 rounded-none border border-primary/40 bg-slate-950/90 px-3 text-sm text-primary font-bold shadow-[0_0_10px_rgba(20,184,166,0.2)]"
+                >
+                  <option value="GD05_COMBINED">Temporada Atual (GD05 / GD05.5) — Padrão Oficial</option>
+                  <option value="GD05.5">Formato GD05.5 (Mini-expansão)</option>
+                  <option value="GD05">Formato GD05 (Lançamento)</option>
+                  <option value="GD04">Formato GD04</option>
+                  <option value="GD03">Formato GD03</option>
+                  <option value="GD02">Formato GD02</option>
+                  <option value="GD01">Formato GD01</option>
+                  <option value="ALL">Todas as Temporadas (Histórico Geral)</option>
+                </select>
+
                 <select
                   value={selectedSetId}
                   onChange={(event) => setSelectedSetId(event.target.value)}
                   className="field-shell h-9 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white"
                 >
-                  <option value={ALL_VALUE}>Todas as coleções</option>
-                  {sets.map((set) => <option key={set.id} value={set.id}>{set.code} — {set.namePt || set.nameEn}</option>)}
+                  <option value={ALL_VALUE}>Todas as coleções cadastradas</option>
+                  {sets.map((set) => (
+                    <option key={set.id} value={set.id}>
+                      {set.code} — {set.namePt || set.nameEn}
+                    </option>
+                  ))}
                 </select>
-                <select
-                  value={selectedSeasonId}
-                  onChange={(event) => setSelectedSeasonId(event.target.value)}
-                  className="field-shell h-9 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white"
-                >
-                  <option value={CURRENT_SEASON_VALUE}>Temporada atual</option>
-                  <option value={ALL_VALUE}>Todas as temporadas (inclui legado)</option>
-                  {seasons.map((season) => <option key={season.id} value={season.id}>{season.code} — {season.name}{season.isCurrent ? " (atual)" : " (legado)"}</option>)}
-                </select>
-                <select
-                  value={selectedSeries}
-                  onChange={(event) => setSelectedSeries(event.target.value)}
-                  className="field-shell h-9 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white"
-                >
-                  <option value="">Todas as séries</option>
-                  {filterMeta.series.map((item) => <option key={item} value={item}>{item}</option>)}
-                </select>
-                <select
-                  value={selectedTrait}
-                  onChange={(event) => setSelectedTrait(event.target.value)}
-                  className="field-shell h-9 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white"
-                >
-                  <option value="">Todas as traits</option>
-                  {filterMeta.traits.map((item) => <option key={item} value={item}>{item}</option>)}
-                </select>
-                {isMetagameFiltered ? (
-                  <button type="button" onClick={clearAllFilters} className="text-xs uppercase tracking-[0.16em] text-primary hover:underline">Limpar filtro</button>
-                ) : null}
+
+                {isFiltered && (
+                  <button
+                    type="button"
+                    onClick={clearAllFilters}
+                    className="flex items-center gap-1 text-xs uppercase tracking-[0.16em] text-primary hover:underline ml-auto"
+                  >
+                    <RotateCcw className="size-3" />
+                    Restaurar Padrão (GD05 / GD05.5)
+                  </button>
+                )}
               </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-xs uppercase tracking-[0.2em] text-slate-500">Cor</span>
+
+              {/* Filtros Secundários de Cor e Período */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs uppercase tracking-[0.2em] text-slate-400">Filtrar Cor:</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedColor("")}
+                    className={`px-2 py-1 text-[11px] font-mono uppercase border transition-colors ${
+                      !selectedColor ? "border-primary bg-primary/20 text-primary" : "border-white/10 text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    Todas
+                  </button>
                   {COLOR_OPTIONS.map((color) => (
                     <button
                       key={color}
                       type="button"
                       onClick={() => setSelectedColor((current) => (current === color ? "" : color))}
                       title={GAME_COLOR_LABEL_PT[color]}
-                      className={`size-6 rounded-full border-2 transition-transform ${selectedColor === color ? "scale-110 border-white" : "border-white/20 hover:border-white/50"}`}
+                      className={`size-6 rounded-full border-2 transition-transform ${
+                        selectedColor === color ? "scale-110 border-white shadow-md" : "border-white/20 hover:border-white/50"
+                      }`}
                       style={{ backgroundColor: GAME_COLOR_HEX[color] }}
                     />
                   ))}
                 </div>
-                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-500">
-                  <span>Período do evento</span>
-                  <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="field-shell h-9 rounded-none border border-white/15 bg-slate-950/70 px-2 text-sm text-white" />
+
+                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-400">
+                  <span>Período:</span>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(event) => setStartDate(event.target.value)}
+                    className="field-shell h-8 rounded-none border border-white/15 bg-slate-950/70 px-2 text-xs text-white"
+                  />
                   <span>até</span>
-                  <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="field-shell h-9 rounded-none border border-white/15 bg-slate-950/70 px-2 text-sm text-white" />
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(event) => setEndDate(event.target.value)}
+                    className="field-shell h-8 rounded-none border border-white/15 bg-slate-950/70 px-2 text-xs text-white"
+                  />
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-          {[
-            ["Usuários", String(health?.userCount ?? 0)],
-            ["Cartas", String(isFiltered ? filteredCards.length : (health?.cardCount ?? 0))],
-            ["Decks públicos", String(filteredDecks.length)],
-            ["Decks de metagame", String(metagame?.totalDecks ?? 0)],
-            ["Campeonatos", String(filteredEvents.length)],
-            ["Coleções", String(sets.length)],
-          ].map(([label, value]) => (
-            <Card key={label} className="panel-cut rounded-none surface-panel"><CardContent className="p-5"><p className="text-xs uppercase tracking-[0.24em] text-slate-400">{label}</p><p className="mt-4 font-heading text-5xl leading-none text-white">{value}</p></CardContent></Card>
-          ))}
-        </div>
+        {/* NAVEGAÇÃO EM 4 ABAS TÁTICAS */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
+          <TabsList className="w-full justify-start overflow-x-auto border-b border-white/10 bg-transparent p-0 gap-2 h-auto rounded-none pb-px">
+            <TabsTrigger
+              value="competitive"
+              className="panel-cut rounded-none border border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/20 data-[state=active]:text-white data-[state=active]:font-bold text-slate-400 hover:text-white px-4 py-2.5 text-xs uppercase font-mono tracking-wider transition-all flex items-center gap-2"
+            >
+              <Swords className="size-4 text-accent" />
+              1. Metagame Competitivo ({selectedFormat === "GD05_COMBINED" ? "GD05 / GD05.5" : selectedFormat})
+            </TabsTrigger>
 
-        <div className="grid gap-6 xl:grid-cols-2">
-          <Card className="panel-cut rounded-none surface-panel">
-            <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Cobertura por coleção</p>
-              <h3 className="mt-2 font-heading text-3xl uppercase">Cartas cadastradas por expansão</h3>
-              <div className="mt-6 h-[320px]">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <BarChart data={setChart}>
-                    <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
-                    <XAxis dataKey="name" tickLine={false} axisLine={false} />
-                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="value" fill="var(--color-value)" radius={0} />
-                  </BarChart>
-                </ChartContainer>
-              </div>
-            </CardContent>
-          </Card>
+            <TabsTrigger
+              value="regional"
+              className="panel-cut rounded-none border border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/20 data-[state=active]:text-white data-[state=active]:font-bold text-slate-400 hover:text-white px-4 py-2.5 text-xs uppercase font-mono tracking-wider transition-all flex items-center gap-2"
+            >
+              <MapPin className="size-4 text-primary" />
+              2. Metagame Nacional (Brasil & Praças)
+            </TabsTrigger>
 
-          <Card className="panel-cut rounded-none surface-panel">
-            <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Banco por cor{isFiltered && activeSetLabel ? ` · ${activeSetLabel}` : ""}</p>
-              <h3 className="mt-2 font-heading text-3xl uppercase">Distribuição de cartas por cor</h3>
-              <div className="mt-6 h-[320px]">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <PieChart>
-                    <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
-                    <Pie data={colorChart} dataKey="value" nameKey="name" innerRadius={52} outerRadius={95} strokeWidth={2}>
-                      {colorChart.map((entry) => <Cell key={entry.name} fill={GAME_COLOR_HEX[entry.name] || FALLBACK_SLICE_COLOR} />)}
-                    </Pie>
-                    <ChartLegend content={<ChartLegendContent nameKey="name" />} />
-                  </PieChart>
-                </ChartContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            <TabsTrigger
+              value="catalog"
+              className="panel-cut rounded-none border border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/20 data-[state=active]:text-white data-[state=active]:font-bold text-slate-400 hover:text-white px-4 py-2.5 text-xs uppercase font-mono tracking-wider transition-all flex items-center gap-2"
+            >
+              <Database className="size-4 text-emerald-400" />
+              3. Estatísticas Gerais & Acervo
+            </TabsTrigger>
 
-        <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          <Card className="panel-cut rounded-none surface-panel">
-            <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Pool por tipo{isFiltered && activeSetLabel ? ` · ${activeSetLabel}` : ""}</p>
-              <h3 className="mt-2 font-heading text-3xl uppercase">Tipos mais presentes</h3>
-              <div className="mt-6 h-[320px]">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <BarChart data={typeChart.slice(0, 8)} layout="vertical" margin={{ left: 16, right: 12 }}>
-                    <CartesianGrid horizontal={false} stroke="rgba(255,255,255,0.08)" />
-                    <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
-                    <YAxis type="category" dataKey="name" width={110} tickLine={false} axisLine={false} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="value" fill="var(--color-value)" radius={0} />
-                  </BarChart>
-                </ChartContainer>
-              </div>
-            </CardContent>
-          </Card>
+            <TabsTrigger
+              value="telemetry"
+              className="panel-cut rounded-none border border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/20 data-[state=active]:text-white data-[state=active]:font-bold text-slate-400 hover:text-white px-4 py-2.5 text-xs uppercase font-mono tracking-wider transition-all flex items-center gap-2"
+            >
+              <Cpu className="size-4 text-sky-400" />
+              4. Telemetria Avançada & Confrontos (VEDA)
+            </TabsTrigger>
+          </TabsList>
 
-          <Card className="panel-cut rounded-none surface-panel">
-            <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Leitura rápida</p>
-              <h3 className="mt-2 font-heading text-3xl uppercase">Intel pública</h3>
-              <div className="mt-6 space-y-4">
-                {intelligenceNotes.map((item) => (
-                  <div key={item.label} className="panel-cut border surface-strong p-4">
-                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{item.label}</p>
-                    <p className="mt-2 text-sm leading-7 text-white">{item.value}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+          {/* ========================================================================= */}
+          {/* ABA 1: METAGAME COMPETITIVO (TEMPORADA ATUAL GD05 / GD05.5)              */}
+          {/* ========================================================================= */}
+          <TabsContent value="competitive" className="space-y-6 focus-visible:outline-none">
+            {/* Painel de Núcleos de Arquétipo com seletor sincronizado */}
+            <FormatArchetypeCoresPanel
+              selectedFormat={selectedFormat}
+              onFormatChange={setSelectedFormat}
+            />
 
-        <div className="grid gap-6 xl:grid-cols-2">
-          <Card className="panel-cut rounded-none surface-panel">
-            <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Comunidade (não é metagame){isFiltered && activeSetLabel ? ` · ${activeSetLabel}` : ""}</p>
-              <h3 className="mt-2 font-heading text-3xl uppercase">Cores que aparecem nos decks públicos</h3>
-              <p className="mt-2 text-xs text-slate-500">Curadoria da comunidade (decks públicos, editáveis a qualquer momento pelo dono) — não entra na leitura de metagame competitivo abaixo.</p>
-              <div className="mt-6 h-[320px]">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <BarChart data={deckColorMeta}>
-                    <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
-                    <XAxis dataKey="name" tickLine={false} axisLine={false} />
-                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="value" radius={0}>
-                      {deckColorMeta.map((entry) => <Cell key={entry.name} fill={GAME_COLOR_HEX[entry.name] || FALLBACK_SLICE_COLOR} />)}
-                    </Bar>
-                  </BarChart>
-                </ChartContainer>
-              </div>
-            </CardContent>
-          </Card>
+            {/* Power Rankings Semanal */}
+            <PowerRankingsPanel
+              seasonId={selectedFormat === "ALL" ? "all" : selectedFormat}
+              setId={selectedSetId === ALL_VALUE ? undefined : selectedSetId}
+              onExploreArchetype={handleExploreArchetype}
+            />
+          </TabsContent>
 
-          <Card className="panel-cut rounded-none surface-panel">
-            <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Atividade competitiva{activeSeasonLabel ? ` · ${activeSeasonLabel}` : ""}</p>
-              <h3 className="mt-2 font-heading text-3xl uppercase">Participantes por campeonato</h3>
-              <div className="mt-6 h-[320px]">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <BarChart data={tournamentChart}>
-                    <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
-                    <XAxis dataKey="name" tickLine={false} axisLine={false} />
-                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="value" fill="var(--color-value)" radius={0} />
-                  </BarChart>
-                </ChartContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+          {/* ========================================================================= */}
+          {/* ABA 2: METAGAME NACIONAL (BRASIL & PRAÇAS REGIONAIS)                      */}
+          {/* ========================================================================= */}
+          <TabsContent value="regional" className="space-y-6 focus-visible:outline-none">
+            <RegionalMetaPanel
+              seasonId={selectedFormat === "ALL" ? "all" : selectedFormat}
+              setId={selectedSetId === ALL_VALUE ? undefined : selectedSetId}
+            />
+          </TabsContent>
 
-        <Card className="panel-cut rounded-none border-primary/30 hero-surface">
-          <CardContent className="p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Fonte: só resultado real</p>
-                <h2 className="mt-2 font-heading text-4xl uppercase">Metagame competitivo</h2>
-                <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">Presença, winrate, cópias médias, tendência de alta/queda e distribuição por cor/trait/série calculados só a partir de decks travados (DeckSnapshot) no momento em que foram usados num torneio reportado ou num evento do organizador já finalizado. Decks públicos nunca entram aqui — podem ser editados ou apagados a qualquer momento pelo dono, então não são uma fonte confiável de metagame.{isMetagameFiltered ? " Recorte aplicado pelo filtro acima." : ""} Quanto mais torneios e eventos forem cadastrados, mais precisa fica cada leitura abaixo.</p>
-              </div>
-              {metagame?.season ? <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">Temporada {metagame.season.code}</Badge> : selectedSeasonId === ALL_VALUE ? <Badge className="rounded-none border border-white/15 bg-white/5 text-slate-400">Todas as temporadas</Badge> : null}
-            </div>
-            {!metagameLoading && !metagame?.totalDecks ? (
-              <p className="mt-4 text-xs text-slate-500">Ainda não há decks suficientes travados em resultado real pra esse recorte.</p>
-            ) : !metagameLoading && metagame && metagame.totalDecks > 0 && metagame.totalDecks < 10 ? (
-              <div className="mt-4 flex items-center gap-2">
-                <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-300 text-xs">
-                  Amostra preliminar (&lt; 10 listas)
-                </Badge>
-                <span className="text-xs text-slate-400">Poucos dados neste recorte — sujeito a variações pontuais.</span>
-              </div>
-            ) : null}
-            {metagame?.provenance && (
-              <DataSourceNote
-                provenance={metagame.provenance}
-                labelPrefix="Amostragem competitiva baseada em"
-                weightNote="Cada lista conta igual, independente do tamanho do torneio. Use o filtro de tipo de evento para ver só os maiores."
-                className="mt-5"
-              />
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Fase 2 -- Power Rankings semanal (só torneio reportado, ver §2.3/§5). */}
-        <PowerRankingsPanel seasonId={selectedSeasonId} setId={selectedSetId === ALL_VALUE ? undefined : selectedSetId} onExploreArchetype={handleExploreArchetype} />
-
-        {/* Fase 3 -- Evolução Semanal dos Arquétipos & Amostragem (Fase 3, ver PLANO_METAGAME_TORNEIOS_TELEMETRIA.md §2.3/§3) */}
-        <WeeklyTrendsPanel seasonId={selectedSeasonId} />
-
-        <div className="grid gap-6 xl:grid-cols-2">
-          <Card className="panel-cut rounded-none surface-panel">
-            <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Presença de carta{isMetagameFiltered && activeSetLabel ? ` · ${activeSetLabel}` : ""}</p>
-              <h3 className="mt-2 font-heading text-3xl uppercase">Mais usadas no metagame</h3>
-              <div className="mt-6 h-[340px]">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <BarChart data={cardPresence} layout="vertical" margin={{ left: 16, right: 12 }}>
-                    <CartesianGrid horizontal={false} stroke="rgba(255,255,255,0.08)" />
-                    <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
-                    <YAxis type="category" dataKey="name" width={130} tickLine={false} axisLine={false} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="value" radius={0}>
-                      {cardPresence.map((entry) => <Cell key={entry.name} fill={(entry.color && GAME_COLOR_HEX[entry.color]) || FALLBACK_SLICE_COLOR} />)}
-                    </Bar>
-                  </BarChart>
-                </ChartContainer>
-              </div>
-              {!cardPresence.length ? <p className="mt-3 text-xs text-slate-500">Ainda não há decks de metagame suficientes nesse recorte.</p> : null}
-            </CardContent>
-          </Card>
-
-          <Card className="panel-cut rounded-none surface-panel">
-            <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Distribuição de cor{isMetagameFiltered && activeSetLabel ? ` · ${activeSetLabel}` : ""}</p>
-              <h3 className="mt-2 font-heading text-3xl uppercase">Cores mais usadas no metagame</h3>
-              <div className="mt-6 h-[320px]">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <BarChart data={metagameColorChart}>
-                    <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
-                    <XAxis dataKey="name" tickLine={false} axisLine={false} />
-                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="value" radius={0}>
-                      {metagameColorChart.map((entry) => <Cell key={entry.name} fill={GAME_COLOR_HEX[entry.name] || FALLBACK_SLICE_COLOR} />)}
-                    </Bar>
-                  </BarChart>
-                </ChartContainer>
-              </div>
-              {!metagameColorChart.length ? <p className="mt-3 text-xs text-slate-500">Ainda não há decks de metagame suficientes nesse recorte.</p> : null}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Base métrica por carta -- quantidade, aparição, cópias médias e winrate juntos
-         *  numa tabela só (os gráficos acima já cobrem presença isolada). */}
-        <Card className="panel-cut rounded-none surface-panel">
-          <CardContent className="p-6">
-            <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Base métrica por carta{isMetagameFiltered && activeSetLabel ? ` · ${activeSetLabel}` : ""}</p>
-            <h3 className="mt-2 font-heading text-3xl uppercase">Quantidade, presença e winrate</h3>
-            <p className="mt-2 text-xs text-slate-500">Winrate é a taxa de vitória média dos decks que carregam a carta (não da carta isolada) -- mesma leitura usada na página de detalhe da carta. "—" quando ainda não há partida registrada pra essa carta.</p>
-            {metagame?.topCards.length ? (
-              <div className="mt-5 overflow-x-auto">
-                <table className="w-full min-w-[640px] border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b border-white/10 text-left text-xs uppercase tracking-[0.14em] text-slate-500">
-                      <th className="py-2 pr-3">Carta</th>
-                      <th className="py-2 pr-3">Cor</th>
-                      <th className="py-2 pr-3">Aparições</th>
-                      <th className="py-2 pr-3">Presença</th>
-                      <th className="py-2 pr-3">Cópias médias</th>
-                      <th className="py-2 pr-3">Winrate</th>
-                      <th className="py-2 pr-3">Partidas</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {metagame.topCards.map((card) => (
-                      <tr key={card.cardModelId} className="border-b border-white/5 text-slate-300">
-                        <td className="py-2 pr-3 text-white">{card.name}</td>
-                        <td className="py-2 pr-3">{card.color ? <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full" style={{ backgroundColor: GAME_COLOR_HEX[card.color] || FALLBACK_SLICE_COLOR }} />{GAME_COLOR_LABEL_PT[card.color] || card.color}</span> : "—"}</td>
-                        <td className="py-2 pr-3">{card.appearances}</td>
-                        <td className="py-2 pr-3">{card.presenceRate != null ? `${card.presenceRate}%` : "—"}</td>
-                        <td className="py-2 pr-3">{card.avgCopies ?? "—"}</td>
-                        <td className="py-2 pr-3">{card.winRate != null ? `${card.winRate}%` : "—"}</td>
-                        <td className="py-2 pr-3 text-xs text-slate-500">{card.recordedMatches}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="mt-4 text-sm text-slate-500">Ainda não há decks de metagame suficientes nesse recorte.</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Cartas em alta / em queda -- compara presença no período recente vs anterior
-         *  dos decks elegíveis (corte pela mediana das datas de evento, ver
-         *  metagameTrendsService.ts). Estado vazio resiliente enquanto a amostra for
-         *  pequena demais pra um corte confiável. */}
-        <div className="grid gap-6 xl:grid-cols-2">
-          <Card className="panel-cut rounded-none surface-panel">
-            <CardContent className="p-6">
-              <p className="flex items-center gap-1.5 text-xs uppercase tracking-[0.24em] text-emerald-400"><TrendingUp className="size-3.5" />Tendência de alta</p>
-              <h3 className="mt-2 font-heading text-3xl uppercase">Cartas em Alta</h3>
-              {metagame?.trend ? (
-                risingCards.length ? (
-                  <div className="mt-4 space-y-2">
-                    {risingCards.map((card) => (
-                      <div key={card.cardModelId} className="flex items-center justify-between gap-3 panel-cut border border-emerald-500/20 bg-emerald-950/10 px-3 py-2">
-                        <span className="text-sm text-white">{card.name}</span>
-                        <span className="whitespace-nowrap text-sm font-semibold text-emerald-400">+{card.trendDelta}pp <span className="text-xs text-slate-500">({card.priorPresenceRate}% → {card.recentPresenceRate}%)</span></span>
-                      </div>
-                    ))}
-                  </div>
-                ) : <p className="mt-4 text-sm text-slate-500">Nenhuma carta com tendência de alta nesse recorte.</p>
-              ) : (
-                <p className="mt-4 text-sm text-slate-500">Amostra pequena demais pra calcular tendência ainda -- precisa de pelo menos {4} decks de metagame com data de evento nesse recorte, divididos em dois períodos. Cadastre mais torneios/eventos pra habilitar essa leitura.</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="panel-cut rounded-none surface-panel">
-            <CardContent className="p-6">
-              <p className="flex items-center gap-1.5 text-xs uppercase tracking-[0.24em] text-red-400"><TrendingDown className="size-3.5" />Tendência de queda</p>
-              <h3 className="mt-2 font-heading text-3xl uppercase">Cartas em Queda</h3>
-              {metagame?.trend ? (
-                decliningCards.length ? (
-                  <div className="mt-4 space-y-2">
-                    {decliningCards.map((card) => (
-                      <div key={card.cardModelId} className="flex items-center justify-between gap-3 panel-cut border border-red-500/20 bg-red-950/10 px-3 py-2">
-                        <span className="text-sm text-white">{card.name}</span>
-                        <span className="whitespace-nowrap text-sm font-semibold text-red-400">{card.trendDelta}pp <span className="text-xs text-slate-500">({card.priorPresenceRate}% → {card.recentPresenceRate}%)</span></span>
-                      </div>
-                    ))}
-                  </div>
-                ) : <p className="mt-4 text-sm text-slate-500">Nenhuma carta com tendência de queda nesse recorte.</p>
-              ) : (
-                <p className="mt-4 text-sm text-slate-500">Cartas que já foram meta e caíram de uso aparecem aqui assim que houver dado suficiente pra comparar dois períodos.</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-        {metagame?.trend ? (
-          <p className="text-xs text-slate-500">
-            Período anterior: {new Date(metagame.trend.windowStart).toLocaleDateString("pt-BR")}–{new Date(metagame.trend.windowMid).toLocaleDateString("pt-BR")} ({metagame.trend.priorCount} deck(s)) · Período recente: {new Date(metagame.trend.windowMid).toLocaleDateString("pt-BR")}–{new Date(metagame.trend.windowEnd).toLocaleDateString("pt-BR")} ({metagame.trend.recentCount} deck(s)).
-          </p>
-        ) : null}
-
-        <div className="grid gap-6 xl:grid-cols-2">
-          <Card className="panel-cut rounded-none surface-panel">
-            <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Distribuição por trait{isMetagameFiltered && activeSetLabel ? ` · ${activeSetLabel}` : ""}</p>
-              <h3 className="mt-2 font-heading text-3xl uppercase">Traits mais usadas no metagame</h3>
-              <div className="mt-6 h-[320px]">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <BarChart data={traitMetaChart} layout="vertical" margin={{ left: 16, right: 12 }}>
-                    <CartesianGrid horizontal={false} stroke="rgba(255,255,255,0.08)" />
-                    <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
-                    <YAxis type="category" dataKey="name" width={130} tickLine={false} axisLine={false} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="value" fill="var(--color-value)" radius={0} />
-                  </BarChart>
-                </ChartContainer>
-              </div>
-              {!traitMetaChart.length ? <p className="mt-3 text-xs text-slate-500">Ainda não há decks de metagame suficientes nesse recorte.</p> : null}
-            </CardContent>
-          </Card>
-
-          <Card className="panel-cut rounded-none surface-panel">
-            <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Distribuição por série{isMetagameFiltered && activeSetLabel ? ` · ${activeSetLabel}` : ""}</p>
-              <h3 className="mt-2 font-heading text-3xl uppercase">Séries mais usadas no metagame</h3>
-              <div className="mt-6 h-[320px]">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <BarChart data={seriesMetaChart} layout="vertical" margin={{ left: 16, right: 12 }}>
-                    <CartesianGrid horizontal={false} stroke="rgba(255,255,255,0.08)" />
-                    <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
-                    <YAxis type="category" dataKey="name" width={130} tickLine={false} axisLine={false} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="value" fill="var(--color-value)" radius={0} />
-                  </BarChart>
-                </ChartContainer>
-              </div>
-              {!seriesMetaChart.length ? <p className="mt-3 text-xs text-slate-500">Ainda não há decks de metagame suficientes nesse recorte.</p> : null}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-6 xl:grid-cols-1">
-          <Card className="panel-cut rounded-none surface-panel">
-            <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Popularidade de combinação</p>
-              <h3 className="mt-2 font-heading text-3xl uppercase">Cores mais jogadas juntas</h3>
-              <p className="mt-2 text-xs text-slate-500">Identidade de cor do deck inteiro (não só da coleção filtrada) — aproxima "arquétipo" sem depender de curadoria manual.</p>
-              <div className="mt-6 h-[340px]">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <BarChart data={colorCombos}>
-                    <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
-                    <XAxis dataKey="name" tickLine={false} axisLine={false} interval={0} angle={-20} textAnchor="end" height={60} />
-                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="value" fill="var(--color-value)" radius={0} />
-                  </BarChart>
-                </ChartContainer>
-              </div>
-              {!colorCombos.length ? <p className="mt-3 text-xs text-slate-500">Ainda não há decks de metagame suficientes nesse recorte.</p> : null}
-            </CardContent>
-          </Card>
-        </div>
-        
-        {/* Formatos GD01..GD05 e Núcleos de Arquétipo (Fase 2) */}
-        <FormatArchetypeCoresPanel />
-
-        {/* Inteligência Algorítmica de Metagame ATMI */}
-        <MetaAnalyticsPanel focusKey={atmiFocusKey} />
-
-        {/* Fase 3 -- Matriz de Confrontos (SCAFFOLD, ver §2.4/§5). */}
-        <MatchupMatrixPanel seasonId={selectedSeasonId} />
-
-        {/* Arquétipos Populares & Sinergia de Metagame */}
-        <Card className="panel-cut rounded-none border-primary/30 hero-surface">
-          <CardContent className="p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-primary flex items-center gap-1.5">
-                  <Flame className="size-3.5 text-accent" />
-                  Padrões de Combinação & Arquétipos
-                </p>
-                <h3 className="mt-2 font-heading text-3xl uppercase">Arquétipos Populares no Hub Asticassia</h3>
-                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-300">
-                  Identificação de padrões táticos a partir dos decks construídos e sinergias de Mobile Suits, Pilotos e Traits dominantes.
-                </p>
-              </div>
-              <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary uppercase text-[10px] tracking-wider">
-                Análise de Comunidade
-              </Badge>
-            </div>
-
-            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {popularArchetypes.map((arch) => (
-                <div
-                  key={arch.name}
-                  className="panel-cut border border-white/10 bg-slate-950/70 p-4 transition-all duration-300 hover:border-primary/50 hover:bg-slate-900/80"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span
-                      className="size-3 rounded-full shrink-0 shadow-sm"
-                      style={{ backgroundColor: GAME_COLOR_HEX[arch.color] || "#94a3b8" }}
-                    />
-                    <Badge variant="outline" className="text-[10px] uppercase tracking-wider border-white/15 text-slate-300">
-                      Custo Médio ~{arch.avgCost.toFixed(1)}
-                    </Badge>
-                  </div>
-
-                  <h4 className="mt-3 font-heading text-xl uppercase tracking-wide text-white line-clamp-1">
-                    {arch.name}
-                  </h4>
-                  <p className="mt-1 text-xs text-slate-400 line-clamp-2 leading-relaxed">
-                    {arch.description}
-                  </p>
-
-                  <div className="mt-4 border-t border-white/10 pt-3">
-                    <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500 mb-1.5">Cartas Centrais</p>
-                    <div className="flex flex-wrap gap-1">
-                      {arch.sampleNames.map((s) => (
-                        <span key={s} className="rounded bg-white/5 px-2 py-0.5 text-[11px] text-slate-300 border border-white/10">
-                          {s}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+          {/* ========================================================================= */}
+          {/* ABA 3: ESTATÍSTICAS GERAIS & ACERVO DO BANCO                              */}
+          {/* ========================================================================= */}
+          <TabsContent value="catalog" className="space-y-6 focus-visible:outline-none">
+            {/* Grade de Métricas do Acervo */}
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6 font-mono">
+              {[
+                ["Usuários", String(health?.userCount ?? 0)],
+                ["Cartas no Banco", String(isFiltered ? filteredCards.length : (health?.cardCount ?? 0))],
+                ["Decks da Comunidade", String(filteredDecks.length)],
+                ["Decks de Metagame", String(metagame?.totalDecks ?? 0)],
+                ["Campeonatos", String(filteredEvents.length)],
+                ["Coleções", String(sets.length)],
+              ].map(([label, value]) => (
+                <Card key={label} className="panel-cut rounded-none surface-panel">
+                  <CardContent className="p-5">
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-400">{label}</p>
+                    <p className="mt-4 font-heading text-4xl leading-none text-white">{value}</p>
+                  </CardContent>
+                </Card>
               ))}
             </div>
-          </CardContent>
-        </Card>
+
+            {/* Gráficos de Cobertura por Expansão e Cores */}
+            <div className="grid gap-6 xl:grid-cols-2">
+              <Card className="panel-cut rounded-none surface-panel">
+                <CardContent className="p-6">
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-mono">Cobertura por coleção</p>
+                  <h3 className="mt-2 font-heading text-3xl uppercase text-white">Cartas cadastradas por expansão</h3>
+                  <div className="mt-6 h-[320px]">
+                    <ChartContainer config={chartConfig} className="h-full w-full">
+                      <BarChart data={setChart}>
+                        <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
+                        <XAxis dataKey="name" tickLine={false} axisLine={false} />
+                        <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar dataKey="value" fill="var(--color-value)" radius={0} />
+                      </BarChart>
+                    </ChartContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="panel-cut rounded-none surface-panel">
+                <CardContent className="p-6">
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-mono">Distribuição por Cor</p>
+                  <h3 className="mt-2 font-heading text-3xl uppercase text-white">Proporção de cartas por cor</h3>
+                  <div className="mt-6 h-[320px]">
+                    <ChartContainer config={chartConfig} className="h-full w-full">
+                      <BarChart data={colorChart}>
+                        <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
+                        <XAxis dataKey="name" tickLine={false} axisLine={false} />
+                        <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar dataKey="value" fill="var(--color-value)" radius={0} />
+                      </BarChart>
+                    </ChartContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Gráficos de Tipos e Séries */}
+            <div className="grid gap-6 xl:grid-cols-2">
+              <Card className="panel-cut rounded-none surface-panel">
+                <CardContent className="p-6">
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-mono">Proporção de Tipos</p>
+                  <h3 className="mt-2 font-heading text-3xl uppercase text-white">Unit, Pilot, Command e Base</h3>
+                  <div className="mt-6 h-[320px]">
+                    <ChartContainer config={chartConfig} className="h-full w-full">
+                      <BarChart data={typeChart}>
+                        <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
+                        <XAxis dataKey="name" tickLine={false} axisLine={false} />
+                        <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar dataKey="value" fill="var(--color-value)" radius={0} />
+                      </BarChart>
+                    </ChartContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="panel-cut rounded-none surface-panel">
+                <CardContent className="p-6">
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-mono">Combinação de Cores</p>
+                  <h3 className="mt-2 font-heading text-3xl uppercase text-white">Cores mais jogadas juntas</h3>
+                  <div className="mt-6 h-[320px]">
+                    <ChartContainer config={chartConfig} className="h-full w-full">
+                      <BarChart data={colorCombos}>
+                        <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
+                        <XAxis dataKey="name" tickLine={false} axisLine={false} interval={0} angle={-20} textAnchor="end" height={60} />
+                        <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar dataKey="value" fill="var(--color-value)" radius={0} />
+                      </BarChart>
+                    </ChartContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Cartas Mais Presentes no Metagame Geral */}
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-primary font-mono">Presença no Metagame</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase text-white">Cartas Mais Utilizadas</h3>
+                {cardPresence.length ? (
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="w-full text-left text-sm font-mono">
+                      <thead>
+                        <tr className="border-b border-white/10 text-xs uppercase text-slate-400">
+                          <th className="py-2 pr-3">Carta</th>
+                          <th className="py-2 pr-3">Cor</th>
+                          <th className="py-2 pr-3">Aparições</th>
+                          <th className="py-2 pr-3">Presença</th>
+                          <th className="py-2 pr-3">Média Cópias</th>
+                          <th className="py-2 pr-3">Win Rate</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {metagame?.topCards?.slice(0, 10).map((card) => (
+                          <tr key={card.cardModelId} className="border-b border-white/5 text-slate-300">
+                            <td className="py-2 pr-3 text-white font-medium">{card.name}</td>
+                            <td className="py-2 pr-3">
+                              {card.color ? (
+                                <span className="inline-flex items-center gap-1.5">
+                                  <span
+                                    className="size-2.5 rounded-full"
+                                    style={{ backgroundColor: GAME_COLOR_HEX[card.color] || FALLBACK_SLICE_COLOR }}
+                                  />
+                                  {GAME_COLOR_LABEL_PT[card.color] || card.color}
+                                </span>
+                              ) : (
+                                "—"
+                              )}
+                            </td>
+                            <td className="py-2 pr-3">{card.appearances}</td>
+                            <td className="py-2 pr-3">{card.presenceRate != null ? `${card.presenceRate}%` : "—"}</td>
+                            <td className="py-2 pr-3">{card.avgCopies ?? "—"}</td>
+                            <td className="py-2 pr-3 text-primary">{card.winRate != null ? `${card.winRate}%` : "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="mt-4 text-sm text-slate-500 font-mono">
+                    Carregando dados de presença de cartas...
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Cartas em Alta & Cartas em Queda */}
+            <div className="grid gap-6 xl:grid-cols-2 font-mono">
+              <Card className="panel-cut rounded-none surface-panel">
+                <CardContent className="p-6">
+                  <p className="flex items-center gap-1.5 text-xs uppercase tracking-[0.24em] text-emerald-400">
+                    <TrendingUp className="size-3.5" /> Tendência de Alta
+                  </p>
+                  <h3 className="mt-2 font-heading text-3xl uppercase text-white">Cartas em Alta</h3>
+                  {risingCards.length ? (
+                    <div className="mt-4 space-y-2">
+                      {risingCards.slice(0, 5).map((card) => (
+                        <div
+                          key={card.cardModelId}
+                          className="flex items-center justify-between gap-3 panel-cut border border-emerald-500/20 bg-emerald-950/10 px-3 py-2 text-xs"
+                        >
+                          <span className="text-white font-medium">{card.name}</span>
+                          <span className="whitespace-nowrap font-semibold text-emerald-400">
+                            +{card.trendDelta}pp{" "}
+                            <span className="text-slate-500 font-normal">
+                              ({card.priorPresenceRate}% → {card.recentPresenceRate}%)
+                            </span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-4 text-xs text-slate-500">
+                      Nenhuma carta com tendência acentuada de alta calculada para este recorte.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="panel-cut rounded-none surface-panel">
+                <CardContent className="p-6">
+                  <p className="flex items-center gap-1.5 text-xs uppercase tracking-[0.24em] text-red-400">
+                    <TrendingDown className="size-3.5" /> Tendência de Queda
+                  </p>
+                  <h3 className="mt-2 font-heading text-3xl uppercase text-white">Cartas em Queda</h3>
+                  {decliningCards.length ? (
+                    <div className="mt-4 space-y-2">
+                      {decliningCards.slice(0, 5).map((card) => (
+                        <div
+                          key={card.cardModelId}
+                          className="flex items-center justify-between gap-3 panel-cut border border-red-500/20 bg-red-950/10 px-3 py-2 text-xs"
+                        >
+                          <span className="text-white font-medium">{card.name}</span>
+                          <span className="whitespace-nowrap font-semibold text-red-400">
+                            {card.trendDelta}pp{" "}
+                            <span className="text-slate-500 font-normal">
+                              ({card.priorPresenceRate}% → {card.recentPresenceRate}%)
+                            </span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-4 text-xs text-slate-500">
+                      Nenhuma carta com tendência acentuada de queda calculada para este recorte.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* ========================================================================= */}
+          {/* ABA 4: TELEMETRIA AVANÇADA & CONFRONTOS (SISTEMA VEDA)                     */}
+          {/* ========================================================================= */}
+          <TabsContent value="telemetry" className="space-y-6 focus-visible:outline-none">
+            {/* Matriz de Confrontos Diretos */}
+            <MatchupMatrixPanel seasonId={selectedFormat === "ALL" ? "all" : selectedFormat} />
+
+            {/* Evolução Temporal Semanal */}
+            <WeeklyTrendsPanel
+              seasonId={selectedFormat === "ALL" ? "all" : selectedFormat}
+            />
+
+            {/* Inteligência Algorítmica VEDA / ATMI */}
+            <MetaAnalyticsPanel focusKey={atmiFocusKey} />
+          </TabsContent>
+        </Tabs>
       </div>
     </PublicShell>
   );

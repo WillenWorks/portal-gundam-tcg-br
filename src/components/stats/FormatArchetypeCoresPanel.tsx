@@ -29,30 +29,49 @@ import gundamCardBack from "@/assets/gundam-card-back.png";
 
 const FALLBACK_COLOR = "#94a3b8";
 
-export function FormatArchetypeCoresPanel() {
+export interface FormatArchetypeCoresPanelProps {
+  selectedFormat?: string;
+  onFormatChange?: (format: string) => void;
+  hideHeader?: boolean;
+}
+
+export function FormatArchetypeCoresPanel({
+  selectedFormat: controlledFormat,
+  onFormatChange,
+  hideHeader = false,
+}: FormatArchetypeCoresPanelProps = {}) {
   const [formats, setFormats] = useState<FormatOverviewItem[]>([]);
-  const [selectedFormat, setSelectedFormat] = useState<string>("GD01");
+  const [internalFormat, setInternalFormat] = useState<string>("GD05_COMBINED");
+  const selectedFormat = controlledFormat || internalFormat;
+
   const [formatMeta, setFormatMeta] = useState<FormatMetaResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedColor, setSelectedColor] = useState<string>("");
   const [viewMode, setViewMode] = useState<"archetypes" | "evolution">("archetypes");
   const [evolution, setEvolution] = useState<ArchetypeEvolution[]>([]);
   const [loadingEvolution, setLoadingEvolution] = useState(false);
+  const [showAllArchetypes, setShowAllArchetypes] = useState(false);
 
   // Arquétipo selecionado para inspeção profunda do núcleo (Core/Flex/Tech)
   const [inspectingArchetype, setInspectingArchetype] = useState<FormatArchetypeSummary | null>(null);
   const [medianModalArchetype, setMedianModalArchetype] = useState<FormatArchetypeSummary | null>(null);
 
+  const handleSelectFormat = (format: string) => {
+    setInternalFormat(format);
+    setShowAllArchetypes(false);
+    onFormatChange?.(format);
+  };
+
   useEffect(() => {
     api.getFormatList()
       .then((res) => {
         setFormats(res);
-        if (res.length > 0 && !res.some((f) => f.format === selectedFormat)) {
-          setSelectedFormat(res[0].format);
+        if (res.length > 0 && !controlledFormat && !res.some((f) => f.format === internalFormat)) {
+          setInternalFormat(res[0].format);
         }
       })
       .catch(() => setFormats([]));
-  }, []);
+  }, [controlledFormat]);
 
   useEffect(() => {
     if (!selectedFormat) return;
@@ -77,48 +96,50 @@ export function FormatArchetypeCoresPanel() {
     <Card className="panel-cut rounded-none border-primary/40 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950">
       <CardContent className="p-6">
         {/* Header do Módulo */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <Layers className="size-4 text-accent" />
-              <p className="text-xs uppercase tracking-[0.26em] text-primary font-mono font-semibold">
-                Formato & Temporada · Inteligência de Núcleos
+        {!hideHeader && (
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <Layers className="size-4 text-accent" />
+                <p className="text-xs uppercase tracking-[0.26em] text-primary font-mono font-semibold">
+                  Formato & Temporada · Inteligência de Núcleos
+                </p>
+                <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary text-[10px] font-mono uppercase">
+                  GD01 a GD05.5
+                </Badge>
+              </div>
+              <h2 className="mt-2 font-heading text-3xl sm:text-4xl uppercase tracking-wider text-white">
+                Metagame por Formato & Núcleos de Arquétipo
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-300">
+                Análise profunda de listas reais de torneios competitivos oficiais. Explore presença, conversão em Top Cut,
+                taxa de vitórias e a composição exata do núcleo (cartas indispensáveis, de flexibilidade e opções tech).
               </p>
-              <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary text-[10px] font-mono uppercase">
-                GD01 a GD05
-              </Badge>
             </div>
-            <h2 className="mt-2 font-heading text-3xl sm:text-4xl uppercase tracking-wider text-white">
-              Metagame por Formato & Núcleos de Arquétipo
-            </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-300">
-              Análise profunda de 1.400 listas reais de torneios competitivos. Explore a presença, conversão em Top Cut,
-              taxa de vitórias e a composição exata do núcleo (cartas indispensáveis, de flexibilidade e opções tech) por formato.
-            </p>
-          </div>
 
-          {/* Seletor de Modo: Arquétipos vs Evolução */}
-          <div className="flex items-center border border-white/15 bg-slate-950 p-1 panel-cut">
-            <Button
-              size="sm"
-              variant={viewMode === "archetypes" ? "default" : "ghost"}
-              onClick={() => setViewMode("archetypes")}
-              className="h-8 rounded-none text-xs font-mono uppercase tracking-wider"
-            >
-              <ListOrdered className="mr-1.5 size-3.5" />
-              Por Formato
-            </Button>
-            <Button
-              size="sm"
-              variant={viewMode === "evolution" ? "default" : "ghost"}
-              onClick={() => setViewMode("evolution")}
-              className="h-8 rounded-none text-xs font-mono uppercase tracking-wider"
-            >
-              <TrendingUp className="mr-1.5 size-3.5" />
-              Evolução Temporal
-            </Button>
+            {/* Seletor de Modo: Arquétipos vs Evolução */}
+            <div className="flex items-center border border-white/15 bg-slate-950 p-1 panel-cut">
+              <Button
+                size="sm"
+                variant={viewMode === "archetypes" ? "default" : "ghost"}
+                onClick={() => setViewMode("archetypes")}
+                className="h-8 rounded-none text-xs font-mono uppercase tracking-wider"
+              >
+                <ListOrdered className="mr-1.5 size-3.5" />
+                Por Formato
+              </Button>
+              <Button
+                size="sm"
+                variant={viewMode === "evolution" ? "default" : "ghost"}
+                onClick={() => setViewMode("evolution")}
+                className="h-8 rounded-none text-xs font-mono uppercase tracking-wider"
+              >
+                <TrendingUp className="mr-1.5 size-3.5" />
+                Evolução Temporal
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Barra de Abas dos Formatos (GD01..GD05) */}
         {viewMode === "archetypes" && (
@@ -126,11 +147,24 @@ export function FormatArchetypeCoresPanel() {
             <div className="flex flex-wrap items-center gap-2">
               {formats.map((f) => {
                 const isSelected = f.format === selectedFormat;
+                const formatLabel =
+                  f.format === "GD05_COMBINED"
+                    ? "GD05 / GD05.5"
+                    : f.format === "ALL"
+                    ? "Todas as Seasons"
+                    : f.format;
+                const badgeLabel =
+                  f.format === "GD05_COMBINED"
+                    ? "Atual"
+                    : f.format === "ALL"
+                    ? "Histórico"
+                    : `${f.totalLists} listas`;
+
                 return (
                   <button
                     key={f.format}
                     type="button"
-                    onClick={() => setSelectedFormat(f.format)}
+                    onClick={() => handleSelectFormat(f.format)}
                     className={`panel-cut px-3.5 py-2 text-left transition-all border font-mono ${
                       isSelected
                         ? "border-primary bg-primary/20 text-white font-bold shadow-[0_0_12px_rgba(20,184,166,0.3)]"
@@ -138,9 +172,15 @@ export function FormatArchetypeCoresPanel() {
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-heading tracking-wider uppercase">{f.format}</span>
-                      <span className="rounded-none bg-white/10 px-1.5 py-0.5 text-[10px] text-slate-300">
-                        {f.totalLists} listas
+                      <span className="text-sm font-heading tracking-wider uppercase">{formatLabel}</span>
+                      <span
+                        className={`rounded-none px-1.5 py-0.5 text-[10px] ${
+                          f.format === "GD05_COMBINED"
+                            ? "bg-primary/20 text-primary font-bold border border-primary/30"
+                            : "bg-white/10 text-slate-300"
+                        }`}
+                      >
+                        {badgeLabel}
                       </span>
                     </div>
                   </button>
@@ -180,7 +220,7 @@ export function FormatArchetypeCoresPanel() {
         {viewMode === "archetypes" && formatMeta?.provenance && (
           <DataSourceNote
             provenance={formatMeta.provenance}
-            labelPrefix={`Formato ${formatMeta.format} consolidado a partir de`}
+            labelPrefix={`Formato ${formatMeta.format === "GD05_COMBINED" ? "GD05 / GD05.5" : formatMeta.format} consolidado a partir de`}
             weightNote="Regionais e torneios de grande porte possuem ponderação superior no cálculo de conversão e vitórias."
             className="mt-4"
           />
@@ -191,15 +231,16 @@ export function FormatArchetypeCoresPanel() {
           <div className="mt-6 space-y-4">
             {loading ? (
               <p className="py-8 text-center text-xs font-mono text-slate-400 animate-pulse">
-                CARREGANDO ESTATÍSTICAS E NÚCLEOS DO FORMATO {selectedFormat}...
+                CARREGANDO ESTATÍSTICAS E NÚCLEOS DO FORMATO {selectedFormat === "GD05_COMBINED" ? "GD05 / GD05.5" : selectedFormat}...
               </p>
             ) : !formatMeta?.archetypes.length ? (
               <p className="py-8 text-center text-xs font-mono text-slate-500">
                 Nenhum arquétipo registrado com os filtros aplicados neste formato.
               </p>
             ) : (
-              <div className="grid gap-4 lg:grid-cols-2">
-                {formatMeta.archetypes.map((arch, idx) => {
+              <>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {(showAllArchetypes ? formatMeta.archetypes : formatMeta.archetypes.slice(0, 6)).map((arch, idx) => {
                   const isSmall = arch.isSmallSample;
                   return (
                     <div
@@ -338,6 +379,24 @@ export function FormatArchetypeCoresPanel() {
                   );
                 })}
               </div>
+
+                {/* Botão de Expansão de Arquétipos */}
+                {formatMeta.archetypes.length > 6 && (
+                  <div className="flex justify-center pt-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowAllArchetypes(!showAllArchetypes)}
+                      className="panel-cut border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-mono uppercase tracking-wider h-9"
+                    >
+                      {showAllArchetypes ? (
+                        <>Recolher arquétipos (mostrando todos os {formatMeta.archetypes.length})</>
+                      ) : (
+                        <>Ver todos os {formatMeta.archetypes.length} arquétipos ({formatMeta.archetypes.length - 6} restantes)</>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
