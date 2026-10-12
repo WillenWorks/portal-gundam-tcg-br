@@ -22,23 +22,24 @@ import supportersData from "@/data/supporters.json";
 type StaticSupporter = { name: string; sinceMonth?: string; message?: string };
 const initialSupporters = supportersData as StaticSupporter[];
 
-const PIX_KEY = import.meta.env.VITE_PIX_KEY || "";
-const PIX_MERCHANT_NAME = import.meta.env.VITE_PIX_MERCHANT_NAME || "Anaheim Hub";
-const PIX_MERCHANT_CITY = import.meta.env.VITE_PIX_MERCHANT_CITY || "Sao Paulo";
+const PIX_KEY = import.meta.env.VITE_PIX_KEY || "9ca1a9a1-885f-47c6-9911-fda7e2dfe309";
+const PIX_MERCHANT_NAME = import.meta.env.VITE_PIX_MERCHANT_NAME || "Willen Leolatto Carneiro";
+const PIX_MERCHANT_CITY = import.meta.env.VITE_PIX_MERCHANT_CITY || "SAO PAULO";
+const PIX_PAYLOAD = import.meta.env.VITE_PIX_PAYLOAD || "00020126920014BR.GOV.BCB.PIX01369ca1a9a1-885f-47c6-9911-fda7e2dfe3090230Anaheim Hub - Aquele cafezinho5204000053039865802BR5924Willen Leolatto Carneiro6009SAO PAULO62140510ZRgLn3K9h563046EEE";
 const PIX_PAYMENT_URL = import.meta.env.VITE_PIX_PAYMENT_URL || "";
 
 function PixPanel() {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedPayload, setCopiedPayload] = useState(false);
-  const payload = PIX_KEY
+  const payload = PIX_PAYLOAD || (PIX_KEY
     ? buildPixPayload({
         key: PIX_KEY,
         merchantName: PIX_MERCHANT_NAME,
         merchantCity: PIX_MERCHANT_CITY,
-        description: "Apoio Anaheim Hub",
+        description: "Anaheim Hub - Aquele cafezinho",
       })
-    : null;
+    : null);
 
   useEffect(() => {
     if (!payload) return;
@@ -98,6 +99,7 @@ function PixPanel() {
         <div>
           <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Beneficiário Nubank</p>
           <p className="text-xs font-semibold text-white">{PIX_MERCHANT_NAME} · {PIX_MERCHANT_CITY}</p>
+          <p className="mt-0.5 text-[11px] text-slate-400">Identificação: <span className="font-medium text-primary">Anaheim Hub - Aquele cafezinho</span></p>
         </div>
 
         <div className="space-y-1.5">
