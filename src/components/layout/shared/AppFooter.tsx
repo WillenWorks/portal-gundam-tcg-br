@@ -68,6 +68,11 @@ export function AppFooter({ className }: { className?: string }) {
                   </Link>
                 </li>
                 <li>
+                  <Link href="/torneios" className="transition-colors hover:text-primary">
+                    Torneios & Eventos
+                  </Link>
+                </li>
+                <li>
                   <Link href="/stats" className="transition-colors hover:text-primary">
                     Sistema VEDA (Stats)
                   </Link>

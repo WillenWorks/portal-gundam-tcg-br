@@ -221,7 +221,11 @@ export function filterTournaments(ix: VedaIndex, f: TournamentFilter): RawTourna
       if (f.season && t.season !== f.season) return false;
       if (f.tier && t.tier !== f.tier) return false;
       if (f.source && sourceOf(t.sourceUrl).id !== f.source) return false;
-      if (f.country && norm(t.country) !== norm(f.country)) return false;
+      if (f.country) {
+        const target = norm(f.country);
+        const match = norm(t.country) === target || ((target === "brasil" || target === "brazil") && Boolean(t.uf));
+        if (!match) return false;
+      }
       if (f.uf && (t.uf ?? "").toUpperCase() !== f.uf.toUpperCase()) return false;
       if (f.city && norm(t.city) !== norm(f.city)) return false;
       if (f.store && norm(t.organizer) !== norm(f.store)) return false;

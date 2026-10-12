@@ -1,7 +1,7 @@
 /* Layout shared v8.3 — topo público adaptativo e responsivo A2: sem estouro em 1366px, menu "Mais" dinâmico, dropdown acessível e drawer mobile. */
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { ChevronDown, CircleHelp, HeartHandshake, LogIn, LogOut, Menu, Moon, PanelsTopLeft, Sun, Swords, X } from "lucide-react";
+import { ChevronDown, CircleHelp, HeartHandshake, LogIn, LogOut, Menu, Moon, PanelsTopLeft, Sun, Swords, Trophy, X } from "lucide-react";
 import { toast } from "sonner";
 
 import anaheimLogo from "@/assets/anaheim-logo-transparent.png";
@@ -35,11 +35,12 @@ export const publicTopNav: readonly NavItem[] = [
       { href: "/sets", label: "Produtos" },
     ],
   },
+  { href: "/torneios", label: "Torneios" },
+  { href: "/stats", label: "Estatísticas" },
   { href: "/series", label: "Universo" },
   { href: "/articles", label: "Artigos" },
-  { href: "/stats", label: "Estatísticas" },
-  { href: "/simulador", label: "Simulador", authRequired: true },
   { href: "/rules", label: "Regras" },
+  { href: "/simulador", label: "Simulador", authRequired: true },
 ] as const;
 
 function isActiveRoute(currentPath: string, href: string) {
@@ -123,6 +124,7 @@ function MoreDropdown({
 
   const isMoreActive = useMemo(() => {
     return (
+      isActiveRoute(currentPath, "/torneios") ||
       isActiveRoute(currentPath, "/series") ||
       isActiveRoute(currentPath, "/articles") ||
       isActiveRoute(currentPath, "/rules") ||
@@ -156,6 +158,22 @@ function MoreDropdown({
           sideOffset={6}
           className="min-w-[190px] rounded-none border border-white/10 bg-slate-950/98 py-1.5 shadow-2xl backdrop-blur-xl text-white light:border-slate-300/80 light:bg-white light:text-slate-900 z-50"
         >
+          {/* Torneios aparece no Mais em lg (< 1280px); em xl+ (>= 1280px) já fica na barra */}
+          <DropdownMenuItem asChild className="rounded-none cursor-pointer p-0 xl:hidden focus:bg-white/10 focus:text-primary">
+            <Link
+              href="/torneios"
+              onClick={() => setOpen(false)}
+              className={cn(
+                "flex w-full items-center px-4 py-2.5 text-xs uppercase tracking-[0.14em] transition-colors",
+                isActiveRoute(currentPath, "/torneios")
+                  ? "text-primary font-semibold bg-primary/10"
+                  : "text-slate-300 hover:text-white light:text-slate-700 light:hover:text-slate-950",
+              )}
+            >
+              Torneios & Eventos
+            </Link>
+          </DropdownMenuItem>
+
           {/* Estatísticas aparece no Mais em lg (< 1280px); em xl+ (>= 1280px) já fica na barra */}
           <DropdownMenuItem asChild className="rounded-none cursor-pointer p-0 xl:hidden focus:bg-white/10 focus:text-primary">
             <Link
@@ -330,7 +348,18 @@ export function AppTopNav() {
               currentPath={currentPath}
             />
 
-            {/* 4. Estatísticas — visível a partir de xl (1280px, incluindo 1366px); em lg fica no Mais */}
+            {/* 4. Torneios — visível a partir de xl (1280px, incluindo 1366px); em lg fica no Mais */}
+            <Link
+              href="/torneios"
+              className={cn(
+                "hidden xl:inline-flex items-center px-2.5 xl:px-3 py-1.5 text-xs font-medium uppercase tracking-[0.12em] xl:tracking-[0.14em] nav-hover-soft transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary",
+                isActiveRoute(currentPath, "/torneios") ? "text-primary font-semibold" : "text-slate-300 hover:text-white",
+              )}
+            >
+              Torneios
+            </Link>
+
+            {/* 5. Estatísticas — visível a partir de xl (1280px, incluindo 1366px); em lg fica no Mais */}
             <Link
               href="/stats"
               className={cn(
@@ -555,6 +584,7 @@ export function AppTopNav() {
                 >
                   <span className="flex items-center gap-2">
                     {item.href === "/simulador" ? <Swords className="size-3.5 text-primary" /> : null}
+                    {item.href === "/torneios" ? <Trophy className="size-3.5 text-amber-400" /> : null}
                     {item.label}
                   </span>
                   {item.href === "/simulador" ? (

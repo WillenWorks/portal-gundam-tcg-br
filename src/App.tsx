@@ -2,7 +2,7 @@
 import { Suspense, lazy, useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Router, Route, Switch, useLocation } from "wouter";
+import { Router, Route, Switch, useLocation, Redirect } from "wouter";
 import { useHashLocationWithQuery } from "@/lib/hashLocationWithQuery";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -134,7 +134,7 @@ function AppRouter() {
         <Route path="/articles/:slug" component={ArticleDetailPage} />
         <Route path="/articles" component={ArticlesPage} />
         <Route path="/database" component={CardsPage} />
-        <Route path="/eventos" component={TournamentsPage} />
+        <Route path="/eventos">{() => <Redirect to="/torneios" />}</Route>
         <Route path="/novidades" component={ChangelogPage} />
         <Route path="/stats">{() => <LazyRoute label="Analytics"><StatsPage /></LazyRoute>}</Route>
         <Route path="/metagame/regional">{() => <LazyRoute label="Metagame Regional"><RegionalMetaPage /></LazyRoute>}</Route>
@@ -181,7 +181,7 @@ function AppRouter() {
             </LazyRoute>
           )}
         </Route>
-        <Route path="/tournaments" component={TournamentsPage} />
+        <Route path="/tournaments">{() => <Redirect to="/torneios" />}</Route>
         <Route path="/cards/:id" component={CardDetailPage} />
         <Route path="/cards" component={CardsPage} />
         <Route path="/rules/:id" component={RulingDetailPage} />
