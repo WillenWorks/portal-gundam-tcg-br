@@ -102,7 +102,7 @@ export function RecentPopularDecksCarousel() {
 
   return (
     <section className="relative container-ultrawide py-8">
-      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60 p-4 sm:p-6 backdrop-blur-md shadow-2xl">
+      <div className="relative overflow-hidden rounded-2xl border dark:border-white/10 dark:bg-slate-900/60 light:border-slate-300/80 light:bg-white light:shadow-lg p-4 sm:p-6 backdrop-blur-md shadow-2xl">
         {/* Glow de fundo */}
         <div className="pointer-events-none absolute -top-24 -right-24 size-80 rounded-full bg-cyan-500/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 -left-24 size-80 rounded-full bg-rose-500/10 blur-3xl" />
@@ -114,19 +114,19 @@ export function RecentPopularDecksCarousel() {
               <div className="flex size-9 items-center justify-center rounded-lg border border-cyan-500/40 bg-cyan-950/30 text-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.3)]">
                 <TrendingUp className="size-5" />
               </div>
-              <h2 className="font-heading text-xl sm:text-2xl font-bold tracking-wide text-white">
+              <h2 className="font-heading text-xl sm:text-2xl font-bold tracking-wide dark:text-white light:text-slate-950">
                 Decks Recentes Populares
               </h2>
             </div>
             {/* Linha com acento ciano à esquerda */}
-            <div className="mt-3 relative h-[2px] w-full max-w-xl bg-slate-800/80">
+            <div className="mt-3 relative h-[2px] w-full max-w-xl dark:bg-slate-800/80 light:bg-slate-200">
               <div className="absolute left-0 top-0 h-full w-28 bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.8)]" />
             </div>
           </div>
 
           {/* Filtro de Janela Temporal (7 vs 15 dias) */}
           <div className="flex items-center gap-2 self-start sm:self-auto">
-            <div className="inline-flex rounded-lg border border-white/15 bg-slate-950/80 p-1 text-xs font-medium">
+            <div className="inline-flex rounded-lg border dark:border-white/15 dark:bg-slate-950/80 light:border-slate-300 light:bg-slate-100 p-1 text-xs font-medium">
               <button
                 type="button"
                 onClick={() => setDays(7)}
@@ -134,7 +134,7 @@ export function RecentPopularDecksCarousel() {
                   "rounded-md px-3 py-1 transition-all",
                   days === 7
                     ? "bg-cyan-500 text-slate-950 font-bold shadow-[0_0_8px_rgba(6,182,212,0.6)]"
-                    : "text-slate-400 hover:text-white"
+                    : "dark:text-slate-400 dark:hover:text-white light:text-slate-600 light:hover:text-slate-900"
                 )}
               >
                 Últimos 7 dias
@@ -146,7 +146,7 @@ export function RecentPopularDecksCarousel() {
                   "rounded-md px-3 py-1 transition-all",
                   days === 15
                     ? "bg-cyan-500 text-slate-950 font-bold shadow-[0_0_8px_rgba(6,182,212,0.6)]"
-                    : "text-slate-400 hover:text-white"
+                    : "dark:text-slate-400 dark:hover:text-white light:text-slate-600 light:hover:text-slate-900"
                 )}
               >
                 Últimos 15 dias
@@ -178,7 +178,7 @@ export function RecentPopularDecksCarousel() {
           ) : (
             <div className="relative">
               {/* Card Estruturado estilo Banner Retrô-Tático */}
-              <div className="relative overflow-hidden rounded-xl border border-white/15 bg-slate-950 shadow-2xl transition-all duration-300 hover:border-cyan-500/50">
+              <div className="relative overflow-hidden rounded-xl border dark:border-white/15 dark:bg-slate-950 light:border-slate-300 light:bg-white shadow-2xl transition-all duration-300 hover:border-cyan-500/50">
                 {/* Banner de Fundo (Arte Gundam / Capa do Deck) */}
                 <div className="relative h-56 sm:h-64 md:h-72 w-full overflow-hidden bg-slate-950">
                   <img loading="lazy" decoding="async"
@@ -238,10 +238,10 @@ export function RecentPopularDecksCarousel() {
                   </div>
 
                   {/* Card do Piloto com Nível (Canto Inferior Direito, sobreposto) */}
-                  <div className="absolute right-3.5 sm:right-6 bottom-3 sm:bottom-4 z-20 flex items-center gap-2 rounded-xl border border-white/20 bg-slate-950/90 px-3 py-1.5 shadow-2xl backdrop-blur-md">
+                  <div className="absolute right-3.5 sm:right-6 bottom-3 sm:bottom-4 z-20 flex items-center gap-2 rounded-xl border dark:border-white/20 dark:bg-slate-950/90 light:border-slate-200 light:bg-white/95 px-3 py-1.5 shadow-2xl backdrop-blur-md">
                     {/* Badge de Nível (Ref: círculo 7 dourado) */}
                     <div className="relative">
-                      <div className="size-10 sm:size-12 overflow-hidden rounded-lg border border-white/20 bg-slate-800 shadow-md">
+                      <div className="size-10 sm:size-12 overflow-hidden rounded-lg border dark:border-white/20 dark:bg-slate-800 light:border-slate-300 light:bg-slate-100 shadow-md">
                         <img loading="lazy" decoding="async"
                           src={currentDeck.user?.avatarUrl || FALLBACK_PILOT_AVATAR}
                           alt={currentDeck.user?.displayName || "Piloto"}
@@ -254,10 +254,10 @@ export function RecentPopularDecksCarousel() {
                     </div>
                     {/* Nome do Piloto */}
                     <div className="min-w-0 pl-1">
-                      <p className="truncate text-xs sm:text-sm font-bold text-white border-b-2 border-rose-500/80 pb-0.5 max-w-[110px] sm:max-w-[150px]">
+                      <p className="truncate text-xs sm:text-sm font-bold dark:text-white light:text-slate-900 border-b-2 border-rose-500/80 pb-0.5 max-w-[110px] sm:max-w-[150px]">
                         {currentDeck.user?.displayName || "Piloto"}
                       </p>
-                      <p className="text-[10px] uppercase font-mono text-slate-400">
+                      <p className="text-[10px] uppercase font-mono dark:text-slate-400 light:text-slate-600">
                         @{currentDeck.user?.username || "piloto"}
                       </p>
                     </div>
@@ -265,7 +265,7 @@ export function RecentPopularDecksCarousel() {
                 </div>
 
                 {/* ── BARRA DE RODAPÉ COM TELEMETRIA ────────────────────── */}
-                <div className="flex items-center justify-between border-t border-white/10 bg-slate-950 px-4 py-2.5 text-xs text-slate-400">
+                <div className="flex items-center justify-between border-t dark:border-white/10 dark:bg-slate-950 light:border-slate-200 light:bg-slate-50 px-4 py-2.5 text-xs dark:text-slate-400 light:text-slate-600">
                   {/* Curtidas & Comentários */}
                   <div className="flex items-center gap-4">
                     <button
@@ -279,20 +279,20 @@ export function RecentPopularDecksCarousel() {
                           "size-4 transition-transform active:scale-125",
                           currentDeck.hasLiked
                             ? "fill-rose-500 text-rose-500"
-                            : "text-slate-400 hover:text-rose-400"
+                            : "dark:text-slate-400 light:text-slate-500 hover:text-rose-400"
                         )}
                       />
                       <span className="font-mono text-xs">{currentDeck.likeCount}</span>
                     </button>
 
-                    <span className="flex items-center gap-1.5 text-slate-400" title="Comentários">
+                    <span className="flex items-center gap-1.5 dark:text-slate-400 light:text-slate-500" title="Comentários">
                       <MessageSquare className="size-4" />
                       <span className="font-mono text-xs">0</span>
                     </span>
                   </div>
 
                   {/* Data de Registro */}
-                  <div className="flex items-center gap-1.5 font-mono text-xs text-slate-400">
+                  <div className="flex items-center gap-1.5 font-mono text-xs dark:text-slate-400 light:text-slate-600">
                     <Calendar className="size-3.5" />
                     <span>
                       {new Date(currentDeck.createdAt).toLocaleDateString("pt-BR", {
@@ -314,7 +314,7 @@ export function RecentPopularDecksCarousel() {
                   <button
                     type="button"
                     onClick={prevDeck}
-                    className="absolute -left-3 sm:-left-4 top-1/2 -translate-y-1/2 z-30 flex size-9 items-center justify-center rounded-full border border-white/20 bg-slate-950/80 text-white shadow-xl backdrop-blur-md transition hover:border-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-300"
+                    className="absolute -left-3 sm:-left-4 top-1/2 -translate-y-1/2 z-30 flex size-9 items-center justify-center rounded-full border dark:border-white/20 dark:bg-slate-950/80 dark:text-white light:border-slate-300 light:bg-white/90 light:text-slate-800 shadow-xl backdrop-blur-md transition hover:border-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-400"
                     aria-label="Deck anterior"
                   >
                     <ChevronLeft className="size-5" />
@@ -322,7 +322,7 @@ export function RecentPopularDecksCarousel() {
                   <button
                     type="button"
                     onClick={nextDeck}
-                    className="absolute -right-3 sm:-right-4 top-1/2 -translate-y-1/2 z-30 flex size-9 items-center justify-center rounded-full border border-white/20 bg-slate-950/80 text-white shadow-xl backdrop-blur-md transition hover:border-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-300"
+                    className="absolute -right-3 sm:-right-4 top-1/2 -translate-y-1/2 z-30 flex size-9 items-center justify-center rounded-full border dark:border-white/20 dark:bg-slate-950/80 dark:text-white light:border-slate-300 light:bg-white/90 light:text-slate-800 shadow-xl backdrop-blur-md transition hover:border-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-400"
                     aria-label="Próximo deck"
                   >
                     <ChevronRight className="size-5" />

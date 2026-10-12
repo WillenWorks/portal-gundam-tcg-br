@@ -76,18 +76,18 @@ export function LatestCollectionsSection() {
   };
 
   return (
-    <section id="ultimas-colecoes" className="border-t border-white/10 bg-slate-950/60 py-12 sm:py-16">
+    <section id="ultimas-colecoes" className="border-t border-white/10 bg-slate-950/60 dark:border-white/10 dark:bg-slate-950/60 light:border-slate-300/80 light:bg-slate-100/70 py-12 sm:py-16">
       <div className="container-ultrawide space-y-6">
         {/* Cabeçalho da Seção */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-white/10 pb-5">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-white/10 dark:border-white/10 light:border-slate-300/80 pb-5">
           <div>
             <div className="flex items-center gap-2">
               <Badge className="rounded-none border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.24em] text-primary">
                 Lançamentos
               </Badge>
-              <span className="text-xs text-slate-400 font-mono">Catálogo Oficial</span>
+              <span className="text-xs text-slate-400 dark:text-slate-400 light:text-slate-600 font-mono">Catálogo Oficial</span>
             </div>
-            <h2 className="heading-portal font-heading text-3xl sm:text-4xl uppercase mt-2 text-white">
+            <h2 className="heading-portal font-heading text-3xl sm:text-4xl uppercase mt-2">
               Últimas Coleções
             </h2>
             <p className="text-soft text-xs sm:text-sm mt-1 max-w-2xl">
@@ -103,7 +103,7 @@ export function LatestCollectionsSection() {
                 onClick={() => scroll("left")}
                 disabled={!canScrollLeft}
                 aria-label="Rolar coleções para a esquerda"
-                className="flex size-9 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-white transition hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="flex size-9 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-white dark:border-white/15 dark:bg-white/5 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 light:hover:bg-slate-100 transition hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronLeft className="size-4" />
               </button>
@@ -112,13 +112,13 @@ export function LatestCollectionsSection() {
                 onClick={() => scroll("right")}
                 disabled={!canScrollRight}
                 aria-label="Rolar coleções para a direita"
-                className="flex size-9 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-white transition hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="flex size-9 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-white dark:border-white/15 dark:bg-white/5 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 light:hover:bg-slate-100 transition hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronRight className="size-4" />
               </button>
             </div>
 
-            <Button asChild variant="outline" className="rounded-none border-white/20 bg-white/5 text-xs uppercase tracking-[0.14em]">
+            <Button asChild variant="outline" className="rounded-none border-white/20 bg-white/5 text-xs uppercase tracking-[0.14em] dark:border-white/20 dark:bg-white/5 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 light:hover:bg-slate-100">
               <Link href="/sets">
                 Ver Todas <ArrowRight className="ml-1.5 size-3.5" />
               </Link>
@@ -136,11 +136,11 @@ export function LatestCollectionsSection() {
             Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
-                className="w-[260px] sm:w-[290px] shrink-0 aspect-[16/11] rounded-xl border border-white/10 bg-slate-900/40 animate-pulse"
+                className="w-[260px] sm:w-[290px] shrink-0 aspect-[16/11] rounded-xl border border-white/10 bg-slate-900/40 dark:border-white/10 dark:bg-slate-900/40 light:border-slate-300 light:bg-slate-200 animate-pulse"
               />
             ))
           ) : sets.length === 0 ? (
-            <div className="w-full py-12 text-center text-sm text-slate-400">
+            <div className="w-full py-12 text-center text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">
               Nenhuma coleção encontrada no catálogo.
             </div>
           ) : (
@@ -151,12 +151,12 @@ export function LatestCollectionsSection() {
               return (
                 <div
                   key={set.id}
-                  className="group relative flex w-[260px] sm:w-[300px] shrink-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-slate-950/80 shadow-xl backdrop-blur-sm transition-all duration-300 hover:border-primary/50 hover:shadow-[0_0_24px_rgba(6,182,212,0.25)] hover:-translate-y-1 snap-start"
+                  className="group relative flex w-[260px] sm:w-[300px] shrink-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-slate-950/80 shadow-xl backdrop-blur-sm transition-all duration-300 hover:border-primary/50 hover:shadow-[0_0_24px_rgba(6,182,212,0.25)] hover:-translate-y-1 snap-start dark:border-white/10 dark:bg-slate-950/80 light:border-slate-300/80 light:bg-white light:shadow-md"
                 >
                   {/* Capa do Produto */}
                   <Link
                     href={`/sets/${encodeURIComponent(set.code)}`}
-                    className="relative block aspect-[16/10] w-full overflow-hidden bg-slate-900"
+                    className="relative block aspect-[16/10] w-full overflow-hidden bg-slate-900 dark:bg-slate-900 light:bg-slate-200"
                   >
                     {set.coverImage ? (
                       <img
@@ -168,7 +168,7 @@ export function LatestCollectionsSection() {
                     ) : (
                       <div className="flex h-full flex-col items-center justify-center p-4 text-center">
                         <Package className="size-8 text-slate-600 mb-2 group-hover:text-primary transition-colors" />
-                        <span className="font-heading text-2xl uppercase tracking-wider text-slate-300">
+                        <span className="font-heading text-2xl uppercase tracking-wider text-slate-300 dark:text-slate-300 light:text-slate-700">
                           {set.code}
                         </span>
                         <span className="text-[10px] text-slate-500 uppercase tracking-widest mt-1">
@@ -197,26 +197,26 @@ export function LatestCollectionsSection() {
                   </Link>
 
                   {/* Detalhes do Produto */}
-                  <div className="flex flex-1 flex-col justify-between p-4 border-t border-white/10">
+                  <div className="flex flex-1 flex-col justify-between p-4 border-t border-white/10 dark:border-white/10 light:border-slate-200">
                     <div>
                       <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-primary">
                         {formatSetType(set.setType)}
                       </p>
-                      <h3 className="mt-1 font-heading text-lg uppercase text-white truncate group-hover:text-primary transition-colors">
+                      <h3 className="mt-1 font-heading text-lg uppercase truncate group-hover:text-primary transition-colors text-white dark:text-white light:text-slate-950">
                         {displayName}
                       </h3>
                       {set.releaseDate && (
-                        <p className="text-[11px] text-slate-400 mt-1 font-mono">
+                        <p className="text-[11px] text-slate-400 dark:text-slate-400 light:text-slate-600 mt-1 font-mono">
                           Lançamento: {new Date(set.releaseDate).toLocaleDateString("pt-BR")}
                         </p>
                       )}
                     </div>
 
                     {/* Ações Rápidas */}
-                    <div className="mt-4 flex items-center gap-2 pt-2 border-t border-white/5">
+                    <div className="mt-4 flex items-center gap-2 pt-2 border-t border-white/5 dark:border-white/5 light:border-slate-200">
                       <Link
                         href={`/cards?setCode=${encodeURIComponent(set.code)}`}
-                        className="flex-1 rounded-none border border-white/15 bg-white/5 px-2.5 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-200 transition hover:border-primary/50 hover:bg-primary/10 hover:text-primary"
+                        className="flex-1 rounded-none border border-white/15 bg-white/5 px-2.5 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-200 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 light:border-slate-300 light:bg-slate-100 light:text-slate-800 transition hover:border-primary/50 hover:bg-primary/10 hover:text-primary"
                       >
                         Ver Cartas
                       </Link>

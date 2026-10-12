@@ -206,11 +206,11 @@ export function RecentTournamentsSection() {
   };
 
   return (
-    <section id="ultimos-eventos" className="relative border-t border-red-950/50 bg-slate-950/80 py-12 sm:py-16 overflow-hidden">
+    <section id="ultimos-eventos" className="relative border-t dark:border-red-950/50 dark:bg-slate-950/80 light:border-slate-300/80 light:bg-slate-100/70 py-12 sm:py-16 overflow-hidden">
       {/* Camada 1: Conteúdo Original dos Torneios (visível sob o filtro, mas desabilitado) */}
       <div className="container-ultrawide space-y-6 select-none pointer-events-none opacity-30 grayscale-[50%] blur-[0.6px]">
         {/* Cabeçalho da Seção */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-white/10 pb-5">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b dark:border-white/10 light:border-slate-300 pb-5">
           <div>
             <div className="flex items-center gap-2">
               <Badge className="rounded-none border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.24em] text-amber-400">
@@ -218,7 +218,7 @@ export function RecentTournamentsSection() {
               </Badge>
               <span className="text-xs text-slate-400 font-mono">Metagame & Torneios</span>
             </div>
-            <h2 className="heading-portal font-heading text-3xl sm:text-4xl uppercase mt-2 text-white">
+            <h2 className="heading-portal font-heading text-3xl sm:text-4xl uppercase mt-2 dark:text-white light:text-slate-950">
               Últimos Eventos
             </h2>
             <p className="text-soft text-xs sm:text-sm mt-1 max-w-2xl">
@@ -226,7 +226,7 @@ export function RecentTournamentsSection() {
             </p>
           </div>
 
-          <Button asChild variant="outline" className="rounded-none border-white/20 bg-white/5 text-xs uppercase tracking-[0.14em] shrink-0">
+          <Button asChild variant="outline" className="rounded-none dark:border-white/20 dark:bg-white/5 dark:text-white light:border-slate-300 light:bg-white light:text-slate-800 light:hover:bg-slate-100 text-xs uppercase tracking-[0.14em] shrink-0">
             <Link href="/stats">
               Ver Metagame Completo <ArrowRight className="ml-1.5 size-3.5" />
             </Link>
@@ -238,26 +238,26 @@ export function RecentTournamentsSection() {
           {tournaments.map((tournament) => (
             <Card
               key={tournament.id}
-              className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-white/10 bg-slate-950/90 shadow-2xl backdrop-blur-md transition-all duration-300 hover:border-amber-400/40 hover:shadow-[0_0_28px_rgba(245,158,11,0.18)]"
+              className="group relative flex flex-col justify-between overflow-hidden rounded-xl border dark:border-white/10 dark:bg-slate-950/90 light:border-slate-300 light:bg-white light:shadow-md shadow-2xl backdrop-blur-md transition-all duration-300 hover:border-amber-400/40 hover:shadow-[0_0_28px_rgba(245,158,11,0.18)]"
             >
               <CardContent className="p-5 sm:p-6 space-y-5">
                 {/* Cabeçalho do Card */}
                 <div>
-                  <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-                    <span className="inline-flex items-center gap-1.5 rounded-xs border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-[10px] uppercase text-slate-300">
+                  <div className="flex items-center justify-between text-xs dark:text-slate-400 light:text-slate-500 mb-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-xs border dark:border-white/15 dark:bg-white/5 dark:text-slate-300 light:border-slate-300 light:bg-slate-100 light:text-slate-700 px-2 py-0.5 font-mono text-[10px] uppercase">
                       {tournament.format}
                     </span>
-                    <span className="text-slate-400 text-[11px] font-mono">
+                    <span className="dark:text-slate-400 light:text-slate-600 text-[11px] font-mono">
                       {tournament.totalPlayers} pilotos
                     </span>
                   </div>
 
-                  <h3 className="font-heading text-xl uppercase tracking-wide text-white group-hover:text-amber-300 transition-colors">
+                  <h3 className="font-heading text-xl uppercase tracking-wide dark:text-white light:text-slate-950 dark:group-hover:text-amber-300 light:group-hover:text-amber-600 transition-colors">
                     {tournament.name}
                   </h3>
 
                   {/* Informações de Local e Horário */}
-                  <div className="mt-3 space-y-1.5 text-xs text-slate-300 border-y border-white/10 py-3">
+                  <div className="mt-3 space-y-1.5 text-xs dark:text-slate-300 light:text-slate-600 border-y dark:border-white/10 light:border-slate-200 py-3">
                     <div className="flex items-center gap-2">
                       <Calendar className="size-3.5 text-amber-400 shrink-0" />
                       <span className="font-mono text-[11px]">{tournament.date}</span>
@@ -267,7 +267,7 @@ export function RecentTournamentsSection() {
                     </div>
                     <div className="flex items-center gap-2 pt-0.5">
                       <MapPin className="size-3.5 text-amber-400 shrink-0" />
-                      <span className="font-semibold text-slate-200">{tournament.venueName}</span>
+                      <span className="font-semibold dark:text-slate-200 light:text-slate-800">{tournament.venueName}</span>
                       <span className="text-slate-500">({tournament.location})</span>
                     </div>
                   </div>
@@ -283,22 +283,22 @@ export function RecentTournamentsSection() {
                     {tournament.podium.map((pod) => (
                       <div
                         key={pod.placement}
-                        className="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-2.5 transition hover:bg-white/[0.05] hover:border-white/15"
+                        className="flex items-center justify-between gap-3 rounded-lg border dark:border-white/5 dark:bg-white/[0.02] dark:hover:bg-white/[0.05] dark:hover:border-white/15 light:border-slate-200 light:bg-slate-50 light:hover:bg-slate-100 p-2.5 transition"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           {getPlacementBadge(pod.placement)}
                           <div className="min-w-0">
-                            <p className="truncate text-xs font-semibold text-white">
+                            <p className="truncate text-xs font-semibold dark:text-white light:text-slate-900">
                               {pod.playerName}
                             </p>
-                            <p className="truncate text-[11px] text-slate-400">
+                            <p className="truncate text-[11px] dark:text-slate-400 light:text-slate-600">
                               {pod.deckName}
                             </p>
                           </div>
                         </div>
 
                         <div className="text-right shrink-0">
-                          <span className="inline-block rounded border border-white/15 bg-black/50 px-2 py-0.5 font-mono text-[10px] font-bold text-cyan-300">
+                          <span className="inline-block rounded border dark:border-white/15 dark:bg-black/50 dark:text-cyan-300 light:border-cyan-300 light:bg-cyan-50 light:text-cyan-700 px-2 py-0.5 font-mono text-[10px] font-bold">
                             {pod.score}
                           </span>
                         </div>
@@ -309,8 +309,8 @@ export function RecentTournamentsSection() {
               </CardContent>
 
               {/* Rodapé do Torneio */}
-              <div className="border-t border-white/10 bg-slate-900/40 p-3.5 px-6 flex items-center justify-between text-xs">
-                <span className="text-[11px] text-slate-400 font-mono">
+              <div className="border-t dark:border-white/10 dark:bg-slate-900/40 light:border-slate-200 light:bg-slate-50 p-3.5 px-6 flex items-center justify-between text-xs">
+                <span className="text-[11px] dark:text-slate-400 light:text-slate-600 font-mono">
                   Súmula Homologada
                 </span>
                 <Link
@@ -328,8 +328,8 @@ export function RecentTournamentsSection() {
       {/* Camada 2: Barreira de Contenção & Shading Holográfico */}
       <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
         {/* Shading escuro profundo e vinheta avermelhada */}
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-950/85 via-slate-950/65 to-slate-950/90" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(239,68,68,0.1)_0%,rgba(15,23,42,0.7)_65%,rgba(11,15,25,0.95)_100%)]" />
+        <div className="absolute inset-0 dark:bg-gradient-to-b dark:from-slate-950/85 dark:via-slate-950/65 dark:to-slate-950/90 light:bg-gradient-to-b light:from-slate-200/85 light:via-slate-100/65 light:to-slate-200/90" />
+        <div className="absolute inset-0 dark:bg-[radial-gradient(ellipse_at_center,rgba(239,68,68,0.1)_0%,rgba(15,23,42,0.7)_65%,rgba(11,15,25,0.95)_100%)] light:bg-[radial-gradient(ellipse_at_center,rgba(239,68,68,0.08)_0%,rgba(241,245,249,0.7)_65%,rgba(226,232,240,0.95)_100%)]" />
 
         {/* Listras diagonais de isolamento tático / campo de força */}
         <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,rgba(239,68,68,0.06)_0px,rgba(239,68,68,0.06)_16px,transparent_16px,transparent_32px)]" />
@@ -345,7 +345,7 @@ export function RecentTournamentsSection() {
 
       {/* Camada 3: Painel Central de Alerta Vermelho "Bloqueado" */}
       <div className="absolute inset-0 z-30 flex items-center justify-center p-4 sm:p-6 pointer-events-auto">
-        <div className="relative w-full max-w-lg overflow-hidden rounded-2xl border-2 border-red-500/80 bg-slate-950/95 p-6 sm:p-8 text-center shadow-[0_0_80px_rgba(239,68,68,0.45),inset_0_0_30px_rgba(239,68,68,0.15)] backdrop-blur-2xl">
+        <div className="relative w-full max-w-lg overflow-hidden rounded-2xl border-2 border-red-500/80 dark:bg-slate-950/95 light:bg-white/95 p-6 sm:p-8 text-center shadow-[0_0_80px_rgba(239,68,68,0.45),inset_0_0_30px_rgba(239,68,68,0.15)] light:shadow-[0_0_80px_rgba(239,68,68,0.25)] backdrop-blur-2xl">
           {/* Feixe de luz de emergência vermelha no topo */}
           <div className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 size-44 rounded-full bg-red-600/30 blur-3xl" />
 
@@ -357,7 +357,7 @@ export function RecentTournamentsSection() {
 
           <div className="relative z-10 flex flex-col items-center">
             {/* Badge com indicador pulsante de restrição */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-500/60 bg-red-500/15 px-3.5 py-1 text-[11px] font-mono font-bold uppercase tracking-[0.22em] text-red-400 shadow-[0_0_16px_rgba(239,68,68,0.25)]">
+            <div className="inline-flex items-center gap-2 rounded-full border border-red-500/60 dark:bg-red-500/15 dark:text-red-400 light:bg-red-50 light:text-red-700 px-3.5 py-1 text-[11px] font-mono font-bold uppercase tracking-[0.22em] shadow-[0_0_16px_rgba(239,68,68,0.25)]">
               <span className="relative flex size-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
                 <span className="relative inline-flex size-2 rounded-full bg-red-500" />
@@ -379,19 +379,19 @@ export function RecentTournamentsSection() {
             </div>
 
             {/* Texto explicativo */}
-            <p className="text-xs sm:text-sm leading-relaxed text-slate-300 max-w-md">
+            <p className="text-xs sm:text-sm leading-relaxed dark:text-slate-300 light:text-slate-700 max-w-md">
               Área de torneios e súmulas em calibração operacional. O registro e ranking oficial de eventos presenciais e nacionais do Gundam TCG será liberado em breve.
             </p>
 
             {/* Tags técnicas de status */}
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2 pt-3 border-t border-red-500/20 text-[10px] font-mono uppercase tracking-wider text-red-400/90">
-              <span className="px-2.5 py-1 rounded-xs border border-red-500/30 bg-red-950/50">
+              <span className="px-2.5 py-1 rounded-xs border border-red-500/30 dark:bg-red-950/50 dark:text-red-400/90 light:bg-red-50 light:text-red-700">
                 Status: Indisponível
               </span>
-              <span className="px-2.5 py-1 rounded-xs border border-red-500/30 bg-red-950/50">
+              <span className="px-2.5 py-1 rounded-xs border border-red-500/30 dark:bg-red-950/50 dark:text-red-400/90 light:bg-red-50 light:text-red-700">
                 Temporada 2026
               </span>
-              <span className="px-2.5 py-1 rounded-xs border border-red-500/30 bg-red-950/50">
+              <span className="px-2.5 py-1 rounded-xs border border-red-500/30 dark:bg-red-950/50 dark:text-red-400/90 light:bg-red-50 light:text-red-700">
                 Homologação Pendente
               </span>
             </div>

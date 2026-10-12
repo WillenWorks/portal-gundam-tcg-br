@@ -363,20 +363,20 @@ export function GundamSeriesShowcase() {
   };
 
   return (
-    <section id="conheca-gundam" className="border-t border-white/10 bg-slate-950/80 py-12 sm:py-18">
+    <section id="conheca-gundam" className="border-t dark:border-white/10 dark:bg-slate-950/80 light:border-slate-300/80 light:bg-slate-100/70 py-12 sm:py-18">
       <div className="container-ultrawide space-y-8">
         {/* Cabeçalho da Seção */}
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 border-b border-white/10 pb-6">
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 border-b dark:border-white/10 light:border-slate-300/80 pb-6">
           <div>
             <div className="flex items-center gap-2">
               <Badge className="rounded-none border border-cyan-400/40 bg-cyan-400/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-300">
                 Universo & Lore
               </Badge>
-              <span className="text-xs text-slate-400 font-mono">
+              <span className="text-xs dark:text-slate-400 light:text-slate-600 font-mono">
                 {GUNDAM_SERIES_CATALOG.length} Linhas Temporais Oficiais no Card Game
               </span>
             </div>
-            <h2 className="heading-portal font-heading text-3xl sm:text-4xl uppercase mt-2 text-white">
+            <h2 className="heading-portal font-heading text-3xl sm:text-4xl uppercase mt-2 dark:text-white light:text-slate-950">
               Conheça as Séries de Gundam
             </h2>
             <p className="text-soft text-xs sm:text-sm mt-1 max-w-3xl leading-relaxed">
@@ -393,7 +393,7 @@ export function GundamSeriesShowcase() {
                 variant="outline"
                 size="sm"
                 onClick={handleShuffle}
-                className="h-9 rounded-none border-white/15 bg-white/5 text-slate-200 hover:border-cyan-400 hover:bg-cyan-500/10 hover:text-cyan-300 text-xs font-mono tracking-wider transition-all"
+                className="h-9 rounded-none dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:hover:border-cyan-400 dark:hover:bg-cyan-500/10 dark:hover:text-cyan-300 light:border-slate-300 light:bg-white light:text-slate-800 light:hover:bg-slate-100 light:hover:border-cyan-600 text-xs font-mono tracking-wider transition-all"
                 title="Sortear 6 séries aleatórias da lista de 20"
               >
                 <Dices className="mr-1.5 size-4 text-cyan-400" />
@@ -406,7 +406,7 @@ export function GundamSeriesShowcase() {
               variant="outline"
               size="sm"
               onClick={() => setShowAll((prev) => !prev)}
-              className="h-9 rounded-none border-cyan-500/40 bg-cyan-950/30 text-cyan-300 hover:bg-cyan-500/20 text-xs font-mono tracking-wider transition-all"
+              className="h-9 rounded-none border-cyan-500/40 dark:bg-cyan-950/30 dark:text-cyan-300 dark:hover:bg-cyan-500/20 light:bg-cyan-50 light:text-cyan-700 light:hover:bg-cyan-100 text-xs font-mono tracking-wider transition-all"
             >
               {showAll ? (
                 <>
@@ -421,7 +421,7 @@ export function GundamSeriesShowcase() {
               )}
             </Button>
 
-            <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-cyan-950/60 border border-cyan-500/30 px-3 py-1 font-mono text-[11px] text-cyan-300">
+            <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full dark:bg-cyan-950/60 dark:border-cyan-500/30 dark:text-cyan-300 light:bg-cyan-100/80 light:border-cyan-400/50 light:text-cyan-800 border px-3 py-1 font-mono text-[11px]">
               <Compass className="size-3.5 text-cyan-400 animate-spin" style={{ animationDuration: "12s" }} />
               Wiki em Construção
             </span>
@@ -429,9 +429,9 @@ export function GundamSeriesShowcase() {
         </div>
 
         {/* Indicador de Status */}
-        <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
+        <div className="flex items-center justify-between text-xs dark:text-slate-400 light:text-slate-600 font-mono">
           <span>
-            Exibindo <strong className="text-cyan-300">{displayedSeries.length}</strong> de{" "}
+            Exibindo <strong className="dark:text-cyan-300 light:text-cyan-700">{displayedSeries.length}</strong> de{" "}
             <strong>{GUNDAM_SERIES_CATALOG.length}</strong> sagas catalogadas
             {!showAll && " (selecionadas aleatoriamente para manter a página compacta)"}
           </span>
@@ -446,69 +446,69 @@ export function GundamSeriesShowcase() {
               <div
                 key={series.id}
                 className={cn(
-                  "group relative rounded-xl border bg-slate-950/90 transition-all duration-300 shadow-lg overflow-hidden flex flex-col justify-between",
+                  "group relative rounded-xl border dark:bg-slate-950/90 light:bg-white light:border-slate-300/80 light:shadow-md transition-all duration-300 shadow-lg overflow-hidden flex flex-col justify-between",
                   series.colorAccent.split(" ")[0],
-                  isOpen ? "border-cyan-400/70 shadow-[0_0_24px_rgba(6,182,212,0.2)]" : "hover:border-white/20"
+                  isOpen ? "border-cyan-400/70 shadow-[0_0_24px_rgba(6,182,212,0.2)]" : "dark:hover:border-white/20 light:hover:border-slate-400"
                 )}
               >
                 <div className="p-5 space-y-3">
                   {/* Topo do Card da Série */}
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-400">
+                      <span className="text-[10px] font-mono uppercase tracking-[0.2em] dark:text-slate-400 light:text-slate-500">
                         {series.timeline}
                       </span>
-                      <h3 className="font-heading text-xl uppercase text-white mt-0.5 group-hover:text-cyan-300 transition-colors">
+                      <h3 className="font-heading text-xl uppercase dark:text-white light:text-slate-950 mt-0.5 dark:group-hover:text-cyan-300 light:group-hover:text-cyan-600 transition-colors">
                         {series.name}
                       </h3>
                       {series.jpName && (
-                        <p className="text-[11px] text-slate-400 font-sans">{series.jpName}</p>
+                        <p className="text-[11px] dark:text-slate-400 light:text-slate-500 font-sans">{series.jpName}</p>
                       )}
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
-                      <span className="rounded bg-black/60 px-2 py-0.5 font-mono text-[10px] font-semibold text-slate-300 border border-white/10">
+                      <span className="rounded dark:bg-black/60 dark:border-white/10 dark:text-slate-300 light:bg-slate-100 light:border-slate-300 light:text-slate-700 px-2 py-0.5 font-mono text-[10px] font-semibold border">
                         {series.year}
                       </span>
-                      <span className="font-mono text-[10px] text-cyan-400 font-medium">
+                      <span className="font-mono text-[10px] dark:text-cyan-400 light:text-cyan-700 font-medium">
                         {series.cardCount} cartas
                       </span>
                     </div>
                   </div>
 
                   {/* Resumo Rápido */}
-                  <p className="text-xs text-slate-300 leading-relaxed line-clamp-3">
+                  <p className="text-xs dark:text-slate-300 light:text-slate-600 leading-relaxed line-clamp-3">
                     {series.description}
                   </p>
 
                   {/* Destaque Mecha e Presença no TCG */}
-                  <div className="space-y-1.5 pt-2 border-t border-white/10 text-xs">
+                  <div className="space-y-1.5 pt-2 border-t dark:border-white/10 light:border-slate-200 text-xs">
                     <div className="flex items-center gap-2">
                       <Swords className="size-3.5 text-cyan-400 shrink-0" />
-                      <span className="text-slate-400 text-[11px]">Destaques:</span>
-                      <span className="text-white font-medium text-[11px] truncate">{series.highlightMecha}</span>
+                      <span className="dark:text-slate-400 light:text-slate-500 text-[11px]">Destaques:</span>
+                      <span className="dark:text-white light:text-slate-800 font-medium text-[11px] truncate">{series.highlightMecha}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Layers className="size-3.5 text-cyan-400 shrink-0" />
-                      <span className="text-slate-400 text-[11px]">No TCG:</span>
-                      <span className="text-cyan-300 text-[11px] truncate">{series.startersOrPacks}</span>
+                      <span className="dark:text-slate-400 light:text-slate-500 text-[11px]">No TCG:</span>
+                      <span className="dark:text-cyan-300 light:text-cyan-700 text-[11px] truncate font-medium">{series.startersOrPacks}</span>
                     </div>
                   </div>
 
                   {/* Conteúdo Expandido do Acordeão */}
                   {isOpen && (
                     <div className="mt-3 pt-3 border-t border-cyan-500/20 space-y-2.5 animate-in fade-in-50 duration-200">
-                      <div className="rounded-lg bg-cyan-950/30 border border-cyan-500/20 p-3 text-xs">
-                        <p className="font-semibold text-cyan-300 uppercase tracking-wider text-[10px]">
+                      <div className="rounded-lg dark:bg-cyan-950/30 dark:border-cyan-500/20 light:bg-cyan-50 light:border-cyan-200 border p-3 text-xs">
+                        <p className="font-semibold dark:text-cyan-300 light:text-cyan-800 uppercase tracking-wider text-[10px]">
                           Estilo de Jogo no TCG:
                         </p>
-                        <p className="mt-1 text-slate-300 text-[11px] leading-relaxed">{series.tcgStyle}</p>
+                        <p className="mt-1 dark:text-slate-300 light:text-slate-700 text-[11px] leading-relaxed">{series.tcgStyle}</p>
                       </div>
 
-                      <div className="rounded-lg bg-white/[0.02] border border-white/10 p-3 text-xs">
-                        <p className="font-semibold text-slate-300 uppercase tracking-wider text-[10px]">
+                      <div className="rounded-lg dark:bg-white/[0.02] dark:border-white/10 light:bg-slate-50 light:border-slate-200 border p-3 text-xs">
+                        <p className="font-semibold dark:text-slate-300 light:text-slate-700 uppercase tracking-wider text-[10px]">
                           Futura Enciclopédia & Wiki:
                         </p>
-                        <p className="mt-1 text-slate-400 text-[11px] leading-relaxed">
+                        <p className="mt-1 dark:text-slate-400 light:text-slate-600 text-[11px] leading-relaxed">
                           Ficha técnica de Mobile Suits, biografias de pilotos, relações de docking e guias de facções em português.
                         </p>
                       </div>
@@ -517,11 +517,11 @@ export function GundamSeriesShowcase() {
                 </div>
 
                 {/* Rodapé com Ações */}
-                <div className="p-3.5 px-5 border-t border-white/10 bg-slate-900/40 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div className="p-3.5 px-5 border-t dark:border-white/10 dark:bg-slate-900/40 light:border-slate-200 light:bg-slate-50 flex flex-wrap items-center justify-between gap-2 text-xs">
                   <button
                     type="button"
                     onClick={() => toggleAccordion(series.id)}
-                    className="font-semibold uppercase tracking-wider text-slate-300 hover:text-white transition-colors flex items-center gap-1 text-[11px]"
+                    className="font-semibold uppercase tracking-wider dark:text-slate-300 dark:hover:text-white light:text-slate-600 light:hover:text-slate-900 transition-colors flex items-center gap-1 text-[11px]"
                   >
                     {isOpen ? "Menos Detalhes" : "Mais Detalhes"}
                     <ChevronDown className={cn("size-3.5 transition-transform duration-200", isOpen && "rotate-180")} />
@@ -531,7 +531,7 @@ export function GundamSeriesShowcase() {
                     {series.loreSlug ? (
                       <Link
                         href={`/series/${series.loreSlug}`}
-                        className="font-semibold uppercase tracking-wider text-white hover:text-cyan-300 transition-colors flex items-center gap-1 text-[11px]"
+                        className="font-semibold uppercase tracking-wider dark:text-white dark:hover:text-cyan-300 light:text-slate-800 light:hover:text-cyan-700 transition-colors flex items-center gap-1 text-[11px]"
                         title={`Ver a página de lore completa de ${series.name}`}
                       >
                         <BookOpen className="size-3" />Ver Lore
@@ -539,7 +539,7 @@ export function GundamSeriesShowcase() {
                     ) : null}
                     <Link
                       href={`/cards?series=${encodeURIComponent(series.dbName)}&sort=code_asc`}
-                      className="font-semibold uppercase tracking-wider text-cyan-400 hover:text-cyan-300 transition-colors flex items-center gap-1 text-[11px]"
+                      className="font-semibold uppercase tracking-wider dark:text-cyan-400 dark:hover:text-cyan-300 light:text-cyan-600 light:hover:text-cyan-800 transition-colors flex items-center gap-1 text-[11px]"
                       title={`Ver as ${series.cardCount} cartas de ${series.name} no banco de dados`}
                     >
                       Ver Cartas ({series.cardCount}) <ArrowRight className="size-3" />
@@ -552,23 +552,23 @@ export function GundamSeriesShowcase() {
         </div>
 
         {/* Banner Informativo sobre a Futura Wiki */}
-        <div className="rounded-xl border border-white/10 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="rounded-xl border dark:border-white/10 dark:bg-gradient-to-r dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 light:border-slate-300 light:bg-white light:shadow-md p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="flex size-12 items-center justify-center rounded-xl border border-cyan-400/40 bg-cyan-500/10 text-cyan-400 shrink-0">
               <BookOpen className="size-6" />
             </div>
             <div>
-              <h4 className="font-heading text-lg uppercase text-white">
+              <h4 className="font-heading text-lg uppercase dark:text-white light:text-slate-950">
                 Universe Hub — Wiki em construção, primeiras séries no ar
               </h4>
-              <p className="text-xs text-slate-400 mt-0.5 max-w-2xl">
+              <p className="text-xs dark:text-slate-400 light:text-slate-600 mt-0.5 max-w-2xl">
                 Sinopse, Mobile Suits, pilotos e curiosidades de cada saga, em português. Zeta Gundam e Gundam SEED já
                 estão completos — as demais séries chegam em waves seguintes.
               </p>
             </div>
           </div>
 
-          <Button asChild variant="outline" className="rounded-none border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/10 text-xs uppercase tracking-[0.14em] shrink-0">
+          <Button asChild variant="outline" className="rounded-none border-cyan-500/40 dark:text-cyan-300 dark:hover:bg-cyan-500/10 light:text-cyan-700 light:bg-cyan-50 light:hover:bg-cyan-100 text-xs uppercase tracking-[0.14em] shrink-0">
             <Link href="/series">
               Abrir Universe Hub <ArrowRight className="ml-1.5 size-3.5" />
             </Link>

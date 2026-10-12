@@ -157,13 +157,13 @@ export function CockpitRegistrationSection() {
   };
 
   return (
-    <section id="cockpit-registro" className="relative border-t border-white/10 bg-slate-950 py-12 sm:py-20 overflow-hidden">
+    <section id="cockpit-registro" className="relative border-t dark:border-white/10 dark:bg-slate-950 light:border-slate-300 light:bg-slate-100/70 py-12 sm:py-20 overflow-hidden">
       {/* Background tático com padrão grid sutil */}
       <div className="pointer-events-none absolute inset-0 bg-grid-tech opacity-30" />
       <div className="pointer-events-none absolute -right-20 top-1/2 size-96 -translate-y-1/2 rounded-full bg-cyan-500/10 blur-3xl" />
 
       <div className="relative container-ultrawide">
-        <div className="overflow-hidden rounded-2xl border border-white/15 bg-slate-950/90 shadow-2xl backdrop-blur-xl">
+        <div className="overflow-hidden rounded-2xl border dark:border-white/15 dark:bg-slate-950/90 light:border-slate-300 light:bg-white light:shadow-xl shadow-2xl backdrop-blur-xl">
           <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] xl:grid-cols-[1.2fr_0.8fr]">
             {/* LADO ESQUERDO: IMAGEM CINEMATOGRÁFICA DA CABINE DO GUNDAM */}
             <div className="relative min-h-[380px] sm:min-h-[460px] lg:min-h-full overflow-hidden bg-slate-950 group">
@@ -207,7 +207,7 @@ export function CockpitRegistrationSection() {
             </div>
 
             {/* LADO DIREITO: FORMULÁRIO DE CADASTRO OU STATUS DO PILOTO LOGADO */}
-            <div className="flex flex-col justify-between p-6 sm:p-8 lg:p-10 border-t lg:border-t-0 lg:border-l border-white/10 bg-slate-950/80">
+            <div className="flex flex-col justify-between p-6 sm:p-8 lg:p-10 border-t lg:border-t-0 lg:border-l dark:border-white/10 dark:bg-slate-950/80 light:border-slate-200 light:bg-white">
               {isAuthenticated && user ? (
                 /* Estado quando já autenticado */
                 <div className="space-y-6 my-auto py-6">
@@ -215,23 +215,23 @@ export function CockpitRegistrationSection() {
                     <Badge className="rounded-none border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">
                       Sessão Ativa
                     </Badge>
-                    <h2 className="heading-portal font-heading text-3xl uppercase text-white">
+                    <h2 className="heading-portal font-heading text-3xl uppercase dark:text-white light:text-slate-950">
                       Piloto conectado aos controles
                     </h2>
-                    <p className="text-slate-400 text-sm leading-relaxed">
+                    <p className="dark:text-slate-400 light:text-slate-600 text-sm leading-relaxed">
                       Você já está registrado e operando na cabine da Anaheim HUB com o perfil{" "}
                       <span className="text-cyan-300 font-semibold">{user.displayName}</span> ({user.email}).
                     </p>
                   </div>
 
-                  <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
+                  <div className="rounded-xl border dark:border-white/10 dark:bg-white/[0.02] light:border-slate-200 light:bg-slate-50 p-4 space-y-3">
                     <div className="flex items-center gap-3">
                       <div className="flex size-10 items-center justify-center rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-400">
                         <UserCheck className="size-5" />
                       </div>
                       <div>
-                        <p className="text-xs font-mono uppercase text-slate-400">Credencial de Hangar</p>
-                        <p className="font-heading text-lg text-white uppercase">{user.displayName}</p>
+                        <p className="text-xs font-mono uppercase dark:text-slate-400 light:text-slate-500">Credencial de Hangar</p>
+                        <p className="font-heading text-lg dark:text-white light:text-slate-950 uppercase">{user.displayName}</p>
                       </div>
                     </div>
                   </div>
@@ -243,7 +243,7 @@ export function CockpitRegistrationSection() {
                         Entrar no Simulador
                       </Link>
                     </Button>
-                    <Button asChild variant="outline" className="rounded-none border-white/20 bg-white/5 text-xs uppercase tracking-[0.16em] text-white hover:bg-white/10">
+                    <Button asChild variant="outline" className="rounded-none dark:border-white/20 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 light:border-slate-300 light:bg-slate-100 light:text-slate-800 light:hover:bg-slate-200 text-xs uppercase tracking-[0.16em]">
                       <Link href="/deckbuilder">
                         Hangar de Decks <ArrowRight className="ml-2 size-3.5" />
                       </Link>
@@ -257,10 +257,10 @@ export function CockpitRegistrationSection() {
                     <Badge className="rounded-none border border-cyan-400/40 bg-cyan-400/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-cyan-300">
                       Alistamento no Hangar
                     </Badge>
-                    <h2 className="heading-portal font-heading text-3xl sm:text-4xl uppercase mt-2 text-white">
+                    <h2 className="heading-portal font-heading text-3xl sm:text-4xl uppercase mt-2 dark:text-white light:text-slate-950">
                       Cadastre-se aqui e pilote
                     </h2>
-                    <p className="text-slate-400 text-xs sm:text-sm mt-1 leading-relaxed">
+                    <p className="dark:text-slate-400 light:text-slate-600 text-xs sm:text-sm mt-1 leading-relaxed">
                       Crie sua conta gratuitamente para salvar decks ilimitados, testar no simulador e competir na comunidade.
                     </p>
                   </div>
@@ -279,7 +279,7 @@ export function CockpitRegistrationSection() {
                   <form onSubmit={handleSubmit} className="space-y-4">
                     {/* Campo Nome de Piloto */}
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                      <label className="text-xs font-semibold uppercase tracking-wider dark:text-slate-300 light:text-slate-700 flex items-center gap-1.5">
                         <User className="size-3.5 text-primary" /> Nome de Piloto
                       </label>
                       <Input
@@ -290,14 +290,14 @@ export function CockpitRegistrationSection() {
                           if (errorMessage) setErrorMessage(null);
                         }}
                         placeholder="Ex: Amuro_Ray ou ComandanteZaku"
-                        className="rounded-lg border-white/15 bg-slate-900/90 text-white placeholder:text-slate-500 focus:border-cyan-400 h-10"
+                        className="rounded-lg dark:border-white/15 dark:bg-slate-900/90 dark:text-white dark:placeholder:text-slate-500 light:border-slate-300 light:bg-slate-50 light:text-slate-900 light:placeholder:text-slate-400 focus:border-cyan-400 h-10"
                         required
                       />
                     </div>
 
                     {/* Campo Email */}
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                      <label className="text-xs font-semibold uppercase tracking-wider dark:text-slate-300 light:text-slate-700 flex items-center gap-1.5">
                         <Mail className="size-3.5 text-primary" /> Seu Melhor Email
                       </label>
                       <Input
@@ -308,7 +308,7 @@ export function CockpitRegistrationSection() {
                           if (errorMessage) setErrorMessage(null);
                         }}
                         placeholder="piloto@anaheim.local"
-                        className="rounded-lg border-white/15 bg-slate-900/90 text-white placeholder:text-slate-500 focus:border-cyan-400 h-10"
+                        className="rounded-lg dark:border-white/15 dark:bg-slate-900/90 dark:text-white dark:placeholder:text-slate-500 light:border-slate-300 light:bg-slate-50 light:text-slate-900 light:placeholder:text-slate-400 focus:border-cyan-400 h-10"
                         required
                       />
                     </div>
@@ -316,7 +316,7 @@ export function CockpitRegistrationSection() {
                     {/* Campo Senha com Indicador de Força */}
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                        <label className="text-xs font-semibold uppercase tracking-wider dark:text-slate-300 light:text-slate-700 flex items-center gap-1.5">
                           <Lock className="size-3.5 text-primary" /> Senha de Acesso
                         </label>
                         {password && (
@@ -333,16 +333,16 @@ export function CockpitRegistrationSection() {
                           if (errorMessage) setErrorMessage(null);
                         }}
                         placeholder="Mínimo de 6 caracteres"
-                        className="rounded-lg border-white/15 bg-slate-900/90 text-white placeholder:text-slate-500 focus:border-cyan-400 h-10"
+                        className="rounded-lg dark:border-white/15 dark:bg-slate-900/90 dark:text-white dark:placeholder:text-slate-500 light:border-slate-300 light:bg-slate-50 light:text-slate-900 light:placeholder:text-slate-400 focus:border-cyan-400 h-10"
                         required
                       />
 
                       {/* Barra Visual de Força da Senha */}
                       {password && (
                         <div className="grid grid-cols-3 gap-1 pt-1">
-                          <div className={cn("h-1 rounded-full", passwordStrength.score >= 1 ? passwordStrength.color.split(" ")[1] : "bg-white/10")} />
-                          <div className={cn("h-1 rounded-full", passwordStrength.score >= 2 ? passwordStrength.color.split(" ")[1] : "bg-white/10")} />
-                          <div className={cn("h-1 rounded-full", passwordStrength.score >= 3 ? passwordStrength.color.split(" ")[1] : "bg-white/10")} />
+                          <div className={cn("h-1 rounded-full", passwordStrength.score >= 1 ? passwordStrength.color.split(" ")[1] : "dark:bg-white/10 light:bg-slate-200")} />
+                          <div className={cn("h-1 rounded-full", passwordStrength.score >= 2 ? passwordStrength.color.split(" ")[1] : "dark:bg-white/10 light:bg-slate-200")} />
+                          <div className={cn("h-1 rounded-full", passwordStrength.score >= 3 ? passwordStrength.color.split(" ")[1] : "dark:bg-white/10 light:bg-slate-200")} />
                         </div>
                       )}
                     </div>
@@ -360,10 +360,10 @@ export function CockpitRegistrationSection() {
                   {/* Divisor para Opção Social */}
                   <div className="relative my-4">
                     <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t border-white/10" />
+                      <span className="w-full border-t dark:border-white/10 light:border-slate-200" />
                     </div>
                     <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-slate-950 px-3 text-slate-500 font-mono text-[10px]">
+                      <span className="dark:bg-slate-950 light:bg-white px-3 dark:text-slate-500 light:text-slate-500 font-mono text-[10px]">
                         Ou acesse via login social
                       </span>
                     </div>
@@ -375,7 +375,7 @@ export function CockpitRegistrationSection() {
                   </div>
 
                   {/* Atalho para quem já tem conta */}
-                  <p className="text-center text-xs text-slate-400 pt-2 border-t border-white/5">
+                  <p className="text-center text-xs dark:text-slate-400 light:text-slate-600 pt-2 border-t dark:border-white/5 light:border-slate-200">
                     Já possui registro militar?{" "}
                     <Link href="/auth?mode=login" className="text-primary hover:underline font-semibold">
                       Faça login no Hangar

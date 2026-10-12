@@ -39,7 +39,7 @@ export function PopularMainCardsSection() {
 
   return (
     <section className="relative container-ultrawide py-8">
-      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60 p-4 sm:p-6 backdrop-blur-md shadow-2xl">
+      <div className="relative overflow-hidden rounded-2xl border dark:border-white/10 dark:bg-slate-900/60 light:border-slate-300/80 light:bg-white light:shadow-lg p-4 sm:p-6 backdrop-blur-md shadow-2xl">
         {/* Glow tático de fundo */}
         <div className="pointer-events-none absolute -top-24 -left-24 size-80 rounded-full bg-cyan-500/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 -right-24 size-80 rounded-full bg-primary/10 blur-3xl" />
@@ -51,12 +51,12 @@ export function PopularMainCardsSection() {
               <div className="flex size-9 items-center justify-center rounded-lg border border-cyan-500/40 bg-cyan-950/30 text-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.3)]">
                 <LayoutGrid className="size-5" />
               </div>
-              <h2 className="font-heading text-xl sm:text-2xl font-bold tracking-wide text-white">
+              <h2 className="font-heading text-xl sm:text-2xl font-bold tracking-wide dark:text-white light:text-slate-950">
                 Cartas Principais Populares
               </h2>
             </div>
             {/* Linha com acento ciano à esquerda */}
-            <div className="mt-3 relative h-[2px] w-full max-w-xl bg-slate-800/80">
+            <div className="mt-3 relative h-[2px] w-full max-w-xl dark:bg-slate-800/80 light:bg-slate-200">
               <div className="absolute left-0 top-0 h-full w-28 bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.8)]" />
             </div>
           </div>
@@ -66,7 +66,7 @@ export function PopularMainCardsSection() {
             <button
               type="button"
               onClick={() => scroll("left")}
-              className="flex size-8 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-slate-300 transition hover:border-cyan-400 hover:bg-cyan-500/10 hover:text-white"
+              className="flex size-8 items-center justify-center rounded-lg border dark:border-white/15 dark:bg-white/5 dark:text-slate-300 dark:hover:text-white dark:hover:bg-cyan-500/10 light:border-slate-300 light:bg-slate-100 light:text-slate-700 light:hover:bg-slate-200 light:hover:text-slate-950 transition hover:border-cyan-400"
               aria-label="Rolar para a esquerda"
             >
               <ChevronLeft className="size-4" />
@@ -74,7 +74,7 @@ export function PopularMainCardsSection() {
             <button
               type="button"
               onClick={() => scroll("right")}
-              className="flex size-8 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-slate-300 transition hover:border-cyan-400 hover:bg-cyan-500/10 hover:text-white"
+              className="flex size-8 items-center justify-center rounded-lg border dark:border-white/15 dark:bg-white/5 dark:text-slate-300 dark:hover:text-white dark:hover:bg-cyan-500/10 light:border-slate-300 light:bg-slate-100 light:text-slate-700 light:hover:bg-slate-200 light:hover:text-slate-950 transition hover:border-cyan-400"
               aria-label="Rolar para a direita"
             >
               <ChevronRight className="size-4" />
@@ -115,11 +115,11 @@ export function PopularMainCardsSection() {
                   <Link
                     key={card.id}
                     href={`/cards/${card.id}`}
-                    className="group relative flex w-[145px] sm:w-[165px] md:w-[180px] shrink-0 flex-col overflow-hidden rounded-xl border border-white/15 bg-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.03] hover:border-cyan-400/80 hover:shadow-[0_0_24px_rgba(6,182,212,0.35)]"
+                    className="group relative flex w-[145px] sm:w-[165px] md:w-[180px] shrink-0 flex-col overflow-hidden rounded-xl border dark:border-white/15 dark:bg-slate-950 light:border-slate-200 light:bg-white shadow-lg transition-all duration-300 hover:scale-[1.03] hover:border-cyan-400/80 hover:shadow-[0_0_24px_rgba(6,182,212,0.35)]"
                     title={`${displayName} — Presente em ${card.deckCount} decks`}
                   >
                     {/* Badge de Ranking (#1, #2...) */}
-                    <div className="absolute left-2 top-2 z-10 rounded bg-slate-950/90 px-2 py-0.5 font-mono text-[11px] font-bold text-white border border-white/20 shadow-md">
+                    <div className="absolute left-2 top-2 z-10 rounded dark:bg-slate-950/90 dark:text-white dark:border-white/20 light:bg-white/95 light:text-slate-900 light:border-slate-300 px-2 py-0.5 font-mono text-[11px] font-bold border shadow-md">
                       #{rank}
                     </div>
 
@@ -145,11 +145,11 @@ export function PopularMainCardsSection() {
                     </div>
 
                     {/* Tarja Inferior com Nome e Contagem de Decks */}
-                    <div className="flex min-h-[52px] flex-col items-center justify-center border-t border-white/10 bg-slate-950/95 px-2 py-1.5 text-center">
-                      <p className="w-full truncate text-xs font-semibold text-white group-hover:text-cyan-300 transition-colors">
+                    <div className="flex min-h-[52px] flex-col items-center justify-center border-t dark:border-white/10 dark:bg-slate-950/95 light:border-slate-200 light:bg-slate-50 px-2 py-1.5 text-center">
+                      <p className="w-full truncate text-xs font-semibold dark:text-white light:text-slate-950 dark:group-hover:text-cyan-300 light:group-hover:text-cyan-600 transition-colors">
                         {displayName}
                       </p>
-                      <p className="mt-0.5 font-mono text-[11px] text-slate-400">
+                      <p className="mt-0.5 font-mono text-[11px] dark:text-slate-400 light:text-slate-600">
                         {card.deckCount} {card.deckCount === 1 ? "deck" : "decks"}
                       </p>
                     </div>
@@ -160,18 +160,18 @@ export function PopularMainCardsSection() {
               {/* ── CARD FINAL "VER MAIS" (FILTRO LR) ────────────────── */}
               <Link
                 href="/cards?rarity=Legend Rare&sort=code_asc&pageSize=20"
-                className="group relative flex w-[145px] sm:w-[165px] md:w-[180px] shrink-0 aspect-[63/88] flex-col items-center justify-center overflow-hidden rounded-xl border border-white/15 bg-slate-950/70 p-4 text-center shadow-lg backdrop-blur-md transition-all duration-300 hover:scale-[1.03] hover:border-cyan-400/80 hover:shadow-[0_0_24px_rgba(6,182,212,0.35)]"
+                className="group relative flex w-[145px] sm:w-[165px] md:w-[180px] shrink-0 aspect-[63/88] flex-col items-center justify-center overflow-hidden rounded-xl border dark:border-white/15 dark:bg-slate-950/70 light:border-slate-300 light:bg-slate-50 p-4 text-center shadow-lg backdrop-blur-md transition-all duration-300 hover:scale-[1.03] hover:border-cyan-400/80 hover:shadow-[0_0_24px_rgba(6,182,212,0.35)]"
               >
                 {/* Background com leve blur / padrão tático */}
-                <div className="absolute inset-0 bg-gradient-to-b from-slate-900/60 to-slate-950/90 pointer-events-none" />
+                <div className="absolute inset-0 dark:bg-gradient-to-b dark:from-slate-900/60 dark:to-slate-950/90 light:bg-gradient-to-b light:from-slate-100 light:to-slate-200/60 pointer-events-none" />
                 <div className="relative z-10 flex flex-col items-center gap-2.5">
-                  <div className="flex size-11 items-center justify-center rounded-full border border-white/20 bg-white/5 text-slate-300 transition-all duration-300 group-hover:border-cyan-400 group-hover:bg-cyan-500/20 group-hover:text-cyan-300 group-hover:scale-110">
+                  <div className="flex size-11 items-center justify-center rounded-full border dark:border-white/20 dark:bg-white/5 dark:text-slate-300 light:border-slate-300 light:bg-white light:text-slate-700 transition-all duration-300 group-hover:border-cyan-400 group-hover:bg-cyan-500/20 group-hover:text-cyan-300 group-hover:scale-110">
                     <Sparkles className="size-5" />
                   </div>
-                  <span className="font-heading text-sm font-bold text-slate-200 group-hover:text-cyan-300 transition-colors">
+                  <span className="font-heading text-sm font-bold dark:text-slate-200 light:text-slate-800 group-hover:text-cyan-300 transition-colors">
                     Ver mais
                   </span>
-                  <span className="text-[10px] text-slate-400 uppercase tracking-widest font-mono">
+                  <span className="text-[10px] dark:text-slate-400 light:text-slate-600 uppercase tracking-widest font-mono">
                     Ver LRs no Database
                   </span>
                 </div>
