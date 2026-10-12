@@ -199,4 +199,15 @@ export function registerAuthEmailRoutes(app: Express, deps: AuthEmailDeps) {
     if (!sent) return res.status(503).json({ error: "Não foi possível enviar o e-mail agora. Tente mais tarde." });
     res.json({ ok: true, message: `Enviamos um novo link para ${user.email}.` });
   });
+
+  app.post("/api/auth/verify-email/request", async (req: Request, res: Response) => {
+    const email = String((req.body as { email?: string })?.email ?? "").trim().toLowerCase();
+    if (deps.rateLimited(req, email)) return res.status(429).json({ error: "Muitas tentativas. Aguarde alguns minutos." });
+    if (!email) return res.status(400).json({ error: "Informe o e-mail." });
+    const ok = { ok: true, message: "Se houver uma conta pendente de confirmação com este e-mail, enviamos um novo link." };
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user || !user.isActive || user.emailVerifiedAt) return res.json(ok);
+    await sendVerificationEmail({ prisma, mailer, publicUrl }, user);
+    res.json(ok);
+  });
 }
