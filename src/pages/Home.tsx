@@ -67,10 +67,10 @@ const CAROUSEL_SLIDES = [
     date: "06 Set 2026",
     title: "ARENA ASTICASSIA: DUELOS ONLINE EM TEMPO REAL E MODO SOLO",
     summary:
-      "Dispute partidas oficiais via matchmaking online ou teste sua linha de combate no modo de treino contra a inteligência artificial com heurística e MCTS.",
+      "Conheça o simulador de partidas táticas com regras oficiais, matchmaking online ou modo de treino solo contra inteligência artificial (login opcional para registrar telemetria).",
     image: newsStartersClash,
     link: "/simulador",
-    actionLabel: "Entrar na Arena",
+    actionLabel: "Conhecer a Arena",
   },
   {
     id: 4,
@@ -120,6 +120,25 @@ export default function Home({ targetSection }: HomeProps) {
       <div className="pointer-events-none absolute inset-0 bg-scanlines opacity-20" />
 
       <AppTopNav />
+
+      {/* ── BARRA INSTITUCIONAL DE ACESSO PÚBLICO E TRANSPARÊNCIA (DIRETRIZES GOOGLE) ── */}
+      <div className="border-b border-white/10 bg-slate-950/75 dark:bg-slate-950/75 light:border-slate-300 light:bg-slate-100 py-2 px-4 text-xs">
+        <div className="container-ultrawide flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 font-mono text-[11px] text-slate-300 dark:text-slate-300 light:text-slate-700">
+            <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>
+              <strong>PLATAFORMA PÚBLICA & ABERTA:</strong> Consulta irrestrita a cartas, decks, regras e torneios sem exigência de login.
+            </span>
+          </div>
+          <div className="flex items-center gap-4 text-[11px] font-mono text-slate-400 dark:text-slate-400 light:text-slate-600">
+            <Link href="/database" className="text-primary hover:underline">Cartas</Link>
+            <Link href="/torneios" className="text-primary hover:underline">Torneios</Link>
+            <Link href="/rules" className="text-primary hover:underline">Regras</Link>
+            <Link href="/privacidade" className="hover:text-primary transition-colors">Privacidade</Link>
+            <Link href="/termos" className="hover:text-primary transition-colors">Termos</Link>
+          </div>
+        </div>
+      </div>
 
       <main id="topo">
         {/* ── HERO SECTION: PORTAL RESUMO (CARROSSEL + LINKS RÁPIDOS) ───── */}
@@ -293,7 +312,7 @@ export default function Home({ targetSection }: HomeProps) {
                             : "border-primary/40 bg-primary/15 text-primary"
                         )}>
                           <span className={cn("size-1.5 rounded-full animate-pulse", isZeon ? "bg-red-500" : "bg-primary")} />
-                          SIMULADOR ONLINE
+                          SIMULADOR ONLINE · LOGIN OPCIONAL
                         </span>
                       </div>
                       <h4 className={cn(
@@ -338,7 +357,7 @@ export default function Home({ targetSection }: HomeProps) {
                       <div className="flex items-center gap-2 mb-1">
                         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-xs border border-amber-500/40 bg-amber-500/15 text-amber-400">
                           <span className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
-                          DECKBUILDER
+                          DECKBUILDER · ACESSO PÚBLICO LIVRE
                         </span>
                       </div>
                       <h4 className="font-heading text-lg sm:text-xl uppercase text-white transition-colors duration-200 heading-portal truncate group-hover:text-amber-400">
@@ -380,7 +399,7 @@ export default function Home({ targetSection }: HomeProps) {
                       <div className="flex items-center gap-2 mb-1">
                         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-xs border border-emerald-500/40 bg-emerald-500/15 text-emerald-400">
                           <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                          METAGAME & STATS
+                          METAGAME & STATS · ACESSO PÚBLICO LIVRE
                         </span>
                       </div>
                       <h4 className="font-heading text-lg sm:text-xl uppercase text-white transition-colors duration-200 heading-portal truncate group-hover:text-emerald-400">

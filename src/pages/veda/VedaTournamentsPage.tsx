@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   ChevronDown,
@@ -30,6 +30,7 @@ import type { Paginated, VedaFilters, VedaTournamentCard, VedaTournamentDetail }
 import { TOURNAMENT_TIER_OPTIONS } from "@/lib/gundam-catalog";
 
 const PAGE_SIZE = 24;
+const DEFAULT_SEASON = "GD05";
 
 function formatDatePtBr(raw?: string | null): string {
   if (!raw) return "Data a definir";
@@ -46,32 +47,43 @@ function tierLabel(tier?: string | null) {
   return TOURNAMENT_TIER_OPTIONS.find((t) => t.value === tier)?.label || tier || "Torneio Registrado";
 }
 
+function readFiltersFromUrl() {
+  const searchPart = window.location.hash.includes("?")
+    ? window.location.hash.substring(window.location.hash.indexOf("?"))
+    : window.location.search;
+  const sp = new URLSearchParams(searchPart);
+  const rawSeason = sp.get("season");
+  return {
+    country: sp.get("country") || "",
+    season: rawSeason !== null ? rawSeason : DEFAULT_SEASON,
+    tier: sp.get("tier") || "",
+    source: sp.get("source") || "",
+    uf: sp.get("uf") || "",
+    city: sp.get("city") || "",
+    q: sp.get("q") || "",
+    page: Math.max(1, parseInt(sp.get("page") || "1", 10) || 1),
+  };
+}
+
 export default function VedaTournamentsPage() {
-  const [location, navigate] = useLocation();
+  const [, navigate] = useLocation();
 
-  // Parse dos filtros da URL (compartilhável)
-  const currentParams = useMemo(() => {
-    const searchPart = window.location.hash.includes("?")
-      ? window.location.hash.substring(window.location.hash.indexOf("?"))
-      : window.location.search;
-    return new URLSearchParams(searchPart);
-  }, [location]);
+  // Estados locais reativos dos filtros e paginação
+  const initial = useMemo(() => readFiltersFromUrl(), []);
+  const [country, setCountry] = useState(initial.country);
+  const [season, setSeason] = useState(initial.season);
+  const [tier, setTier] = useState(initial.tier);
+  const [source, setSource] = useState(initial.source);
+  const [uf, setUf] = useState(initial.uf);
+  const [city, setCity] = useState(initial.city);
+  const [q, setQ] = useState(initial.q);
+  const [page, setPage] = useState(initial.page);
+  const [searchDraft, setSearchDraft] = useState(initial.q);
 
-  const countryParam = currentParams.get("country") || "";
-  const seasonParam = currentParams.get("season") || "";
-  const tierParam = currentParams.get("tier") || "";
-  const sourceParam = currentParams.get("source") || "";
-  const ufParam = currentParams.get("uf") || "";
-  const cityParam = currentParams.get("city") || "";
-  const qParam = currentParams.get("q") || "";
-  const pageParam = parseInt(currentParams.get("page") || "1", 10) || 1;
-
-  // Estados locais
   const [filtersMeta, setFiltersMeta] = useState<VedaFilters | null>(null);
   const [data, setData] = useState<Paginated<VedaTournamentCard> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchDraft, setSearchDraft] = useState(qParam);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   // Estados para expansão inline de detalhes dos torneios
@@ -79,44 +91,92 @@ export default function VedaTournamentsPage() {
   const [tournamentDetails, setTournamentDetails] = useState<Record<string, VedaTournamentDetail>>({});
   const [loadingDetails, setLoadingDetails] = useState<Record<string, boolean>>({});
 
-  // Sincroniza busca com rascunho quando a URL muda
+  const currentSeasonCode = useMemo(() => {
+    return filtersMeta?.seasons.find((s) => s.isCurrent)?.code || DEFAULT_SEASON;
+  }, [filtersMeta]);
+
+  // Carrega opções de filtro do backend e sincroniza temporada atual se necessário
   useEffect(() => {
-    setSearchDraft(qParam);
-  }, [qParam]);
-
-  // Atualiza parâmetros da URL preservando o histórico
-  const updateQueryParam = useCallback(
-    (newParams: Record<string, string | number | null>) => {
-      const sp = new URLSearchParams(
-        window.location.hash.includes("?")
+    let active = true;
+    vedaApi
+      .getFilters()
+      .then((meta) => {
+        if (!active) return;
+        setFiltersMeta(meta);
+        const cur = meta.seasons.find((s) => s.isCurrent)?.code;
+        const searchPart = window.location.hash.includes("?")
           ? window.location.hash.substring(window.location.hash.indexOf("?"))
-          : window.location.search,
-      );
-
-      for (const [key, val] of Object.entries(newParams)) {
-        if (val === null || val === "" || val === undefined) {
-          sp.delete(key);
-        } else {
-          sp.set(key, String(val));
+          : window.location.search;
+        const sp = new URLSearchParams(searchPart);
+        if (sp.get("season") === null && cur && cur !== DEFAULT_SEASON) {
+          setSeason(cur);
         }
-      }
+      })
+      .catch(() => {
+        // Fallback silencioso
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
-      // Ao mudar qualquer filtro além da própria página, volta para a página 1
-      if (!("page" in newParams)) {
-        sp.delete("page");
-      }
+  const lastNavigatedQs = useRef<string | null>(null);
 
-      const qs = sp.toString();
+  // Sincroniza estado com a URL (mantendo links compartilháveis e preservando histórico)
+  useEffect(() => {
+    const sp = new URLSearchParams();
+    if (country) sp.set("country", country);
+    if (season) sp.set("season", season);
+    if (tier) sp.set("tier", tier);
+    if (source) sp.set("source", source);
+    if (uf) sp.set("uf", uf);
+    if (city) sp.set("city", city);
+    if (q) sp.set("q", q);
+    if (page > 1) sp.set("page", String(page));
+
+    const qs = sp.toString();
+    if (lastNavigatedQs.current !== qs) {
+      lastNavigatedQs.current = qs;
       const targetPath = `/torneios${qs ? `?${qs}` : ""}`;
-      navigate(targetPath);
-    },
-    [navigate],
-  );
+      navigate(targetPath, { replace: true });
+    }
+  }, [country, season, tier, source, uf, city, q, page, navigate]);
+
+  // Sincroniza quando o usuário clica nos botões Voltar/Avançar do navegador
+  useEffect(() => {
+    const handlePopState = () => {
+      const f = readFiltersFromUrl();
+      lastNavigatedQs.current = null;
+      setCountry(f.country);
+      setSeason(f.season);
+      setTier(f.tier);
+      setSource(f.source);
+      setUf(f.uf);
+      setCity(f.city);
+      setQ(f.q);
+      setSearchDraft(f.q);
+      setPage(f.page);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    window.addEventListener("hashchange", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("hashchange", handlePopState);
+    };
+  }, []);
 
   const resetAllFilters = useCallback(() => {
+    setCountry("");
+    setSeason(currentSeasonCode);
+    setTier("");
+    setSource("");
+    setUf("");
+    setCity("");
+    setQ("");
     setSearchDraft("");
-    navigate("/torneios");
-  }, [navigate]);
+    setPage(1);
+  }, [currentSeasonCode]);
 
   // Alterna e carrega dados expandidos de um torneio
   const toggleExpandTournament = useCallback(
@@ -141,36 +201,20 @@ export default function VedaTournamentsPage() {
     [tournamentDetails, loadingDetails],
   );
 
-  // Carrega opções de filtro uma vez
-  useEffect(() => {
-    let active = true;
-    vedaApi
-      .getFilters()
-      .then((meta) => {
-        if (active) setFiltersMeta(meta);
-      })
-      .catch(() => {
-        // Fallback silencioso
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
   // Carrega torneios quando filtros mudam
   const loadTournaments = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const offset = (pageParam - 1) * PAGE_SIZE;
+      const offset = (page - 1) * PAGE_SIZE;
       const queryParams: VedaTournamentQueryParams = {
-        country: countryParam || undefined,
-        season: seasonParam || undefined,
-        tier: (tierParam as any) || undefined,
-        source: sourceParam || undefined,
-        uf: ufParam || undefined,
-        city: cityParam || undefined,
-        q: qParam || undefined,
+        country: country || undefined,
+        season: season && season !== "all" ? season : undefined,
+        tier: (tier as any) || undefined,
+        source: source || undefined,
+        uf: uf || undefined,
+        city: city || undefined,
+        q: q || undefined,
         offset,
         limit: PAGE_SIZE,
       };
@@ -182,18 +226,22 @@ export default function VedaTournamentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [pageParam, countryParam, seasonParam, tierParam, sourceParam, ufParam, cityParam, qParam]);
+  }, [page, country, season, tier, source, uf, city, q]);
 
   useEffect(() => {
     loadTournaments();
   }, [loadTournaments]);
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
-  const hasActiveFilters = Boolean(countryParam || seasonParam || tierParam || sourceParam || ufParam || cityParam || qParam);
+  const isCurrentSeasonActive = season === currentSeasonCode;
+  const hasActiveFilters = Boolean(
+    country || (!isCurrentSeasonActive && season) || tier || source || uf || city || q
+  );
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateQueryParam({ q: searchDraft.trim() || null });
+    setQ(searchDraft.trim());
+    setPage(1);
   };
 
   return (
@@ -210,9 +258,14 @@ export default function VedaTournamentsPage() {
             <div className="inline-flex rounded-md border dark:border-white/15 dark:bg-slate-900/80 light:border-slate-300 light:bg-slate-100 p-1 shrink-0">
               <button
                 type="button"
-                onClick={() => updateQueryParam({ country: null, uf: null, city: null })}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold uppercase tracking-wider transition-colors rounded-xs ${
-                  !countryParam
+                onClick={() => {
+                  setCountry("");
+                  setUf("");
+                  setCity("");
+                  setPage(1);
+                }}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold uppercase tracking-wider transition-colors rounded-xs cursor-pointer ${
+                  !country
                     ? "bg-primary text-primary-foreground shadow-xs font-bold"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
@@ -223,9 +276,12 @@ export default function VedaTournamentsPage() {
               </button>
               <button
                 type="button"
-                onClick={() => updateQueryParam({ country: "Brasil" })}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold uppercase tracking-wider transition-colors rounded-xs ${
-                  countryParam.toLowerCase() === "brasil"
+                onClick={() => {
+                  setCountry("Brasil");
+                  setPage(1);
+                }}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold uppercase tracking-wider transition-colors rounded-xs cursor-pointer ${
+                  country.toLowerCase() === "brasil"
                     ? "bg-amber-500 text-slate-950 shadow-xs font-bold"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
@@ -245,10 +301,10 @@ export default function VedaTournamentsPage() {
                 placeholder="Buscar torneio pelo nome ou loja..."
                 className="pl-9 h-10 rounded-none dark:border-white/15 dark:bg-white/5 dark:text-white light:border-slate-300 light:bg-slate-50 light:text-slate-900 placeholder:text-slate-500 font-mono text-xs focus-visible:border-primary"
               />
-              {searchDraft && searchDraft !== qParam && (
+              {searchDraft && searchDraft !== q && (
                 <button
                   type="submit"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-0.5 text-[10px] font-mono uppercase bg-primary text-primary-foreground font-bold"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-0.5 text-[10px] font-mono uppercase bg-primary text-primary-foreground font-bold cursor-pointer"
                 >
                   Filtrar
                 </button>
@@ -312,16 +368,23 @@ export default function VedaTournamentsPage() {
                 Temporada
               </label>
               <select
-                value={seasonParam}
-                onChange={(e) => updateQueryParam({ season: e.target.value || null })}
+                value={season}
+                onChange={(e) => {
+                  setSeason(e.target.value);
+                  setPage(1);
+                }}
                 className="w-full h-8 px-2 rounded-none border dark:border-white/15 dark:bg-slate-900 dark:text-white light:border-slate-300 light:bg-slate-50 light:text-slate-900 text-xs font-mono focus:border-primary outline-none"
               >
-                <option value="">Todas as Temporadas</option>
-                {filtersMeta?.seasons.map((s) => (
-                  <option key={s.code} value={s.code}>
-                    {s.name} {s.isCurrent ? "(Atual)" : ""}
-                  </option>
-                ))}
+                <option value="all">Todas as Temporadas</option>
+                {filtersMeta ? (
+                  filtersMeta.seasons.map((s) => (
+                    <option key={s.code} value={s.code}>
+                      {s.name} {s.isCurrent ? "(Atual)" : ""}
+                    </option>
+                  ))
+                ) : (
+                  <option value={DEFAULT_SEASON}>Temporada GD05 (Atual)</option>
+                )}
               </select>
             </div>
 
@@ -331,8 +394,11 @@ export default function VedaTournamentsPage() {
                 Categoria
               </label>
               <select
-                value={tierParam}
-                onChange={(e) => updateQueryParam({ tier: e.target.value || null })}
+                value={tier}
+                onChange={(e) => {
+                  setTier(e.target.value);
+                  setPage(1);
+                }}
                 className="w-full h-8 px-2 rounded-none border dark:border-white/15 dark:bg-slate-900 dark:text-white light:border-slate-300 light:bg-slate-50 light:text-slate-900 text-xs font-mono focus:border-primary outline-none"
               >
                 <option value="">Todas as Categorias</option>
@@ -350,8 +416,12 @@ export default function VedaTournamentsPage() {
                 Estado (UF)
               </label>
               <select
-                value={ufParam}
-                onChange={(e) => updateQueryParam({ uf: e.target.value || null, city: null })}
+                value={uf}
+                onChange={(e) => {
+                  setUf(e.target.value);
+                  setCity("");
+                  setPage(1);
+                }}
                 className="w-full h-8 px-2 rounded-none border dark:border-white/15 dark:bg-slate-900 dark:text-white light:border-slate-300 light:bg-slate-50 light:text-slate-900 text-xs font-mono focus:border-primary outline-none"
               >
                 <option value="">Todos os Estados</option>
@@ -369,14 +439,17 @@ export default function VedaTournamentsPage() {
                 Cidade
               </label>
               <select
-                value={cityParam}
-                onChange={(e) => updateQueryParam({ city: e.target.value || null })}
+                value={city}
+                onChange={(e) => {
+                  setCity(e.target.value);
+                  setPage(1);
+                }}
                 className="w-full h-8 px-2 rounded-none border dark:border-white/15 dark:bg-slate-900 dark:text-white light:border-slate-300 light:bg-slate-50 light:text-slate-900 text-xs font-mono focus:border-primary outline-none"
               >
                 <option value="">Todas as Cidades</option>
                 {(
-                  (ufParam
-                    ? filtersMeta?.ufs.find((u) => u.uf === ufParam)?.cities
+                  (uf
+                    ? filtersMeta?.ufs.find((u) => u.uf === uf)?.cities
                     : filtersMeta?.ufs.flatMap((u) => u.cities)) || []
                 )
                   .filter((c, i, arr) => arr.indexOf(c) === i)
@@ -395,8 +468,11 @@ export default function VedaTournamentsPage() {
                 Origem / Fonte
               </label>
               <select
-                value={sourceParam}
-                onChange={(e) => updateQueryParam({ source: e.target.value || null })}
+                value={source}
+                onChange={(e) => {
+                  setSource(e.target.value);
+                  setPage(1);
+                }}
                 className="w-full h-8 px-2 rounded-none border dark:border-white/15 dark:bg-slate-900 dark:text-white light:border-slate-300 light:bg-slate-50 light:text-slate-900 text-xs font-mono focus:border-primary outline-none"
               >
                 <option value="">Todas as Fontes</option>
@@ -668,7 +744,7 @@ export default function VedaTournamentsPage() {
             {totalPages > 1 && (
               <div className="panel-cut border dark:border-white/10 dark:bg-slate-950/80 light:border-slate-300 light:bg-white p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3">
                 <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                  Página <strong className="dark:text-white light:text-slate-900">{pageParam}</strong> de{" "}
+                  Página <strong className="dark:text-white light:text-slate-900">{page}</strong> de{" "}
                   <strong className="dark:text-white light:text-slate-900">{totalPages}</strong> ({data.total} torneios)
                 </span>
 
@@ -676,9 +752,12 @@ export default function VedaTournamentsPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    disabled={pageParam <= 1}
-                    onClick={() => updateQueryParam({ page: pageParam - 1 })}
-                    className="h-8 rounded-none dark:border-white/15 dark:bg-white/5 light:border-slate-300 light:bg-slate-50 text-xs font-mono uppercase disabled:opacity-30"
+                    disabled={page <= 1}
+                    onClick={() => {
+                      setPage((p) => Math.max(1, p - 1));
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="h-8 rounded-none dark:border-white/15 dark:bg-white/5 light:border-slate-300 light:bg-slate-50 text-xs font-mono uppercase disabled:opacity-30 cursor-pointer"
                   >
                     <ChevronLeft className="size-3.5 mr-1" />
                     Anterior
@@ -686,9 +765,12 @@ export default function VedaTournamentsPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    disabled={pageParam >= totalPages}
-                    onClick={() => updateQueryParam({ page: pageParam + 1 })}
-                    className="h-8 rounded-none dark:border-white/15 dark:bg-white/5 light:border-slate-300 light:bg-slate-50 text-xs font-mono uppercase disabled:opacity-30"
+                    disabled={page >= totalPages}
+                    onClick={() => {
+                      setPage((p) => Math.min(totalPages, p + 1));
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="h-8 rounded-none dark:border-white/15 dark:bg-white/5 light:border-slate-300 light:bg-slate-50 text-xs font-mono uppercase disabled:opacity-30 cursor-pointer"
                   >
                     Próxima
                     <ChevronRight className="size-3.5 ml-1" />

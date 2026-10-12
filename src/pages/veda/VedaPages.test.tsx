@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+
+afterEach(() => {
+  cleanup();
+});
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({
@@ -90,6 +94,78 @@ describe("Páginas Públicas Veda", () => {
         expect(screen.getByText("Kira Yamato")).toBeDefined();
         expect(screen.getByText("Freedom Rush")).toBeDefined();
       });
+
+      // Valida que o endpoint foi consultado com a temporada atual (GD05)
+      expect(vedaApi.getTournaments).toHaveBeenCalledWith(
+        expect.objectContaining({ season: "GD05", offset: 0, limit: 24 }),
+      );
+    });
+
+    it("avança e retrocede páginas via botões de paginação reativa", async () => {
+      vi.spyOn(vedaApi, "getFilters").mockResolvedValue({
+        seasons: [{ code: "GD05", name: "Temporada GD05", isCurrent: true }],
+        tiers: ["LARGE_OFFICIAL"],
+        sources: [],
+        countries: ["Brasil"],
+        ufs: [],
+        stores: [],
+      });
+
+      const getTournamentsMock = vi.spyOn(vedaApi, "getTournaments").mockResolvedValue({
+        items: [
+          {
+            id: "event-p1",
+            name: "Torneio Página 1",
+            date: "2026-10-10T00:00:00.000Z",
+            tier: "LARGE_OFFICIAL",
+            season: "GD05",
+            place: { city: "São Paulo", uf: "SP", country: "Brasil", store: null },
+            participantCount: 16,
+            entriesCount: 16,
+            decklistsCount: 16,
+            winner: null,
+            source: { id: "digilab", name: "DigiLab", attribution: "DigiLab", url: "" },
+            sourceUrl: null,
+          },
+        ],
+        total: 50, // 50 total com limit 24 -> 3 páginas
+        offset: 0,
+        limit: 24,
+        hasMore: true,
+      });
+
+      window.scrollTo = vi.fn();
+      renderWithRoute(<VedaTournamentsPage />, "/torneios");
+
+      await waitFor(() => {
+        expect(screen.getByText("Torneio Página 1")).toBeDefined();
+        expect(screen.getByText(/50 torneios/i)).toBeDefined();
+      });
+
+      // Botão Próxima
+      const nextBtn = screen.getByRole("button", { name: /Próxima/i });
+      expect(nextBtn).toBeDefined();
+      expect(nextBtn.hasAttribute("disabled")).toBe(false);
+
+      fireEvent.click(nextBtn);
+
+      await waitFor(() => {
+        expect(getTournamentsMock).toHaveBeenCalledWith(
+          expect.objectContaining({ offset: 24, limit: 24 }),
+        );
+      });
+
+      // Botão Anterior
+      const prevBtn = screen.getByRole("button", { name: /Anterior/i });
+      expect(prevBtn).toBeDefined();
+      fireEvent.click(prevBtn);
+
+      await waitFor(() => {
+        expect(getTournamentsMock).toHaveBeenCalledWith(
+          expect.objectContaining({ offset: 0, limit: 24 }),
+        );
+      });
+      expect(window.scrollTo).toHaveBeenCalled();
     });
   });
 

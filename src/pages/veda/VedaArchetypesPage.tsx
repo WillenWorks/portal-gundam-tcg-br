@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   ArrowRight,
@@ -19,57 +19,54 @@ import { vedaApi, type VedaArchetypesQueryParams } from "@/lib/veda/api";
 import type { VedaArchetypeRow, VedaFilters } from "@/lib/veda/types";
 import { GAME_COLOR_HEX, TOURNAMENT_TIER_OPTIONS } from "@/lib/gundam-catalog";
 
+const DEFAULT_SEASON = "GD05";
+
+function readFiltersFromUrl() {
+  const searchPart = window.location.hash.includes("?")
+    ? window.location.hash.substring(window.location.hash.indexOf("?"))
+    : window.location.search;
+  const sp = new URLSearchParams(searchPart);
+  const rawSeason = sp.get("season");
+  return {
+    season: rawSeason !== null ? rawSeason : DEFAULT_SEASON,
+    tier: sp.get("tier") || "",
+    uf: sp.get("uf") || "",
+  };
+}
+
 export default function VedaArchetypesPage() {
-  const [location, navigate] = useLocation();
+  const [, navigate] = useLocation();
 
-  const currentParams = useMemo(() => {
-    const searchPart = window.location.hash.includes("?")
-      ? window.location.hash.substring(window.location.hash.indexOf("?"))
-      : window.location.search;
-    return new URLSearchParams(searchPart);
-  }, [location]);
-
-  const seasonParam = currentParams.get("season") || "";
-  const tierParam = currentParams.get("tier") || "";
-  const ufParam = currentParams.get("uf") || "";
+  const initial = useMemo(() => readFiltersFromUrl(), []);
+  const [season, setSeason] = useState(initial.season);
+  const [tier, setTier] = useState(initial.tier);
+  const [uf, setUf] = useState(initial.uf);
 
   const [filtersMeta, setFiltersMeta] = useState<VedaFilters | null>(null);
   const [rows, setRows] = useState<VedaArchetypeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const updateQueryParam = useCallback(
-    (newParams: Record<string, string | null>) => {
-      const sp = new URLSearchParams(
-        window.location.hash.includes("?")
-          ? window.location.hash.substring(window.location.hash.indexOf("?"))
-          : window.location.search,
-      );
+  const currentSeasonCode = useMemo(() => {
+    return filtersMeta?.seasons.find((s) => s.isCurrent)?.code || DEFAULT_SEASON;
+  }, [filtersMeta]);
 
-      for (const [key, val] of Object.entries(newParams)) {
-        if (val === null || val === "" || val === undefined) {
-          sp.delete(key);
-        } else {
-          sp.set(key, val);
-        }
-      }
-
-      const qs = sp.toString();
-      navigate(`/arquetipos${qs ? `?${qs}` : ""}`);
-    },
-    [navigate],
-  );
-
-  const resetFilters = useCallback(() => {
-    navigate("/arquetipos");
-  }, [navigate]);
-
+  // Carrega opções de filtro e alinha temporada se não explicitada
   useEffect(() => {
     let active = true;
     vedaApi
       .getFilters()
       .then((meta) => {
-        if (active) setFiltersMeta(meta);
+        if (!active) return;
+        setFiltersMeta(meta);
+        const cur = meta.seasons.find((s) => s.isCurrent)?.code;
+        const searchPart = window.location.hash.includes("?")
+          ? window.location.hash.substring(window.location.hash.indexOf("?"))
+          : window.location.search;
+        const sp = new URLSearchParams(searchPart);
+        if (sp.get("season") === null && cur && cur !== DEFAULT_SEASON) {
+          setSeason(cur);
+        }
       })
       .catch(() => {});
     return () => {
@@ -77,14 +74,54 @@ export default function VedaArchetypesPage() {
     };
   }, []);
 
+  const lastNavigatedQs = useRef<string | null>(null);
+
+  // Sincroniza estado com a URL
+  useEffect(() => {
+    const sp = new URLSearchParams();
+    if (season) sp.set("season", season);
+    if (tier) sp.set("tier", tier);
+    if (uf) sp.set("uf", uf);
+
+    const qs = sp.toString();
+    if (lastNavigatedQs.current !== qs) {
+      lastNavigatedQs.current = qs;
+      navigate(`/arquetipos${qs ? `?${qs}` : ""}`, { replace: true });
+    }
+  }, [season, tier, uf, navigate]);
+
+  // Sincroniza histórico do navegador
+  useEffect(() => {
+    const handlePopState = () => {
+      const f = readFiltersFromUrl();
+      lastNavigatedQs.current = null;
+      setSeason(f.season);
+      setTier(f.tier);
+      setUf(f.uf);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    window.addEventListener("hashchange", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("hashchange", handlePopState);
+    };
+  }, []);
+
+  const resetFilters = useCallback(() => {
+    setSeason(currentSeasonCode);
+    setTier("");
+    setUf("");
+  }, [currentSeasonCode]);
+
   const loadArchetypes = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const queryParams: VedaArchetypesQueryParams = {
-        season: seasonParam || undefined,
-        tier: (tierParam as any) || undefined,
-        uf: ufParam || undefined,
+        season: season && season !== "all" ? season : undefined,
+        tier: (tier as any) || undefined,
+        uf: uf || undefined,
       };
       const result = await vedaApi.getArchetypes(queryParams);
       setRows(result);
@@ -93,13 +130,14 @@ export default function VedaArchetypesPage() {
     } finally {
       setLoading(false);
     }
-  }, [seasonParam, tierParam, ufParam]);
+  }, [season, tier, uf]);
 
   useEffect(() => {
     loadArchetypes();
   }, [loadArchetypes]);
 
-  const hasActiveFilters = Boolean(seasonParam || tierParam || ufParam);
+  const isCurrentSeasonActive = season === currentSeasonCode;
+  const hasActiveFilters = Boolean((!isCurrentSeasonActive && season) || tier || uf);
   const totalLists = rows.reduce((acc, r) => acc + r.lists, 0);
 
   return (
@@ -119,16 +157,20 @@ export default function VedaArchetypesPage() {
                   Temporada
                 </label>
                 <select
-                  value={seasonParam}
-                  onChange={(e) => updateQueryParam({ season: e.target.value || null })}
+                  value={season}
+                  onChange={(e) => setSeason(e.target.value)}
                   className="h-8 px-2 rounded-none border border-white/15 bg-slate-900 text-xs text-white font-mono focus:border-primary outline-none"
                 >
-                  <option value="">Todas as Temporadas</option>
-                  {filtersMeta?.seasons.map((s) => (
-                    <option key={s.code} value={s.code}>
-                      {s.name} {s.isCurrent ? "(Atual)" : ""}
-                    </option>
-                  ))}
+                  <option value="all">Todas as Temporadas</option>
+                  {filtersMeta ? (
+                    filtersMeta.seasons.map((s) => (
+                      <option key={s.code} value={s.code}>
+                        {s.name} {s.isCurrent ? "(Atual)" : ""}
+                      </option>
+                    ))
+                  ) : (
+                    <option value={DEFAULT_SEASON}>Temporada GD05 (Atual)</option>
+                  )}
                 </select>
               </div>
 
@@ -138,8 +180,8 @@ export default function VedaArchetypesPage() {
                   Categoria
                 </label>
                 <select
-                  value={tierParam}
-                  onChange={(e) => updateQueryParam({ tier: e.target.value || null })}
+                  value={tier}
+                  onChange={(e) => setTier(e.target.value)}
                   className="h-8 px-2 rounded-none border border-white/15 bg-slate-900 text-xs text-white font-mono focus:border-primary outline-none"
                 >
                   <option value="">Todas as Categorias</option>
@@ -157,8 +199,8 @@ export default function VedaArchetypesPage() {
                   Estado (UF)
                 </label>
                 <select
-                  value={ufParam}
-                  onChange={(e) => updateQueryParam({ uf: e.target.value || null })}
+                  value={uf}
+                  onChange={(e) => setUf(e.target.value)}
                   className="h-8 px-2 rounded-none border border-white/15 bg-slate-900 text-xs text-white font-mono focus:border-primary outline-none"
                 >
                   <option value="">Todo o Brasil / Mundo</option>

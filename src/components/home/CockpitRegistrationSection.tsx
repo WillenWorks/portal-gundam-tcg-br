@@ -255,13 +255,13 @@ export function CockpitRegistrationSection() {
                 <div className="space-y-5">
                   <div>
                     <Badge className="rounded-none border border-cyan-400/40 bg-cyan-400/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-cyan-300">
-                      Alistamento no Hangar
+                      Alistamento no Hangar (Opcional)
                     </Badge>
                     <h2 className="heading-portal font-heading text-3xl sm:text-4xl uppercase mt-2 dark:text-white light:text-slate-950">
                       Cadastre-se aqui e pilote
                     </h2>
                     <p className="dark:text-slate-400 light:text-slate-600 text-xs sm:text-sm mt-1 leading-relaxed">
-                      Crie sua conta gratuitamente para salvar decks ilimitados, testar no simulador e competir na comunidade.
+                      A navegação pelo catálogo de cartas, metagame, regras e torneios é 100% pública e sem login. Crie sua conta gratuitamente apenas se desejar salvar decks ilimitados e registrar telemetria de partidas.
                     </p>
                   </div>
 
@@ -377,7 +377,7 @@ export function CockpitRegistrationSection() {
                   {/* Atalho para quem já tem conta */}
                   <p className="text-center text-xs dark:text-slate-400 light:text-slate-600 pt-2 border-t dark:border-white/5 light:border-slate-200">
                     Já possui registro militar?{" "}
-                    <Link href="/auth?mode=login" className="text-primary hover:underline font-semibold">
+                    <Link href="/login" className="text-primary hover:underline font-semibold">
                       Faça login no Hangar
                     </Link>
                   </p>
