@@ -221,163 +221,182 @@ export function CommunitySupportModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
-      <DialogContent aria-describedby={undefined} className="max-h-[90vh] w-[min(92vw,680px)] overflow-y-auto rounded-none border-white/10 bg-slate-950 text-white">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2.5 font-heading text-2xl uppercase tracking-wide">
-            <HeartHandshake className="size-6 text-primary" />
-            Apoie o Anaheim Hub
-          </DialogTitle>
+      <DialogContent
+        aria-describedby={undefined}
+        className="max-h-[92vh] w-[95vw] sm:max-w-4xl lg:max-w-5xl xl:max-w-6xl overflow-y-auto rounded-none border-white/15 bg-slate-950 p-6 sm:p-8 text-white shadow-2xl"
+      >
+        <DialogHeader className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <DialogTitle className="flex items-center gap-2.5 font-heading text-2xl sm:text-3xl uppercase tracking-wide">
+              <HeartHandshake className="size-7 text-primary" />
+              Apoie o Anaheim Hub
+            </DialogTitle>
+            <span className="inline-flex items-center gap-1.5 border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 font-mono text-[11px] uppercase tracking-wider text-emerald-300">
+              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Pix Nubank Oficial
+            </span>
+          </div>
+          <p className="text-sm leading-relaxed text-slate-300">
+            O Anaheim Hub é mantido de forma independente pela comunidade de pilotos do Gundam Card Game. Qualquer contribuição voluntária via Pix (Nubank) ajuda a cobrir os custos de infraestrutura de servidor, banco de dados, catálogo e simulador — sem transformar o projeto em assinatura paga ou poluir a tela com anúncios.
+          </p>
         </DialogHeader>
 
-        <p className="text-sm leading-relaxed text-slate-300">
-          O Anaheim Hub é mantido de forma independente pela comunidade de pilotos do Gundam Card Game. Qualquer contribuição voluntária via Pix (Nubank) ajuda a cobrir os custos de infraestrutura de servidor, banco de dados, catálogo e simulador — sem transformar o projeto em assinatura ou poluir a tela com propagandas.
-        </p>
+        {/* Layout em 2 colunas para widescreen / telas médias para grandes */}
+        <div className="grid grid-cols-1 gap-8 pt-4 lg:grid-cols-12 items-start">
+          {/* Coluna 1: Painel Pix Nubank (QR Code e Chaves) */}
+          <div className="lg:col-span-5 border border-white/10 bg-white/[0.02] p-5 panel-cut">
+            <p className="mb-4 text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+              Pagamento Imediato via Pix
+            </p>
+            <PixPanel />
+          </div>
 
-        {/* Painel do Pix Nubank */}
-        <PixPanel />
+          {/* Coluna 2: Confirmação, Insígnia e Mural de Apoiadores */}
+          <div className="lg:col-span-7 flex flex-col gap-6">
+            {/* Fluxo de Ativação / Confirmação de Insígnia */}
+            <div className="space-y-3">
+              <p className="text-xs uppercase tracking-[0.22em] text-slate-400 font-semibold">
+                Insígnia de Apoiador & Reconhecimento
+              </p>
 
-        <Separator className="bg-white/10" />
-
-        {/* Fluxo de Ativação / Confirmação de Insígnia */}
-        <div className="space-y-3">
-          <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Insígnia de Apoiador & Reconhecimento</p>
-
-          {!isAuthenticated ? (
-            /* Usuário Deslogado */
-            <div className="border border-white/10 bg-white/[0.03] p-4 text-xs leading-relaxed text-slate-300">
-              <div className="flex items-start gap-3">
-                <Sparkles className="mt-0.5 size-5 shrink-0 text-amber-400" />
-                <div className="space-y-1.5">
-                  <p className="font-semibold text-white">Você está navegando como visitante (deslogado)</p>
-                  <p className="text-slate-400">
-                    Sua doação pelo QR Code ou chave Pix acima é recebida normalmente na conta Nubank de forma anônima.
-                  </p>
-                  <p className="text-slate-300">
-                    Se você possui uma conta e quer ativar a <span className="font-semibold text-primary">Insígnia de Apoiador</span> no seu perfil e no mural,{" "}
-                    <Link href="/login" className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80">
-                      faça login
-                    </Link>{" "}
-                    ou{" "}
-                    <Link href="/cadastro" className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80">
-                      cadastre-se
-                    </Link>{" "}
-                    antes ou depois de doar!
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : user?.isSupporter ? (
-            /* Usuário Logado e já Apoiador */
-            <div className="border border-amber-400/30 bg-amber-400/10 p-4 text-xs leading-relaxed text-amber-200">
-              <div className="flex items-start gap-3">
-                <ShieldCheck className="mt-0.5 size-5 shrink-0 text-amber-400" />
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold text-white">Piloto Apoiador Oficial Ativo!</p>
-                    <SupporterBadge size="sm" />
+              {!isAuthenticated ? (
+                /* Usuário Deslogado */
+                <div className="border border-white/10 bg-white/[0.03] p-4 text-xs leading-relaxed text-slate-300 panel-cut">
+                  <div className="flex items-start gap-3">
+                    <Sparkles className="mt-0.5 size-5 shrink-0 text-amber-400" />
+                    <div className="space-y-2">
+                      <p className="font-semibold text-white">Você está navegando como visitante (deslogado)</p>
+                      <p className="text-slate-400">
+                        Sua doação pelo QR Code ou chave Pix ao lado é recebida normalmente na conta Nubank de forma anônima.
+                      </p>
+                      <p className="text-slate-300">
+                        Se você possui uma conta e quer ativar a <span className="font-semibold text-primary">Insígnia de Apoiador</span> no seu perfil e no mural de honra,{" "}
+                        <Link href="/login" className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80">
+                          faça login
+                        </Link>{" "}
+                        ou{" "}
+                        <Link href="/cadastro" className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80">
+                          cadastre-se
+                        </Link>{" "}
+                        antes ou depois de doar!
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-slate-300">
-                    Obrigado de coração, <span className="font-medium text-white">{user.displayName}</span>! Sua insígnia está brilhando no seu perfil e no mural comunitário.
-                  </p>
-                  {user.supporterSince ? (
-                    <p className="text-[11px] text-slate-400">
-                      Apoiando desde: {new Date(user.supporterSince).toLocaleDateString()}
-                    </p>
-                  ) : null}
-                  <div className="pt-2">
-                    <label className="text-[10px] uppercase tracking-wider text-slate-400">Atualizar seu recado no mural:</label>
-                    <div className="mt-1 flex gap-2">
-                      <Input
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        placeholder="Ex: Força Anaheim Hub!"
-                        maxLength={120}
-                        className="h-8 rounded-none border-white/20 bg-slate-900 text-xs text-white"
-                      />
+                </div>
+              ) : user?.isSupporter ? (
+                /* Usuário Logado e já Apoiador */
+                <div className="border border-amber-400/30 bg-amber-400/10 p-4 text-xs leading-relaxed text-amber-200 panel-cut">
+                  <div className="flex items-start gap-3">
+                    <ShieldCheck className="mt-0.5 size-5 shrink-0 text-amber-400" />
+                    <div className="space-y-2.5 w-full">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-white">Piloto Apoiador Oficial Ativo!</p>
+                        <SupporterBadge size="sm" />
+                      </div>
+                      <p className="text-slate-300">
+                        Obrigado de coração, <span className="font-medium text-white">{user.displayName}</span>! Sua insígnia está brilhando no seu perfil e no mural comunitário.
+                      </p>
+                      {user.supporterSince ? (
+                        <p className="text-[11px] text-slate-400">
+                          Apoiando desde: {new Date(user.supporterSince).toLocaleDateString()}
+                        </p>
+                      ) : null}
+                      <div className="pt-1">
+                        <label className="text-[10px] uppercase tracking-wider text-slate-400">Atualizar seu recado no mural:</label>
+                        <div className="mt-1 flex gap-2">
+                          <Input
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            placeholder="Ex: Força Anaheim Hub!"
+                            maxLength={120}
+                            className="h-8 rounded-none border-white/20 bg-slate-900 text-xs text-white"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={isConfirming}
+                            onClick={handleConfirmSupport}
+                            className="h-8 rounded-none border border-white/20 bg-white/10 text-xs hover:bg-white/20"
+                          >
+                            {isConfirming ? <Loader2 className="size-3.5 animate-spin" /> : "Atualizar"}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Usuário Logado mas ainda não marcou como Apoiador */
+                <div className="border border-primary/30 bg-primary/5 p-4 text-xs leading-relaxed text-slate-300 panel-cut">
+                  <div className="flex items-start gap-3">
+                    <UserCheck className="mt-0.5 size-5 shrink-0 text-primary" />
+                    <div className="w-full space-y-3">
+                      <div>
+                        <p className="font-semibold text-white">Confirmar Doação & Habilitar Insígnia</p>
+                        <p className="mt-1 text-slate-400">
+                          Após realizar o Pix pelo app do seu banco ou Nubank, confirme abaixo para ativar a{" "}
+                          <span className="font-semibold text-primary">Insígnia de Apoiador</span> no seu perfil <span className="text-white">(@{user?.username})</span> e no mural.
+                        </p>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase tracking-wider text-slate-400">Recado para o Mural (opcional):</label>
+                        <Input
+                          value={message}
+                          onChange={(e) => setMessage(e.target.value)}
+                          placeholder="Ex: Piloto de OZ apoiando a base!"
+                          maxLength={120}
+                          className="rounded-none border-white/20 bg-slate-900 text-xs text-white"
+                        />
+                      </div>
+
                       <Button
                         type="button"
-                        size="sm"
-                        disabled={isConfirming}
                         onClick={handleConfirmSupport}
-                        className="h-8 rounded-none border border-white/20 bg-white/10 text-xs hover:bg-white/20"
+                        disabled={isConfirming}
+                        className="w-full rounded-none bg-primary text-xs font-semibold uppercase tracking-wider text-primary-foreground hover:bg-primary/90"
                       >
-                        {isConfirming ? <Loader2 className="size-3.5 animate-spin" /> : "Atualizar"}
+                        {isConfirming ? (
+                          <>
+                            <Loader2 className="mr-2 size-3.5 animate-spin" />
+                            Ativando Insígnia...
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="mr-2 size-4" />
+                            Já realizei o Pix! Ativar minha Insígnia de Apoiador
+                          </>
+                        )}
                       </Button>
                     </div>
                   </div>
                 </div>
+              )}
+            </div>
+
+            <Separator className="bg-white/10" />
+
+            {/* Mural de Apoiadores */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-[0.22em] text-slate-400 font-semibold">Mural de Apoiadores</p>
+                <span className="text-[11px] text-slate-500 font-mono">{supporters.length} piloto(s) apoiador(es)</span>
+              </div>
+              <SupportersWall supporters={supporters} />
+            </div>
+
+            <Separator className="bg-white/10" />
+
+            {/* Preview da Insígnia */}
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-[0.22em] text-slate-400 font-semibold">Selo Oficial no Perfil</p>
+              <p className="text-xs text-slate-400">
+                Apoiadores ganham este selo exibido no perfil pessoal, no perfil público e em participações comunitárias do portal:
+              </p>
+              <div className="pt-1">
+                <SupporterBadge />
               </div>
             </div>
-          ) : (
-            /* Usuário Logado mas ainda não marcou como Apoiador */
-            <div className="border border-primary/30 bg-primary/5 p-4 text-xs leading-relaxed text-slate-300">
-              <div className="flex items-start gap-3">
-                <UserCheck className="mt-0.5 size-5 shrink-0 text-primary" />
-                <div className="w-full space-y-3">
-                  <div>
-                    <p className="font-semibold text-white">Confirmar Doação & Habilitar Insígnia</p>
-                    <p className="mt-1 text-slate-400">
-                      Após realizar o Pix pelo aplicativo do seu banco ou Nubank, confirme abaixo para ativar a{" "}
-                      <span className="font-semibold text-primary">Insígnia de Apoiador</span> no seu perfil <span className="text-white">(@{user?.username})</span> e no mural.
-                    </p>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] uppercase tracking-wider text-slate-400">Recado para o Mural (opcional):</label>
-                    <Input
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Ex: Piloto de OZ apoiando a base!"
-                      maxLength={120}
-                      className="rounded-none border-white/20 bg-slate-900 text-xs text-white"
-                    />
-                  </div>
-
-                  <Button
-                    type="button"
-                    onClick={handleConfirmSupport}
-                    disabled={isConfirming}
-                    className="w-full rounded-none bg-primary text-xs font-semibold uppercase tracking-wider text-primary-foreground hover:bg-primary/90"
-                  >
-                    {isConfirming ? (
-                      <>
-                        <Loader2 className="mr-2 size-3.5 animate-spin" />
-                        Ativando Insígnia...
-                      </>
-                    ) : (
-                      <>
-                        <ShieldCheck className="mr-2 size-4" />
-                        Já realizei o Pix! Ativar minha Insígnia de Apoiador
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <Separator className="bg-white/10" />
-
-        {/* Mural de Apoiadores */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Mural de Apoiadores</p>
-            <span className="text-[11px] text-slate-500">{supporters.length} apoiador(es)</span>
-          </div>
-          <SupportersWall supporters={supporters} />
-        </div>
-
-        <Separator className="bg-white/10" />
-
-        {/* Preview da Insígnia */}
-        <div className="space-y-2">
-          <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Selo Oficial</p>
-          <p className="text-xs text-slate-400">
-            Apoiadores ganham este selo exibido no perfil pessoal, no perfil público e em participações comunitárias no portal.
-          </p>
-          <div className="pt-1">
-            <SupporterBadge />
           </div>
         </div>
       </DialogContent>
