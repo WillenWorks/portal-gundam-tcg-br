@@ -32,7 +32,7 @@ export default defineConfig({
     tailwindcss(),
   ],
   resolve: { alias: { "@": path.resolve(import.meta.dirname, "./src") } },
-  base: "./",
+  base: "/",
   build: {
     outDir: "dist",
     emptyOutDir: true,
