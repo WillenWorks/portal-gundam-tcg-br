@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Política de Privacidade · AnaheimHub Portal</title>
+    <meta name="description" content="Política de Privacidade e Conformidade com Google API Services User Data Policy e LGPD do AnaheimHub Portal." />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <style>
+      :root {
+        --bg: #0b1220;
+        --card-bg: #111a2e;
+        --border: #1f2a44;
+        --primary: #f59e0b;
+        --primary-light: #fbbf24;
+        --text: #e2e8f0;
+        --text-muted: #94a3b8;
+        --heading: #ffffff;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        line-height: 1.7;
+      }
+      .container {
+        max-width: 820px;
+        margin: 0 auto;
+        padding: 40px 20px 80px;
+      }
+      header {
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 24px;
+        margin-bottom: 32px;
+      }
+      .brand {
+        color: var(--primary);
+        font-size: 13px;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        font-weight: 700;
+        margin: 0 0 8px;
+      }
+      h1 {
+        font-size: 32px;
+        color: var(--heading);
+        margin: 0 0 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .updated {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin: 0;
+      }
+      h2 {
+        font-size: 20px;
+        color: var(--heading);
+        margin-top: 36px;
+        margin-bottom: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding-bottom: 6px;
+      }
+      p {
+        margin: 14px 0;
+      }
+      ul {
+        margin: 14px 0;
+        padding-left: 24px;
+      }
+      li {
+        margin-bottom: 8px;
+      }
+      a {
+        color: var(--primary);
+        text-decoration: underline;
+      }
+      a:hover {
+        color: var(--primary-light);
+      }
+      .box {
+        background-color: var(--card-bg);
+        border: 1px solid var(--border);
+        border-left: 4px solid var(--primary);
+        border-radius: 6px;
+        padding: 16px 20px;
+        margin: 20px 0;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      .nav-links {
+        margin-top: 48px;
+        padding-top: 24px;
+        border-top: 1px solid var(--border);
+        font-size: 13px;
+        color: var(--text-muted);
+      }
+      .btn {
+        display: inline-block;
+        background-color: var(--primary);
+        color: #0f172a;
+        font-weight: 700;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        padding: 10px 18px;
+        border-radius: 4px;
+        text-decoration: none;
+        margin-top: 16px;
+      }
+      .btn:hover {
+        background-color: var(--primary-light);
+        color: #0f172a;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <p class="brand">AnaheimHub Portal</p>
+        <h1>Política de Privacidade</h1>
+        <p class="updated">Última atualização: 11 de outubro de 2026</p>
+        <a href="/" class="btn">Acessar o Portal</a>
+      </header>
+
+      <main>
+        <p>
+          O <strong>AnaheimHub</strong> (disponível publicamente em <a href="https://anaheimhub.com">https://anaheimhub.com</a>), doravante denominado <strong>AnaheimHub Portal</strong>, é uma plataforma comunitária independente dedicada ao universo tático e competitivo do Gundam Card Game no Brasil. Esta Política de Privacidade tem por compromisso fornecer transparência integral sobre a coleta, utilização, armazenamento, proteção e descarte de dados pessoais dos usuários, em estrita conformidade com a <strong>Lei Geral de Proteção de Dados Pessoais (LGPD, Lei Federal nº 13.709/2018)</strong> e com a <strong>Política de Dados do Usuário dos Serviços de API do Google (Google API Services User Data Policy)</strong>.
+        </p>
+
+        <h2>1. Dados Coletados</h2>
+        <ul>
+          <li><strong>Cadastro por E-mail e Senha:</strong> endereço de e-mail, nome de exibição (nome de piloto), nome de usuário (handle único) e senha de acesso (armazenada exclusivamente como hash criptográfico irreversível via bcrypt, nunca em texto legível).</li>
+          <li><strong>Login Social via Conta Google (Google OAuth):</strong> quando o usuário opta pela comodidade do botão "Continuar com Google", recebemos do Google exclusivamente as informações autorizadas nos escopos não sensíveis (<code>openid</code>, <code>profile</code>, <code>email</code>): identificador numérico único (Google Subject ID), nome completo, endereço de e-mail confirmado e URL da foto de perfil pública. <em>O AnaheimHub NÃO tem acesso a e-mails do Gmail, arquivos do Google Drive, contatos, agenda ou senhas da sua Conta Google.</em></li>
+          <li><strong>Conteúdo Gerado pelo Usuário:</strong> listas de decks, inventários de pastas virtuais de cartas, biografia de perfil, idioma de preferência das cartas (PT-BR ou EN) e tema visual (escuro ou claro).</li>
+          <li><strong>Dados do Simulador e Partidas:</strong> registros de decisões táticas em partidas de treino contra o bot ou arena solo e relatórios de bugs voluntariamente submetidos para aprimoramento da engine de regras.</li>
+          <li><strong>Dados Técnicos e Proteção de Rede:</strong> endereço IP, registros de cabeçalho HTTP e telemetria de segurança utilizada para mitigação de ataques cibernéticos e proteção anti-bot via Google reCAPTCHA Enterprise.</li>
+        </ul>
+
+        <h2>2. Uso e Tratamento de Dados do Usuário do Google (Google User Data Policy)</h2>
+        <p>
+          Para os usuários que utilizam o mecanismo de login social do Google, aplicam-se regras estritas e transparentes:
+        </p>
+        <ul>
+          <li><strong>Finalidade Exclusiva:</strong> as informações fornecidas pelo Google são utilizadas única e exclusivamente para autenticação de acesso (Single Sign-On seguro), criação da conta de piloto no portal e exibição do seu nome e foto no painel de perfil.</li>
+          <li><strong>Não Comercialização e Não Venda:</strong> o AnaheimHub <strong>NÃO vende, NÃO aluga, NÃO comercializa e NÃO transfere</strong> os dados de usuários do Google para terceiros, corretores de dados (data brokers), parceiros de negócios ou redes publicitárias.</li>
+          <li><strong>Sem Treinamento de Modelos de Inteligência Artificial:</strong> dados obtidos de usuários do Google não são compartilhados nem empregados para treinamento de modelos generativos ou de aprendizado de máquina de terceiros.</li>
+          <li><strong>Armazenamento Seguro:</strong> os dados da conta são mantidos em banco de dados isolado com criptografia em trânsito (HTTPS/TLS) e chaves de segurança restritas.</li>
+        </ul>
+
+        <div class="box">
+          <strong>Declaração de Uso Limitado da API do Google (Google Limited Use Disclosure):</strong><br />
+          O uso e a transferência pelo AnaheimHub para qualquer outro aplicativo de informações recebidas das APIs do Google obedecerão integralmente à <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noreferrer">Política de Dados do Usuário dos Serviços de API do Google</a>, incluindo os requisitos de Uso Limitado (Limited Use requirements).<br /><br />
+          <em>(AnaheimHub's use and transfer to any other app of information received from Google APIs will adhere to the Google API Services User Data Policy, including the Limited Use requirements.)</em>
+        </div>
+
+        <h2>3. Finalidades do Tratamento de Dados</h2>
+        <p>Os dados tratados pelo AnaheimHub destinam-se exclusivamente a:</p>
+        <ul>
+          <li>Autenticar pilotos e garantir a segurança das contas;</li>
+          <li>Disparar comunicações transacionais essenciais (confirmação de e-mail e recuperação de senha);</li>
+          <li>Salvar, compilar e exibir suas coleções e listas de decks de jogo;</li>
+          <li>Prevenir fraudes, bots e ataques maliciosos no portal;</li>
+          <li>Apresentar métricas estatísticas de metagame em nível agregado.</li>
+        </ul>
+
+        <h2>4. Armazenamento Local e Cookies</h2>
+        <p>
+          O AnaheimHub <strong>não utiliza cookies de rastreamento comercial nem redes de anúncios de terceiros</strong>. O site utiliza apenas o armazenamento local do navegador (<code>localStorage</code>) essencial para manter você conectado (token JWT) e preservar configurações de interface.
+        </p>
+
+        <h2>5. Compartilhamento de Dados</h2>
+        <p>Não compartilhamos seus dados pessoais com terceiros, exceto com os fornecedores essenciais à hospedagem:</p>
+        <ul>
+          <li><strong>Hostinger:</strong> provedor da infraestrutura de servidores virtuais (VPS), banco de dados e serviço SMTP de e-mails transacionais.</li>
+          <li><strong>Google LLC:</strong> fornecimento da infraestrutura de autenticação OAuth 2.0 e verificação de segurança reCAPTCHA Enterprise.</li>
+        </ul>
+
+        <h2>6. Seus Direitos (LGPD) e Como Revogar o Acesso do Google</h2>
+        <p>
+          Em cumprimento ao Art. 18 da LGPD, você possui direito a confirmar a existência de tratamento, acessar seus dados, solicitar a correção de dados incompletos ou a exclusão definitiva da sua conta.
+        </p>
+        <p>
+          <strong>Como revogar o acesso do Google a qualquer momento:</strong><br />
+          Você pode remover o acesso do aplicativo AnaheimHub diretamente na central de segurança da sua conta Google acessando: <a href="https://myaccount.google.com/permissions" target="_blank" rel="noreferrer">https://myaccount.google.com/permissions</a> (na seção "Apps de terceiros com acesso à conta").
+        </p>
+        <p>
+          <strong>Como solicitar a exclusão total da sua conta:</strong><br />
+          Envie um e-mail com o assunto "Exclusão de Conta" para <a href="mailto:admin@anaheimhub.com">admin@anaheimhub.com</a> ou <a href="mailto:contato@anaheimhub.com">contato@anaheimhub.com</a>. Todos os dados pessoais serão apagados de nossos sistemas no prazo máximo de até 15 dias.
+        </p>
+
+        <h2>7. Segurança da Informação</h2>
+        <p>
+          Empregamos protocolos de comunicação criptografados via HTTPS com certificados SSL/TLS válidos, armazenamento de senhas com algoritmo bcrypt de alto custo computacional, tokens de uso único com expiração rápida para redefinição de senhas e limitação preventiva de requisições por IP contra ataques de força bruta.
+        </p>
+
+        <h2>8. Canais de Contato</h2>
+        <p>
+          Para tirar dúvidas sobre esta Política de Privacidade ou solicitar qualquer ação relativa aos seus dados:
+        </p>
+        <ul>
+          <li><strong>Administração & Privacidade:</strong> <a href="mailto:admin@anaheimhub.com">admin@anaheimhub.com</a></li>
+          <li><strong>Suporte Comunitário:</strong> <a href="mailto:contato@anaheimhub.com">contato@anaheimhub.com</a></li>
+        </ul>
+      </main>
+
+      <div class="nav-links">
+        <p>
+          Consulte também os <a href="/termos">Termos de Uso</a> · <a href="/">Página Inicial do AnaheimHub</a>
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
