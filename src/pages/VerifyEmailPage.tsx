@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 
 export default function VerifyEmailPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, refreshMe } = useAuth();
   const [state, setState] = useState<"checking" | "ok" | "error">("checking");
   const [message, setMessage] = useState("");
   const [resending, setResending] = useState(false);
@@ -29,15 +29,21 @@ export default function VerifyEmailPage() {
     }
     api
       .verifyEmail(token)
-      .then((res) => {
+      .then(async (res) => {
         setState("ok");
         setMessage(res?.message ?? "E-mail confirmado. Obrigado!");
+        // Sincroniza o usuário em cache na sessão local caso já esteja logado
+        try {
+          await refreshMe();
+        } catch {
+          // não logado ou token expirado na sessão
+        }
       })
       .catch((err) => {
         setState("error");
         setMessage(errorMessage(err, "Não foi possível confirmar o e-mail."));
       });
-  }, []);
+  }, [refreshMe]);
 
   const resend = async () => {
     setResending(true);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismaClient } from "@prisma/client";
-import { consumeToken, createMailer, hashToken, issueToken, resetPasswordMessage, verifyEmailMessage } from "./authEmailService.ts";
+import { consumeToken, createMailer, hashToken, issueToken, resetPasswordMessage, validatePasswordRequirements, verifyEmailMessage } from "./authEmailService.ts";
 
 type Row = { id: string; userId: string; type: string; tokenHash: string; expiresAt: Date; usedAt: Date | null };
 
@@ -64,3 +64,18 @@ describe("mensagens", () => {
     expect(await mailer.send({ to: "a@b.com", subject: "s", html: "h", text: "t" })).toBe(false);
   });
 });
+
+describe("validação de requisitos de senha forte", () => {
+  it("rejeita senhas curtas, sem maiúscula, minúscula, número ou especial", () => {
+    expect(validatePasswordRequirements("curta").valid).toBe(false);
+    expect(validatePasswordRequirements("todominusculo1!").valid).toBe(false);
+    expect(validatePasswordRequirements("TODOMAIUSCULO1!").valid).toBe(false);
+    expect(validatePasswordRequirements("SemNumero!Aa").valid).toBe(false);
+    expect(validatePasswordRequirements("SemEspecial1Aa").valid).toBe(false);
+  });
+
+  it("aceita senhas completas de 8+ caracteres com maiúscula, minúscula, número e especial", () => {
+    expect(validatePasswordRequirements("Anaheim@2026").valid).toBe(true);
+  });
+});
+

@@ -130,17 +130,49 @@ export function resetPasswordMessage(to: string, name: string, link: string): Ma
 export interface AuthEmailDeps {
   prisma: PrismaClient;
   mailer: Mailer;
-  publicUrl: string;
+  publicUrl: string | ((req?: Request) => string);
   /** limita tentativas (true = bloqueado) */
   rateLimited: (req: Request, identifier?: string) => boolean;
   authRequired: RequestHandler;
 }
 
+export const SPECIAL_CHARS_REGEX = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/;
+
+export function validatePasswordRequirements(password: string): { valid: boolean; error?: string } {
+  const p = password || "";
+  if (p.length < MIN_PASSWORD_LENGTH) {
+    return { valid: false, error: `A senha precisa ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.` };
+  }
+  if (!/[A-Z]/.test(p)) {
+    return { valid: false, error: "A senha precisa conter pelo menos uma letra maiúscula (A-Z)." };
+  }
+  if (!/[a-z]/.test(p)) {
+    return { valid: false, error: "A senha precisa conter pelo menos uma letra minúscula (a-z)." };
+  }
+  if (!/[0-9]/.test(p)) {
+    return { valid: false, error: "A senha precisa conter pelo menos um número (0-9)." };
+  }
+  if (!SPECIAL_CHARS_REGEX.test(p)) {
+    return { valid: false, error: "A senha precisa conter pelo menos um caractere especial (!@#$%)." };
+  }
+  return { valid: true };
+}
+
+export const resolveBaseUrl = (publicUrl: string | ((req?: Request) => string), req?: Request): string => {
+  const url = typeof publicUrl === "function" ? publicUrl(req) : publicUrl;
+  return url.replace(/\/$/, "");
+};
+
 const appLink = (base: string, path: string, token: string) => `${base.replace(/\/$/, "")}${path}?token=${encodeURIComponent(token)}`;
 
-export async function sendVerificationEmail(deps: Pick<AuthEmailDeps, "prisma" | "mailer" | "publicUrl">, user: { id: string; email: string; displayName: string }) {
+export async function sendVerificationEmail(
+  deps: Pick<AuthEmailDeps, "prisma" | "mailer" | "publicUrl">,
+  user: { id: string; email: string; displayName: string },
+  req?: Request,
+) {
   const token = await issueToken(deps.prisma, user.id, "EMAIL_VERIFY", EMAIL_VERIFY_TTL_MS);
-  return deps.mailer.send(verifyEmailMessage(user.email, user.displayName, appLink(deps.publicUrl, "/confirmar-email", token)));
+  const baseUrl = resolveBaseUrl(deps.publicUrl, req);
+  return deps.mailer.send(verifyEmailMessage(user.email, user.displayName, appLink(baseUrl, "/confirmar-email", token)));
 }
 
 const TOKEN_ERRORS = {
@@ -161,7 +193,8 @@ export function registerAuthEmailRoutes(app: Express, deps: AuthEmailDeps) {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user || !user.isActive) return res.json(ok);
     const token = await issueToken(prisma, user.id, "PASSWORD_RESET", PASSWORD_RESET_TTL_MS);
-    await mailer.send(resetPasswordMessage(user.email, user.displayName, appLink(publicUrl, "/redefinir-senha", token)));
+    const baseUrl = resolveBaseUrl(publicUrl, req);
+    await mailer.send(resetPasswordMessage(user.email, user.displayName, appLink(baseUrl, "/redefinir-senha", token)));
     res.json(ok);
   });
 
@@ -169,10 +202,11 @@ export function registerAuthEmailRoutes(app: Express, deps: AuthEmailDeps) {
     const { token, password } = (req.body ?? {}) as { token?: string; password?: string };
     if (deps.rateLimited(req)) return res.status(429).json({ error: "Muitas tentativas. Aguarde alguns minutos." });
     if (!token) return res.status(400).json({ error: TOKEN_ERRORS.invalido });
-    if (!password || password.length < MIN_PASSWORD_LENGTH) return res.status(400).json({ error: `A senha precisa ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.` });
+    const passCheck = validatePasswordRequirements(password || "");
+    if (!passCheck.valid) return res.status(400).json({ error: passCheck.error });
     const result = await consumeToken(prisma, token, "PASSWORD_RESET");
     if ("error" in result) return res.status(400).json({ error: TOKEN_ERRORS[result.error] });
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password!, 10);
     const user = await prisma.user.findUnique({ where: { id: result.userId } });
     // quem recebeu o link no e-mail também provou que o e-mail é dele
     await prisma.user.update({ where: { id: result.userId }, data: { passwordHash, emailVerifiedAt: user?.emailVerifiedAt ?? new Date() } });
@@ -195,7 +229,7 @@ export function registerAuthEmailRoutes(app: Express, deps: AuthEmailDeps) {
     const user = userId ? await prisma.user.findUnique({ where: { id: userId } }) : null;
     if (!user || !user.isActive) return res.status(403).json({ error: "Usuário sem acesso ativo." });
     if (user.emailVerifiedAt) return res.json({ ok: true, message: "Seu e-mail já está confirmado." });
-    const sent = await sendVerificationEmail({ prisma, mailer, publicUrl }, user);
+    const sent = await sendVerificationEmail({ prisma, mailer, publicUrl }, user, req);
     if (!sent) return res.status(503).json({ error: "Não foi possível enviar o e-mail agora. Tente mais tarde." });
     res.json({ ok: true, message: `Enviamos um novo link para ${user.email}.` });
   });
@@ -207,7 +241,7 @@ export function registerAuthEmailRoutes(app: Express, deps: AuthEmailDeps) {
     const ok = { ok: true, message: "Se houver uma conta pendente de confirmação com este e-mail, enviamos um novo link." };
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user || !user.isActive || user.emailVerifiedAt) return res.json(ok);
-    await sendVerificationEmail({ prisma, mailer, publicUrl }, user);
+    await sendVerificationEmail({ prisma, mailer, publicUrl }, user, req);
     res.json(ok);
   });
 }
