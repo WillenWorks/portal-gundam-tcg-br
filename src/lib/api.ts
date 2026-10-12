@@ -25,6 +25,7 @@ export type AuthUser = {
   preferredCardLanguage?: "PT_BR" | "EN";
   preferredTheme?: string | null;
   hasPassword?: boolean;
+  emailVerified?: boolean;
   stats?: { deckCount: number; publicDeckCount: number; binderCount?: number };
 };
 
@@ -1047,10 +1048,14 @@ function computeClientSideZeroChat(message: string, persona: PilotPersonaId = "a
 export const api = {
   health: () =>
     request<{ ok: boolean; runtime: string; userCount: number; cardCount: number; deckCount: number; binderCount?: number; setCount?: number; productCount?: number }>("/health", undefined, { ttlMs: 15_000 }),
-  register: (payload: { email: string; password: string; displayName: string }) => request<{ token: string; user: AuthUser }>("/auth/register", { method: "POST", body: JSON.stringify(payload) }),
-  login: (email: string, password: string) => request<{ token: string; user: AuthUser }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+  register: (payload: { email: string; password: string; displayName: string; recaptchaToken?: string }) => request<{ token: string; user: AuthUser }>("/auth/register", { method: "POST", body: JSON.stringify(payload) }),
+  login: (email: string, password: string, recaptchaToken?: string) => request<{ token: string; user: AuthUser }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password, recaptchaToken }) }),
   loginWithGoogle: (credential: string) => request<{ token: string; user: AuthUser }>("/auth/google", { method: "POST", body: JSON.stringify({ credential }) }),
   me: () => request<AuthUser>("/auth/me", undefined, { ttlMs: 10_000 }),
+  forgotPassword: (email: string) => request<{ ok: true; message: string }>("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
+  resetPassword: (token: string, password: string) => request<{ ok: true; message: string }>("/auth/reset-password", { method: "POST", body: JSON.stringify({ token, password }) }),
+  verifyEmail: (token: string) => mutate<{ ok: true; message: string }>("/auth/verify-email", { method: "POST", body: JSON.stringify({ token }) }, ["/auth/me"]),
+  resendVerificationEmail: () => request<{ ok: true; message: string }>("/auth/verify-email/resend", { method: "POST" }),
   updateMe: (payload: { displayName?: string; bio?: string; avatarUrl?: string; preferredCardLanguage?: "PT_BR" | "EN"; preferredTheme?: string }) => mutate<AuthUser>("/auth/me", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me", "/users/", "/decks/me", "/binders/me"]),
   updatePassword: (payload: { currentPassword?: string; newPassword: string }) => mutate<{ ok: true }>("/auth/password", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me"]),
   uploadAvatar: (formData: FormData) => mutate<AuthUser>("/auth/me/avatar", { method: "POST", body: formData }, ["/auth/me"]),

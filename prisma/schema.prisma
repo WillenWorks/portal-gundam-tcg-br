@@ -131,9 +131,12 @@ model User {
   bio                   String?      @db.Text
   avatarUrl             String?
   preferredTheme        String?      @default("dark")
+  // Confirmação de e-mail (link enviado no cadastro). Login com Google já chega confirmado.
+  emailVerifiedAt       DateTime?
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
 
+  authTokens              AuthToken[]
   decks                   Deck[]
   posts                   Post[]
   binders                 CardBinder[]
@@ -144,6 +147,27 @@ model User {
   deckChangeLogsMade      TournamentEntryDeckChangeLog[]
   deckLikes               DeckLike[]
   deckViews               DeckView[]
+}
+
+// Tokens de uso único enviados por e-mail (confirmação de e-mail e recuperação de senha). Só o hash
+// SHA-256 fica no banco: o token em si existe apenas no link do e-mail.
+enum AuthTokenType {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+}
+
+model AuthToken {
+  id        String        @id @default(cuid())
+  userId    String
+  type      AuthTokenType
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
 }
 
 // Temporada real de metagame -- agrupa um lançamento de coleção principal com os

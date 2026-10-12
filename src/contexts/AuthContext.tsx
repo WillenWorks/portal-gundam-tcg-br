@@ -7,9 +7,9 @@ import { api, clearAuth, getStoredAuth, storeAuth, type AuthUser } from "@/lib/a
 type AuthContextValue = {
   user: AuthUser | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, recaptchaToken?: string) => Promise<void>;
   loginWithGoogle: (credential: string) => Promise<void>;
-  register: (payload: { email: string; password: string; displayName: string }) => Promise<void>;
+  register: (payload: { email: string; password: string; displayName: string; recaptchaToken?: string }) => Promise<void>;
   refreshMe: () => Promise<void>;
   setCurrentUser: (user: AuthUser | null) => void;
   logout: () => void;
@@ -40,9 +40,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextValue = {
     user,
     isAuthenticated: Boolean(user),
-    async login(email, password) {
+    async login(email, password, recaptchaToken) {
       try {
-        const result = await api.login(email, password);
+        const result = await api.login(email, password, recaptchaToken);
         storeAuth(result.token, result.user);
         setUser(result.user);
         toast.success(`Login realizado como ${result.user.displayName}.`);

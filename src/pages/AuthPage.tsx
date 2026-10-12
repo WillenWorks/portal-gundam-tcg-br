@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
+import { executeRecaptcha } from "@/lib/recaptcha";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
@@ -94,10 +95,12 @@ export default function AuthPage() {
 
     setLoading(true);
     try {
+      const recaptchaToken = await executeRecaptcha(mode === "login" ? "LOGIN" : "REGISTER").catch(() => null);
       if (mode === "login") {
-        await login(cleanEmail, cleanPassword);
+        await login(cleanEmail, cleanPassword, recaptchaToken || undefined);
       } else {
-        await register({ displayName: displayName.trim(), email: cleanEmail, password: cleanPassword });
+        await register({ displayName: displayName.trim(), email: cleanEmail, password: cleanPassword, recaptchaToken: recaptchaToken || undefined });
+        toast.success(`Conta criada! Enviamos um link de confirmação para ${cleanEmail}.`);
       }
     } catch (err: any) {
       const msg = err?.message || (mode === "login" ? "Credenciais incorretas ou falha no servidor." : "Falha ao criar conta.");
@@ -199,6 +202,11 @@ export default function AuthPage() {
                 disabled={loading}
                 autoComplete={mode === "login" ? "current-password" : "new-password"}
               />
+              {mode === "login" ? (
+                <Link href="/recuperar-senha" className="text-xs text-primary hover:underline md:col-span-2">
+                  Esqueci minha senha
+                </Link>
+              ) : null}
 
               <div className="md:col-span-2 flex flex-wrap gap-3 pt-2">
                 <Button
