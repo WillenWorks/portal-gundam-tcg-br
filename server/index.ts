@@ -1201,36 +1201,93 @@ app.get("/api/health", async (_req, res) => {
   }
 });
 
+app.get("/api/auth/check-availability", async (req, res) => {
+  const email = typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : undefined;
+  const username = typeof req.query.username === "string" ? req.query.username.trim().toLowerCase().replace(/^@/, "") : undefined;
+
+  let emailAvailable: boolean | undefined;
+  let usernameAvailable: boolean | undefined;
+
+  if (email) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    emailAvailable = !user;
+  }
+  if (username) {
+    const user = await prisma.user.findUnique({ where: { username } });
+    usernameAvailable = !user;
+  }
+
+  res.json({ emailAvailable, usernameAvailable });
+});
+
 app.post("/api/auth/register", async (req, res) => {
-  const { email, password, displayName, recaptchaToken } = req.body as {
+  const { email, password, displayName, username: customUsername, recaptchaToken } = req.body as {
     email?: string;
     password?: string;
     displayName?: string;
+    username?: string;
     recaptchaToken?: string;
   };
   const recaptchaCheck = await recaptchaVerifier.verify(recaptchaToken, "REGISTER");
   if (!recaptchaCheck.valid) {
     return res.status(400).json({ error: "Falha na verificação de segurança (reCAPTCHA). Tente novamente." });
   }
-  if (!email || !password || !displayName) return res.status(400).json({ error: "Email, senha e nome são obrigatórios." });
-  if (password.length < 8) return res.status(400).json({ error: "A senha precisa ter pelo menos 8 caracteres." });
+
+  // 1. Campos obrigatórios
+  if (!email || !password || !displayName) {
+    return res.status(400).json({ error: "Nome completo, email e senha são obrigatórios." });
+  }
+
+  // 2. Nome completo
+  const cleanDisplayName = displayName.trim();
+  if (cleanDisplayName.length < 3) {
+    return res.status(400).json({ error: "Informe seu nome completo (mínimo de 3 caracteres)." });
+  }
+
+  // 3. Formato de e-mail
   const normalizedEmail = email.trim().toLowerCase();
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!EMAIL_REGEX.test(normalizedEmail)) {
+    return res.status(400).json({ error: "Informe um endereço de e-mail válido." });
+  }
+
+  // 4. Verificação de e-mail duplicado
   if (await prisma.user.findUnique({ where: { email: normalizedEmail } })) {
     return res.status(409).json({ error: "Já existe uma conta com este e-mail. Entre ou use \"Esqueci minha senha\"." });
   }
 
-  const usernameBase = slugify(displayName || email.split("@")[0] || "user");
-  let username = usernameBase;
-  let suffix = 1;
-  while (await prisma.user.findUnique({ where: { username } })) {
-    username = `${usernameBase}-${suffix++}`;
+  // 5. Validação de senha forte
+  const passCheck = validatePasswordRequirements(password);
+  if (!passCheck.valid) {
+    return res.status(400).json({ error: passCheck.error });
+  }
+
+  // 6. Nome de usuário
+  let username: string;
+  if (customUsername && customUsername.trim()) {
+    const cleanUsername = customUsername.trim().toLowerCase().replace(/^@/, "");
+    if (!/^[a-z0-9_-]{3,30}$/.test(cleanUsername)) {
+      return res.status(400).json({ error: "O nome de usuário deve ter entre 3 e 30 caracteres e conter apenas letras, números, hífens ou sublinhados." });
+    }
+    const existingUser = await prisma.user.findUnique({ where: { username: cleanUsername } });
+    if (existingUser) {
+      return res.status(409).json({ error: "Este nome de usuário já está em uso. Escolha outro." });
+    }
+    username = cleanUsername;
+  } else {
+    const usernameBase = slugify(cleanDisplayName || normalizedEmail.split("@")[0] || "user");
+    username = usernameBase;
+    let suffix = 1;
+    while (await prisma.user.findUnique({ where: { username } })) {
+      username = `${usernameBase}-${suffix++}`;
+    }
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
   const user = await prisma.user.create({
     data: {
       email: normalizedEmail,
-      displayName,
+      displayName: cleanDisplayName,
       username,
       passwordHash,
       role: UserRole.USER,

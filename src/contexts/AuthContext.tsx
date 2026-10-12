@@ -9,7 +9,7 @@ type AuthContextValue = {
   isAuthenticated: boolean;
   login: (email: string, password: string, recaptchaToken?: string) => Promise<void>;
   loginWithGoogle: (credential: string) => Promise<void>;
-  register: (payload: { email: string; password: string; displayName: string; recaptchaToken?: string }) => Promise<void>;
+  register: (payload: { email: string; password: string; displayName: string; username?: string; recaptchaToken?: string }) => Promise<void>;
   refreshMe: () => Promise<void>;
   setCurrentUser: (user: AuthUser | null) => void;
   logout: () => void;

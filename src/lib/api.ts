@@ -1048,7 +1048,13 @@ function computeClientSideZeroChat(message: string, persona: PilotPersonaId = "a
 export const api = {
   health: () =>
     request<{ ok: boolean; runtime: string; userCount: number; cardCount: number; deckCount: number; binderCount?: number; setCount?: number; productCount?: number }>("/health", undefined, { ttlMs: 15_000 }),
-  register: (payload: { email: string; password: string; displayName: string; recaptchaToken?: string }) => request<{ token: string; user: AuthUser }>("/auth/register", { method: "POST", body: JSON.stringify(payload) }),
+  register: (payload: { email: string; password: string; displayName: string; username?: string; recaptchaToken?: string }) => request<{ token: string; user: AuthUser }>("/auth/register", { method: "POST", body: JSON.stringify(payload) }),
+  checkAvailability: (params: { email?: string; username?: string }) => {
+    const q = new URLSearchParams();
+    if (params.email) q.set("email", params.email);
+    if (params.username) q.set("username", params.username);
+    return request<{ emailAvailable?: boolean; usernameAvailable?: boolean }>(`/auth/check-availability?${q.toString()}`);
+  },
   login: (email: string, password: string, recaptchaToken?: string) => request<{ token: string; user: AuthUser }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password, recaptchaToken }) }),
   loginWithGoogle: (credential: string) => request<{ token: string; user: AuthUser }>("/auth/google", { method: "POST", body: JSON.stringify({ credential }) }),
   me: () => request<AuthUser>("/auth/me", undefined, { ttlMs: 10_000 }),
