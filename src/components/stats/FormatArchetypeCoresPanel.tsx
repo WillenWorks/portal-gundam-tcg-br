@@ -93,7 +93,7 @@ export function FormatArchetypeCoresPanel({
   }, [viewMode, evolution.length]);
 
   return (
-    <Card className="panel-cut rounded-none border-primary/40 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950">
+    <Card className="panel-cut rounded-none dark:border-primary/40 dark:bg-gradient-to-r dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 light:border-slate-300 light:bg-gradient-to-r light:from-white light:via-slate-50 light:to-white light:shadow-sm">
       <CardContent className="p-6">
         {/* Header do Módulo */}
         {!hideHeader && (
@@ -108,10 +108,10 @@ export function FormatArchetypeCoresPanel({
                   GD01 a GD05.5
                 </Badge>
               </div>
-              <h2 className="mt-2 font-heading text-3xl sm:text-4xl uppercase tracking-wider text-white">
+              <h2 className="mt-2 font-heading text-3xl sm:text-4xl uppercase tracking-wider dark:text-white light:text-slate-900">
                 Metagame por Formato & Núcleos de Arquétipo
               </h2>
-              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-300">
+              <p className="mt-2 max-w-3xl text-sm leading-relaxed dark:text-slate-300 light:text-slate-600">
                 Análise profunda de listas reais de torneios competitivos oficiais. Explore presença, conversão em Top Cut,
                 taxa de vitórias e a composição exata do núcleo (cartas indispensáveis, de flexibilidade e opções tech).
               </p>
@@ -123,7 +123,7 @@ export function FormatArchetypeCoresPanel({
                 size="sm"
                 variant={viewMode === "archetypes" ? "default" : "ghost"}
                 onClick={() => setViewMode("archetypes")}
-                className="h-8 rounded-none text-xs font-mono uppercase tracking-wider"
+                className="h-8 rounded-none text-xs font-mono uppercase tracking-wider dark:text-slate-300 dark:hover:text-white light:text-slate-700 light:hover:text-slate-900"
               >
                 <ListOrdered className="mr-1.5 size-3.5" />
                 Por Formato
@@ -132,7 +132,7 @@ export function FormatArchetypeCoresPanel({
                 size="sm"
                 variant={viewMode === "evolution" ? "default" : "ghost"}
                 onClick={() => setViewMode("evolution")}
-                className="h-8 rounded-none text-xs font-mono uppercase tracking-wider"
+                className="h-8 rounded-none text-xs font-mono uppercase tracking-wider dark:text-slate-300 dark:hover:text-white light:text-slate-700 light:hover:text-slate-900"
               >
                 <TrendingUp className="mr-1.5 size-3.5" />
                 Evolução Temporal
@@ -232,11 +232,11 @@ export function FormatArchetypeCoresPanel({
         {viewMode === "archetypes" && (
           <div className="mt-6 space-y-4">
             {loading ? (
-              <p className="py-8 text-center text-xs font-mono text-slate-400 animate-pulse">
+              <p className="py-8 text-center text-xs font-mono dark:text-slate-400 light:text-slate-600 animate-pulse">
                 CARREGANDO ESTATÍSTICAS E NÚCLEOS DO FORMATO {selectedFormat === "GD05_COMBINED" ? "GD05 / GD05.5" : selectedFormat}...
               </p>
             ) : !formatMeta?.archetypes.length ? (
-              <p className="py-8 text-center text-xs font-mono text-slate-500">
+              <p className="py-8 text-center text-xs font-mono dark:text-slate-500 light:text-slate-500">
                 Nenhum arquétipo registrado com os filtros aplicados neste formato.
               </p>
             ) : (
@@ -275,17 +275,17 @@ export function FormatArchetypeCoresPanel({
                           {isSmall ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Badge className="rounded-none border border-amber-500/40 bg-amber-500/10 text-amber-300 text-[10px] font-mono uppercase flex items-center gap-1">
-                                  <AlertTriangle className="size-3 text-amber-400" />
+                                <Badge className="rounded-none border dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300 light:border-amber-300 light:bg-amber-50 light:text-amber-800 text-[10px] font-mono uppercase flex items-center gap-1">
+                                  <AlertTriangle className="size-3 text-amber-500" />
                                   Poucos dados ({arch.lists} listas)
                                 </Badge>
                               </TooltipTrigger>
-                              <TooltipContent className="bg-slate-900 border-white/20 text-xs text-slate-200">
+                              <TooltipContent className="dark:bg-slate-900 dark:border-white/20 dark:text-slate-200 light:bg-white light:border-slate-300 light:text-slate-800 text-xs">
                                 {arch.sampleWarning || "Amostra pequena — estatísticas com margem de flutuação."}
                               </TooltipContent>
                             </Tooltip>
                           ) : (
-                            <Badge className="rounded-none border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 text-[10px] font-mono uppercase">
+                            <Badge className="rounded-none border dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300 light:border-emerald-300 light:bg-emerald-50 light:text-emerald-800 text-[10px] font-mono uppercase">
                               {arch.lists} listas analisadas
                             </Badge>
                           )}
