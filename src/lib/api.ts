@@ -1056,6 +1056,7 @@ export const api = {
   resetPassword: (token: string, password: string) => request<{ ok: true; message: string }>("/auth/reset-password", { method: "POST", body: JSON.stringify({ token, password }) }),
   verifyEmail: (token: string) => mutate<{ ok: true; message: string }>("/auth/verify-email", { method: "POST", body: JSON.stringify({ token }) }, ["/auth/me"]),
   resendVerificationEmail: () => request<{ ok: true; message: string }>("/auth/verify-email/resend", { method: "POST" }),
+  requestVerificationEmail: (email: string) => request<{ ok: true; message: string }>("/auth/verify-email/request", { method: "POST", body: JSON.stringify({ email }) }),
   updateMe: (payload: { displayName?: string; bio?: string; avatarUrl?: string; preferredCardLanguage?: "PT_BR" | "EN"; preferredTheme?: string }) => mutate<AuthUser>("/auth/me", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me", "/users/", "/decks/me", "/binders/me"]),
   updatePassword: (payload: { currentPassword?: string; newPassword: string }) => mutate<{ ok: true }>("/auth/password", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me"]),
   uploadAvatar: (formData: FormData) => mutate<AuthUser>("/auth/me/avatar", { method: "POST", body: formData }, ["/auth/me"]),

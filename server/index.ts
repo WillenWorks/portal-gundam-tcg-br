@@ -1261,11 +1261,20 @@ function authRateLimitKey(req: Request, identifier?: string): string {
   return identifier ? `${ip}:${identifier}` : ip;
 }
 
+const resolvePublicAppUrl = () => {
+  const envUrl = process.env.PUBLIC_APP_URL?.trim();
+  if (!envUrl) return "https://anaheimhub.com";
+  if (process.env.NODE_ENV === "production" && (envUrl.includes("localhost") || envUrl.includes("127.0.0.1"))) {
+    return "https://anaheimhub.com";
+  }
+  return envUrl;
+};
+
 // Recuperação de senha e confirmação de e-mail (SMTP da Hostinger, remetente nao-responda@anaheimhub.com).
 const authEmailDeps = {
   prisma,
   mailer: createMailer(),
-  publicUrl: process.env.PUBLIC_APP_URL || "https://anaheimhub.com",
+  publicUrl: resolvePublicAppUrl(),
   rateLimited: (req: Request, identifier?: string) => {
     const key = authRateLimitKey(req, identifier);
     if (authRateLimiter.isLimited(key)) return true;
