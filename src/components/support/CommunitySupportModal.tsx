@@ -77,7 +77,7 @@ function PixPanel() {
 
   if (!PIX_KEY) {
     return (
-      <div className="border border-amber-400/30 bg-amber-400/5 p-4 text-sm leading-6 text-amber-200">
+      <div className="border border-amber-400/30 bg-amber-400/5 p-4 text-sm leading-6 dark:text-amber-200 light:text-amber-800">
         Pix ainda não configurado neste ambiente. Defina <code className="font-mono text-xs">VITE_PIX_KEY</code> (e opcionalmente{" "}
         <code className="font-mono text-xs">VITE_PIX_MERCHANT_NAME</code> / <code className="font-mono text-xs">VITE_PIX_MERCHANT_CITY</code>) no{" "}
         <code className="font-mono text-xs">.env</code> para habilitar o QR Code e a chave do Nubank.
@@ -87,7 +87,7 @@ function PixPanel() {
 
   return (
     <div className="flex flex-col items-center gap-5 text-center">
-      <div className="flex size-64 items-center justify-center border-2 border-white/20 bg-white p-3 shadow-lg">
+      <div className="flex size-64 items-center justify-center border-2 dark:border-white/20 light:border-slate-300 bg-white p-3 shadow-lg">
         {qrDataUrl ? (
           <img loading="lazy" decoding="async" src={qrDataUrl} alt="QR Code Pix Nubank" className="h-full w-full object-contain" />
         ) : (
@@ -97,17 +97,24 @@ function PixPanel() {
 
       <div className="w-full space-y-3">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Beneficiário Nubank</p>
-          <p className="text-xs font-semibold text-white">{PIX_MERCHANT_NAME} · {PIX_MERCHANT_CITY}</p>
-          <p className="mt-0.5 text-[11px] text-slate-400">Identificação: <span className="font-medium text-primary">Anaheim Hub - Aquele cafezinho</span></p>
+          <p className="text-[10px] uppercase tracking-[0.22em] dark:text-slate-400 light:text-slate-500">Beneficiário Nubank</p>
+          <p className="text-xs font-semibold dark:text-white light:text-slate-900">{PIX_MERCHANT_NAME} · {PIX_MERCHANT_CITY}</p>
+          <p className="mt-0.5 text-[11px] dark:text-slate-400 light:text-slate-600">Identificação: <span className="font-medium text-primary">Anaheim Hub - Aquele cafezinho</span></p>
         </div>
 
         <div className="space-y-1.5">
-          <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Chave Pix Direta</p>
-          <div className="flex items-center gap-2 border border-white/15 bg-white/5 px-3 py-2">
-            <code className="flex-1 truncate text-left font-mono text-xs text-slate-300">{PIX_KEY}</code>
-            <Button type="button" size="sm" variant="outline" className="shrink-0 rounded-none border-white/20 hover:bg-white/10" onClick={copyKey} title="Copiar chave Pix">
-              {copiedKey ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
+          <p className="text-[10px] uppercase tracking-[0.22em] dark:text-slate-400 light:text-slate-500">Chave Pix Direta</p>
+          <div className="flex items-center gap-2 border dark:border-white/15 dark:bg-white/5 light:border-slate-300 light:bg-white px-3 py-2">
+            <code className="flex-1 truncate text-left font-mono text-xs dark:text-slate-300 light:text-slate-800">{PIX_KEY}</code>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="shrink-0 rounded-none dark:border-white/20 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 light:border-slate-300 light:bg-slate-100 light:text-slate-800 light:hover:bg-slate-200"
+              onClick={copyKey}
+              title="Copiar chave Pix"
+            >
+              {copiedKey ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
               <span className="ml-1.5 text-xs">{copiedKey ? "Copiado" : "Copiar Chave"}</span>
             </Button>
           </div>
@@ -115,11 +122,18 @@ function PixPanel() {
 
         {payload ? (
           <div className="space-y-1.5">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Pix Copia e Cola (Payload Bancário)</p>
-            <div className="flex items-center gap-2 border border-white/15 bg-white/5 px-3 py-2">
-              <code className="flex-1 truncate text-left font-mono text-xs text-slate-400">{payload}</code>
-              <Button type="button" size="sm" variant="outline" className="shrink-0 rounded-none border-white/20 hover:bg-white/10" onClick={copyPayload} title="Copiar código Pix Copia-e-Cola">
-                {copiedPayload ? <Check className="size-3.5 text-emerald-400" /> : <QrCode className="size-3.5" />}
+            <p className="text-[10px] uppercase tracking-[0.22em] dark:text-slate-400 light:text-slate-500">Pix Copia e Cola (Payload Bancário)</p>
+            <div className="flex items-center gap-2 border dark:border-white/15 dark:bg-white/5 light:border-slate-300 light:bg-white px-3 py-2">
+              <code className="flex-1 truncate text-left font-mono text-xs dark:text-slate-400 light:text-slate-600">{payload}</code>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="shrink-0 rounded-none dark:border-white/20 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 light:border-slate-300 light:bg-slate-100 light:text-slate-800 light:hover:bg-slate-200"
+                onClick={copyPayload}
+                title="Copiar código Pix Copia-e-Cola"
+              >
+                {copiedPayload ? <Check className="size-3.5 text-emerald-500" /> : <QrCode className="size-3.5" />}
                 <span className="ml-1.5 text-xs">{copiedPayload ? "Copiado" : "Copiar Código"}</span>
               </Button>
             </div>
@@ -143,7 +157,7 @@ function PixPanel() {
 
 function SupportersWall({ supporters }: { supporters: ApiSupporter[] }) {
   if (supporters.length === 0) {
-    return <p className="text-sm text-slate-400">Ainda não há apoiadores listados — seja o primeiro a aparecer aqui!</p>;
+    return <p className="text-sm dark:text-slate-400 light:text-slate-500">Ainda não há apoiadores listados — seja o primeiro a aparecer aqui!</p>;
   }
   return (
     <div className="flex flex-wrap gap-2">
@@ -151,9 +165,9 @@ function SupportersWall({ supporters }: { supporters: ApiSupporter[] }) {
         <div
           key={`${supporter.username || supporter.name}-${idx}`}
           title={supporter.message || (supporter.sinceMonth ? `Apoiador desde ${supporter.sinceMonth}` : "Apoiador Oficial")}
-          className="inline-flex items-center gap-2 border border-white/10 bg-white/[0.04] px-2.5 py-1.5 transition-colors hover:border-primary/40 hover:bg-white/[0.08]"
+          className="inline-flex items-center gap-2 border dark:border-white/10 dark:bg-white/[0.04] light:border-slate-200 light:bg-slate-100/90 px-2.5 py-1.5 transition-colors hover:border-primary/40 dark:hover:bg-white/[0.08] light:hover:bg-slate-200"
         >
-          <span className="text-xs font-medium text-slate-200">{supporter.name}</span>
+          <span className="text-xs font-medium dark:text-slate-200 light:text-slate-800">{supporter.name}</span>
           <SupporterBadge size="sm" />
         </div>
       ))}
@@ -223,20 +237,20 @@ export function CommunitySupportModal({
       {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
       <DialogContent
         aria-describedby={undefined}
-        className="max-h-[92vh] w-[95vw] sm:max-w-4xl lg:max-w-5xl xl:max-w-6xl overflow-y-auto rounded-none border-white/15 bg-slate-950 p-6 sm:p-8 text-white shadow-2xl"
+        className="max-h-[92vh] w-[95vw] sm:max-w-4xl lg:max-w-5xl xl:max-w-6xl overflow-y-auto rounded-none dark:border-white/15 dark:bg-slate-950 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 p-6 sm:p-8 shadow-2xl"
       >
         <DialogHeader className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <DialogTitle className="flex items-center gap-2.5 font-heading text-2xl sm:text-3xl uppercase tracking-wide">
+            <DialogTitle className="flex items-center gap-2.5 font-heading text-2xl sm:text-3xl uppercase tracking-wide dark:text-white light:text-slate-950">
               <HeartHandshake className="size-7 text-primary" />
               Apoie o Anaheim Hub
             </DialogTitle>
-            <span className="inline-flex items-center gap-1.5 border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 font-mono text-[11px] uppercase tracking-wider text-emerald-300">
-              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="inline-flex items-center gap-1.5 border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 font-mono text-[11px] uppercase tracking-wider dark:text-emerald-300 light:text-emerald-700">
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
               Pix Nubank Oficial
             </span>
           </div>
-          <p className="text-sm leading-relaxed text-slate-300">
+          <p className="text-sm leading-relaxed dark:text-slate-300 light:text-slate-600">
             O Anaheim Hub é mantido de forma independente pela comunidade de pilotos do Gundam Card Game. Qualquer contribuição voluntária via Pix (Nubank) ajuda a cobrir os custos de infraestrutura de servidor, banco de dados, catálogo e simulador — sem transformar o projeto em assinatura paga ou poluir a tela com anúncios.
           </p>
         </DialogHeader>
@@ -244,7 +258,7 @@ export function CommunitySupportModal({
         {/* Layout em 2 colunas para widescreen / telas médias para grandes */}
         <div className="grid grid-cols-1 gap-8 pt-4 lg:grid-cols-12 items-start">
           {/* Coluna 1: Painel Pix Nubank (QR Code e Chaves) */}
-          <div className="lg:col-span-5 border border-white/10 bg-white/[0.02] p-5 panel-cut">
+          <div className="lg:col-span-5 border dark:border-white/10 dark:bg-white/[0.02] light:border-slate-200 light:bg-slate-50 p-5 panel-cut">
             <p className="mb-4 text-xs font-semibold uppercase tracking-[0.22em] text-primary">
               Pagamento Imediato via Pix
             </p>
@@ -255,27 +269,27 @@ export function CommunitySupportModal({
           <div className="lg:col-span-7 flex flex-col gap-6">
             {/* Fluxo de Ativação / Confirmação de Insígnia */}
             <div className="space-y-3">
-              <p className="text-xs uppercase tracking-[0.22em] text-slate-400 font-semibold">
+              <p className="text-xs uppercase tracking-[0.22em] dark:text-slate-400 light:text-slate-500 font-semibold">
                 Insígnia de Apoiador & Reconhecimento
               </p>
 
               {!isAuthenticated ? (
                 /* Usuário Deslogado */
-                <div className="border border-white/10 bg-white/[0.03] p-4 text-xs leading-relaxed text-slate-300 panel-cut">
+                <div className="border dark:border-white/10 dark:bg-white/[0.03] dark:text-slate-300 light:border-slate-200 light:bg-slate-50 light:text-slate-700 p-4 text-xs leading-relaxed panel-cut">
                   <div className="flex items-start gap-3">
-                    <Sparkles className="mt-0.5 size-5 shrink-0 text-amber-400" />
+                    <Sparkles className="mt-0.5 size-5 shrink-0 text-amber-500" />
                     <div className="space-y-2">
-                      <p className="font-semibold text-white">Você está navegando como visitante (deslogado)</p>
-                      <p className="text-slate-400">
+                      <p className="font-semibold dark:text-white light:text-slate-900">Você está navegando como visitante (deslogado)</p>
+                      <p className="dark:text-slate-400 light:text-slate-600">
                         Sua doação pelo QR Code ou chave Pix ao lado é recebida normalmente na conta Nubank de forma anônima.
                       </p>
-                      <p className="text-slate-300">
+                      <p className="dark:text-slate-300 light:text-slate-700">
                         Se você possui uma conta e quer ativar a <span className="font-semibold text-primary">Insígnia de Apoiador</span> no seu perfil e no mural de honra,{" "}
                         <Link href="/login" className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80">
                           faça login
                         </Link>{" "}
                         ou{" "}
-                        <Link href="/cadastro" className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80">
+                        <Link href="/login" className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80">
                           cadastre-se
                         </Link>{" "}
                         antes ou depois de doar!
@@ -285,38 +299,38 @@ export function CommunitySupportModal({
                 </div>
               ) : user?.isSupporter ? (
                 /* Usuário Logado e já Apoiador */
-                <div className="border border-amber-400/30 bg-amber-400/10 p-4 text-xs leading-relaxed text-amber-200 panel-cut">
+                <div className="border dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200 light:border-amber-300 light:bg-amber-50 light:text-amber-900 p-4 text-xs leading-relaxed panel-cut">
                   <div className="flex items-start gap-3">
-                    <ShieldCheck className="mt-0.5 size-5 shrink-0 text-amber-400" />
+                    <ShieldCheck className="mt-0.5 size-5 shrink-0 text-amber-500" />
                     <div className="space-y-2.5 w-full">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold text-white">Piloto Apoiador Oficial Ativo!</p>
+                        <p className="font-semibold dark:text-white light:text-amber-950">Piloto Apoiador Oficial Ativo!</p>
                         <SupporterBadge size="sm" />
                       </div>
-                      <p className="text-slate-300">
-                        Obrigado de coração, <span className="font-medium text-white">{user.displayName}</span>! Sua insígnia está brilhando no seu perfil e no mural comunitário.
+                      <p className="dark:text-slate-300 light:text-slate-700">
+                        Obrigado de coração, <span className="font-medium dark:text-white light:text-slate-950">{user.displayName}</span>! Sua insígnia está brilhando no seu perfil e no mural comunitário.
                       </p>
                       {user.supporterSince ? (
-                        <p className="text-[11px] text-slate-400">
+                        <p className="text-[11px] dark:text-slate-400 light:text-slate-600">
                           Apoiando desde: {new Date(user.supporterSince).toLocaleDateString()}
                         </p>
                       ) : null}
                       <div className="pt-1">
-                        <label className="text-[10px] uppercase tracking-wider text-slate-400">Atualizar seu recado no mural:</label>
+                        <label className="text-[10px] uppercase tracking-wider dark:text-slate-400 light:text-slate-600">Atualizar seu recado no mural:</label>
                         <div className="mt-1 flex gap-2">
                           <Input
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                             placeholder="Ex: Força Anaheim Hub!"
                             maxLength={120}
-                            className="h-8 rounded-none border-white/20 bg-slate-900 text-xs text-white"
+                            className="h-8 rounded-none dark:border-white/20 dark:bg-slate-900 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 text-xs"
                           />
                           <Button
                             type="button"
                             size="sm"
                             disabled={isConfirming}
                             onClick={handleConfirmSupport}
-                            className="h-8 rounded-none border border-white/20 bg-white/10 text-xs hover:bg-white/20"
+                            className="h-8 rounded-none border dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 light:border-slate-300 light:bg-slate-100 light:text-slate-800 light:hover:bg-slate-200 text-xs"
                           >
                             {isConfirming ? <Loader2 className="size-3.5 animate-spin" /> : "Atualizar"}
                           </Button>
@@ -327,26 +341,26 @@ export function CommunitySupportModal({
                 </div>
               ) : (
                 /* Usuário Logado mas ainda não marcou como Apoiador */
-                <div className="border border-primary/30 bg-primary/5 p-4 text-xs leading-relaxed text-slate-300 panel-cut">
+                <div className="border border-primary/30 dark:bg-primary/5 dark:text-slate-300 light:border-primary/25 light:bg-primary/[0.04] light:text-slate-700 p-4 text-xs leading-relaxed panel-cut">
                   <div className="flex items-start gap-3">
                     <UserCheck className="mt-0.5 size-5 shrink-0 text-primary" />
                     <div className="w-full space-y-3">
                       <div>
-                        <p className="font-semibold text-white">Confirmar Doação & Habilitar Insígnia</p>
-                        <p className="mt-1 text-slate-400">
+                        <p className="font-semibold dark:text-white light:text-slate-950">Confirmar Doação & Habilitar Insígnia</p>
+                        <p className="mt-1 dark:text-slate-400 light:text-slate-600">
                           Após realizar o Pix pelo app do seu banco ou Nubank, confirme abaixo para ativar a{" "}
-                          <span className="font-semibold text-primary">Insígnia de Apoiador</span> no seu perfil <span className="text-white">(@{user?.username})</span> e no mural.
+                          <span className="font-semibold text-primary">Insígnia de Apoiador</span> no seu perfil <span className="dark:text-white light:text-slate-950">(@{user?.username})</span> e no mural.
                         </p>
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase tracking-wider text-slate-400">Recado para o Mural (opcional):</label>
+                        <label className="text-[10px] uppercase tracking-wider dark:text-slate-400 light:text-slate-600">Recado para o Mural (opcional):</label>
                         <Input
                           value={message}
                           onChange={(e) => setMessage(e.target.value)}
                           placeholder="Ex: Piloto de OZ apoiando a base!"
                           maxLength={120}
-                          className="rounded-none border-white/20 bg-slate-900 text-xs text-white"
+                          className="rounded-none dark:border-white/20 dark:bg-slate-900 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 text-xs"
                         />
                       </div>
 
@@ -374,23 +388,23 @@ export function CommunitySupportModal({
               )}
             </div>
 
-            <Separator className="bg-white/10" />
+            <Separator className="dark:bg-white/10 light:bg-slate-200" />
 
             {/* Mural de Apoiadores */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-xs uppercase tracking-[0.22em] text-slate-400 font-semibold">Mural de Apoiadores</p>
-                <span className="text-[11px] text-slate-500 font-mono">{supporters.length} piloto(s) apoiador(es)</span>
+                <p className="text-xs uppercase tracking-[0.22em] dark:text-slate-400 light:text-slate-500 font-semibold">Mural de Apoiadores</p>
+                <span className="text-[11px] dark:text-slate-500 light:text-slate-500 font-mono">{supporters.length} piloto(s) apoiador(es)</span>
               </div>
               <SupportersWall supporters={supporters} />
             </div>
 
-            <Separator className="bg-white/10" />
+            <Separator className="dark:bg-white/10 light:bg-slate-200" />
 
             {/* Preview da Insígnia */}
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.22em] text-slate-400 font-semibold">Selo Oficial no Perfil</p>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs uppercase tracking-[0.22em] dark:text-slate-400 light:text-slate-500 font-semibold">Selo Oficial no Perfil</p>
+              <p className="text-xs dark:text-slate-400 light:text-slate-600">
                 Apoiadores ganham este selo exibido no perfil pessoal, no perfil público e em participações comunitárias do portal:
               </p>
               <div className="pt-1">
