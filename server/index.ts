@@ -118,7 +118,7 @@ import { getRegionalMetagame } from "./services/regionalMetaService.ts";
 import { engineShaFromEnv } from "./engineSha.ts";
 import { purgeStaleSimulatorMatches, SIMULATOR_MATCH_PURGE_INTERVAL_MS } from "./simulatorMatchCleanup.ts";
 import { registerVedaRoutes } from "./vedaService.ts";
-import { createMailer, registerAuthEmailRoutes, sendVerificationEmail } from "./authEmailService.ts";
+import { createMailer, registerAuthEmailRoutes, sendVerificationEmail, validatePasswordRequirements } from "./authEmailService.ts";
 import { recaptchaVerifier } from "./recaptchaService.ts";
 
 const prisma = new PrismaClient();
@@ -1240,7 +1240,7 @@ app.post("/api/auth/register", async (req, res) => {
     },
   });
   // o link de confirmação vai em segundo plano: o cadastro não espera o SMTP
-  void sendVerificationEmail(authEmailDeps, user).catch((err) => console.error("[email] confirmação no cadastro:", err));
+  void sendVerificationEmail(authEmailDeps, user, req).catch((err) => console.error("[email] confirmação no cadastro:", err));
   const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username, isHoster: user.isHoster });
   res.status(201).json({ token, user: serializeUser(user) });
 });
@@ -1261,20 +1261,45 @@ function authRateLimitKey(req: Request, identifier?: string): string {
   return identifier ? `${ip}:${identifier}` : ip;
 }
 
-const resolvePublicAppUrl = () => {
+const resolvePublicAppUrl = (req?: Request): string => {
+  // 1. Se recebemos requisição HTTP ativa, inspeciona headers de proxy reverso (Nginx) ou host
+  if (req) {
+    const forwardedHost = req.get("x-forwarded-host") || req.get("host");
+    const forwardedProto = req.get("x-forwarded-proto") || req.protocol || "https";
+    if (forwardedHost && !forwardedHost.includes("localhost") && !forwardedHost.includes("127.0.0.1")) {
+      return `${forwardedProto}://${forwardedHost}`.replace(/\/$/, "");
+    }
+  }
+
+  // 2. Se PUBLIC_APP_URL foi configurado e não aponta para localhost
   const envUrl = process.env.PUBLIC_APP_URL?.trim();
-  if (!envUrl) return "https://anaheimhub.com";
-  if (process.env.NODE_ENV === "production" && (envUrl.includes("localhost") || envUrl.includes("127.0.0.1"))) {
+  if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+    return envUrl.replace(/\/$/, "");
+  }
+
+  // 3. Se estiver na VPS ou ambiente remoto (mesmo que NODE_ENV não esteja explicitamente como 'production')
+  const isRemoteEnv =
+    process.env.NODE_ENV === "production" ||
+    process.env.SMTP_HOST?.includes("hostinger") ||
+    process.env.MAIL_FROM?.includes("anaheimhub.com") ||
+    Boolean(process.env.PM2_HOME) ||
+    Boolean(process.env.PWD?.includes("/root/")) ||
+    Boolean(process.env.HOME?.includes("/root")) ||
+    (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes("localhost") && !process.env.DATABASE_URL.includes("127.0.0.1"));
+
+  if (isRemoteEnv) {
     return "https://anaheimhub.com";
   }
-  return envUrl;
+
+  // 4. Desenvolvimento local
+  return envUrl || "http://localhost:8787";
 };
 
 // Recuperação de senha e confirmação de e-mail (SMTP da Hostinger, remetente nao-responda@anaheimhub.com).
 const authEmailDeps = {
   prisma,
   mailer: createMailer(),
-  publicUrl: resolvePublicAppUrl(),
+  publicUrl: resolvePublicAppUrl,
   rateLimited: (req: Request, identifier?: string) => {
     const key = authRateLimitKey(req, identifier);
     if (authRateLimiter.isLimited(key)) return true;
@@ -1406,7 +1431,8 @@ app.put("/api/auth/password", authRequired, async (req: RequestWithUser, res) =>
   const current = await requireActiveUser(req, res);
   if (!current) return;
   const { currentPassword, newPassword } = req.body as { currentPassword?: string; newPassword?: string };
-  if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: "A nova senha precisa ter pelo menos 8 caracteres." });
+  const passCheck = validatePasswordRequirements(newPassword || "");
+  if (!passCheck.valid || !newPassword) return res.status(400).json({ error: passCheck.error || "Informe a nova senha." });
   if (current.passwordHash) {
     // Conta com senha de verdade -- exige confirmar a atual antes de trocar.
     if (!currentPassword) return res.status(400).json({ error: "Informe a senha atual." });

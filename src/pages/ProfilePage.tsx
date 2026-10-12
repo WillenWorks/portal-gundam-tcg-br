@@ -8,6 +8,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useFaction } from "@/contexts/FactionContext";
 import { FactionSigil } from "@/components/theme/FactionSigil";
+import { PasswordStrengthMeter } from "@/components/auth/PasswordStrengthMeter";
+import { validatePasswordStrength } from "@/lib/passwordStrength";
 import { api } from "@/lib/api";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +32,10 @@ export default function ProfilePage() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    refreshMe().catch(() => {});
+  }, [refreshMe]);
+
+  useEffect(() => {
     setDisplayName(user?.displayName ?? "");
     setBio(user?.bio ?? "");
     setPreferredCardLanguage(user?.preferredCardLanguage === "EN" ? "EN" : "PT_BR");
@@ -43,7 +49,11 @@ export default function ProfilePage() {
   };
 
   const savePassword = async () => {
-    if (newPassword.length < 8) { toast.error("A nova senha precisa ter pelo menos 8 caracteres."); return; }
+    const validation = validatePasswordStrength(newPassword);
+    if (!validation.valid) {
+      toast.error(validation.error || "A nova senha não atende aos requisitos de segurança.");
+      return;
+    }
     try {
       await api.updatePassword({ currentPassword: currentPassword || undefined, newPassword });
       setCurrentPassword("");
@@ -127,6 +137,11 @@ export default function ProfilePage() {
                   {user?.hasPassword ? <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Senha atual" className="rounded-none" /> : null}
                   <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Nova senha (mín. 8 caracteres)" className="rounded-none" />
                 </div>
+                {newPassword ? (
+                  <div className="mt-3 rounded border border-white/10 bg-slate-900/40 p-3 light:bg-slate-100/70">
+                    <PasswordStrengthMeter password={newPassword} />
+                  </div>
+                ) : null}
                 <Button className="mt-3 rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={savePassword}><KeyRound className="mr-2 size-4" />{user?.hasPassword ? "Alterar senha" : "Definir senha"}</Button>
               </div>
             </CardContent>

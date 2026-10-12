@@ -1,12 +1,12 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { Link } from "wouter";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { AuthFormCard, errorMessage, tokenFromUrl } from "@/components/auth/AuthFormCard";
+import { PasswordStrengthMeter } from "@/components/auth/PasswordStrengthMeter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { evaluatePasswordStrength, validatePasswordStrength } from "@/lib/passwordStrength";
 import { api } from "@/lib/api";
-
-const MIN_LENGTH = 8;
 
 export default function ResetPasswordPage() {
   const [token] = useState(tokenFromUrl);
@@ -16,10 +16,18 @@ export default function ResetPasswordPage() {
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const strength = useMemo(() => evaluatePasswordStrength(password), [password]);
+  const passwordsMatch = !confirm || password === confirm;
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (password.length < MIN_LENGTH) return setError(`A senha precisa ter pelo menos ${MIN_LENGTH} caracteres.`);
-    if (password !== confirm) return setError("As duas senhas não são iguais.");
+    const validation = validatePasswordStrength(password);
+    if (!validation.valid) {
+      return setError(validation.error || "A senha não atende aos requisitos de segurança.");
+    }
+    if (password !== confirm) {
+      return setError("As duas senhas não são iguais.");
+    }
     setLoading(true);
     setError(null);
     try {
@@ -47,7 +55,7 @@ export default function ResetPasswordPage() {
         <div className="space-y-4" role="status">
           <p className="flex items-start gap-3 text-sm leading-7 text-slate-300 light:text-slate-600">
             <CheckCircle2 className="mt-1 size-5 shrink-0 text-primary" aria-hidden />
-            Senha redefinida. Já pode entrar com a nova senha.
+            Senha redefinida com sucesso. Já pode entrar com a nova credencial.
           </p>
           <Button asChild className="rounded-none bg-primary text-xs uppercase tracking-[0.14em] text-primary-foreground hover:bg-primary/90">
             <Link href="/login">Ir para o login</Link>
@@ -55,14 +63,60 @@ export default function ResetPasswordPage() {
         </div>
       ) : (
         <form onSubmit={submit} className="space-y-4" noValidate>
-          <Input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder={`Nova senha (mínimo ${MIN_LENGTH} caracteres)`} className="field-shell" autoComplete="new-password" disabled={loading} aria-label="Nova senha" />
-          <Input value={confirm} onChange={(e) => setConfirm(e.target.value)} type="password" placeholder="Repita a nova senha" className="field-shell" autoComplete="new-password" disabled={loading} aria-label="Repita a nova senha" />
+          <div className="space-y-1">
+            <label className="text-xs text-slate-400 light:text-slate-600">Nova senha</label>
+            <Input
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (error) setError(null);
+              }}
+              type="password"
+              placeholder="Digite sua nova senha"
+              className="field-shell"
+              autoComplete="new-password"
+              disabled={loading}
+              aria-label="Nova senha"
+            />
+          </div>
+
+          {password ? (
+            <div className="rounded border border-white/10 bg-slate-900/40 p-3 light:bg-slate-100/70">
+              <PasswordStrengthMeter strength={strength} />
+            </div>
+          ) : null}
+
+          <div className="space-y-1">
+            <label className="text-xs text-slate-400 light:text-slate-600">Confirmar nova senha</label>
+            <Input
+              value={confirm}
+              onChange={(e) => {
+                setConfirm(e.target.value);
+                if (error) setError(null);
+              }}
+              type="password"
+              placeholder="Repita a nova senha"
+              className="field-shell"
+              autoComplete="new-password"
+              disabled={loading}
+              aria-label="Repita a nova senha"
+            />
+            {confirm && !passwordsMatch ? (
+              <p className="pt-1 text-xs text-amber-400">As senhas digitadas não são iguais.</p>
+            ) : null}
+          </div>
+
           {error ? (
             <p className="text-sm text-red-400" role="alert">
               {error} {/link/i.test(error) ? <Link href="/recuperar-senha" className="text-primary hover:underline">Pedir um novo link</Link> : null}
             </p>
           ) : null}
-          <Button type="submit" disabled={loading} className="rounded-none bg-primary text-xs uppercase tracking-[0.14em] text-primary-foreground hover:bg-primary/90">
+
+          <Button
+            type="submit"
+            disabled={loading || !strength.isStrong || !passwordsMatch || !confirm}
+            className="rounded-none bg-primary text-xs uppercase tracking-[0.14em] text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
             {loading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
             Salvar nova senha
           </Button>
