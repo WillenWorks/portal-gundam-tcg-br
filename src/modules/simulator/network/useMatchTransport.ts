@@ -94,6 +94,7 @@ export function useMatchTransport({
   const stoppedRef = useRef(false);
   const socketDeliveredRef = useRef(false);
   const pendingActionRef = useRef<PendingAction | null>(null);
+  const lastAppliedVersionRef = useRef<number>(-1);
 
   const settlePending = useCallback((outcome: { ok: true } | { ok: false; error: Error }) => {
     const pending = pendingActionRef.current;
@@ -110,6 +111,58 @@ export function useMatchTransport({
     simulatorSocket.disconnect();
   }, [settlePending]);
 
+  // Carga inicial imediata via REST para renderizar o tabuleiro de pronto sem travar no handshake do socket
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getSimulatorMatch(matchId)
+      .then((state) => {
+        if (cancelled || stoppedRef.current) return;
+        if (state && "seat" in state && "view" in state) {
+          const matchView = state as SimulatorMatchView;
+          if (matchView.version > lastAppliedVersionRef.current) {
+            lastAppliedVersionRef.current = matchView.version;
+            applyRef.current(matchView);
+          }
+        }
+      })
+      .catch((err) => {
+        if (cancelled || stoppedRef.current) return;
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes("não encontrada") || msg.includes("404")) {
+          onExpiredRef.current({ reason: "Partida não encontrada.", toLobby: true });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [matchId]);
+
+  // Fallback de sincronização periódica caso o WebSocket esteja desconectado ou em tentativa de reconexão
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      if (stoppedRef.current || typeof document === "undefined") return;
+      if (document.visibilityState !== "visible") return;
+      if (simulatorSocket.getStatus() === "connected" && socketDeliveredRef.current) return;
+
+      api
+        .getSimulatorMatch(matchId)
+        .then((state) => {
+          if (stoppedRef.current) return;
+          if (state && "seat" in state && "view" in state) {
+            const matchView = state as SimulatorMatchView;
+            if (matchView.version > lastAppliedVersionRef.current) {
+              lastAppliedVersionRef.current = matchView.version;
+              applyRef.current(matchView);
+            }
+          }
+        })
+        .catch(() => {});
+    }, 2500);
+
+    return () => clearInterval(pollInterval);
+  }, [matchId]);
+
   useEffect(() => {
     stoppedRef.current = false;
     socketDeliveredRef.current = false;
@@ -122,7 +175,10 @@ export function useMatchTransport({
       simulatorSocket.on("match:view_update", (payload) => {
         if (stoppedRef.current) return;
         socketDeliveredRef.current = true;
-        applyRef.current(payload.view);
+        if (payload.view.version > lastAppliedVersionRef.current) {
+          lastAppliedVersionRef.current = payload.view.version;
+          applyRef.current(payload.view);
+        }
         setConnState("live");
         setReconnectAttempt(0);
 
@@ -205,7 +261,10 @@ export function useMatchTransport({
         });
       }
       return api.sendSimulatorAction(matchId, action).then((res) => {
-        applyRef.current(res);
+        if (res.version > lastAppliedVersionRef.current) {
+          lastAppliedVersionRef.current = res.version;
+          applyRef.current(res);
+        }
       });
     },
     [matchId, settlePending],

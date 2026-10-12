@@ -104,10 +104,32 @@ type EventName = keyof EventMap;
 type Handler<E extends EventName> = (payload: EventMap[E]) => void;
 
 function socketOrigin(): string {
+  if (typeof window !== "undefined") {
+    const locOrigin = window.location.origin;
+    const isBrowserOnLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    // Em produção (domínio real), NUNCA apontar para localhost:8787 mesmo que API_BASE_URL tenha ficado com fallback
+    if (!isBrowserOnLocalhost) {
+      try {
+        const parsed = new URL(API_BASE_URL, locOrigin);
+        if (parsed.hostname !== "localhost" && parsed.hostname !== "127.0.0.1") {
+          return parsed.origin;
+        }
+      } catch {
+        // segue para locOrigin
+      }
+      return locOrigin;
+    }
+    try {
+      return new URL(API_BASE_URL, locOrigin).origin;
+    } catch {
+      return locOrigin;
+    }
+  }
+
   try {
     return new URL(API_BASE_URL).origin;
   } catch {
-    return typeof window !== "undefined" ? window.location.origin : "http://localhost:8787";
+    return "http://localhost:8787";
   }
 }
 function readGuestToken(): string | undefined {
