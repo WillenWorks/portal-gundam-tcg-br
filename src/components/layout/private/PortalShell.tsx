@@ -6,6 +6,7 @@ import { BookMarked, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Glo
 import anaheimLogo from "@/assets/anaheim-logo-transparent.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { AppFooter } from "@/components/layout/shared/AppFooter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -170,7 +171,8 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
           </Button>
         </aside>
 
-        <div className="min-w-0 max-w-[2400px] px-4 py-6 sm:px-6 xl:px-8 2xl:px-10 3xl:px-12 lg:py-8">
+        <div className="flex min-w-0 flex-1 flex-col justify-between">
+          <div className="min-w-0 max-w-[2400px] flex-1 px-4 py-6 sm:px-6 xl:px-8 2xl:px-10 3xl:px-12 lg:py-8">
           <header className="mb-8 space-y-4">
             <Breadcrumb>
               <BreadcrumbList>
@@ -204,7 +206,10 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
 
           {children}
         </div>
+
+        <AppFooter />
       </div>
+    </div>
 
       <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
         <SheetContent side="left" className="w-[88vw] max-w-[360px] border-white/10 bg-slate-950 text-white">

@@ -3,6 +3,7 @@ import { type ReactNode } from "react";
 import { Link } from "wouter";
 
 import { AppTopNav } from "@/components/layout/shared/AppTopNav";
+import { AppFooter } from "@/components/layout/shared/AppFooter";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -73,26 +74,7 @@ export function PublicShell({ children, breadcrumbs, title, description, heroBan
         </div>
       </main>
 
-      <footer className="border-t border-white/10 bg-slate-950/88 dark:border-white/10 dark:bg-slate-950/88 light:border-slate-300/80 light:bg-white/82">
-        <div className="mx-auto flex w-full max-w-[2400px] flex-col gap-6 px-4 py-8 text-sm text-slate-400 sm:px-6 lg:flex-row lg:items-center lg:justify-between xl:px-8 2xl:px-10 3xl:px-12 dark:text-slate-400 light:text-slate-600">
-          <div>
-            <p className="font-heading text-xl uppercase tracking-[0.16em] text-white dark:text-white light:text-slate-900">Anaheim Hub</p>
-            <p className="mt-2 max-w-2xl leading-7">Laboratório Tático & Engenharia de Combate para Gundam Card Game no Brasil. Base de conhecimento aberta, Hangar OZ, Sistema VEDA e Arena Asticassia para a comunidade de pilotos.</p>
-          </div>
-          <div className="min-w-[280px]">
-            <Separator className="mb-4 bg-white/10 lg:hidden dark:bg-white/10 light:bg-slate-300/70" />
-            <p className="text-xs uppercase tracking-[0.26em] text-slate-500">Engenharia da Comunidade</p>
-            <p className="mt-2 text-white dark:text-white light:text-slate-900">Arquivo Central · Regras em pt-BR · Hangar OZ · Arena Asticassia</p>
-            <p className="mt-3 text-xs">
-              <Link href="/privacidade" className="hover:text-primary hover:underline">Privacidade</Link>
-              {" · "}
-              <Link href="/termos" className="hover:text-primary hover:underline">Termos de Uso</Link>
-              {" · "}
-              <a href="mailto:admin@anaheimhub.com" className="hover:text-primary hover:underline">admin@anaheimhub.com</a>
-            </p>
-          </div>
-        </div>
-      </footer>
+      <AppFooter />
     </div>
   );
 }

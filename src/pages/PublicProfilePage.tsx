@@ -4,6 +4,7 @@ import { Link, useRoute } from "wouter";
 
 import { api, type ApiDeck } from "@/lib/api";
 import { PublicShell } from "@/components/layout/PublicShell";
+import { SupporterBadge } from "@/components/support/SupporterBadge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -13,6 +14,8 @@ type PublicProfile = {
   displayName: string;
   bio?: string | null;
   avatarUrl?: string | null;
+  isSupporter?: boolean;
+  supporterSince?: string | null;
   decks: ApiDeck[];
 };
 
@@ -39,7 +42,10 @@ export default function PublicProfilePage() {
               <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Perfil público</p>
-                  <h2 className="mt-2 font-heading text-5xl uppercase">{profile.displayName}</h2>
+                  <div className="mt-2 flex flex-wrap items-center gap-3">
+                    <h2 className="font-heading text-5xl uppercase">{profile.displayName}</h2>
+                    {profile.isSupporter ? <SupporterBadge size="md" /> : null}
+                  </div>
                   <p className="mt-3 text-sm uppercase tracking-[0.18em] text-primary">@{profile.username}</p>
                   <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">{profile.bio || "Jogador sem bio pública cadastrada."}</p>
                 </div>

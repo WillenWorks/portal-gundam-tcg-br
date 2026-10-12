@@ -1099,6 +1099,9 @@ function serializeUser(user: any, stats?: { deckCount: number; publicDeckCount: 
     avatarUrl: user.avatarUrl,
     isActive: user.isActive,
     isHoster: user.isHoster,
+    isSupporter: Boolean(user.isSupporter),
+    supporterSince: user.supporterSince ? (user.supporterSince instanceof Date ? user.supporterSince.toISOString() : user.supporterSince) : null,
+    supporterMessage: user.supporterMessage ?? null,
     preferredCardLanguage: user.preferredCardLanguage,
     preferredTheme: user.preferredTheme,
     hasPassword: Boolean(user.passwordHash),
@@ -1527,7 +1530,7 @@ app.get("/api/users/admin", authRequired, roleRequired([UserRole.ADMIN]), async 
 
 app.put("/api/users/admin/:id", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
   const id = String(req.params.id);
-  const payload = req.body as { displayName?: string; role?: UserRole; isActive?: boolean; bio?: string; isHoster?: boolean };
+  const payload = req.body as { displayName?: string; role?: UserRole; isActive?: boolean; bio?: string; isHoster?: boolean; isSupporter?: boolean };
   const user = await prisma.user.update({
     where: { id },
     data: {
@@ -1536,6 +1539,8 @@ app.put("/api/users/admin/:id", authRequired, roleRequired([UserRole.ADMIN]), as
       isActive: payload.isActive,
       bio: payload.bio,
       isHoster: payload.isHoster,
+      isSupporter: payload.isSupporter,
+      supporterSince: payload.isSupporter ? new Date() : (payload.isSupporter === false ? null : undefined),
     },
   });
   res.json(serializeUser(user));
@@ -1563,6 +1568,47 @@ app.get("/api/users/search", authRequired, hosterRequired, async (req: RequestWi
   res.json(users);
 });
 
+// Apoio comunitário (Mural de Apoiadores e Confirmação de Doação via Pix)
+app.get("/api/support/supporters", async (_req, res) => {
+  setPublicCache(res, 30, 120);
+  try {
+    const dbSupporters = await prisma.user.findMany({
+      where: { isSupporter: true, isActive: true },
+      select: {
+        displayName: true,
+        username: true,
+        supporterSince: true,
+        supporterMessage: true,
+      },
+      orderBy: { supporterSince: "desc" },
+    });
+    const list = dbSupporters.map((s) => ({
+      name: s.displayName || s.username,
+      username: s.username,
+      sinceMonth: s.supporterSince ? new Intl.DateTimeFormat("pt-BR", { month: "short", year: "numeric" }).format(s.supporterSince) : undefined,
+      message: s.supporterMessage || undefined,
+    }));
+    res.json(list);
+  } catch {
+    res.json([]);
+  }
+});
+
+app.post("/api/support/confirm", authRequired, async (req: RequestWithUser, res: Response) => {
+  const current = await requireActiveUser(req, res);
+  if (!current) return;
+  const message = typeof req.body?.message === "string" ? req.body.message.slice(0, 200).trim() : null;
+  const updated = await prisma.user.update({
+    where: { id: current.id },
+    data: {
+      isSupporter: true,
+      supporterSince: current.supporterSince || new Date(),
+      supporterMessage: message || current.supporterMessage || null,
+    },
+  });
+  res.json({ ok: true, user: serializeUser(updated) });
+});
+
 app.get("/api/users/:username", async (req, res) => {
   setPublicCache(res, 20, 60);
   const username = String(req.params.username);
@@ -1580,7 +1626,17 @@ app.get("/api/users/:username", async (req, res) => {
       orderBy: [{ createdAt: "asc" }],
     }),
   ]);
-  res.json({ id: user.id, username: user.username, displayName: user.displayName, bio: user.bio, avatarUrl: user.avatarUrl, decks, binders });
+  res.json({
+    id: user.id,
+    username: user.username,
+    displayName: user.displayName,
+    bio: user.bio,
+    avatarUrl: user.avatarUrl,
+    isSupporter: Boolean(user.isSupporter),
+    supporterSince: user.supporterSince ? user.supporterSince.toISOString() : null,
+    decks,
+    binders,
+  });
 });
 
 app.get("/api/binders/me", authRequired, async (req: RequestWithUser, res) => {

@@ -11,13 +11,42 @@ primeiro grande lançamento (`v1.0.0`) — esperem ajustes e coisa nova toda sem
 
 ## [Não lançado]
 
-### No radar (Ciclo v2.2 — pós Sprint 0/1 de saneamento)
-- Fechamento do backlog de cobertura de GD03 no motor (132 cartas, 76 faltando) — ainda bloqueado em runtime (`deckCoverageGate.ts`), sem deck fixo exposto a jogadores. GD02 (130 cartas) já fechou 100% em 2026-09-19 (0 faltando, 0 deferimentos ativos).
+### No radar (Ciclo v2.3)
+- Fechamento do backlog de cobertura de GD03 no motor (132 cartas, 76 faltando) — ainda bloqueado em runtime (`deckCoverageGate.ts`), sem deck fixo exposto a jogadores.
 
-### Já resolvido (ficava listado aqui, confirmado no saneamento de 2026-09-18/19)
-- Branch protection formal na `dev` (PR + CI obrigatórios, force-push e deleção bloqueados) — ativada em 2026-09-18.
-- QA E2E do restante da Arena 4P — fechado com testes automatizados (`arena4pStore.test.ts`: avanço de bracket, desempate, final, 2v2 e FFA; `server/simulatorSocket4p.test.ts`: squad real via `socket.io-client`, chat, emote, reconexão com auto-pass). Ressalva que permanece: não cobre uma partida jogada organicamente do início ao fim em navegador real (só engine/socket foram exercitados).
-- As 2 cláusulas de polish do motor (GD01-001, GD01-066) — já estavam implementadas e sem deferimento; item de backlog estava obsoleto.
+---
+
+## [2.2.0] — 2026-10-12
+
+**Operação Conexão & Apoio Comunitário** — Grande atualização com foco em resiliência do simulador, fluxo de segurança de contas (Google One Tap, reCAPTCHA Enterprise, e-mails transacionais e senhas fortes), novo módulo de Apoio Comunitário via Pix Nubank com insígnia de Apoiador e padronização visual completa dos rodapés da plataforma.
+
+### 💖 Apoio Comunitário via Pix & Insígnia de Apoiador
+- **Doações via Pix Nubank**: Modal interativa (`CommunitySupportModal`) com geração local do payload BR Code / EMV oficial, QR Code escaneável, chave Pix direta e chave copia-e-cola completa.
+- **Insígnia de Apoiador (`<SupporterBadge />`)**:
+  - Visitantes deslogados podem doar de forma ágil e anônima.
+  - Pilotos autenticados podem confirmar sua doação com 1 clique, ativando instantaneamente o selo de Apoiador no seu perfil privado (`/profile`) e público (`/u/:username`).
+  - Campo opcional de recado personalizado registrado junto à doação.
+- **Mural Dinâmico de Apoiadores**: Integração com a base de dados (`/api/support/supporters`), honrando os apoiadores comunitários em tempo real.
+- **Gestão Administrativa**: Moderação e concessão de insígnia de apoiador diretamente pelo painel administrativo (`/admin/users`).
+
+### 📐 Rodapé Padronizado & Acesso Rápido
+- **Componente Unificado (`AppFooter`)**: Padronização da identidade visual no rodapé de todas as telas, unificando o site público (`PublicShell`, `Home`) e o painel privado (`PortalShell`).
+- **Botão de Acesso Rápido**: Atalho permanente "Apoie o Anaheim Hub" integrado no rodapé, permitindo abrir o modal de doação de qualquer ponto do sistema.
+- **Links Institucionais**: Acesso direto a Regras pt-BR, Sistema VEDA, Termos de Uso, Política de Privacidade e contato oficial.
+
+### ⚔️ Simulador — Resiliência de Carregamento & Anti-Travamento
+- **Origem WebSocket Dinâmica**: Blindagem da função `socketOrigin()` para impedir vazamentos de `localhost` em produção, direcionando conexões WebSocket corretamente para a URL do servidor em qualquer ambiente.
+- **Hidratação Híbrida (REST + Polling Fallback)**: Ao entrar numa partida contra bot ou jogador, o estado é imediatamente buscado via REST (`api.getSimulatorMatch`), permitindo carregar o duelo mesmo que a conexão WebSocket demore a apertar as mãos (*handshake*).
+- **Tela Tática de Recuperação & Timeout**: Eliminação da tela de carregamento infinita — após 12 segundos sem resposta do transporte, uma interface de recuperação orienta o piloto a recarregar o estado, reconectar ou retornar em segurança ao hangar.
+
+### 🛡️ Autenticação, Segurança & Recuperação de Contas
+- **Google Identity Services**: Login e cadastro com 1 clique usando conta Google (`GIS`), associando perfil, avatar e e-mail sem expor credenciais.
+- **reCAPTCHA Enterprise**: Proteção proativa contra bots nos formulários de acesso e criação de conta.
+- **E-mails Transacionais com Resend**:
+  - Confirmação de e-mail com token temporário seguro de 48 horas e tela amigável para reenvio caso expire.
+  - Recuperação e troca de senha via link seguro por e-mail com URLs públicas calibradas para o domínio de produção.
+- **Validador de Senha Forte**: Medidor visual em tempo real de entropia e segurança (mínimo de 8 caracteres, maiúsculas, minúsculas, números e caracteres especiais) implementado no cadastro e na redefinição de credenciais.
+- **Páginas Legais**: Publicação das políticas oficiais de privacidade (`/privacidade`) e termos de serviço (`/termos`) em conformidade com as diretrizes do Google Cloud e LGPD.
 
 ---
 

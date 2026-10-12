@@ -26,7 +26,17 @@ export type AuthUser = {
   preferredTheme?: string | null;
   hasPassword?: boolean;
   emailVerified?: boolean;
+  isSupporter?: boolean;
+  supporterSince?: string | null;
+  supporterMessage?: string | null;
   stats?: { deckCount: number; publicDeckCount: number; binderCount?: number };
+};
+
+export type ApiSupporter = {
+  name: string;
+  username?: string;
+  sinceMonth?: string;
+  message?: string;
 };
 
 export type ApiDeck = {
@@ -1066,7 +1076,9 @@ export const api = {
   updateMe: (payload: { displayName?: string; bio?: string; avatarUrl?: string; preferredCardLanguage?: "PT_BR" | "EN"; preferredTheme?: string }) => mutate<AuthUser>("/auth/me", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me", "/users/", "/decks/me", "/binders/me"]),
   updatePassword: (payload: { currentPassword?: string; newPassword: string }) => mutate<{ ok: true }>("/auth/password", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me"]),
   uploadAvatar: (formData: FormData) => mutate<AuthUser>("/auth/me/avatar", { method: "POST", body: formData }, ["/auth/me"]),
-  getPublicProfile: (username: string) => request<{ id: string; username: string; displayName: string; bio?: string | null; avatarUrl?: string | null; decks: ApiDeck[]; binders: ApiBinder[] }>(`/users/${username}`, undefined, { ttlMs: 30_000 }),
+  getPublicProfile: (username: string) => request<{ id: string; username: string; displayName: string; bio?: string | null; avatarUrl?: string | null; isSupporter?: boolean; supporterSince?: string | null; decks: ApiDeck[]; binders: ApiBinder[] }>(`/users/${username}`, undefined, { ttlMs: 30_000 }),
+  confirmSupport: (message?: string) => mutate<{ ok: true; user: AuthUser; message?: string }>("/support/confirm", { method: "POST", body: JSON.stringify({ message }) }, ["/auth/me", "/support/supporters"]),
+  getSupporters: () => request<ApiSupporter[]>("/support/supporters", undefined, { ttlMs: 10_000 }),
   listAdminUsers: () => request<any[]>("/users/admin", undefined, { ttlMs: 5_000 }),
   updateAdminUser: (id: string, payload: any) => mutate<AuthUser>(`/users/admin/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/users/admin", "/auth/me", "/users/"]),
   listPosts: (status?: PostStatus) => request<ApiPost[]>(`/posts${status ? `?status=${encodeURIComponent(status)}` : ""}`, undefined, { ttlMs: 20_000 }),

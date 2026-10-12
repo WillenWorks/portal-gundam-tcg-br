@@ -10,6 +10,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { AppTopNav } from "@/components/layout/AppTopNav";
+import { AppFooter } from "@/components/layout/shared/AppFooter";
 import { LatestCardsCarousel } from "@/components/home/LatestCardsCarousel";
 import { HomeDirectivesSection } from "@/components/home/HomeDirectivesSection";
 import { PopularMainCardsSection } from "@/components/home/PopularMainCardsSection";
@@ -440,24 +441,8 @@ export default function Home({ targetSection }: HomeProps) {
         <AboutAnaheimHubSection />
       </main>
 
-      {/* ── FOOTER INSTITUCIONAL ──────────────────────────────────────── */}
-      <footer className="border-t border-white/10 bg-slate-950/80 py-10 text-xs text-slate-400">
-        <div className="container-ultrawide flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
-          <div>
-            <p className="font-heading text-2xl uppercase tracking-wider text-white">Anaheim Hub</p>
-            <p className="mt-1 text-slate-400">
-              Laboratório Tático e Engenharia de Combate para o Gundam Card Game. Cartas, artes e marcas registradas pertencem à Bandai Co., Ltd. e Sunrise/Sotsu.
-            </p>
-          </div>
-          <div className="flex flex-wrap justify-center gap-5 uppercase tracking-widest text-[0.7rem] text-slate-400">
-            <Link href="/database" className="hover:text-primary transition-colors">Cartas</Link>
-            <Link href="/decks" className="hover:text-primary transition-colors">Decks</Link>
-            <Link href="/rules" className="hover:text-primary transition-colors">Regras pt-BR</Link>
-            <Link href="/stats" className="hover:text-primary transition-colors">Estatísticas</Link>
-            <Link href="/novidades" className="hover:text-primary transition-colors">Novidades</Link>
-          </div>
-        </div>
-      </footer>
+      {/* ── FOOTER INSTITUCIONAL PADRONIZADO ────────────────────────────── */}
+      <AppFooter />
     </div>
   );
 }

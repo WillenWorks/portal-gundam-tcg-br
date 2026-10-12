@@ -133,6 +133,10 @@ model User {
   preferredTheme        String?      @default("dark")
   // Confirmação de e-mail (link enviado no cadastro). Login com Google já chega confirmado.
   emailVerifiedAt       DateTime?
+  // Apoio comunitário (doação / insígnia de Apoiador)
+  isSupporter           Boolean      @default(false)
+  supporterSince        DateTime?
+  supporterMessage      String?      @db.Text
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
 

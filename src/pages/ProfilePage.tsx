@@ -1,7 +1,7 @@
 /* Perfil/configurações v9 — dados pessoais + senha (ciente de login social) + avatar
  * de verdade, perfil visual + idioma do site + link público, resumo de conta. */
 import { useEffect, useRef, useState } from "react";
-import { KeyRound, Save, ShieldCheck, Upload } from "lucide-react";
+import { HeartHandshake, KeyRound, Save, ShieldCheck, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +12,8 @@ import { PasswordStrengthMeter } from "@/components/auth/PasswordStrengthMeter";
 import { validatePasswordStrength } from "@/lib/passwordStrength";
 import { api } from "@/lib/api";
 import { PortalShell } from "@/components/layout/PortalShell";
+import { SupporterBadge } from "@/components/support/SupporterBadge";
+import { CommunitySupportModal } from "@/components/support/CommunitySupportModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,6 +25,7 @@ export default function ProfilePage() {
   const { user, refreshMe, setCurrentUser } = useAuth();
   const { theme, setTheme } = useTheme();
   const { faction, setFaction } = useFaction();
+  const [supportModalOpen, setSupportModalOpen] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [preferredCardLanguage, setPreferredCardLanguage] = useState<"PT_BR" | "EN">("PT_BR");
@@ -108,7 +111,10 @@ export default function ProfilePage() {
             <CardContent className="space-y-5 p-6">
               <div>
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Dados pessoais</p>
-                <h2 className="mt-2 font-heading text-4xl uppercase">Sua conta</h2>
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <h2 className="font-heading text-4xl uppercase">Sua conta</h2>
+                  {user?.isSupporter ? <SupporterBadge /> : null}
+                </div>
                 <p className="mt-2 text-sm leading-6 text-slate-400 dark:text-slate-400 light:text-slate-600">Nome, avatar e senha de acesso. O que já vem do seu login social (Google) não pode ser editado por aqui.</p>
               </div>
 
@@ -227,6 +233,33 @@ export default function ProfilePage() {
                   <span className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">Usuário</span>
                   <span className="text-sm">@{user?.username}</span>
                 </div>
+                <div className="panel-cut flex flex-wrap items-center justify-between gap-4 border border-white/10 bg-slate-950/60 p-4 dark:bg-slate-950/60 light:bg-slate-50">
+                  <span className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">Apoio Comunitário</span>
+                  {user?.isSupporter ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <SupporterBadge size="sm" />
+                      {user.supporterSince ? (
+                        <span className="text-xs text-slate-400">
+                          desde {new Date(user.supporterSince).toLocaleDateString()}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500">Ainda não apoia</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSupportModalOpen(true)}
+                        className="h-7 rounded-none border-amber-400/40 bg-amber-400/10 text-xs text-amber-300 hover:bg-amber-400/20"
+                      >
+                        <HeartHandshake className="mr-1.5 size-3 text-amber-400" />
+                        Apoiar via Pix
+                      </Button>
+                    </div>
+                  )}
+                </div>
                 <div className="panel-cut flex items-center gap-3 border border-emerald-400/20 bg-emerald-400/5 p-4">
                   <ShieldCheck className="size-4 shrink-0 text-emerald-400" />
                   <span className="text-xs leading-5 text-slate-400 dark:text-slate-400 light:text-slate-600">Sua senha nunca é armazenada em texto puro, e o login com Google não expõe sua senha do Google pra este site.</span>
@@ -236,6 +269,7 @@ export default function ProfilePage() {
           </Card>
         </div>
       </div>
+      <CommunitySupportModal open={supportModalOpen} onOpenChange={setSupportModalOpen} />
     </PortalShell>
   );
 }
