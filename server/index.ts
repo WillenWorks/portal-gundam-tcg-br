@@ -119,6 +119,7 @@ import { engineShaFromEnv } from "./engineSha.ts";
 import { purgeStaleSimulatorMatches, SIMULATOR_MATCH_PURGE_INTERVAL_MS } from "./simulatorMatchCleanup.ts";
 import { registerVedaRoutes } from "./vedaService.ts";
 import { createMailer, registerAuthEmailRoutes, sendVerificationEmail } from "./authEmailService.ts";
+import { recaptchaVerifier } from "./recaptchaService.ts";
 
 const prisma = new PrismaClient();
 
@@ -1201,11 +1202,16 @@ app.get("/api/health", async (_req, res) => {
 });
 
 app.post("/api/auth/register", async (req, res) => {
-  const { email, password, displayName } = req.body as {
+  const { email, password, displayName, recaptchaToken } = req.body as {
     email?: string;
     password?: string;
     displayName?: string;
+    recaptchaToken?: string;
   };
+  const recaptchaCheck = await recaptchaVerifier.verify(recaptchaToken, "REGISTER");
+  if (!recaptchaCheck.valid) {
+    return res.status(400).json({ error: "Falha na verificação de segurança (reCAPTCHA). Tente novamente." });
+  }
   if (!email || !password || !displayName) return res.status(400).json({ error: "Email, senha e nome são obrigatórios." });
   if (password.length < 8) return res.status(400).json({ error: "A senha precisa ter pelo menos 8 caracteres." });
   const normalizedEmail = email.trim().toLowerCase();
@@ -1271,7 +1277,7 @@ const authEmailDeps = {
 registerAuthEmailRoutes(app, authEmailDeps);
 
 app.post("/api/auth/login", async (req, res) => {
-  const { email, password } = req.body as { email?: string; password?: string };
+  const { email, password, recaptchaToken } = req.body as { email?: string; password?: string; recaptchaToken?: string };
   const normalizedEmail = String(email || "").trim().toLowerCase();
   const normalizedPassword = String(password || "");
   const rateLimitKey = authRateLimitKey(req, normalizedEmail || undefined);
@@ -1279,6 +1285,10 @@ app.post("/api/auth/login", async (req, res) => {
     return res.status(429).json({ error: "Muitas tentativas de login. Aguarde alguns minutos antes de tentar de novo." });
   }
   authRateLimiter.record(rateLimitKey);
+  const recaptchaCheck = await recaptchaVerifier.verify(recaptchaToken, "LOGIN");
+  if (!recaptchaCheck.valid) {
+    return res.status(400).json({ error: "Falha na verificação de segurança (reCAPTCHA). Tente novamente." });
+  }
   if (!normalizedEmail || !normalizedPassword) return res.status(400).json({ error: "Email e senha são obrigatórios." });
   const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
   if (!user || !user.isActive) return res.status(401).json({ error: "Credenciais inválidas ou usuário inativo." });

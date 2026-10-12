@@ -1048,8 +1048,8 @@ function computeClientSideZeroChat(message: string, persona: PilotPersonaId = "a
 export const api = {
   health: () =>
     request<{ ok: boolean; runtime: string; userCount: number; cardCount: number; deckCount: number; binderCount?: number; setCount?: number; productCount?: number }>("/health", undefined, { ttlMs: 15_000 }),
-  register: (payload: { email: string; password: string; displayName: string }) => request<{ token: string; user: AuthUser }>("/auth/register", { method: "POST", body: JSON.stringify(payload) }),
-  login: (email: string, password: string) => request<{ token: string; user: AuthUser }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+  register: (payload: { email: string; password: string; displayName: string; recaptchaToken?: string }) => request<{ token: string; user: AuthUser }>("/auth/register", { method: "POST", body: JSON.stringify(payload) }),
+  login: (email: string, password: string, recaptchaToken?: string) => request<{ token: string; user: AuthUser }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password, recaptchaToken }) }),
   loginWithGoogle: (credential: string) => request<{ token: string; user: AuthUser }>("/auth/google", { method: "POST", body: JSON.stringify({ credential }) }),
   me: () => request<AuthUser>("/auth/me", undefined, { ttlMs: 10_000 }),
   forgotPassword: (email: string) => request<{ ok: true; message: string }>("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
