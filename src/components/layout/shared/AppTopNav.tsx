@@ -37,8 +37,8 @@ export const publicTopNav: readonly NavItem[] = [
   },
   { href: "/torneios", label: "Torneios" },
   { href: "/stats", label: "Estatísticas" },
-  { href: "/series", label: "Universo" },
-  { href: "/articles", label: "Artigos" },
+  // { href: "/series", label: "Universo" },
+  // { href: "/articles", label: "Artigos" },
   { href: "/rules", label: "Regras" },
   { href: "/simulador", label: "Simulador", authRequired: true },
 ] as const;
@@ -125,8 +125,8 @@ function MoreDropdown({
   const isMoreActive = useMemo(() => {
     return (
       isActiveRoute(currentPath, "/torneios") ||
-      isActiveRoute(currentPath, "/series") ||
-      isActiveRoute(currentPath, "/articles") ||
+      // isActiveRoute(currentPath, "/series") ||
+      // isActiveRoute(currentPath, "/articles") ||
       isActiveRoute(currentPath, "/rules") ||
       isActiveRoute(currentPath, "/stats") ||
       isActiveRoute(currentPath, "/novidades")
@@ -190,7 +190,7 @@ function MoreDropdown({
             </Link>
           </DropdownMenuItem>
 
-          {/* Universo, Artigos, Regras aparecem no Mais até 2xl (< 1536px); em 2xl+ já ficam na barra */}
+          {/* Universo e Artigos comentados / escondidos temporariamente
           <DropdownMenuItem asChild className="rounded-none cursor-pointer p-0 focus:bg-white/10 focus:text-primary">
             <Link
               href="/series"
@@ -220,6 +220,7 @@ function MoreDropdown({
               Artigos
             </Link>
           </DropdownMenuItem>
+          */}
 
           <DropdownMenuItem asChild className="rounded-none cursor-pointer p-0 focus:bg-white/10 focus:text-primary">
             <Link
@@ -370,7 +371,7 @@ export function AppTopNav() {
               Estatísticas
             </Link>
 
-            {/* 5. Universo — visível a partir de 2xl (1536px); em telas menores fica no Mais */}
+            {/* 5. Universo — visível a partir de 2xl (1536px); em telas menores fica no Mais (ocultado temporariamente)
             <Link
               href="/series"
               className={cn(
@@ -380,8 +381,9 @@ export function AppTopNav() {
             >
               Universo
             </Link>
+            */}
 
-            {/* 6. Artigos — visível a partir de 2xl (1536px); em telas menores fica no Mais */}
+            {/* 6. Artigos — visível a partir de 2xl (1536px); em telas menores fica no Mais (ocultado temporariamente)
             <Link
               href="/articles"
               className={cn(
@@ -391,6 +393,7 @@ export function AppTopNav() {
             >
               Artigos
             </Link>
+            */}
 
             {/* 7. Regras — visível a partir de 2xl (1536px); em telas menores fica no Mais */}
             <Link
