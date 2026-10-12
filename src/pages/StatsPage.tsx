@@ -317,10 +317,10 @@ export default function StatsPage() {
                 <p className="text-xs uppercase tracking-[0.24em] text-primary font-semibold font-mono">
                   Terminal Quântico VEDA · Metagame & Previsão Tática
                 </p>
-                <h2 className="mt-2 font-heading text-4xl sm:text-5xl uppercase tracking-wider text-white">
+                <h2 className="mt-2 font-heading text-4xl sm:text-5xl uppercase tracking-wider dark:text-white light:text-slate-900">
                   Sistema VEDA · Metagame & Estatísticas
                 </h2>
-                <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-300">
+                <p className="mt-3 max-w-3xl text-sm leading-relaxed dark:text-slate-300 light:text-slate-600">
                   Processamento em tempo real do metagame competitivo oficial: presença de arquétipos, núcleos de cartas
                   (Core, Flex e Tech), telemetria regional brasileira e sinergias de Mobile Suits.
                 </p>
@@ -356,15 +356,15 @@ export default function StatsPage() {
             </div>
 
             {/* BARRA UNIFICADA DE FILTRO DE METAGAME */}
-            <div className="mt-6 border-t border-white/10 pt-5 space-y-3 font-mono">
+            <div className="mt-6 border-t dark:border-white/10 light:border-slate-300/80 pt-5 space-y-3 font-mono">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="text-xs uppercase tracking-[0.2em] text-slate-400 font-bold">Temporada:</span>
+                <span className="text-xs uppercase tracking-[0.2em] dark:text-slate-400 light:text-slate-600 font-bold">Temporada:</span>
 
                 {/* Seletor de Temporada / Formato com GD05 / GD05.5 no Topo */}
                 <select
                   value={selectedFormat}
                   onChange={(event) => setSelectedFormat(event.target.value)}
-                  className="field-shell h-9 rounded-none border border-primary/40 bg-slate-950/90 px-3 text-sm text-primary font-bold shadow-[0_0_10px_rgba(20,184,166,0.2)]"
+                  className="field-shell h-9 rounded-none border border-primary/40 dark:bg-slate-950/90 light:bg-white px-3 text-sm text-primary font-bold shadow-[0_0_10px_rgba(20,184,166,0.2)]"
                 >
                   <option value="GD05_COMBINED">Temporada Atual (GD05 / GD05.5) — Padrão Oficial</option>
                   <option value="GD05.5">Formato GD05.5 (Mini-expansão)</option>
@@ -379,7 +379,7 @@ export default function StatsPage() {
                 <select
                   value={selectedSetId}
                   onChange={(event) => setSelectedSetId(event.target.value)}
-                  className="field-shell h-9 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white"
+                  className="field-shell h-9 rounded-none border dark:border-white/15 dark:bg-slate-950/70 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 px-3 text-sm"
                 >
                   <option value={ALL_VALUE}>Todas as coleções cadastradas</option>
                   {sets.map((set) => (
@@ -404,12 +404,14 @@ export default function StatsPage() {
               {/* Filtros Secundários de Cor e Período */}
               <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs uppercase tracking-[0.2em] text-slate-400">Filtrar Cor:</span>
+                  <span className="text-xs uppercase tracking-[0.2em] dark:text-slate-400 light:text-slate-600">Filtrar Cor:</span>
                   <button
                     type="button"
                     onClick={() => setSelectedColor("")}
                     className={`px-2 py-1 text-[11px] font-mono uppercase border transition-colors ${
-                      !selectedColor ? "border-primary bg-primary/20 text-primary" : "border-white/10 text-slate-400 hover:text-white"
+                      !selectedColor
+                        ? "border-primary bg-primary/20 text-primary font-bold"
+                        : "dark:border-white/10 dark:text-slate-400 dark:hover:text-white light:border-slate-300 light:text-slate-600 light:hover:text-slate-900"
                     }`}
                   >
                     Todas
@@ -428,20 +430,20 @@ export default function StatsPage() {
                   ))}
                 </div>
 
-                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-400">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] dark:text-slate-400 light:text-slate-600">
                   <span>Período:</span>
                   <input
                     type="date"
                     value={startDate}
                     onChange={(event) => setStartDate(event.target.value)}
-                    className="field-shell h-8 rounded-none border border-white/15 bg-slate-950/70 px-2 text-xs text-white"
+                    className="field-shell h-8 rounded-none border dark:border-white/15 dark:bg-slate-950/70 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 px-2 text-xs"
                   />
                   <span>até</span>
                   <input
                     type="date"
                     value={endDate}
                     onChange={(event) => setEndDate(event.target.value)}
-                    className="field-shell h-8 rounded-none border border-white/15 bg-slate-950/70 px-2 text-xs text-white"
+                    className="field-shell h-8 rounded-none border dark:border-white/15 dark:bg-slate-950/70 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 px-2 text-xs"
                   />
                 </div>
               </div>
@@ -451,10 +453,10 @@ export default function StatsPage() {
 
         {/* NAVEGAÇÃO EM 4 ABAS TÁTICAS */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
-          <TabsList className="w-full justify-start overflow-x-auto border-b border-white/10 bg-transparent p-0 gap-2 h-auto rounded-none pb-px">
+          <TabsList className="w-full justify-start overflow-x-auto border-b dark:border-white/10 light:border-slate-300 bg-transparent p-0 gap-2 h-auto rounded-none pb-px">
             <TabsTrigger
               value="competitive"
-              className="panel-cut rounded-none border border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/20 data-[state=active]:text-white data-[state=active]:font-bold text-slate-400 hover:text-white px-4 py-2.5 text-xs uppercase font-mono tracking-wider transition-all flex items-center gap-2"
+              className="panel-cut rounded-none border border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/20 dark:data-[state=active]:text-white light:data-[state=active]:text-primary data-[state=active]:font-bold dark:text-slate-400 dark:hover:text-white light:text-slate-600 light:hover:text-slate-900 px-4 py-2.5 text-xs uppercase font-mono tracking-wider transition-all flex items-center gap-2"
             >
               <Swords className="size-4 text-accent" />
               1. Metagame Competitivo ({selectedFormat === "GD05_COMBINED" ? "GD05 / GD05.5" : selectedFormat})
@@ -462,7 +464,7 @@ export default function StatsPage() {
 
             <TabsTrigger
               value="regional"
-              className="panel-cut rounded-none border border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/20 data-[state=active]:text-white data-[state=active]:font-bold text-slate-400 hover:text-white px-4 py-2.5 text-xs uppercase font-mono tracking-wider transition-all flex items-center gap-2"
+              className="panel-cut rounded-none border border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/20 dark:data-[state=active]:text-white light:data-[state=active]:text-primary data-[state=active]:font-bold dark:text-slate-400 dark:hover:text-white light:text-slate-600 light:hover:text-slate-900 px-4 py-2.5 text-xs uppercase font-mono tracking-wider transition-all flex items-center gap-2"
             >
               <MapPin className="size-4 text-primary" />
               2. Metagame Nacional (Brasil & Praças)
@@ -470,7 +472,7 @@ export default function StatsPage() {
 
             <TabsTrigger
               value="catalog"
-              className="panel-cut rounded-none border border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/20 data-[state=active]:text-white data-[state=active]:font-bold text-slate-400 hover:text-white px-4 py-2.5 text-xs uppercase font-mono tracking-wider transition-all flex items-center gap-2"
+              className="panel-cut rounded-none border border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/20 dark:data-[state=active]:text-white light:data-[state=active]:text-primary data-[state=active]:font-bold dark:text-slate-400 dark:hover:text-white light:text-slate-600 light:hover:text-slate-900 px-4 py-2.5 text-xs uppercase font-mono tracking-wider transition-all flex items-center gap-2"
             >
               <Database className="size-4 text-emerald-400" />
               3. Estatísticas Gerais & Acervo
@@ -478,7 +480,7 @@ export default function StatsPage() {
 
             <TabsTrigger
               value="telemetry"
-              className="panel-cut rounded-none border border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/20 data-[state=active]:text-white data-[state=active]:font-bold text-slate-400 hover:text-white px-4 py-2.5 text-xs uppercase font-mono tracking-wider transition-all flex items-center gap-2"
+              className="panel-cut rounded-none border border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/20 dark:data-[state=active]:text-white light:data-[state=active]:text-primary data-[state=active]:font-bold dark:text-slate-400 dark:hover:text-white light:text-slate-600 light:hover:text-slate-900 px-4 py-2.5 text-xs uppercase font-mono tracking-wider transition-all flex items-center gap-2"
             >
               <Cpu className="size-4 text-sky-400" />
               4. Telemetria Avançada & Confrontos (VEDA)
@@ -529,8 +531,8 @@ export default function StatsPage() {
               ].map(([label, value]) => (
                 <Card key={label} className="panel-cut rounded-none surface-panel">
                   <CardContent className="p-5">
-                    <p className="text-xs uppercase tracking-[0.24em] text-slate-400">{label}</p>
-                    <p className="mt-4 font-heading text-4xl leading-none text-white">{value}</p>
+                    <p className="text-xs uppercase tracking-[0.24em] dark:text-slate-400 light:text-slate-600">{label}</p>
+                    <p className="mt-4 font-heading text-4xl leading-none dark:text-white light:text-slate-900">{value}</p>
                   </CardContent>
                 </Card>
               ))}
@@ -540,8 +542,8 @@ export default function StatsPage() {
             <div className="grid gap-6 xl:grid-cols-2">
               <Card className="panel-cut rounded-none surface-panel">
                 <CardContent className="p-6">
-                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-mono">Cobertura por coleção</p>
-                  <h3 className="mt-2 font-heading text-3xl uppercase text-white">Cartas cadastradas por expansão</h3>
+                  <p className="text-xs uppercase tracking-[0.24em] dark:text-slate-400 light:text-slate-600 font-mono">Cobertura por coleção</p>
+                  <h3 className="mt-2 font-heading text-3xl uppercase dark:text-white light:text-slate-900">Cartas cadastradas por expansão</h3>
                   <div className="mt-6 h-[320px]">
                     <ChartContainer config={chartConfig} className="h-full w-full">
                       <BarChart data={setChart}>
@@ -558,8 +560,8 @@ export default function StatsPage() {
 
               <Card className="panel-cut rounded-none surface-panel">
                 <CardContent className="p-6">
-                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-mono">Distribuição por Cor</p>
-                  <h3 className="mt-2 font-heading text-3xl uppercase text-white">Proporção de cartas por cor</h3>
+                  <p className="text-xs uppercase tracking-[0.24em] dark:text-slate-400 light:text-slate-600 font-mono">Distribuição por Cor</p>
+                  <h3 className="mt-2 font-heading text-3xl uppercase dark:text-white light:text-slate-900">Proporção de cartas por cor</h3>
                   <div className="mt-6 h-[320px]">
                     <ChartContainer config={chartConfig} className="h-full w-full">
                       <BarChart data={colorChart}>
@@ -579,8 +581,8 @@ export default function StatsPage() {
             <div className="grid gap-6 xl:grid-cols-2">
               <Card className="panel-cut rounded-none surface-panel">
                 <CardContent className="p-6">
-                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-mono">Proporção de Tipos</p>
-                  <h3 className="mt-2 font-heading text-3xl uppercase text-white">Unit, Pilot, Command e Base</h3>
+                  <p className="text-xs uppercase tracking-[0.24em] dark:text-slate-400 light:text-slate-600 font-mono">Proporção de Tipos</p>
+                  <h3 className="mt-2 font-heading text-3xl uppercase dark:text-white light:text-slate-900">Unit, Pilot, Command e Base</h3>
                   <div className="mt-6 h-[320px]">
                     <ChartContainer config={chartConfig} className="h-full w-full">
                       <BarChart data={typeChart}>
@@ -597,8 +599,8 @@ export default function StatsPage() {
 
               <Card className="panel-cut rounded-none surface-panel">
                 <CardContent className="p-6">
-                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-mono">Combinação de Cores</p>
-                  <h3 className="mt-2 font-heading text-3xl uppercase text-white">Cores mais jogadas juntas</h3>
+                  <p className="text-xs uppercase tracking-[0.24em] dark:text-slate-400 light:text-slate-600 font-mono">Combinação de Cores</p>
+                  <h3 className="mt-2 font-heading text-3xl uppercase dark:text-white light:text-slate-900">Cores mais jogadas juntas</h3>
                   <div className="mt-6 h-[320px]">
                     <ChartContainer config={chartConfig} className="h-full w-full">
                       <BarChart data={colorCombos}>
@@ -618,12 +620,12 @@ export default function StatsPage() {
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
                 <p className="text-xs uppercase tracking-[0.24em] text-primary font-mono">Presença no Metagame</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase text-white">Cartas Mais Utilizadas</h3>
+                <h3 className="mt-2 font-heading text-3xl uppercase dark:text-white light:text-slate-900">Cartas Mais Utilizadas</h3>
                 {cardPresence.length ? (
                   <div className="mt-4 overflow-x-auto">
                     <table className="w-full text-left text-sm font-mono">
                       <thead>
-                        <tr className="border-b border-white/10 text-xs uppercase text-slate-400">
+                        <tr className="border-b dark:border-white/10 light:border-slate-200 text-xs uppercase dark:text-slate-400 light:text-slate-600">
                           <th className="py-2 pr-3">Carta</th>
                           <th className="py-2 pr-3">Cor</th>
                           <th className="py-2 pr-3">Aparições</th>
@@ -634,8 +636,8 @@ export default function StatsPage() {
                       </thead>
                       <tbody>
                         {metagame?.topCards?.slice(0, 10).map((card) => (
-                          <tr key={card.cardModelId} className="border-b border-white/5 text-slate-300">
-                            <td className="py-2 pr-3 text-white font-medium">{card.name}</td>
+                          <tr key={card.cardModelId} className="border-b dark:border-white/5 light:border-slate-100 dark:text-slate-300 light:text-slate-700">
+                            <td className="py-2 pr-3 dark:text-white light:text-slate-900 font-medium">{card.name}</td>
                             <td className="py-2 pr-3">
                               {card.color ? (
                                 <span className="inline-flex items-center gap-1.5">
@@ -670,21 +672,21 @@ export default function StatsPage() {
             <div className="grid gap-6 xl:grid-cols-2 font-mono">
               <Card className="panel-cut rounded-none surface-panel">
                 <CardContent className="p-6">
-                  <p className="flex items-center gap-1.5 text-xs uppercase tracking-[0.24em] text-emerald-400">
+                  <p className="flex items-center gap-1.5 text-xs uppercase tracking-[0.24em] dark:text-emerald-400 light:text-emerald-600">
                     <TrendingUp className="size-3.5" /> Tendência de Alta
                   </p>
-                  <h3 className="mt-2 font-heading text-3xl uppercase text-white">Cartas em Alta</h3>
+                  <h3 className="mt-2 font-heading text-3xl uppercase dark:text-white light:text-slate-900">Cartas em Alta</h3>
                   {risingCards.length ? (
                     <div className="mt-4 space-y-2">
                       {risingCards.slice(0, 5).map((card) => (
                         <div
                           key={card.cardModelId}
-                          className="flex items-center justify-between gap-3 panel-cut border border-emerald-500/20 bg-emerald-950/10 px-3 py-2 text-xs"
+                          className="flex items-center justify-between gap-3 panel-cut border dark:border-emerald-500/20 dark:bg-emerald-950/10 light:border-emerald-300 light:bg-emerald-50 px-3 py-2 text-xs"
                         >
-                          <span className="text-white font-medium">{card.name}</span>
-                          <span className="whitespace-nowrap font-semibold text-emerald-400">
+                          <span className="dark:text-white light:text-slate-900 font-medium">{card.name}</span>
+                          <span className="whitespace-nowrap font-semibold dark:text-emerald-400 light:text-emerald-700">
                             +{card.trendDelta}pp{" "}
-                            <span className="text-slate-500 font-normal">
+                            <span className="dark:text-slate-500 light:text-slate-500 font-normal">
                               ({card.priorPresenceRate}% → {card.recentPresenceRate}%)
                             </span>
                           </span>
@@ -701,21 +703,21 @@ export default function StatsPage() {
 
               <Card className="panel-cut rounded-none surface-panel">
                 <CardContent className="p-6">
-                  <p className="flex items-center gap-1.5 text-xs uppercase tracking-[0.24em] text-red-400">
+                  <p className="flex items-center gap-1.5 text-xs uppercase tracking-[0.24em] dark:text-red-400 light:text-red-600">
                     <TrendingDown className="size-3.5" /> Tendência de Queda
                   </p>
-                  <h3 className="mt-2 font-heading text-3xl uppercase text-white">Cartas em Queda</h3>
+                  <h3 className="mt-2 font-heading text-3xl uppercase dark:text-white light:text-slate-900">Cartas em Queda</h3>
                   {decliningCards.length ? (
                     <div className="mt-4 space-y-2">
                       {decliningCards.slice(0, 5).map((card) => (
                         <div
                           key={card.cardModelId}
-                          className="flex items-center justify-between gap-3 panel-cut border border-red-500/20 bg-red-950/10 px-3 py-2 text-xs"
+                          className="flex items-center justify-between gap-3 panel-cut border dark:border-red-500/20 dark:bg-red-950/10 light:border-red-300 light:bg-red-50 px-3 py-2 text-xs"
                         >
-                          <span className="text-white font-medium">{card.name}</span>
-                          <span className="whitespace-nowrap font-semibold text-red-400">
+                          <span className="dark:text-white light:text-slate-900 font-medium">{card.name}</span>
+                          <span className="whitespace-nowrap font-semibold dark:text-red-400 light:text-red-700">
                             {card.trendDelta}pp{" "}
-                            <span className="text-slate-500 font-normal">
+                            <span className="dark:text-slate-500 light:text-slate-500 font-normal">
                               ({card.priorPresenceRate}% → {card.recentPresenceRate}%)
                             </span>
                           </span>

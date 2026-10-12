@@ -132,14 +132,14 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
 
         {/* Filtros de Tier e Período */}
         <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-white/10 pt-4 text-xs">
-          <div className="flex items-center gap-1.5 text-slate-400 font-mono">
+          <div className="flex items-center gap-1.5 dark:text-slate-400 light:text-slate-600 font-mono">
             <Filter className="size-3.5 text-primary" />
             <span className="uppercase tracking-wider text-[11px]">Tipo de Torneio:</span>
           </div>
           <select
             value={selectedTier}
             onChange={(e) => setSelectedTier(e.target.value)}
-            className="field-shell h-8 rounded-none border border-white/15 bg-slate-950/70 px-2.5 text-xs text-white"
+            className="field-shell h-8 rounded-none border dark:border-white/15 dark:bg-slate-950/70 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 px-2.5 text-xs"
           >
             <option value="ALL">Todos os tipos de evento</option>
             {TOURNAMENT_TIER_OPTIONS.map((tier) => (
@@ -149,20 +149,20 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
             ))}
           </select>
 
-          <div className="flex flex-wrap items-center gap-2 text-slate-400 font-mono">
+          <div className="flex flex-wrap items-center gap-2 dark:text-slate-400 light:text-slate-600 font-mono">
             <span className="uppercase tracking-wider text-[11px]">De:</span>
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="field-shell h-8 rounded-none border border-white/15 bg-slate-950/70 px-2 text-xs text-white"
+              className="field-shell h-8 rounded-none border dark:border-white/15 dark:bg-slate-950/70 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 px-2 text-xs"
             />
             <span className="uppercase tracking-wider text-[11px]">Até:</span>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="field-shell h-8 rounded-none border border-white/15 bg-slate-950/70 px-2 text-xs text-white"
+              className="field-shell h-8 rounded-none border dark:border-white/15 dark:bg-slate-950/70 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 px-2 text-xs"
             />
           </div>
 
@@ -175,7 +175,7 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
                 setStartDate("");
                 setEndDate("");
               }}
-              className="h-8 px-2 text-xs text-slate-400 hover:text-white"
+              className="h-8 px-2 text-xs dark:text-slate-400 dark:hover:text-white light:text-slate-600 light:hover:text-slate-900"
             >
               <X className="mr-1 size-3" /> Limpar filtros
             </Button>
@@ -183,28 +183,28 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
         </div>
 
         {loading ? (
-          <p className="mt-6 text-sm text-slate-400">Carregando ranking...</p>
+          <p className="mt-6 text-sm dark:text-slate-400 light:text-slate-600 font-mono">Carregando ranking...</p>
         ) : !rankings.length ? (
-          <p className="mt-6 text-sm text-slate-500">Ainda não há arquétipo declarado suficiente em torneios reportados nesse recorte pra montar o ranking.</p>
+          <p className="mt-6 text-sm dark:text-slate-500 light:text-slate-500 font-mono">Ainda não há arquétipo declarado suficiente em torneios reportados nesse recorte pra montar o ranking.</p>
         ) : (
           <div className="mt-6 space-y-2">
             {rankings.map((entry, index) => (
-              <div key={entry.archetype} className="panel-cut flex flex-wrap items-center gap-4 border border-white/10 bg-slate-950/60 p-4 transition-colors hover:border-primary/40">
+              <div key={entry.archetype} className="panel-cut flex flex-wrap items-center gap-4 border dark:border-white/10 dark:bg-slate-950/60 light:border-slate-300 light:bg-white light:shadow-sm p-4 transition-colors hover:border-primary/40">
                 <div className="flex size-10 shrink-0 items-center justify-center panel-cut border border-primary/40 bg-primary/10 font-heading text-lg text-primary">#{index + 1}</div>
 
                 {entry.signatureCard?.imageMediumUrl ? (
                   <img loading="lazy" decoding="async" src={entry.signatureCard.imageMediumUrl} alt="" className="h-14 w-10 shrink-0 rounded object-cover" />
                 ) : (
-                  <div className="h-14 w-10 shrink-0 rounded bg-white/5" />
+                  <div className="h-14 w-10 shrink-0 rounded dark:bg-white/5 light:bg-slate-100" />
                 )}
 
                 <div className="min-w-[180px] flex-1">
                   <div className="flex items-center gap-1.5">
                     {entry.colors.map((c) => <span key={c} title={GAME_COLOR_LABEL_PT[c] || c} className="size-2.5 rounded-full" style={{ backgroundColor: GAME_COLOR_HEX[c] || FALLBACK_SLICE_COLOR }} />)}
                   </div>
-                  <p className="mt-1 font-heading text-xl uppercase leading-tight text-white">{entry.archetype}</p>
+                  <p className="mt-1 font-heading text-xl uppercase leading-tight dark:text-white light:text-slate-900">{entry.archetype}</p>
                   <div className="flex flex-wrap items-center gap-2 mt-1">
-                    <p className="text-xs text-slate-500">{entry.deckCount} entrada(s){entry.bestPlacement ? ` · melhor: ${entry.bestPlacement}º` : ""}</p>
+                    <p className="text-xs dark:text-slate-500 light:text-slate-600">{entry.deckCount} entrada(s){entry.bestPlacement ? ` · melhor: ${entry.bestPlacement}º` : ""}</p>
                     {entry.isSmallSample && (
                       <Badge
                         variant="outline"
@@ -219,21 +219,21 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
 
                 <div className="flex shrink-0 items-center gap-4 sm:gap-6 text-center">
                   <div>
-                    <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Meta Share</p>
-                    <p className="font-heading text-xl text-white">{Math.round(entry.metaShare * 100)}%</p>
+                    <p className="text-[10px] uppercase tracking-[0.16em] dark:text-slate-500 light:text-slate-600">Meta Share</p>
+                    <p className="font-heading text-xl dark:text-white light:text-slate-900">{Math.round(entry.metaShare * 100)}%</p>
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Top Cut</p>
+                    <p className="text-[10px] uppercase tracking-[0.16em] dark:text-slate-500 light:text-slate-600">Top Cut</p>
                     <p className="font-heading text-xl text-sky-400" title="Proporção de listas deste arquétipo que atingiram o Top 8">
                       {entry.topCutConversion != null ? `${Math.round(entry.topCutConversion * 100)}%` : "—"}
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Winrate</p>
-                    <p className="font-heading text-xl text-white">{entry.winRate != null ? `${Math.round(entry.winRate * 100)}%` : "—"}</p>
+                    <p className="text-[10px] uppercase tracking-[0.16em] dark:text-slate-500 light:text-slate-600">Winrate</p>
+                    <p className="font-heading text-xl dark:text-white light:text-slate-900">{entry.winRate != null ? `${Math.round(entry.winRate * 100)}%` : "—"}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Power</p>
+                    <p className="text-[10px] uppercase tracking-[0.16em] dark:text-slate-500 light:text-slate-600">Power</p>
                     <p className="font-heading text-xl text-accent">{entry.powerRankingScore.toFixed(1)}</p>
                   </div>
                 </div>
@@ -265,23 +265,23 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
 
       {selectedPlacementsArchetype && (
         <Dialog open={Boolean(selectedPlacementsArchetype)} onOpenChange={(open) => !open && setSelectedPlacementsArchetype(null)}>
-          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-none border-white/15 bg-slate-950 text-white panel-cut p-6">
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-none dark:border-white/15 dark:bg-slate-950 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 panel-cut p-6">
             <DialogHeader className="p-0 text-left">
               <div className="flex items-center gap-2 text-xs uppercase font-mono tracking-[0.2em] text-primary">
                 <Trophy className="size-4 text-accent" />
                 <span>Colocações Competitivas em Torneios</span>
               </div>
-              <DialogTitle className="mt-1 font-heading text-2xl uppercase text-white">
+              <DialogTitle className="mt-1 font-heading text-2xl uppercase dark:text-white light:text-slate-900">
                 {selectedPlacementsArchetype.archetype}
               </DialogTitle>
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs dark:text-slate-400 light:text-slate-600">
                 Origem das {selectedPlacementsArchetype.tournamentPlacements?.length || 0} listas reportadas para este arquétipo e colocações alcançadas em cada evento.
               </p>
             </DialogHeader>
 
             <div className="mt-4 space-y-2.5 max-h-[55vh] overflow-y-auto pr-1">
               {(!selectedPlacementsArchetype.tournamentPlacements || selectedPlacementsArchetype.tournamentPlacements.length === 0) ? (
-                <p className="py-6 text-center text-xs text-slate-500 font-mono">
+                <p className="py-6 text-center text-xs dark:text-slate-500 light:text-slate-500 font-mono">
                   Nenhuma colocação detalhada encontrada para este arquétipo.
                 </p>
               ) : (
@@ -294,7 +294,7 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
                   return (
                     <div
                       key={p.tournamentId ? `${p.tournamentId}-${idx}` : idx}
-                      className="panel-cut border border-white/10 bg-slate-900/60 p-3 transition-colors hover:border-primary/40"
+                      className="panel-cut border dark:border-white/10 dark:bg-slate-900/60 light:border-slate-200 light:bg-slate-50 p-3 transition-colors hover:border-primary/40"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -307,21 +307,21 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
                                 {tierLabel}
                               </Badge>
                               {dateStr && (
-                                <span className="flex items-center gap-1 text-[11px] font-mono text-slate-400">
+                                <span className="flex items-center gap-1 text-[11px] font-mono dark:text-slate-400 light:text-slate-600">
                                   <Calendar className="size-3" />
                                   {dateStr}
                                 </span>
                               )}
                             </div>
-                            <h4 className="font-heading text-base uppercase text-white truncate">
+                            <h4 className="font-heading text-base uppercase dark:text-white light:text-slate-900 truncate">
                               {p.tournamentName}
                             </h4>
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs dark:text-slate-400 light:text-slate-600">
                               {p.organizer && (
-                                <span>Organizador: <strong className="text-slate-200">{p.organizer}</strong></span>
+                                <span>Organizador: <strong className="dark:text-slate-200 light:text-slate-800">{p.organizer}</strong></span>
                               )}
                               {hasRecord && (
-                                <span className="font-mono text-slate-300">
+                                <span className="font-mono dark:text-slate-300 light:text-slate-700">
                                   Campanha: {p.wins}V - {p.losses}D{p.draws ? ` - ${p.draws}E` : ""}
                                 </span>
                               )}
@@ -349,13 +349,13 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
               )}
             </div>
 
-            <div className="flex justify-end pt-3 border-t border-white/10 mt-3">
+            <div className="flex justify-end pt-3 border-t dark:border-white/10 light:border-slate-200 mt-3">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => setSelectedPlacementsArchetype(null)}
-                className="rounded-none border-white/15 text-xs uppercase"
+                className="rounded-none dark:border-white/15 light:border-slate-300 text-xs uppercase"
               >
                 Fechar
               </Button>

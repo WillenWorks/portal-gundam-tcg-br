@@ -64,21 +64,21 @@ export function WeeklyTrendsPanel({ seasonId }: { seasonId?: string }) {
                 Fase 3
               </Badge>
             </div>
-            <h2 className="mt-2 font-heading text-3xl uppercase tracking-wider text-white">
+            <h2 className="mt-2 font-heading text-3xl uppercase tracking-wider dark:text-white light:text-slate-900">
               Evolução Semanal dos Arquétipos
             </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-300">
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed dark:text-slate-300 light:text-slate-600">
               Acompanhe a trajetória e as oscilações de presença (Meta Share %) e taxa de vitória dos principais arquétipos semana a semana, com sinalização de amostragem e ponderação amostral de eventos.
             </p>
           </div>
 
           {/* Alternância de Visualização */}
-          <div className="flex items-center border border-white/15 bg-slate-950 p-1 panel-cut">
+          <div className="flex items-center border dark:border-white/15 dark:bg-slate-950 light:border-slate-300 light:bg-slate-100 p-1 panel-cut">
             <Button
               size="sm"
               variant={viewMode === "weeks" ? "default" : "ghost"}
               onClick={() => setViewMode("weeks")}
-              className="h-8 rounded-none text-xs font-mono uppercase tracking-wider"
+              className="h-8 rounded-none text-xs font-mono uppercase tracking-wider dark:text-slate-300 dark:hover:text-white light:text-slate-700 light:hover:text-slate-900"
             >
               <CalendarDays className="mr-1.5 size-3.5" />
               Por Semana
@@ -87,7 +87,7 @@ export function WeeklyTrendsPanel({ seasonId }: { seasonId?: string }) {
               size="sm"
               variant={viewMode === "table" ? "default" : "ghost"}
               onClick={() => setViewMode("table")}
-              className="h-8 rounded-none text-xs font-mono uppercase tracking-wider"
+              className="h-8 rounded-none text-xs font-mono uppercase tracking-wider dark:text-slate-300 dark:hover:text-white light:text-slate-700 light:hover:text-slate-900"
             >
               <TrendingUp className="mr-1.5 size-3.5" />
               Comparativo
@@ -106,15 +106,15 @@ export function WeeklyTrendsPanel({ seasonId }: { seasonId?: string }) {
         )}
 
         {/* BARRA DE FILTROS (Tier, Período, Arquétipo) */}
-        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-white/10 pt-4 text-xs">
-          <div className="flex items-center gap-1.5 text-slate-400 font-mono">
+        <div className="mt-4 flex flex-wrap items-center gap-3 border-t dark:border-white/10 light:border-slate-200 pt-4 text-xs">
+          <div className="flex items-center gap-1.5 dark:text-slate-400 light:text-slate-600 font-mono">
             <Filter className="size-3.5 text-primary" />
             <span className="uppercase tracking-wider text-[11px]">Tipo de Torneio:</span>
           </div>
           <select
             value={selectedTier}
             onChange={(e) => setSelectedTier(e.target.value)}
-            className="field-shell h-8 rounded-none border border-white/15 bg-slate-950/70 px-2.5 text-xs text-white"
+            className="field-shell h-8 rounded-none border dark:border-white/15 dark:bg-slate-950/70 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 px-2.5 text-xs"
           >
             <option value="ALL">Todos os tipos de evento</option>
             {TOURNAMENT_TIER_OPTIONS.map((tier) => (
@@ -128,7 +128,7 @@ export function WeeklyTrendsPanel({ seasonId }: { seasonId?: string }) {
             <select
               value={selectedArchetypeFilter}
               onChange={(e) => setSelectedArchetypeFilter(e.target.value)}
-              className="field-shell h-8 rounded-none border border-white/15 bg-slate-950/70 px-2.5 text-xs text-white"
+              className="field-shell h-8 rounded-none border dark:border-white/15 dark:bg-slate-950/70 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 px-2.5 text-xs"
             >
               <option value="">Todos os Arquétipos</option>
               {topArchetypes.map((name) => (
@@ -139,20 +139,20 @@ export function WeeklyTrendsPanel({ seasonId }: { seasonId?: string }) {
             </select>
           )}
 
-          <div className="flex flex-wrap items-center gap-2 text-slate-400 font-mono">
+          <div className="flex flex-wrap items-center gap-2 dark:text-slate-400 light:text-slate-600 font-mono">
             <span className="uppercase tracking-wider text-[11px]">De:</span>
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="field-shell h-8 rounded-none border border-white/15 bg-slate-950/70 px-2 text-xs text-white"
+              className="field-shell h-8 rounded-none border dark:border-white/15 dark:bg-slate-950/70 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 px-2 text-xs"
             />
             <span className="uppercase tracking-wider text-[11px]">Até:</span>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="field-shell h-8 rounded-none border border-white/15 bg-slate-950/70 px-2 text-xs text-white"
+              className="field-shell h-8 rounded-none border dark:border-white/15 dark:bg-slate-950/70 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 px-2 text-xs"
             />
           </div>
 
@@ -166,7 +166,7 @@ export function WeeklyTrendsPanel({ seasonId }: { seasonId?: string }) {
                 setEndDate("");
                 setSelectedArchetypeFilter("");
               }}
-              className="h-8 px-2 text-xs text-slate-400 hover:text-white"
+              className="h-8 px-2 text-xs dark:text-slate-400 dark:hover:text-white light:text-slate-600 light:hover:text-slate-900"
             >
               <X className="mr-1 size-3" /> Limpar filtros
             </Button>
@@ -174,21 +174,21 @@ export function WeeklyTrendsPanel({ seasonId }: { seasonId?: string }) {
         </div>
 
         {/* REGRA DE CONFIABILIDADE E PONDERAÇÃO */}
-        <div className="mt-3 flex items-start gap-2 rounded-none border border-accent/20 bg-accent/5 p-3 text-xs text-slate-300">
+        <div className="mt-3 flex items-start gap-2 rounded-none border dark:border-accent/20 dark:bg-accent/5 dark:text-slate-300 light:border-sky-300 light:bg-sky-50 light:text-slate-700 p-3 text-xs">
           <Info className="size-4 shrink-0 text-accent mt-0.5" />
           <p>
-            <strong>Diretriz de Confiabilidade:</strong> Semanas com menos de 6 listas ou arquétipos com menos de 3 entradas no período são destacados como <span className="text-amber-400 font-mono font-semibold">amostra pequena</span>. Nessas faixas, variações percentuais pontuais não representam necessariamente migração estrutural de metagame.
+            <strong>Diretriz de Confiabilidade:</strong> Semanas com menos de 6 listas ou arquétipos com menos de 3 entradas no período são destacados como <span className="dark:text-amber-400 light:text-amber-700 font-mono font-semibold">amostra pequena</span>. Nessas faixas, variações percentuais pontuais não representam necessariamente migração estrutural de metagame.
           </p>
         </div>
 
         {/* CONTEÚDO PRINCIPAL */}
         {loading ? (
-          <p className="mt-6 text-sm text-slate-400 font-mono py-8 text-center animate-pulse">
+          <p className="mt-6 text-sm dark:text-slate-400 light:text-slate-500 font-mono py-8 text-center animate-pulse">
             CONSOLIDANDO SÉRIE TEMPORAL SEMANAL...
           </p>
         ) : weeks.length === 0 ? (
-          <div className="mt-6 panel-cut border border-white/10 bg-slate-950/60 p-6 text-center">
-            <p className="text-sm text-slate-400">
+          <div className="mt-6 panel-cut border dark:border-white/10 dark:bg-slate-950/60 light:border-slate-200 light:bg-slate-50 p-6 text-center">
+            <p className="text-sm dark:text-slate-400 light:text-slate-600">
               Ainda não há dados suficientes de torneios com datas registradas neste recorte para montar a linha do tempo semanal.
             </p>
           </div>
@@ -203,18 +203,18 @@ export function WeeklyTrendsPanel({ seasonId }: { seasonId?: string }) {
               return (
                 <div
                   key={week.weekKey}
-                  className="panel-cut border border-white/10 bg-slate-950/70 p-4 transition-colors hover:border-primary/40"
+                  className="panel-cut border dark:border-white/10 dark:bg-slate-950/70 light:border-slate-300 light:bg-white light:shadow-sm p-4 transition-colors hover:border-primary/40"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b dark:border-white/10 light:border-slate-200 pb-3">
                     <div className="flex items-center gap-3">
                       <div className="flex size-9 shrink-0 items-center justify-center panel-cut border border-primary/40 bg-primary/10 font-heading text-sm text-primary">
                         {week.weekKey.split("-")[1]}
                       </div>
                       <div>
-                        <h4 className="font-heading text-base uppercase text-white">
+                        <h4 className="font-heading text-base uppercase dark:text-white light:text-slate-900">
                           {week.weekLabel}
                         </h4>
-                        <p className="text-xs text-slate-400 font-mono">
+                        <p className="text-xs dark:text-slate-400 light:text-slate-500 font-mono">
                           {week.totalLists} listas analisadas em {week.totalEvents} evento(s)
                         </p>
                       </div>
@@ -224,18 +224,18 @@ export function WeeklyTrendsPanel({ seasonId }: { seasonId?: string }) {
                     {week.isSmallSample ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Badge className="rounded-none border border-amber-500/40 bg-amber-500/10 text-amber-300 text-[10px] font-mono uppercase flex items-center gap-1">
-                            <AlertTriangle className="size-3 text-amber-400" />
+                          <Badge className="rounded-none border dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300 light:border-amber-300 light:bg-amber-50 light:text-amber-800 text-[10px] font-mono uppercase flex items-center gap-1">
+                            <AlertTriangle className="size-3 text-amber-500" />
                             Amostra preliminar ({week.totalLists} listas)
                           </Badge>
                         </TooltipTrigger>
-                        <TooltipContent className="bg-slate-900 border-white/20 text-xs text-slate-200">
+                        <TooltipContent className="dark:bg-slate-900 dark:border-white/20 dark:text-slate-200 light:bg-white light:border-slate-300 light:text-slate-800 text-xs">
                           {week.sampleWarning || "Poucas listas nesta semana — os dados têm maior volatilidade."}
                         </TooltipContent>
                       </Tooltip>
                     ) : (
-                      <Badge className="rounded-none border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 text-[10px] font-mono uppercase flex items-center gap-1">
-                        <CheckCircle2 className="size-3 text-emerald-400" />
+                      <Badge className="rounded-none border dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300 light:border-emerald-300 light:bg-emerald-50 light:text-emerald-800 text-[10px] font-mono uppercase flex items-center gap-1">
+                        <CheckCircle2 className="size-3 text-emerald-500" />
                         Amostra Robusta
                       </Badge>
                     )}
@@ -243,7 +243,7 @@ export function WeeklyTrendsPanel({ seasonId }: { seasonId?: string }) {
 
                   {/* Listagem de Arquétipos da Semana */}
                   {filteredArchetypes.length === 0 ? (
-                    <p className="py-4 text-center text-xs text-slate-500 font-mono">
+                    <p className="py-4 text-center text-xs dark:text-slate-500 light:text-slate-400 font-mono">
                       Nenhum registro para o filtro aplicado nesta semana.
                     </p>
                   ) : (
@@ -251,7 +251,7 @@ export function WeeklyTrendsPanel({ seasonId }: { seasonId?: string }) {
                       {filteredArchetypes.map((arch) => (
                         <div
                           key={arch.name}
-                          className="panel-cut border border-white/5 bg-slate-900/60 p-3 flex flex-col justify-between"
+                          className="panel-cut border dark:border-white/5 dark:bg-slate-900/60 light:border-slate-200 light:bg-slate-50/70 light:shadow-xs p-3 flex flex-col justify-between"
                         >
                           <div>
                             <div className="flex items-center justify-between gap-1.5 mb-1.5">
@@ -264,14 +264,14 @@ export function WeeklyTrendsPanel({ seasonId }: { seasonId?: string }) {
                                     style={{ backgroundColor: GAME_COLOR_HEX[c] || FALLBACK_COLOR }}
                                   />
                                 ))}
-                                <span className="font-heading text-sm uppercase text-white truncate max-w-[140px]">
+                                <span className="font-heading text-sm uppercase dark:text-white light:text-slate-900 truncate max-w-[140px]">
                                   {arch.name}
                                 </span>
                               </div>
                               {arch.isSmallSample && (
                                 <Badge
                                   variant="outline"
-                                  className="text-[9px] uppercase font-mono tracking-wider text-amber-400 border-amber-500/40 bg-amber-500/10"
+                                  className="text-[9px] uppercase font-mono tracking-wider dark:text-amber-400 dark:border-amber-500/40 dark:bg-amber-500/10 light:text-amber-800 light:border-amber-300 light:bg-amber-50"
                                   title="Menos de 3 listas deste arquétipo nesta semana."
                                 >
                                   Poucos dados
@@ -282,10 +282,10 @@ export function WeeklyTrendsPanel({ seasonId }: { seasonId?: string }) {
                             {/* Barra de Meta Share */}
                             <div className="space-y-1 mt-2">
                               <div className="flex items-center justify-between text-[11px] font-mono">
-                                <span className="text-slate-400">Presença:</span>
-                                <span className="text-white font-bold">{(arch.share * 100).toFixed(1)}%</span>
+                                <span className="dark:text-slate-400 light:text-slate-600">Presença:</span>
+                                <span className="dark:text-white light:text-slate-900 font-bold">{(arch.share * 100).toFixed(1)}%</span>
                               </div>
-                              <div className="h-1.5 w-full bg-slate-800 rounded-none overflow-hidden">
+                              <div className="h-1.5 w-full dark:bg-slate-800 light:bg-slate-200 rounded-none overflow-hidden">
                                 <div
                                   className="h-full bg-primary"
                                   style={{ width: `${Math.min(100, Math.round(arch.share * 100))}%` }}
@@ -294,10 +294,10 @@ export function WeeklyTrendsPanel({ seasonId }: { seasonId?: string }) {
                             </div>
                           </div>
 
-                          <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between text-xs font-mono text-slate-400">
+                          <div className="mt-2.5 pt-2 border-t dark:border-white/5 light:border-slate-200 flex items-center justify-between text-xs font-mono dark:text-slate-400 light:text-slate-600">
                             <span>{arch.lists} lista(s)</span>
                             <span>
-                              Winrate: <strong className="text-emerald-400">{arch.winRate != null ? `${Math.round(arch.winRate * 100)}%` : "—"}</strong>
+                              Winrate: <strong className="dark:text-emerald-400 light:text-emerald-700">{arch.winRate != null ? `${Math.round(arch.winRate * 100)}%` : "—"}</strong>
                             </span>
                           </div>
                         </div>
@@ -313,7 +313,7 @@ export function WeeklyTrendsPanel({ seasonId }: { seasonId?: string }) {
           <div className="mt-6 overflow-x-auto">
             <table className="w-full min-w-[640px] border-collapse text-xs font-mono">
               <thead>
-                <tr className="border-b border-white/10 text-left uppercase text-slate-400">
+                <tr className="border-b dark:border-white/10 light:border-slate-300 text-left uppercase dark:text-slate-400 light:text-slate-600">
                   <th className="py-2.5 pr-3">Semana</th>
                   <th className="py-2.5 pr-3">Amostra</th>
                   <th className="py-2.5 pr-3">Confiabilidade</th>
@@ -327,21 +327,21 @@ export function WeeklyTrendsPanel({ seasonId }: { seasonId?: string }) {
                   const leader = week.archetypes[0];
                   const runnerUp = week.archetypes[1];
                   return (
-                    <tr key={week.weekKey} className="border-b border-white/5 text-slate-300">
+                    <tr key={week.weekKey} className="border-b dark:border-white/5 light:border-slate-200 dark:text-slate-300 light:text-slate-700">
                       <td className="py-2.5 pr-3 font-bold text-primary">{week.weekLabel}</td>
                       <td className="py-2.5 pr-3">{week.totalLists} listas ({week.totalEvents} eventos)</td>
                       <td className="py-2.5 pr-3">
                         {week.isSmallSample ? (
-                          <span className="text-amber-400">⚠️ Amostra reduzida</span>
+                          <span className="dark:text-amber-400 light:text-amber-700 font-semibold">⚠️ Amostra reduzida</span>
                         ) : (
-                          <span className="text-emerald-400">✓ Amostra robusta</span>
+                          <span className="dark:text-emerald-400 light:text-emerald-700 font-semibold">✓ Amostra robusta</span>
                         )}
                       </td>
-                      <td className="py-2.5 pr-3 text-white">{leader ? leader.name : "—"}</td>
+                      <td className="py-2.5 pr-3 dark:text-white light:text-slate-900 font-medium">{leader ? leader.name : "—"}</td>
                       <td className="py-2.5 pr-3 text-accent font-bold">
                         {leader ? `${(leader.share * 100).toFixed(1)}%` : "—"}
                       </td>
-                      <td className="py-2.5 pr-3 text-slate-400">
+                      <td className="py-2.5 pr-3 dark:text-slate-400 light:text-slate-600">
                         {runnerUp ? `${runnerUp.name} (${(runnerUp.share * 100).toFixed(1)}%)` : "—"}
                       </td>
                     </tr>

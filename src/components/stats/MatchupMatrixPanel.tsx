@@ -18,10 +18,10 @@ const WINDOW_OPTIONS = [
 ] as const;
 
 function winRateColor(rate: number | null) {
-  if (rate == null) return "bg-white/5 text-slate-500";
-  if (rate >= 0.6) return "bg-emerald-500/20 text-emerald-300";
-  if (rate >= 0.45) return "bg-amber-500/15 text-amber-200";
-  return "bg-red-500/15 text-red-300";
+  if (rate == null) return "dark:bg-white/5 dark:text-slate-500 light:bg-slate-100 light:text-slate-500";
+  if (rate >= 0.6) return "dark:bg-emerald-500/20 dark:text-emerald-300 light:bg-emerald-100 light:text-emerald-800 font-semibold";
+  if (rate >= 0.45) return "dark:bg-amber-500/15 dark:text-amber-200 light:bg-amber-100 light:text-amber-800";
+  return "dark:bg-red-500/15 dark:text-red-300 light:bg-red-100 light:text-red-800";
 }
 
 export function MatchupMatrixPanel({ seasonId }: { seasonId: string }) {
@@ -44,10 +44,10 @@ export function MatchupMatrixPanel({ seasonId }: { seasonId: string }) {
       <CardContent className="p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="flex items-center gap-1.5 text-xs uppercase tracking-[0.24em] text-slate-400">
+            <p className="flex items-center gap-1.5 text-xs uppercase tracking-[0.24em] dark:text-slate-400 light:text-slate-600">
               <Swords className="size-3.5 text-accent" /> Matriz de Confrontos & Telemetria Avançada
             </p>
-            <h3 className="mt-2 font-heading text-3xl uppercase">Matchups por Arquétipo</h3>
+            <h3 className="mt-2 font-heading text-3xl uppercase dark:text-white light:text-slate-900">Matchups por Arquétipo</h3>
           </div>
           <div className="flex gap-2">
             {WINDOW_OPTIONS.map((opt) => (
@@ -55,7 +55,11 @@ export function MatchupMatrixPanel({ seasonId }: { seasonId: string }) {
                 key={opt.value}
                 type="button"
                 onClick={() => setWindowValue(opt.value)}
-                className={`panel-cut border px-3 py-1.5 text-xs uppercase tracking-[0.12em] ${windowValue === opt.value ? "border-primary/60 bg-primary/10 text-primary" : "border-white/15 text-slate-400 hover:border-white/30"}`}
+                className={`panel-cut border px-3 py-1.5 text-xs uppercase tracking-[0.12em] ${
+                  windowValue === opt.value
+                    ? "border-primary/60 bg-primary/10 text-primary font-bold"
+                    : "dark:border-white/15 dark:text-slate-400 dark:hover:border-white/30 light:border-slate-300 light:text-slate-600 light:hover:border-slate-400 light:hover:text-slate-900"
+                }`}
               >
                 {opt.label}
               </button>
@@ -64,14 +68,14 @@ export function MatchupMatrixPanel({ seasonId }: { seasonId: string }) {
         </div>
 
         {loading ? (
-          <p className="mt-6 text-sm text-slate-400">Carregando matriz...</p>
+          <p className="mt-6 text-sm dark:text-slate-400 light:text-slate-600 font-mono">Carregando matriz...</p>
         ) : !data?.hasData ? (
-          <div className="mt-6 panel-cut border border-white/10 bg-slate-950/60 p-6">
-            <p className="flex items-center gap-2 text-sm text-slate-300">
+          <div className="mt-6 panel-cut border dark:border-white/10 dark:bg-slate-950/60 light:border-slate-200 light:bg-slate-50 p-6">
+            <p className="flex items-center gap-2 text-sm dark:text-slate-300 light:text-slate-700">
               <Info className="size-4 shrink-0 text-accent" />
               Ainda não há partidas com arquétipo e telemetria de iniciativa declarados o suficiente pra montar a matriz nesse recorte.
             </p>
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs dark:text-slate-500 light:text-slate-500">
               Este módulo já está pronto pra ler confronto direto, Vitórias no Turno 1/2 (WR 1st/2nd) e Taxa de Iniciativa (Dice WR) assim que o fluxo de lançamento de partida do Hoster passar a capturar esse dado por confronto.
             </p>
           </div>
@@ -81,16 +85,16 @@ export function MatchupMatrixPanel({ seasonId }: { seasonId: string }) {
               <table className="border-collapse text-xs">
                 <thead>
                   <tr>
-                    <th className="p-2 text-left text-slate-500">Arquétipo \ Adversário</th>
-                    {data.archetypes.map((a) => <th key={a} className="p-2 text-center uppercase tracking-[0.08em] text-slate-500">{a}</th>)}
+                    <th className="p-2 text-left dark:text-slate-500 light:text-slate-600">Arquétipo \ Adversário</th>
+                    {data.archetypes.map((a) => <th key={a} className="p-2 text-center uppercase tracking-[0.08em] dark:text-slate-500 light:text-slate-600">{a}</th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {data.archetypes.map((rowArch) => (
                     <tr key={rowArch}>
-                      <th className="p-2 text-left font-normal text-white">{rowArch}</th>
+                      <th className="p-2 text-left font-normal dark:text-white light:text-slate-900">{rowArch}</th>
                       {data.archetypes.map((colArch) => {
-                        if (rowArch === colArch) return <td key={colArch} className="p-2 text-center text-slate-700">—</td>;
+                        if (rowArch === colArch) return <td key={colArch} className="p-2 text-center dark:text-slate-700 light:text-slate-400">—</td>;
                         const cell = cellFor(rowArch, colArch);
                         return (
                           <td key={colArch} className={`p-2 text-center ${winRateColor(cell?.winRate ?? null)}`}>
@@ -111,12 +115,12 @@ export function MatchupMatrixPanel({ seasonId }: { seasonId: string }) {
                 { label: "Taxa de Iniciativa (Dado)", data: data.diceWinRate },
               ].map((block) => (
                 <div key={block.label} className="panel-cut border surface-strong p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{block.label}</p>
+                  <p className="text-xs uppercase tracking-[0.18em] dark:text-slate-500 light:text-slate-500 font-mono">{block.label}</p>
                   <div className="mt-3 space-y-1.5">
                     {Object.entries(block.data).map(([archetype, rate]) => (
                       <div key={archetype} className="flex items-center justify-between text-sm">
-                        <span className="text-slate-300">{archetype}</span>
-                        <Badge variant="outline" className="border-white/15 text-slate-200">{rate != null ? `${Math.round(rate * 100)}%` : "—"}</Badge>
+                        <span className="dark:text-slate-300 light:text-slate-700">{archetype}</span>
+                        <Badge variant="outline" className="dark:border-white/15 dark:text-slate-200 light:border-slate-300 light:text-slate-800">{rate != null ? `${Math.round(rate * 100)}%` : "—"}</Badge>
                       </div>
                     ))}
                   </div>

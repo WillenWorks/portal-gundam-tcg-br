@@ -106,14 +106,14 @@ export function DataSourceNote({
   return (
     <>
       {variant === "inline" && (
-        <div className={`flex flex-wrap items-center justify-between gap-2 rounded-none border border-primary/20 bg-slate-950/60 px-3 py-2 text-xs text-slate-300 panel-cut ${className}`}>
+        <div className={`flex flex-wrap items-center justify-between gap-2 rounded-none border dark:border-primary/20 light:border-slate-300 dark:bg-slate-950/60 light:bg-slate-50 px-3 py-2 text-xs dark:text-slate-300 light:text-slate-700 panel-cut ${className}`}>
           <div className="flex flex-col gap-0.5 min-w-0">
             <div className="flex items-center gap-2 min-w-0">
               <Database className="size-3.5 shrink-0 text-primary" />
               <span className="truncate">{summaryText}</span>
             </div>
             {weightNote && (
-              <span className="text-[11px] text-slate-400 pl-5">{weightNote}</span>
+              <span className="text-[11px] dark:text-slate-400 light:text-slate-500 pl-5">{weightNote}</span>
             )}
           </div>
           {tournamentsCount > 0 ? (
@@ -149,8 +149,8 @@ export function DataSourceNote({
                   <ShieldCheck className="size-3.5 text-accent" />
                   Transparência de Metagame & Proveniência
                 </p>
-                <p className="font-heading text-lg sm:text-xl uppercase text-white">{summaryText}</p>
-                <p className="text-xs text-slate-400 max-w-2xl">{weightNote}</p>
+                <p className="font-heading text-lg sm:text-xl uppercase dark:text-white light:text-slate-900">{summaryText}</p>
+                <p className="text-xs dark:text-slate-400 light:text-slate-600 max-w-2xl">{weightNote}</p>
               </div>
 
               {tournamentsCount > 0 ? (
@@ -170,37 +170,37 @@ export function DataSourceNote({
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto rounded-none border-white/15 bg-slate-950 text-white panel-cut p-6">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto rounded-none dark:border-white/15 dark:bg-slate-950 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 panel-cut p-6">
           <DialogHeader className="p-0 text-left">
             <div className="flex items-center gap-2 text-xs uppercase font-mono tracking-[0.2em] text-primary">
               <Database className="size-4 text-accent" />
               <span>Proveniência e Origem dos Dados Competitivos</span>
             </div>
-            <DialogTitle className="mt-1 font-heading text-2xl uppercase text-white">
+            <DialogTitle className="mt-1 font-heading text-2xl uppercase dark:text-white light:text-slate-900">
               {archetypeName ? `Torneios do Arquétipo: ${archetypeName}` : "Torneios e Eventos Analisados"}
             </DialogTitle>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs dark:text-slate-400 light:text-slate-600">
               Rastreabilidade de cada número: apenas listas travadas em eventos com snapshots imutáveis compõem as estatísticas.
             </p>
           </DialogHeader>
 
           {/* Cards de Resumo da Amostra */}
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="panel-cut border border-white/10 bg-slate-900/60 p-3">
-              <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-slate-500">Listas Analisadas</p>
-              <p className="mt-1 font-heading text-2xl text-white">{decksCount}</p>
+            <div className="panel-cut border dark:border-white/10 dark:bg-slate-900/60 light:border-slate-200 light:bg-slate-50 p-3">
+              <p className="text-[10px] font-mono uppercase tracking-[0.16em] dark:text-slate-500 light:text-slate-500">Listas Analisadas</p>
+              <p className="mt-1 font-heading text-2xl dark:text-white light:text-slate-900">{decksCount}</p>
             </div>
-            <div className="panel-cut border border-white/10 bg-slate-900/60 p-3">
-              <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-slate-500">Torneios Únicos</p>
+            <div className="panel-cut border dark:border-white/10 dark:bg-slate-900/60 light:border-slate-200 light:bg-slate-50 p-3">
+              <p className="text-[10px] font-mono uppercase tracking-[0.16em] dark:text-slate-500 light:text-slate-500">Torneios Únicos</p>
               <p className="mt-1 font-heading text-2xl text-primary">{tournamentsCount}</p>
             </div>
-            <div className="panel-cut border border-white/10 bg-slate-900/60 p-3 sm:col-span-2">
-              <p className="text-[10px] font-mono uppercase tracking-[0.16em] text-slate-500">Período Competitivo</p>
-              <p className="mt-1 font-heading text-lg text-slate-200 truncate">{periodText || "Histórico consolidado"}</p>
+            <div className="panel-cut border dark:border-white/10 dark:bg-slate-900/60 light:border-slate-200 light:bg-slate-50 p-3 sm:col-span-2">
+              <p className="text-[10px] font-mono uppercase tracking-[0.16em] dark:text-slate-500 light:text-slate-500">Período Competitivo</p>
+              <p className="mt-1 font-heading text-lg dark:text-slate-200 light:text-slate-800 truncate">{periodText || "Histórico consolidado"}</p>
             </div>
           </div>
 
-          <div className="flex items-start gap-2 rounded-none border border-accent/20 bg-accent/5 p-3 text-xs text-slate-300">
+          <div className="flex items-start gap-2 rounded-none border border-accent/20 dark:bg-accent/5 light:bg-accent/10 p-3 text-xs dark:text-slate-300 light:text-slate-700">
             <Info className="size-4 shrink-0 text-accent mt-0.5" />
             <p className="leading-relaxed">
               <strong>Critério de Relevância:</strong> {weightNote} Cada entrada representa uma decklist real submetida e congelada na conclusão da rodada.
@@ -209,14 +209,14 @@ export function DataSourceNote({
 
           {/* Filtro e Busca nos Torneios */}
           {tourneysList.length > 2 && (
-            <div className="space-y-2 pt-2 border-t border-white/10">
+            <div className="space-y-2 pt-2 border-t dark:border-white/10 light:border-slate-200">
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative flex-1 min-w-[200px]">
                   <Input
                     placeholder="Buscar torneio ou organizador..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="h-8 rounded-none border-white/15 bg-white/5 text-xs text-white placeholder:text-slate-500"
+                    className="h-8 rounded-none dark:border-white/15 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500 light:border-slate-300 light:bg-white light:text-slate-900 light:placeholder:text-slate-400 text-xs"
                   />
                 </div>
 
@@ -250,14 +250,14 @@ export function DataSourceNote({
           {/* Lista de Torneios */}
           <div className="space-y-2.5 max-h-[40vh] overflow-y-auto pr-1">
             {filteredTournaments.length === 0 ? (
-              <p className="py-6 text-center text-xs text-slate-500 font-mono">
+              <p className="py-6 text-center text-xs dark:text-slate-500 light:text-slate-500 font-mono">
                 Nenhum torneio encontrado com os filtros atuais.
               </p>
             ) : (
               filteredTournaments.map((t, idx) => (
                 <div
                   key={t.id || idx}
-                  className="panel-cut border border-white/10 bg-slate-900/60 p-3 transition-colors hover:border-primary/40 hover:bg-slate-900/90"
+                  className="panel-cut border dark:border-white/10 dark:bg-slate-900/60 light:border-slate-200 light:bg-slate-50 p-3 transition-colors hover:border-primary/40 dark:hover:bg-slate-900/90 light:hover:bg-slate-100"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="space-y-1 min-w-0 flex-1">
@@ -266,28 +266,28 @@ export function DataSourceNote({
                           {tierLabel(t.tier)}
                         </Badge>
                         {t.date && (
-                          <span className="text-[11px] font-mono text-slate-400">
+                          <span className="text-[11px] font-mono dark:text-slate-400 light:text-slate-600">
                             {formatDatePtBr(t.date)}
                           </span>
                         )}
                       </div>
 
-                      <h4 className="font-heading text-base uppercase text-white truncate">{t.name}</h4>
+                      <h4 className="font-heading text-base uppercase dark:text-white light:text-slate-900 truncate">{t.name}</h4>
 
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs dark:text-slate-400 light:text-slate-600">
                         {t.organizer && (
                           <span>
-                            Organizador: <strong className="text-slate-200">{t.organizer}</strong>
+                            Organizador: <strong className="dark:text-slate-200 light:text-slate-800">{t.organizer}</strong>
                           </span>
                         )}
                         {t.playerCount ? (
                           <span className="flex items-center gap-1 font-mono">
-                            <Users className="size-3 text-slate-400" />
+                            <Users className="size-3 dark:text-slate-400 light:text-slate-600" />
                             {t.playerCount} jogadores
                           </span>
                         ) : null}
                         {t.deckCount ? (
-                          <Badge variant="outline" className="border-white/15 text-[10px] font-mono text-accent">
+                          <Badge variant="outline" className="dark:border-white/15 light:border-slate-300 text-[10px] font-mono text-accent">
                             {t.deckCount} {t.deckCount === 1 ? "deck no recorte" : "decks no recorte"}
                           </Badge>
                         ) : null}
@@ -313,13 +313,13 @@ export function DataSourceNote({
             )}
           </div>
 
-          <div className="flex justify-end pt-3 border-t border-white/10">
+          <div className="flex justify-end pt-3 border-t dark:border-white/10 light:border-slate-200">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => setOpen(false)}
-              className="rounded-none border-white/15 text-xs uppercase"
+              className="rounded-none dark:border-white/15 light:border-slate-300 text-xs uppercase"
             >
               Fechar
             </Button>
