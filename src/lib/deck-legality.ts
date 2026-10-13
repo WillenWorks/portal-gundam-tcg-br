@@ -39,7 +39,67 @@ export const NON_COUNTED_SECTIONS = new Set(["ex_base", "ex_resource"]);
  *  jogadas" com 100% de presença. Filtra tanto por seção (dados novos) quanto por
  *  tipo de carta (defesa contra snapshots antigos com seção divergente). */
 export const NON_STATS_SECTIONS = ["resource", "ex_base", "ex_resource", "token_reference"];
-export const NON_STATS_CARD_TYPES = ["RESOURCE", "EX_BASE", "EX_RESOURCE"];
+export const NON_STATS_CARD_TYPES = [
+  "RESOURCE",
+  "EX_BASE",
+  "EX_RESOURCE",
+  "EX BASE",
+  "EX RESOURCE",
+  "Resource",
+  "Ex Base",
+  "Ex Resource",
+  "UNIT_TOKEN",
+  "UNIT TOKEN",
+  "TOKEN",
+];
+
+export function isNonStatsCardType(cardType?: string | null): boolean {
+  if (!cardType) return false;
+  const normalized = cardType.toUpperCase().trim().replace(/[\s_-]+/g, "_");
+  return (
+    normalized === "RESOURCE" ||
+    normalized === "EX_RESOURCE" ||
+    normalized === "EX_BASE" ||
+    normalized === "UNIT_TOKEN" ||
+    normalized === "TOKEN"
+  );
+}
+
+export function isNonStatsSetCode(code?: string | null): boolean {
+  if (!code) return false;
+  const upper = code.toUpperCase().trim();
+  return upper === "R" || upper === "EXR" || upper === "EXB" || upper === "EXBP" || upper === "RP" || upper === "EXRP";
+}
+
+export function isNonStatsCard(card: {
+  cardType?: string | null;
+  type?: string | null;
+  code?: string | null;
+  section?: string | null;
+  name?: string | null;
+  nameEn?: string | null;
+  namePt?: string | null;
+} | null | undefined): boolean {
+  if (!card) return false;
+  if (isNonStatsCardType(card.cardType || card.type)) return true;
+  if (card.section) {
+    const s = card.section.toLowerCase();
+    if (s === "resource" || s === "ex_base" || s === "ex_resource" || s === "token_reference") return true;
+  }
+  const code = (card.code || "").toUpperCase().trim();
+  const prefix = code.split("-")[0];
+  if (prefix === "R" || prefix === "EXR" || prefix === "EXB" || prefix === "EXBP" || prefix === "RP" || prefix === "EXRP") {
+    return true;
+  }
+  if (code.includes("-RESOURCE") || code.startsWith("TOKEN-")) {
+    return true;
+  }
+  const name = (card.nameEn || card.name || card.namePt || "").toUpperCase().trim();
+  if (name === "EX BASE" || name === "RESOURCE" || name === "EX RESOURCE") {
+    return true;
+  }
+  return false;
+}
 
 export type DeckLegalityIssue = { type: string; message: string; cardModelId?: string };
 

@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { ALL_CARD_DEFS, getCardDefByCode } from "../../src/modules/simulator/content/allCardDefs.ts";
 import { isCardPlayable } from "../deckCoverageGate.ts";
 import type { CardDef } from "../../src/modules/simulator/engine/types.ts";
+import { isNonStatsCard } from "../../src/lib/deck-legality.ts";
 
 export type PlayabilityStatus = "apta" | "revisao" | "fora";
 
@@ -160,6 +161,13 @@ export function buildCardStatusResponse(): CardStatusResponse {
     const legacyCard = legacyByCode.get(code);
 
     const name = official?.name ?? def?.nameEn;
+    const cardType = official?.cardType ?? def?.cardType;
+
+    // Cartas de recurso, EX Base, EX Resource e Tokens não contam em estatísticas nem em progresso de implementação
+    if (isNonStatsCard({ code, cardType, name })) {
+      continue;
+    }
+
     const rawSet = code.includes("-") ? code.split("-")[0] : (official?.setCode ?? "OUTROS");
     const set = rawSet.toUpperCase();
 

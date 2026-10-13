@@ -140,7 +140,7 @@ export default function RulingDetailPage() {
                     {rule.card ? (
                       <>
                         <p className="mt-2 text-lg text-white">{rule.card.namePt || rule.card.nameEn}</p>
-                        <p className="mt-2 text-sm text-slate-400">{rule.card.code} · {rule.card.cardType} · {rule.card.color || "sem cor"}</p>
+                        <p className="mt-2 text-sm text-slate-400">{[rule.card.code, rule.card.cardType, rule.card.color].filter(Boolean).join(" · ")}</p>
                         <div className="mt-4 flex flex-wrap gap-3">
                           <Link href={`/cards/${rule.card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir detalhe da carta</Link>
                           {rule.card.set?.code ? <Link href={`/sets/${rule.card.set.code}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir coleção</Link> : null}

@@ -4,6 +4,7 @@ import { CheckCircle2, AlertTriangle, HelpCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { CardStatusEntry, PlayabilityStatus } from "@/lib/api";
+import { isNonStatsCard } from "@/lib/deck-legality";
 import { useCardPlayability } from "./useCardPlayability";
 
 export interface CardPlayabilityBadgeProps {
@@ -47,6 +48,11 @@ export function CardPlayabilityBadge({
   className,
   onClick,
 }: CardPlayabilityBadgeProps) {
+  // Cartas fixas (Ex Base, Resources, Ex Resources, Tokens) não possuem selo de jogabilidade
+  if (isNonStatsCard({ code, name: propEntry?.name, cardType: (propEntry as any)?.cardType || (propEntry as any)?.type })) {
+    return null;
+  }
+
   const query = useCardPlayability(propEntry || propStatus ? undefined : code);
 
   const entry = propEntry || query.entry;

@@ -392,9 +392,9 @@ export default function VedaDecklistPage() {
                         </div>
 
                         {/* Rótulo inferior da Carta */}
-                        <div className="p-2 space-y-0.5 bg-slate-950/90">
+                        <div className="p-2 space-y-0.5 bg-slate-950/90 dark:bg-slate-950/90 light:bg-slate-50 border-t border-white/10 dark:border-white/10 light:border-slate-200">
                           <p className="font-mono text-[10px] text-primary truncate">{card.code}</p>
-                          <p className="text-xs text-slate-200 truncate font-medium">{cardDisplayName}</p>
+                          <p className="text-xs text-slate-200 dark:text-slate-200 light:text-slate-800 truncate font-medium">{cardDisplayName}</p>
                         </div>
                       </Link>
                     );

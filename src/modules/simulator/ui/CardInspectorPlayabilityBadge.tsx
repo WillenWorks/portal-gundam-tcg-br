@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { CheckCircle2, AlertTriangle, HelpCircle } from "lucide-react";
 import { useCardPlayability } from "@/components/catalog/useCardPlayability";
+import { isNonStatsCard } from "@/lib/deck-legality";
 import { cn } from "@/lib/utils";
 
 export interface CardInspectorPlayabilityBadgeProps {
@@ -21,7 +22,7 @@ export function CardInspectorPlayabilityBadge({
 }: CardInspectorPlayabilityBadgeProps) {
   const { entry, isLoading } = useCardPlayability(code);
 
-  if (!code?.trim() || isLoading || !entry) return null;
+  if (!code?.trim() || isNonStatsCard({ code }) || isLoading || !entry) return null;
 
   const { status, missingClauses } = entry;
 

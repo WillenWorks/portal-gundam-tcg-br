@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useCardPlayability } from "./useCardPlayability";
 import { CardPlayabilityBadge } from "./CardPlayabilityBadge";
 import type { CardStatusEntry } from "@/lib/api";
+import { isNonStatsCard } from "@/lib/deck-legality";
 
 export interface CardPlayabilityDetailBoxProps {
   code?: string;
@@ -17,6 +18,10 @@ export function CardPlayabilityDetailBox({
   entry: propEntry,
   className,
 }: CardPlayabilityDetailBoxProps) {
+  if (isNonStatsCard({ code, name: propEntry?.name })) {
+    return null;
+  }
+
   const query = useCardPlayability(propEntry ? undefined : code);
   const entry = propEntry || query.entry;
   const status = entry?.status || query.status || "fora";

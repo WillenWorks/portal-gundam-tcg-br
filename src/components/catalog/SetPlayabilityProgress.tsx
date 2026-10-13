@@ -3,6 +3,7 @@ import { ChevronDown, CheckCircle2, AlertTriangle, Layers, Activity } from "luci
 import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
+import { isNonStatsSetCode } from "@/lib/deck-legality";
 import { useAllCardsPlayability } from "./useCardPlayability";
 
 export interface SetPlayabilityProgressProps {
@@ -21,10 +22,12 @@ export function SetPlayabilityProgress({
     return null;
   }
 
-  const setEntries = Object.values(sets).sort((a, b) => {
-    // Ordena sets: ST e GD primeiro, depois EB, depois outros
-    return a.set.localeCompare(b.set, undefined, { numeric: true });
-  });
+  const setEntries = Object.values(sets)
+    .filter((s) => !isNonStatsSetCode(s.set))
+    .sort((a, b) => {
+      // Ordena sets: ST e GD primeiro, depois EB, depois outros
+      return a.set.localeCompare(b.set, undefined, { numeric: true });
+    });
 
   return (
     <Card className={`panel-cut rounded-none surface-panel border-primary/20 ${className ?? ""}`}>

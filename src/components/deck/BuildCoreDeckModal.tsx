@@ -69,36 +69,36 @@ export function BuildCoreDeckModal({
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
       <DialogContent
         aria-describedby={undefined}
-        className="sm:max-w-3xl max-h-[90vh] overflow-y-auto dark:border-white/10 dark:bg-slate-950 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 panel-cut"
+        className="sm:max-w-3xl max-h-[90vh] overflow-y-auto border-slate-300 dark:border-white/10 bg-white dark:bg-slate-950 text-slate-900 dark:text-white panel-cut"
       >
-        <div className="border-b dark:border-white/10 light:border-slate-200 pb-4">
+        <div className="border-b border-slate-200 dark:border-white/10 pb-4">
           <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-primary">
             <Sparkles className="size-4 text-primary animate-pulse" />
             <span>Engenharia Reversa de Metagame · VEDA</span>
           </div>
-          <DialogTitle className="mt-1 font-heading text-2xl sm:text-3xl uppercase heading-portal dark:text-white light:text-slate-900">
+          <DialogTitle className="mt-1 font-heading text-2xl sm:text-3xl uppercase heading-portal text-slate-900 dark:text-white">
             Estrutura do Núcleo: {archetypeName || "Arquétipo"}
           </DialogTitle>
-          <p className="mt-1 text-xs dark:text-muted-portal light:text-slate-600 leading-relaxed">
+          <p className="mt-1 text-xs text-slate-600 dark:text-muted-portal leading-relaxed">
             Com base em decks competitivos cadastrados, calculamos as cartas com taxa de inclusão indispensável (≥50%) para iniciar a montagem da lista com consistência máxima.
           </p>
         </div>
 
         {/* Barra de Progresso do Núcleo */}
-        <div className="panel-cut border border-primary/30 dark:bg-primary/10 light:bg-primary/5 p-4 mt-2">
+        <div className="panel-cut border border-primary/30 bg-primary/5 dark:bg-primary/10 p-4 mt-2">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <Layers className="size-4 text-primary" />
-              <span className="text-xs uppercase tracking-[0.18em] font-heading dark:text-white light:text-slate-900">
+              <span className="text-xs uppercase tracking-[0.18em] font-heading text-slate-900 dark:text-white">
                 Slots do Deck Principal Mapeados
               </span>
             </div>
             <span className="font-heading text-lg text-primary font-mono">
-              {totalCoreCopies} <span className="text-xs dark:text-slate-400 light:text-slate-500 font-sans">/ 50 cartas</span> ({progressPct}%)
+              {totalCoreCopies} <span className="text-xs text-slate-500 dark:text-slate-400 font-sans">/ 50 cartas</span> ({progressPct}%)
             </span>
           </div>
-          <Progress value={progressPct} className="h-2.5 rounded-none dark:bg-slate-900 light:bg-slate-200" />
-          <p className="mt-2 text-[11px] dark:text-slate-400 light:text-slate-600">
+          <Progress value={progressPct} className="h-2.5 rounded-none bg-slate-200 dark:bg-slate-900" />
+          <p className="mt-2 text-[11px] text-slate-600 dark:text-slate-400">
             {50 - totalCoreCopies > 0
               ? `Faltam ${50 - totalCoreCopies} slots flexíveis para completar os 50 slots obrigatórios do deck principal. Veja sugestões táticas abaixo.`
               : "Núcleo completo com 50 cartas definidas."}
@@ -107,8 +107,8 @@ export function BuildCoreDeckModal({
 
         {/* Lista de Cartas do Núcleo (≥ 50%) */}
         <div className="space-y-3 mt-4">
-          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] dark:text-slate-400 light:text-slate-600 border-b dark:border-white/5 light:border-slate-200 pb-1">
-            <ShieldCheck className="size-4 text-emerald-400" />
+          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-white/5 pb-1">
+            <ShieldCheck className="size-4 text-emerald-500 dark:text-emerald-400" />
             <span>Cartas do Núcleo Essencial ({coreCards.length} cartas · {totalCoreCopies} cópias)</span>
           </div>
 
@@ -120,9 +120,9 @@ export function BuildCoreDeckModal({
               return (
                 <div
                   key={c.id}
-                  className="flex items-center gap-3 border dark:border-white/10 dark:bg-slate-900/60 light:border-slate-200 light:bg-slate-50 p-2.5 panel-cut hover:border-primary/40 transition"
+                  className="flex items-center gap-3 border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900/60 p-2.5 panel-cut hover:border-primary/40 transition"
                 >
-                  <div className="h-14 w-10 shrink-0 overflow-hidden border dark:border-white/10 light:border-slate-200 dark:bg-slate-950 light:bg-slate-100">
+                  <div className="h-14 w-10 shrink-0 overflow-hidden border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-950">
                     {image ? (
                       <img loading="lazy" decoding="async" src={image} alt={c.namePt || c.name} className="h-full w-full object-cover" />
                     ) : (
@@ -130,8 +130,8 @@ export function BuildCoreDeckModal({
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs sm:text-sm font-medium dark:text-white light:text-slate-900">{c.namePt || c.name}</p>
-                    <div className="flex items-center gap-2 text-[11px] font-mono dark:text-slate-400 light:text-slate-500 mt-0.5">
+                    <p className="truncate text-xs sm:text-sm font-medium text-slate-900 dark:text-white">{c.namePt || c.name}</p>
+                    <div className="flex items-center gap-2 text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
                       <span>{c.code}</span>
                       <span>·</span>
                       <span className="text-primary font-semibold">{c.presenceRate.toFixed(1)}% presença</span>
@@ -141,7 +141,7 @@ export function BuildCoreDeckModal({
                     <span className="inline-block px-2 py-1 bg-primary/20 border border-primary/40 text-primary font-heading font-bold text-sm">
                       {c.recommendedCopies}x
                     </span>
-                    <p className="text-[10px] uppercase font-mono dark:text-emerald-400 light:text-emerald-700 mt-0.5">{tier.label.split(" / ")[0]}</p>
+                    <p className="text-[10px] uppercase font-mono text-emerald-700 dark:text-emerald-400 mt-0.5">{tier.label.split(" / ")[0]}</p>
                   </div>
                 </div>
               );
@@ -152,8 +152,8 @@ export function BuildCoreDeckModal({
         {/* Sugestões de Preenchimento / Flex (25% - 49%) */}
         {suggestedCards.length > 0 && (
           <div className="space-y-3 mt-6">
-            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] dark:text-slate-400 light:text-slate-600 border-b dark:border-white/5 light:border-slate-200 pb-1">
-              <Wrench className="size-4 text-sky-400" />
+            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-white/5 pb-1">
+              <Wrench className="size-4 text-sky-500 dark:text-sky-400" />
               <span>Opções Táticas Recomendadas para Preencher os Slots ({suggestedCards.length} sugestões)</span>
             </div>
 
@@ -165,17 +165,17 @@ export function BuildCoreDeckModal({
                 return (
                   <div
                     key={c.id}
-                    className="flex items-center gap-3 border dark:border-white/5 dark:bg-slate-900/30 light:border-slate-200 light:bg-slate-50/50 p-2 panel-cut hover:border-sky-500/40 transition"
+                    className="flex items-center gap-3 border border-slate-200 dark:border-white/5 bg-slate-50/70 dark:bg-slate-900/30 p-2 panel-cut hover:border-sky-500/40 transition"
                   >
-                    <div className="h-12 w-9 shrink-0 overflow-hidden border dark:border-white/10 light:border-slate-200 dark:bg-slate-950 light:bg-slate-100">
+                    <div className="h-12 w-9 shrink-0 overflow-hidden border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-slate-950">
                       {image ? (
                         <img loading="lazy" decoding="async" src={image} alt={c.namePt || c.name} className="h-full w-full object-cover" />
                       ) : null}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium dark:text-slate-300 light:text-slate-800">{c.namePt || c.name}</p>
-                      <p className="text-[10px] font-mono dark:text-slate-400 light:text-slate-500">
-                        {c.code} · <span className="text-sky-500">{c.presenceRate.toFixed(1)}% presença</span> (média {c.recommendedCopies}x)
+                      <p className="truncate text-xs font-medium text-slate-800 dark:text-slate-300">{c.namePt || c.name}</p>
+                      <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
+                        {c.code} · <span className="text-sky-600 dark:text-sky-400 font-semibold">{c.presenceRate.toFixed(1)}% presença</span> (média {c.recommendedCopies}x)
                       </p>
                     </div>
                     <span className={`text-[10px] px-2 py-0.5 border uppercase font-mono ${tier.badgeClass}`}>
@@ -189,11 +189,11 @@ export function BuildCoreDeckModal({
         )}
 
         {/* Rodapé e CTA */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t dark:border-white/10 light:border-slate-200 pt-4 mt-6">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200 dark:border-white/10 pt-4 mt-6">
           <Button
             type="button"
             variant="outline"
-            className="w-full sm:w-auto rounded-none dark:border-white/15 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 light:border-slate-300 light:bg-white light:text-slate-800 light:hover:bg-slate-100"
+            className="w-full sm:w-auto rounded-none border-slate-300 dark:border-white/15 bg-white dark:bg-white/5 text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10"
             onClick={onClose}
           >
             Fechar

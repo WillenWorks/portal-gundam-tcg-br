@@ -157,7 +157,7 @@ export default function CardDetailPage() {
                   <Badge className="cursor-pointer rounded-none border border-primary/40 bg-primary/10 text-primary transition hover:bg-primary/20">{TYPE_LABELS[card.cardType] || card.cardType}</Badge>
                 </Link>
               ) : <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{TYPE_LABELS[card.cardType] || card.cardType}</Badge>}
-              {card.color ? <Link href={`/cards?color=${encodeURIComponent(card.color)}`}><Badge variant="outline" className="cursor-pointer rounded-none border-white/20 text-slate-300 transition hover:border-primary/60 hover:text-primary">{card.color}</Badge></Link> : <Badge variant="outline" className="rounded-none border-white/20 text-slate-300">Sem cor</Badge>}
+              {card.color ? <Link href={`/cards?color=${encodeURIComponent(card.color)}`}><Badge variant="outline" className="cursor-pointer rounded-none border-white/20 text-slate-300 transition hover:border-primary/60 hover:text-primary">{card.color}</Badge></Link> : null}
               {selectedPrint?.rarity ? (
                 <Link href={`/cards?rarity=${encodeURIComponent(normalizeRarityLabel(selectedPrint.rarity))}`}>
                   <Badge variant="outline" className="cursor-pointer rounded-none border-accent/40 bg-accent/10 text-accent transition hover:border-accent hover:bg-accent/20">{normalizeRarityLabel(selectedPrint.rarity)}</Badge>

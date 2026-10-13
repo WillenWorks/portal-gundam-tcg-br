@@ -13,7 +13,7 @@ import { api, type ClassifiedMetaCard, type MetaRecommendationsResponse } from "
 import type { CardRecord, DeckEntry } from "@/modules/core/types";
 import { calculateHypergeometric } from "@/lib/meta-analytics";
 import { earliestPlayableTurn } from "@/lib/opening-hand-score";
-import { NON_COUNTED_SECTIONS, NON_STATS_CARD_TYPES } from "@/lib/deck-legality";
+import { NON_COUNTED_SECTIONS, NON_STATS_CARD_TYPES, isNonStatsCard } from "@/lib/deck-legality";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,7 +47,7 @@ export function VedaTelemetryAssistant({
       .map((e) => {
         const c = cardCache[e.cardId];
         if (!c) return null;
-        if (NON_STATS_CARD_TYPES.includes(c.type?.toUpperCase() ?? "")) return null;
+        if (isNonStatsCard(c)) return null;
         return { ...c, quantity: e.quantity };
       })
       .filter(Boolean) as (CardRecord & { quantity: number })[];
@@ -287,7 +287,7 @@ export function VedaTelemetryAssistant({
                   />
                 ))}
                 <span className="font-heading text-xl text-white">
-                  {deckColors.join(" / ") || "Sem Cor"}
+                  {deckColors.length > 0 ? deckColors.join(" / ") : "—"}
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5 font-mono">

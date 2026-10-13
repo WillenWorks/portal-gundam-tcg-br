@@ -20,43 +20,43 @@ export function SourceDecksModal({
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
       <DialogContent
         aria-describedby={undefined}
-        className="sm:max-w-2xl max-h-[85vh] overflow-y-auto dark:border-white/10 dark:bg-slate-950 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 panel-cut"
+        className="sm:max-w-2xl max-h-[85vh] overflow-y-auto border-slate-300 dark:border-white/10 bg-white dark:bg-slate-950 text-slate-900 dark:text-white panel-cut"
       >
-        <div className="border-b dark:border-white/10 light:border-slate-200 pb-4">
+        <div className="border-b border-slate-200 dark:border-white/10 pb-4">
           <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-primary">
             <Database className="size-4 text-primary" />
             <span>Amostra de Decks do Metagame</span>
           </div>
-          <DialogTitle className="mt-1 font-heading text-2xl uppercase heading-portal dark:text-white light:text-slate-900">
+          <DialogTitle className="mt-1 font-heading text-2xl uppercase heading-portal text-slate-900 dark:text-white">
             Base Analítica: {archetypeName || "Decks Registrados"}
           </DialogTitle>
-          <p className="mt-1 text-xs dark:text-muted-portal light:text-slate-600">
+          <p className="mt-1 text-xs text-slate-600 dark:text-muted-portal">
             Total de {sourceDecks.length} deck(s) cadastrados utilizados como base estatística para as taxas de inclusão, staples e média de cópias.
           </p>
         </div>
 
         <div className="space-y-2 mt-3">
           {sourceDecks.length === 0 ? (
-            <p className="py-8 text-center text-sm dark:text-muted-portal light:text-slate-500">
+            <p className="py-8 text-center text-sm text-slate-500 dark:text-muted-portal">
               Nenhum deck específico listado na amostra atual.
             </p>
           ) : (
             sourceDecks.map((deck, idx) => (
               <div
                 key={deck.id || idx}
-                className="flex flex-wrap items-center justify-between gap-3 border dark:border-white/10 dark:bg-slate-900/60 light:border-slate-200 light:bg-slate-50 p-3 panel-cut hover:border-primary/40 transition"
+                className="flex flex-wrap items-center justify-between gap-3 border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900/60 p-3 panel-cut hover:border-primary/40 transition"
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="flex size-9 shrink-0 items-center justify-center border dark:border-white/10 dark:bg-slate-950 light:border-slate-200 light:bg-white text-xs font-mono font-bold text-primary">
+                  <div className="flex size-9 shrink-0 items-center justify-center border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 text-xs font-mono font-bold text-primary">
                     {deck.placement?.includes("1") || idx === 0 ? (
-                      <Trophy className="size-4 text-amber-400" />
+                      <Trophy className="size-4 text-amber-500 dark:text-amber-400" />
                     ) : (
                       deck.placement ? `${deck.placement}º` : `#${idx + 1}`
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold dark:text-white light:text-slate-900">{deck.name}</p>
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs dark:text-slate-400 light:text-slate-600 font-mono">
+                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{deck.name}</p>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600 dark:text-slate-400 font-mono">
                       <span>Piloto: {deck.author}</span>
                       {deck.tournament && (
                         <>
@@ -67,7 +67,7 @@ export function SourceDecksModal({
                       {deck.tier && (
                         <>
                           <span>·</span>
-                          <span className="rounded-none border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
+                          <span className="rounded-none border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary font-bold">
                             {deck.tier}
                           </span>
                         </>
@@ -75,7 +75,7 @@ export function SourceDecksModal({
                       {deck.organizer && (
                         <>
                           <span>·</span>
-                          <span className="dark:text-slate-300 light:text-slate-700">Org: {deck.organizer}</span>
+                          <span className="text-slate-700 dark:text-slate-300">Org: {deck.organizer}</span>
                         </>
                       )}
                       {(deck.date || deck.tournamentDate) && (
@@ -93,7 +93,7 @@ export function SourceDecksModal({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 rounded-none border-primary/30 bg-primary/10 text-xs text-primary hover:bg-primary/20 hover:text-white"
+                      className="h-8 rounded-none border-primary/30 bg-primary/10 text-xs text-primary hover:bg-primary/20 hover:text-primary-foreground"
                       asChild
                     >
                       <a href={deck.sourceUrl} target="_blank" rel="noreferrer">
@@ -106,7 +106,7 @@ export function SourceDecksModal({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 shrink-0 rounded-none dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:hover:text-white light:border-slate-300 light:bg-white light:text-slate-700 light:hover:text-slate-900 light:hover:bg-slate-100"
+                      className="h-8 shrink-0 rounded-none border-slate-300 dark:border-white/15 bg-white dark:bg-white/5 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10"
                       asChild
                     >
                       <a href={`#/deck/${deck.shareId}`} target="_blank" rel="noreferrer">
@@ -121,11 +121,11 @@ export function SourceDecksModal({
           )}
         </div>
 
-        <div className="flex justify-end border-t dark:border-white/10 light:border-slate-200 pt-4 mt-4">
+        <div className="flex justify-end border-t border-slate-200 dark:border-white/10 pt-4 mt-6">
           <Button
             type="button"
             variant="outline"
-            className="rounded-none dark:border-white/15 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 light:border-slate-300 light:bg-white light:text-slate-800 light:hover:bg-slate-100"
+            className="rounded-none border-slate-300 dark:border-white/15 bg-white dark:bg-white/5 text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10"
             onClick={onClose}
           >
             Fechar

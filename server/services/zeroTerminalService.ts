@@ -4,6 +4,7 @@ import type { CardInstance, GameState, PlayerId } from "../../src/modules/simula
 import { effectiveAp, effectiveHp, hasKeyword, otherPlayer } from "../../src/modules/simulator/engine/types";
 import { getMatch } from "../../src/modules/simulator/server/matchStore";
 import { getCardDefByCode } from "../../src/modules/simulator/content/allCardDefs";
+import { isNonStatsCard, isNonStatsCardType } from "../../src/lib/deck-legality";
 
 export type PilotPersonaId = "amuro" | "char" | "heero" | "analyst" | "adaptive";
 export type ZeroPersonaId = "amuro" | "char" | "heero" | "oz_analyst" | "analyst" | "adaptive";
@@ -869,7 +870,7 @@ export function analyzeDeckConsistency(cardsInput: any[]): DeckConsistencyAnalys
     const rawCard = item && typeof item === "object" ? (item.card || item) : {};
 
     const cardType = (rawCard.cardType || rawCard.type || def?.cardType || "UNIT").toUpperCase();
-    if (cardType === "RESOURCE") continue;
+    if (isNonStatsCardType(cardType) || isNonStatsCard({ code, cardType, name: rawCard.name || rawCard.namePt || rawCard.nameEn || def?.nameEn })) continue;
 
     const color = (rawCard.color || def?.color || "Blue").toLowerCase();
     const cost = Number(rawCard.cost ?? def?.cost ?? 2);

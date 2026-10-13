@@ -26,6 +26,7 @@ import type {
   VedaTournamentCard,
   VedaTournamentDetail,
 } from "../src/lib/veda/types.ts";
+import { isNonStatsCard } from "../src/lib/deck-legality.ts";
 
 export const SMALL_SAMPLE = 10;
 export const MAX_LIMIT = 100;
@@ -404,6 +405,7 @@ export function cardInclusion(ix: VedaIndex, entries: RawEntry[]): VedaCardInclu
   for (const deck of decks) {
     const seen = new Map<string, { card: RawCard; quantity: number }>();
     for (const d of deck) {
+      if (isNonStatsCard(d.card)) continue;
       const prev = seen.get(d.card.code);
       seen.set(d.card.code, { card: d.card, quantity: (prev?.quantity ?? 0) + d.quantity });
     }
@@ -451,8 +453,9 @@ export function archetypeDetail(ix: VedaIndex, slug: string, f: TournamentFilter
 }
 
 export function cardUsage(ix: VedaIndex, cardModelId: string, f: TournamentFilter): VedaCardUsage | null {
-  const code = [...ix.data.cards.values()].find((c) => c.cardModelId === cardModelId)?.code;
-  if (!code) return null;
+  const card = [...ix.data.cards.values()].find((c) => c.cardModelId === cardModelId);
+  if (!card || isNonStatsCard(card)) return null;
+  const code = card.code;
   const entries = ix.entriesFor(filterTournaments(ix, f)).filter((e) => e.deckSnapshotId);
   const using = entries
     .map((e) => ({ e, qty: (ix.deck(e) ?? []).filter((d) => d.card.code === code).reduce((n, d) => n + d.quantity, 0) }))

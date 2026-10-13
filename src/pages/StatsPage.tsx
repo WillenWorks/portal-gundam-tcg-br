@@ -24,7 +24,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api, type MetagameStatsResponse, type FormatOverviewItem } from "@/lib/api";
-import { NON_STATS_SECTIONS, NON_STATS_CARD_TYPES } from "@/lib/deck-legality";
+import {
+  NON_STATS_SECTIONS,
+  NON_STATS_CARD_TYPES,
+  isNonStatsCard,
+  isNonStatsSetCode,
+  isNonStatsCardType,
+} from "@/lib/deck-legality";
 import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX, GAME_COLOR_LABEL_PT, COLOR_OPTIONS } from "@/lib/gundam-catalog";
 import { MetaAnalyticsPanel } from "@/components/stats/MetaAnalyticsPanel";
 import { PowerRankingsPanel } from "@/components/stats/PowerRankingsPanel";
@@ -117,7 +123,9 @@ export default function StatsPage() {
   const relevantItems = (deck: any) =>
     (deck.items || []).filter(
       (item: any) =>
-        item.card && !NON_STATS_SECTIONS.includes(item.section) && !NON_STATS_CARD_TYPES.includes(item.card.cardType),
+        item.card &&
+        !NON_STATS_SECTIONS.includes(item.section) &&
+        !isNonStatsCard(item.card),
     );
 
   const filteredCards = useMemo(
@@ -126,7 +134,7 @@ export default function StatsPage() {
   );
 
   const statsCards = useMemo(
-    () => filteredCards.filter((card) => !NON_STATS_CARD_TYPES.includes(card.cardType)),
+    () => filteredCards.filter((card) => !isNonStatsCard(card)),
     [filteredCards],
   );
 
@@ -161,17 +169,31 @@ export default function StatsPage() {
   };
 
   // Gráficos de Acervo e Base Geral
-  const setChart = useMemo(() => sets.map((set) => ({ name: set.code, value: set._count?.cards ?? 0 })), [sets]);
+  const setChart = useMemo(
+    () =>
+      sets
+        .filter((set) => !isNonStatsSetCode(set.code))
+        .map((set) => ({ name: set.code, value: set._count?.cards ?? 0 })),
+    [sets],
+  );
 
   const colorChart = useMemo(() => {
     const map = new Map<string, number>();
-    statsCards.forEach((card) => map.set(card.color || "Sem cor", (map.get(card.color || "Sem cor") ?? 0) + 1));
+    statsCards.forEach((card) => {
+      if (card.color) {
+        map.set(card.color, (map.get(card.color) ?? 0) + 1);
+      }
+    });
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
   }, [statsCards]);
 
   const typeChart = useMemo(() => {
     const map = new Map<string, number>();
-    statsCards.forEach((card) => map.set(card.cardType || "Sem tipo", (map.get(card.cardType || "Sem tipo") ?? 0) + 1));
+    statsCards.forEach((card) => {
+      if (card.cardType && !isNonStatsCardType(card.cardType)) {
+        map.set(card.cardType, (map.get(card.cardType) ?? 0) + 1);
+      }
+    });
     return Array.from(map.entries()).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name: typeLabel(name), value }));
   }, [statsCards]);
 
@@ -222,10 +244,11 @@ export default function StatsPage() {
 
       items.forEach((item: any) => {
         const c = item.card;
-        if (!c) return;
-        const color = c.color || "Sem cor";
+        if (!c || isNonStatsCard(c)) return;
         const qty = item.quantity || 1;
-        colorCounts.set(color, (colorCounts.get(color) || 0) + qty);
+        if (c.color) {
+          colorCounts.set(c.color, (colorCounts.get(c.color) || 0) + qty);
+        }
         if (c.trait) traitCounts.set(c.trait, (traitCounts.get(c.trait) || 0) + qty);
         if (typeof c.cost === "number") {
           totalCost += c.cost * qty;
