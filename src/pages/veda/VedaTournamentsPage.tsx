@@ -56,6 +56,7 @@ function readFiltersFromUrl() {
   return {
     country: sp.get("country") || "",
     season: rawSeason !== null ? rawSeason : DEFAULT_SEASON,
+    rawSeasonHasParam: rawSeason !== null,
     tier: sp.get("tier") || "",
     source: sp.get("source") || "",
     uf: sp.get("uf") || "",
@@ -120,13 +121,29 @@ export default function VedaTournamentsPage() {
     };
   }, []);
 
-  const lastNavigatedQs = useRef<string | null>(null);
+  const isInitialMount = useRef(true);
+  const lastNavigatedQs = useRef<string>(
+    typeof window !== "undefined"
+      ? new URLSearchParams(
+          window.location.hash.includes("?")
+            ? window.location.hash.substring(window.location.hash.indexOf("?"))
+            : window.location.search,
+        ).toString()
+      : "",
+  );
 
   // Sincroniza estado com a URL (mantendo links compartilháveis e preservando histórico)
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
     const sp = new URLSearchParams();
     if (country) sp.set("country", country);
-    if (season) sp.set("season", season);
+    if (season && (season !== currentSeasonCode || initial.rawSeasonHasParam)) {
+      sp.set("season", season);
+    }
     if (tier) sp.set("tier", tier);
     if (source) sp.set("source", source);
     if (uf) sp.set("uf", uf);
@@ -140,13 +157,21 @@ export default function VedaTournamentsPage() {
       const targetPath = `/torneios${qs ? `?${qs}` : ""}`;
       navigate(targetPath, { replace: true });
     }
-  }, [country, season, tier, source, uf, city, q, page, navigate]);
+  }, [country, season, tier, source, uf, city, q, page, currentSeasonCode, initial.rawSeasonHasParam, navigate]);
 
   // Sincroniza quando o usuário clica nos botões Voltar/Avançar do navegador
   useEffect(() => {
     const handlePopState = () => {
+      const searchPart = window.location.hash.includes("?")
+        ? window.location.hash.substring(window.location.hash.indexOf("?"))
+        : window.location.search;
+      const currentQs = new URLSearchParams(searchPart).toString();
+
+      // Se o evento foi disparado pela nossa própria navegação, ignora
+      if (currentQs === lastNavigatedQs.current) return;
+
+      lastNavigatedQs.current = currentQs;
       const f = readFiltersFromUrl();
-      lastNavigatedQs.current = null;
       setCountry(f.country);
       setSeason(f.season);
       setTier(f.tier);
@@ -167,6 +192,7 @@ export default function VedaTournamentsPage() {
   }, []);
 
   const resetAllFilters = useCallback(() => {
+    initial.rawSeasonHasParam = false;
     setCountry("");
     setSeason(currentSeasonCode);
     setTier("");

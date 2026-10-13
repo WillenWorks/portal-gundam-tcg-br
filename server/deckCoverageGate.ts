@@ -74,7 +74,16 @@ const KNOWN_CODES = new Set(OFFICIAL_CARDS.map((c) => c.code));
  * carta real) — sempre jogáveis.
  */
 export function isCardPlayable(def: CardDef): boolean {
-  if (def.cardType === "RESOURCE") return true;
+  if (
+    def.cardType === "RESOURCE" ||
+    def.isToken ||
+    def.code.startsWith("EXB-") ||
+    def.code.startsWith("EXR-") ||
+    def.code.startsWith("R-") ||
+    def.code.includes("-RESOURCE")
+  ) {
+    return true;
+  }
   if (!KNOWN_CODES.has(def.code)) return false;
   const input = {
     code: def.code,

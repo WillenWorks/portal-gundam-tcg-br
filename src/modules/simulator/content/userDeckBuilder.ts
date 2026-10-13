@@ -49,11 +49,34 @@ function getDefaultResourceForColor(color?: string): CardDef {
   }
 }
 
+function isExBase(item: UserDeckItemInput): boolean {
+  const code = (item.card.code || "").toUpperCase();
+  const type = (item.card.cardType || "").toUpperCase();
+  const section = (item.section || "").toLowerCase();
+  return section === "ex_base" || type === "EX BASE" || type === "EX_BASE" || code.startsWith("EXB-");
+}
+
+function isExResource(item: UserDeckItemInput): boolean {
+  const code = (item.card.code || "").toUpperCase();
+  const type = (item.card.cardType || "").toUpperCase();
+  const section = (item.section || "").toLowerCase();
+  return section === "ex_resource" || type === "EX RESOURCE" || type === "EX_RESOURCE" || code.startsWith("EXR-");
+}
+
+function isResource(item: UserDeckItemInput): boolean {
+  const code = (item.card.code || "").toUpperCase();
+  const type = (item.card.cardType || "").toUpperCase();
+  const section = (item.section || "").toLowerCase();
+  return section === "resource" || type === "RESOURCE" || code.startsWith("R-") || code.includes("-RESOURCE");
+}
+
 /**
  * Converte um deck do banco de dados (Prisma Deck com DeckItem[] e Card)
  * para uma DeckList ({ main, resources }) consumível pelo simulador e pelo bot.
  *
- * Valida a existência de CardDef no motor para cada carta do deck.
+ * EX Base e EX Resource são puramente cosméticos (o motor instancia os tokens
+ * no setup do jogo). Cartas de recurso são aceitas e preenchidas até 10.
+ * Apenas cartas do deck principal (50 cartas) são validadas quanto à implementação no motor.
  */
 export function buildDeckListFromUserDeck(deck: UserDeckInput): DeckList {
   const mainDefs: CardDef[] = [];
@@ -62,9 +85,37 @@ export function buildDeckListFromUserDeck(deck: UserDeckInput): DeckList {
   let primaryColor: string | undefined;
 
   for (const item of deck.items) {
-    const code = item.card.code.toUpperCase();
-    const def = getCardDefByCode(code);
+    if (!item.quantity || item.quantity <= 0) continue;
 
+    const code = (item.card.code || "").trim().toUpperCase();
+
+    // 1. EX Base: componente cosmético, não entra na contagem de 50 cartas principais
+    if (isExBase(item)) {
+      continue;
+    }
+
+    // 2. EX Resource: componente cosmético, não entra na contagem de 50 cartas principais
+    if (isExResource(item)) {
+      continue;
+    }
+
+    // 3. Resource: deck de recursos (10 cartas de recurso)
+    if (isResource(item)) {
+      const def = getCardDefByCode(code);
+      const resDef: CardDef = def ?? {
+        code,
+        nameEn: item.card.nameEn || "Resource",
+        cardType: "RESOURCE",
+        color: (item.card.color?.toLowerCase() as any) || "colorless",
+      };
+      for (let i = 0; i < item.quantity; i++) {
+        resourceDefs.push(resDef);
+      }
+      continue;
+    }
+
+    // 4. Main Deck: cartas principais (Unit, Pilot, Command, Base)
+    const def = getCardDefByCode(code);
     if (!def) {
       unsupportedCodes.add(code);
       continue;
@@ -74,13 +125,8 @@ export function buildDeckListFromUserDeck(deck: UserDeckInput): DeckList {
       primaryColor = def.color;
     }
 
-    const section = item.section ?? "main";
     for (let i = 0; i < item.quantity; i++) {
-      if (section === "resource" || def.cardType === "RESOURCE") {
-        resourceDefs.push(def);
-      } else {
-        mainDefs.push(def);
-      }
+      mainDefs.push(def);
     }
   }
 

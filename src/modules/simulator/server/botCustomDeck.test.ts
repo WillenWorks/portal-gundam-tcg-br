@@ -50,6 +50,37 @@ describe("Decks Customizados do Usuário no Modo Treino Solo", () => {
     expect(deckList.main[0].code).toBe("ST01-001");
   });
 
+  it("aceita deck com ex_base, ex_resource e recursos cosméticos sem rejeição de cobertura", () => {
+    const userDeckWithExComponents: UserDeckInput = {
+      name: "Deck com Cosméticos e EX",
+      items: [
+        // 50 cartas principais
+        { card: { code: "ST01-001" }, quantity: 4, section: "main" },
+        { card: { code: "ST01-003" }, quantity: 4, section: "main" },
+        { card: { code: "ST01-004" }, quantity: 4, section: "main" },
+        { card: { code: "ST01-005" }, quantity: 4, section: "main" },
+        { card: { code: "ST01-006" }, quantity: 4, section: "main" },
+        { card: { code: "ST01-008" }, quantity: 4, section: "main" },
+        { card: { code: "ST01-009" }, quantity: 4, section: "main" },
+        { card: { code: "ST01-010" }, quantity: 4, section: "main" },
+        { card: { code: "ST01-011" }, quantity: 4, section: "main" },
+        { card: { code: "ST01-012" }, quantity: 4, section: "main" },
+        { card: { code: "ST01-013" }, quantity: 4, section: "main" },
+        { card: { code: "ST01-014" }, quantity: 3, section: "main" },
+        { card: { code: "ST01-016" }, quantity: 3, section: "main" },
+        // Cosméticos selecionados no Deckbuilder
+        { card: { code: "EXB-001", cardType: "EX_BASE" }, quantity: 1, section: "ex_base" },
+        { card: { code: "EXR-001", cardType: "EX_RESOURCE" }, quantity: 1, section: "ex_resource" },
+        { card: { code: "R-001", cardType: "RESOURCE" }, quantity: 10, section: "resource" },
+      ],
+    };
+
+    const deckList = buildDeckListFromUserDeck(userDeckWithExComponents);
+    expect(deckList.main.length).toBe(50);
+    expect(deckList.resources.length).toBe(10);
+    expect(deckList.resources[0].cardType).toBe("RESOURCE");
+  });
+
   it("rejeita com erro amigável se o deck possuir cartas ainda não implementadas no simulador", () => {
     const invalidDeck: UserDeckInput = {
       name: "Deck com Carta Não Implementada",

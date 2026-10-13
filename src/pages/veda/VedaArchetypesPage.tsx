@@ -29,6 +29,7 @@ function readFiltersFromUrl() {
   const rawSeason = sp.get("season");
   return {
     season: rawSeason !== null ? rawSeason : DEFAULT_SEASON,
+    rawSeasonHasParam: rawSeason !== null,
     tier: sp.get("tier") || "",
     uf: sp.get("uf") || "",
   };
@@ -74,12 +75,28 @@ export default function VedaArchetypesPage() {
     };
   }, []);
 
-  const lastNavigatedQs = useRef<string | null>(null);
+  const isInitialMount = useRef(true);
+  const lastNavigatedQs = useRef<string>(
+    typeof window !== "undefined"
+      ? new URLSearchParams(
+          window.location.hash.includes("?")
+            ? window.location.hash.substring(window.location.hash.indexOf("?"))
+            : window.location.search,
+        ).toString()
+      : "",
+  );
 
-  // Sincroniza estado com a URL
+  // Sincroniza estado com a URL apenas após mudanças ativas (evita replaceState na montagem)
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
     const sp = new URLSearchParams();
-    if (season) sp.set("season", season);
+    if (season && (season !== currentSeasonCode || initial.rawSeasonHasParam)) {
+      sp.set("season", season);
+    }
     if (tier) sp.set("tier", tier);
     if (uf) sp.set("uf", uf);
 
@@ -88,13 +105,21 @@ export default function VedaArchetypesPage() {
       lastNavigatedQs.current = qs;
       navigate(`/arquetipos${qs ? `?${qs}` : ""}`, { replace: true });
     }
-  }, [season, tier, uf, navigate]);
+  }, [season, tier, uf, currentSeasonCode, initial.rawSeasonHasParam, navigate]);
 
   // Sincroniza histórico do navegador
   useEffect(() => {
     const handlePopState = () => {
+      const searchPart = window.location.hash.includes("?")
+        ? window.location.hash.substring(window.location.hash.indexOf("?"))
+        : window.location.search;
+      const currentQs = new URLSearchParams(searchPart).toString();
+
+      // Se o evento foi disparado pela nossa própria navegação, ignora
+      if (currentQs === lastNavigatedQs.current) return;
+
+      lastNavigatedQs.current = currentQs;
       const f = readFiltersFromUrl();
-      lastNavigatedQs.current = null;
       setSeason(f.season);
       setTier(f.tier);
       setUf(f.uf);
@@ -109,10 +134,11 @@ export default function VedaArchetypesPage() {
   }, []);
 
   const resetFilters = useCallback(() => {
+    initial.rawSeasonHasParam = false;
     setSeason(currentSeasonCode);
     setTier("");
     setUf("");
-  }, [currentSeasonCode]);
+  }, [currentSeasonCode, initial]);
 
   const loadArchetypes = useCallback(async () => {
     setLoading(true);
