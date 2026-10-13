@@ -248,13 +248,13 @@ export default function VedaDecklistPage() {
         {/* Linha de Análise Rápida: Curva de Custo & Totais */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Gráfico Tático da Curva de Custos */}
-          <div className="panel-cut border border-white/10 bg-slate-950/80 p-4 sm:p-5 lg:col-span-2 space-y-3">
-            <div className="flex items-center justify-between border-b border-white/10 pb-2">
+          <div className="panel-cut border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/80 p-4 sm:p-5 lg:col-span-2 space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-2">
               <div className="flex items-center gap-2">
                 <BarChart2 className="size-4 text-primary" />
-                <h3 className="font-heading text-sm uppercase text-white">Curva de Custo de Energia</h3>
+                <h3 className="font-heading text-sm uppercase text-slate-900 dark:text-white">Curva de Custo de Energia</h3>
               </div>
-              <span className="text-xs font-mono text-slate-400">{decklist.totalCards} cartas registradas</span>
+              <span className="text-xs font-mono text-slate-500 dark:text-slate-400">{decklist.totalCards} cartas registradas</span>
             </div>
 
             <div className="pt-2 flex items-end justify-between gap-2 h-32 px-2">
@@ -262,15 +262,15 @@ export default function VedaDecklistPage() {
                 const heightPercent = Math.max(8, Math.round((entry.count / maxCurveCount) * 100));
                 return (
                   <div key={entry.cost} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
-                    <span className="text-[11px] font-mono text-slate-300 font-bold">{entry.count}</span>
-                    <div className="w-full bg-slate-900 border border-white/10 h-20 flex items-end">
+                    <span className="text-[11px] font-mono text-slate-700 dark:text-slate-300 font-bold">{entry.count}</span>
+                    <div className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 h-20 flex items-end">
                       <div
                         className="w-full bg-primary/70 hover:bg-primary transition-all border-t border-primary"
                         style={{ height: `${heightPercent}%` }}
                         title={`Custo ${entry.cost}: ${entry.count} cartas`}
                       />
                     </div>
-                    <span className="text-[10px] font-mono text-slate-400 uppercase">C.{entry.cost}</span>
+                    <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 uppercase">C.{entry.cost}</span>
                   </div>
                 );
               })}
@@ -278,11 +278,11 @@ export default function VedaDecklistPage() {
           </div>
 
           {/* Distribuição por Cores & Resumo */}
-          <div className="panel-cut border border-white/10 bg-slate-950/80 p-4 sm:p-5 space-y-3">
-            <div className="flex items-center justify-between border-b border-white/10 pb-2">
+          <div className="panel-cut border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/80 p-4 sm:p-5 space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-2">
               <div className="flex items-center gap-2">
                 <Layers className="size-4 text-primary" />
-                <h3 className="font-heading text-sm uppercase text-white">Distribuição por Cores</h3>
+                <h3 className="font-heading text-sm uppercase text-slate-900 dark:text-white">Distribuição por Cores</h3>
               </div>
             </div>
 
@@ -293,13 +293,13 @@ export default function VedaDecklistPage() {
                   return (
                     <div
                       key={color}
-                      className="flex items-center justify-between p-2 border border-white/10 bg-white/[0.02]"
+                      className="flex items-center justify-between p-2 border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.02]"
                     >
                       <div className="flex items-center gap-2">
                         <span className="size-3 rounded-full" style={{ backgroundColor: hex }} />
-                        <span className="text-xs font-mono uppercase text-white">{color}</span>
+                        <span className="text-xs font-mono uppercase text-slate-900 dark:text-white">{color}</span>
                       </div>
-                      <Badge variant="outline" className="text-[10px] font-mono border-white/15">
+                      <Badge variant="outline" className="text-[10px] font-mono border-slate-300 dark:border-white/15 text-slate-700 dark:text-slate-300">
                         Cor de Jogo
                       </Badge>
                     </div>
@@ -318,17 +318,17 @@ export default function VedaDecklistPage() {
             return (
               <div
                 key={group.cardType}
-                className="panel-cut border border-white/10 bg-slate-950/80 p-4 sm:p-5 space-y-4"
+                className="panel-cut border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/80 p-4 sm:p-5 space-y-4"
               >
                 {/* Cabeçalho do Grupo */}
-                <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3">
                   <div className="flex items-center gap-2">
                     <span className="size-2 bg-primary" />
-                    <h3 className="font-heading text-base sm:text-lg uppercase text-white">
+                    <h3 className="font-heading text-base sm:text-lg uppercase text-slate-900 dark:text-white">
                       {cardTypeLabel(group.cardType)}
                     </h3>
                   </div>
-                  <Badge variant="outline" className="border-white/20 font-mono text-xs">
+                  <Badge variant="outline" className="border-slate-300 dark:border-white/20 text-slate-700 dark:text-slate-300 font-mono text-xs">
                     {group.count} {group.count === 1 ? "carta" : "cartas"}
                   </Badge>
                 </div>
@@ -343,11 +343,11 @@ export default function VedaDecklistPage() {
                       <Link
                         key={`${card.code}-${cardIdx}`}
                         href={`/cards/${encodeURIComponent(cardTargetId)}`}
-                        className="group relative block panel-cut border border-white/15 bg-slate-900/60 overflow-hidden hover:border-primary transition-all"
+                        className="group relative block panel-cut border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-slate-900/60 overflow-hidden hover:border-primary transition-all"
                         title={`${cardDisplayName} (${card.code}) - Clique para inspecionar`}
                       >
                         {/* Imagem da Carta */}
-                        <div className="relative aspect-[63/88] w-full bg-slate-950 overflow-hidden">
+                        <div className="relative aspect-[63/88] w-full bg-slate-100 dark:bg-slate-950 overflow-hidden">
                           {card.imageUrl ? (
                             <img
                               src={card.imageUrl}
@@ -392,9 +392,9 @@ export default function VedaDecklistPage() {
                         </div>
 
                         {/* Rótulo inferior da Carta */}
-                        <div className="p-2 space-y-0.5 bg-slate-950/90 dark:bg-slate-950/90 light:bg-slate-50 border-t border-white/10 dark:border-white/10 light:border-slate-200">
+                        <div className="p-2 space-y-0.5 bg-white dark:bg-slate-950/90 border-t border-slate-200 dark:border-white/10">
                           <p className="font-mono text-[10px] text-primary truncate">{card.code}</p>
-                          <p className="text-xs text-slate-200 dark:text-slate-200 light:text-slate-800 truncate font-medium">{cardDisplayName}</p>
+                          <p className="text-xs text-slate-800 dark:text-slate-200 truncate font-medium">{cardDisplayName}</p>
                         </div>
                       </Link>
                     );

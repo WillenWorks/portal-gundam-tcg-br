@@ -32,7 +32,7 @@ export function VedaSourceCredit({
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className={`inline-flex items-center gap-1 font-mono text-[11px] text-slate-400 hover:text-primary transition-colors ${className}`}
+        className={`inline-flex items-center gap-1 font-mono text-[11px] text-slate-500 dark:text-slate-400 hover:text-primary transition-colors ${className}`}
         title={`Abrir página oficial da fonte: ${url}`}
       >
         <span>{attributionText}</span>
@@ -43,7 +43,7 @@ export function VedaSourceCredit({
 
   return (
     <span
-      className={`inline-flex items-center gap-1 font-mono text-[11px] text-slate-400 ${className}`}
+      className={`inline-flex items-center gap-1 font-mono text-[11px] text-slate-500 dark:text-slate-400 ${className}`}
     >
       <span>{attributionText}</span>
     </span>

@@ -26,7 +26,7 @@ export function VedaArchetypeBadge({
       {showColors && archetype.colors && archetype.colors.length > 0 && (
         <VedaColorPills colors={archetype.colors} size="xs" />
       )}
-      <span className="font-heading uppercase tracking-wide text-white group-hover:text-primary transition-colors">
+      <span className="font-heading uppercase tracking-wide text-slate-900 dark:text-white group-hover:text-primary transition-colors">
         {archetype.name}
       </span>
     </span>

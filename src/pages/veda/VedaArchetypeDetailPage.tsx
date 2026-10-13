@@ -131,28 +131,28 @@ export default function VedaArchetypeDetailPage() {
       <div className="space-y-6">
         {/* Cabeçalho do Arquétipo */}
         <div className="panel-cut border border-primary/30 hero-surface p-5 sm:p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-white/10 pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 dark:border-white/10 pb-4">
             <div className="space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] font-mono uppercase tracking-widest text-primary">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-primary font-semibold">
                   Dossiê Tático de Arquétipo
                 </span>
                 {row.archetype.colors && row.archetype.colors.length > 0 && (
                   <VedaColorPills colors={row.archetype.colors} size="sm" showLabel />
                 )}
               </div>
-              <h1 className="font-heading text-2xl sm:text-4xl uppercase text-white tracking-wide">
+              <h1 className="font-heading text-2xl sm:text-4xl uppercase text-slate-900 dark:text-white tracking-wide">
                 {row.archetype.name}
               </h1>
             </div>
 
             {/* Filtro Rápido de Temporada */}
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono text-slate-400 uppercase">Temporada:</span>
+              <span className="text-xs font-mono text-slate-600 dark:text-slate-400 uppercase">Temporada:</span>
               <select
                 value={selectedSeason}
                 onChange={(e) => setSelectedSeason(e.target.value)}
-                className="h-8 px-2 rounded-none border border-white/15 bg-slate-900 text-xs text-white font-mono focus:border-primary outline-none"
+                className="h-8 px-2 rounded-none border border-slate-300 dark:border-white/15 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white font-mono focus:border-primary outline-none"
               >
                 <option value="">Todas as Temporadas</option>
                 <option value="GD05">GD05</option>
@@ -166,30 +166,30 @@ export default function VedaArchetypeDetailPage() {
 
           {/* Cards de Métricas Competitivas */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="panel-cut border border-white/10 bg-slate-950/60 p-3 sm:p-4">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Presença no Meta</p>
+            <div className="panel-cut border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-950/60 p-3 sm:p-4">
+              <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400">Presença no Meta</p>
               <p className="mt-1 font-heading text-2xl sm:text-3xl text-primary">{sharePercent}%</p>
-              <p className="text-[11px] font-mono text-slate-400">{row.lists} decklists</p>
+              <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">{row.lists} decklists</p>
             </div>
-            <div className="panel-cut border border-white/10 bg-slate-950/60 p-3 sm:p-4">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Conversão em Top 8</p>
-              <p className="mt-1 font-heading text-2xl sm:text-3xl text-emerald-400">{top8Percent}%</p>
-              <p className="text-[11px] font-mono text-slate-400">das listas do arquétipo</p>
+            <div className="panel-cut border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-950/60 p-3 sm:p-4">
+              <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400">Conversão em Top 8</p>
+              <p className="mt-1 font-heading text-2xl sm:text-3xl text-emerald-600 dark:text-emerald-400">{top8Percent}%</p>
+              <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">das listas do arquétipo</p>
             </div>
-            <div className="panel-cut border border-amber-500/30 bg-amber-950/20 p-3 sm:p-4">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-amber-400 flex items-center gap-1">
-                <Trophy className="size-3" />
+            <div className="panel-cut border border-amber-500/40 bg-amber-500/10 dark:bg-amber-950/20 p-3 sm:p-4">
+              <p className="text-[10px] font-mono uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                <Trophy className="size-3 text-amber-500 dark:text-amber-400" />
                 Títulos Conquistados
               </p>
-              <p className="mt-1 font-heading text-2xl sm:text-3xl text-amber-300">{row.wins}</p>
-              <p className="text-[11px] font-mono text-amber-400/80">{winPercent}% dos títulos</p>
+              <p className="mt-1 font-heading text-2xl sm:text-3xl text-amber-600 dark:text-amber-300">{row.wins}</p>
+              <p className="text-[11px] font-mono text-amber-700/80 dark:text-amber-400/80">{winPercent}% dos títulos</p>
             </div>
-            <div className="panel-cut border border-white/10 bg-slate-950/60 p-3 sm:p-4">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Melhor Colocação</p>
-              <p className="mt-1 font-heading text-2xl sm:text-3xl text-white">
+            <div className="panel-cut border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-950/60 p-3 sm:p-4">
+              <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400">Melhor Colocação</p>
+              <p className="mt-1 font-heading text-2xl sm:text-3xl text-slate-900 dark:text-white">
                 {row.bestPlacement ? `${row.bestPlacement}º` : "—"}
               </p>
-              <p className="text-[11px] font-mono text-slate-400">no período</p>
+              <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">no período</p>
             </div>
           </div>
 
@@ -198,25 +198,25 @@ export default function VedaArchetypeDetailPage() {
         </div>
 
         {/* Anatomia do Arquétipo: Núcleo (Core), Ajustes (Flex) e Techs */}
-        <div className="panel-cut border border-white/10 bg-slate-950/80 p-5 sm:p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-white/10 pb-3">
+        <div className="panel-cut border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/80 p-5 sm:p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 dark:border-white/10 pb-3">
             <div>
-              <h2 className="font-heading text-lg sm:text-xl uppercase text-white flex items-center gap-2">
+              <h2 className="font-heading text-lg sm:text-xl uppercase text-slate-900 dark:text-white flex items-center gap-2">
                 <Layers className="size-4 text-primary" />
                 Anatomia de Cartas do Arquétipo
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
                 Cartas mais utilizadas nas listas compiladas, classificadas pela taxa de inclusão.
               </p>
             </div>
 
             {/* Abas de Filtro de Cartas */}
-            <div className="flex items-center gap-1 p-1 bg-slate-900 border border-white/10">
+            <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10">
               <button
                 type="button"
                 onClick={() => setActiveCardTab("all")}
                 className={`px-2.5 py-1 text-xs font-mono uppercase transition ${
-                  activeCardTab === "all" ? "bg-primary text-primary-foreground font-bold" : "text-slate-400 hover:text-white"
+                  activeCardTab === "all" ? "bg-primary text-primary-foreground font-bold" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
                 Todas ({detail.cards.length})
@@ -225,7 +225,7 @@ export default function VedaArchetypeDetailPage() {
                 type="button"
                 onClick={() => setActiveCardTab("core")}
                 className={`px-2.5 py-1 text-xs font-mono uppercase transition ${
-                  activeCardTab === "core" ? "bg-primary text-primary-foreground font-bold" : "text-slate-400 hover:text-white"
+                  activeCardTab === "core" ? "bg-primary text-primary-foreground font-bold" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
                 title="Cartas presentes em 80% ou mais das listas"
               >
@@ -235,7 +235,7 @@ export default function VedaArchetypeDetailPage() {
                 type="button"
                 onClick={() => setActiveCardTab("flex")}
                 className={`px-2.5 py-1 text-xs font-mono uppercase transition ${
-                  activeCardTab === "flex" ? "bg-primary text-primary-foreground font-bold" : "text-slate-400 hover:text-white"
+                  activeCardTab === "flex" ? "bg-primary text-primary-foreground font-bold" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
                 title="Cartas presentes em 30% a 79% das listas"
               >
@@ -245,7 +245,7 @@ export default function VedaArchetypeDetailPage() {
                 type="button"
                 onClick={() => setActiveCardTab("tech")}
                 className={`px-2.5 py-1 text-xs font-mono uppercase transition ${
-                  activeCardTab === "tech" ? "bg-primary text-primary-foreground font-bold" : "text-slate-400 hover:text-white"
+                  activeCardTab === "tech" ? "bg-primary text-primary-foreground font-bold" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
                 title="Cartas presentes em menos de 30% das listas"
               >
@@ -277,10 +277,10 @@ export default function VedaArchetypeDetailPage() {
                   <Link
                     key={`${inc.card.code}-${idx}`}
                     href={`/cards/${encodeURIComponent(cardTargetId)}`}
-                    className="group relative block panel-cut border border-white/15 bg-slate-900/60 overflow-hidden hover:border-primary transition-all"
+                    className="group relative block panel-cut border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-slate-900/60 overflow-hidden hover:border-primary transition-all"
                     title={`${cardDisplayName} (${inc.card.code}) — Inclusão: ${inclusionPercent}%, Média: ${inc.avgCopies.toFixed(1)} cópias`}
                   >
-                    <div className="relative aspect-[63/88] w-full bg-slate-950 overflow-hidden">
+                    <div className="relative aspect-[63/88] w-full bg-slate-100 dark:bg-slate-950 overflow-hidden">
                       {inc.card.imageUrl ? (
                         <img
                           src={inc.card.imageUrl}
@@ -297,13 +297,19 @@ export default function VedaArchetypeDetailPage() {
 
                       {/* Selo do Tier (Núcleo / Flex / Tech) */}
                       <span
-                        className={`absolute top-1 left-1 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-wider border rounded-none shadow-sm ${tierBadgeColor}`}
+                        className={`absolute top-1 left-1 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-wider border rounded-none shadow-sm ${
+                          inc.tier === "core"
+                            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                            : inc.tier === "flex"
+                              ? "border-primary/40 bg-primary/10 text-primary"
+                              : "border-purple-500/40 bg-purple-500/10 text-purple-600 dark:text-purple-400"
+                        }`}
                       >
                         {inc.tier === "core" ? "Núcleo" : inc.tier === "flex" ? "Flex" : "Tech"}
                       </span>
 
                       {/* Taxa de Inclusão no Canto Superior Direito */}
-                      <span className="absolute top-1 right-1 px-1.5 py-0.5 text-[10px] font-mono font-bold bg-slate-950/90 text-white border border-white/20">
+                      <span className="absolute top-1 right-1 px-1.5 py-0.5 text-[10px] font-mono font-bold bg-white/95 dark:bg-slate-950/90 text-slate-900 dark:text-white border border-slate-200 dark:border-white/20 shadow-xs">
                         {inclusionPercent}%
                       </span>
 
@@ -313,9 +319,9 @@ export default function VedaArchetypeDetailPage() {
                       </span>
                     </div>
 
-                    <div className="p-2 space-y-0.5 bg-slate-950/90 dark:bg-slate-950/90 light:bg-slate-50 border-t border-white/10 dark:border-white/10 light:border-slate-200">
+                    <div className="p-2 space-y-0.5 bg-white dark:bg-slate-950/90 border-t border-slate-200 dark:border-white/10">
                       <p className="font-mono text-[10px] text-primary truncate">{inc.card.code}</p>
-                      <p className="text-xs text-slate-200 dark:text-slate-200 light:text-slate-800 truncate font-medium">{cardDisplayName}</p>
+                      <p className="text-xs text-slate-800 dark:text-slate-200 truncate font-medium">{cardDisplayName}</p>
                     </div>
                   </Link>
                 );
@@ -326,15 +332,15 @@ export default function VedaArchetypeDetailPage() {
 
         {/* Listas de Exemplo de Torneios Reais */}
         {detail.sampleDecklists && detail.sampleDecklists.length > 0 && (
-          <div className="panel-cut border border-white/10 bg-slate-950/80 p-5 sm:p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+          <div className="panel-cut border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/80 p-5 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3">
               <div className="flex items-center gap-2">
                 <Trophy className="size-4 text-primary" />
-                <h2 className="font-heading text-lg sm:text-xl uppercase text-white">
+                <h2 className="font-heading text-lg sm:text-xl uppercase text-slate-900 dark:text-white">
                   Decklists de Exemplo em Torneios
                 </h2>
               </div>
-              <span className="text-xs font-mono text-slate-400">
+              <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
                 {detail.sampleDecklists.length} lista(s) disponível(is)
               </span>
             </div>
@@ -343,27 +349,27 @@ export default function VedaArchetypeDetailPage() {
               {detail.sampleDecklists.map((sampleList) => (
                 <div
                   key={sampleList.entryId}
-                  className="panel-cut border border-white/10 bg-slate-900/40 p-4 space-y-2 hover:border-primary/40 transition-colors"
+                  className="panel-cut border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900/40 p-4 space-y-2 hover:border-primary/40 transition-colors"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <VedaPlacementBadge placementLabel={sampleList.placementLabel} />
-                    <span className="text-[11px] font-mono text-slate-400">
+                    <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
                       {formatDatePtBr(sampleList.date)}
                     </span>
                   </div>
 
-                  <div className="font-heading text-base uppercase text-white">
+                  <div className="font-heading text-base uppercase text-slate-900 dark:text-white">
                     <VedaPlayerLink player={sampleList.player} />
                   </div>
 
-                  <p className="text-xs text-slate-300 truncate">{sampleList.tournamentName}</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 truncate">{sampleList.tournamentName}</p>
 
                   <div className="pt-2">
                     <Button
                       size="sm"
                       variant="outline"
                       asChild
-                      className="w-full h-7 rounded-none border-primary/30 bg-primary/10 text-xs font-mono uppercase text-primary hover:bg-primary/20 hover:text-white"
+                      className="w-full h-7 rounded-none border-primary/30 bg-primary/10 text-xs font-mono uppercase text-primary hover:bg-primary/20 hover:text-slate-900 dark:hover:text-white"
                     >
                       <Link href={`/torneios/${sampleList.tournamentId}/lista/${sampleList.entryId}`}>
                         Inspecionar Lista
@@ -378,15 +384,15 @@ export default function VedaArchetypeDetailPage() {
 
         {/* Resultados Recentes em Torneios */}
         {detail.recentResults && detail.recentResults.length > 0 && (
-          <div className="panel-cut border border-white/10 bg-slate-950/80 p-5 sm:p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+          <div className="panel-cut border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/80 p-5 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3">
               <div className="flex items-center gap-2">
                 <Calendar className="size-4 text-primary" />
-                <h2 className="font-heading text-lg sm:text-xl uppercase text-white">
+                <h2 className="font-heading text-lg sm:text-xl uppercase text-slate-900 dark:text-white">
                   Resultados Recentes do Arquétipo
                 </h2>
               </div>
-              <span className="text-xs font-mono text-slate-400">
+              <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
                 {detail.recentResults.length} entrada(s)
               </span>
             </div>
@@ -394,7 +400,7 @@ export default function VedaArchetypeDetailPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-white/15 text-[10px] font-mono uppercase tracking-wider text-slate-400 bg-white/5">
+                  <tr className="border-b border-slate-200 dark:border-white/15 text-[10px] font-mono uppercase tracking-wider text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-white/5">
                     <th className="py-2.5 px-3 w-16">Colocação</th>
                     <th className="py-2.5 px-3">Jogador</th>
                     <th className="py-2.5 px-3">Torneio</th>
@@ -402,9 +408,9 @@ export default function VedaArchetypeDetailPage() {
                     <th className="py-2.5 px-3 text-right w-32">Decklist</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/10 font-mono">
+                <tbody className="divide-y divide-slate-200 dark:divide-white/10 font-mono">
                   {detail.recentResults.map((res) => (
-                    <tr key={res.entryId} className="hover:bg-white/[0.03] transition-colors">
+                    <tr key={res.entryId} className="hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors">
                       <td className="py-3 px-3">
                         <VedaPlacementBadge placement={res.placement} placementLabel={res.placementLabel} />
                       </td>
@@ -414,20 +420,20 @@ export default function VedaArchetypeDetailPage() {
                       <td className="py-3 px-3">
                         <Link
                           href={`/torneios/${res.tournamentId}`}
-                          className="text-slate-200 hover:text-primary transition-colors block"
+                          className="text-slate-800 dark:text-slate-200 hover:text-primary transition-colors block"
                         >
                           {res.tournamentName}
                         </Link>
-                        <span className="text-[10px] text-slate-400">{formatDatePtBr(res.date)}</span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">{formatDatePtBr(res.date)}</span>
                       </td>
-                      <td className="py-3 px-3 text-slate-300">{res.record || "—"}</td>
+                      <td className="py-3 px-3 text-slate-700 dark:text-slate-300">{res.record || "—"}</td>
                       <td className="py-3 px-3 text-right">
                         {res.hasDecklist ? (
                           <Button
                             size="sm"
                             variant="outline"
                             asChild
-                            className="h-7 rounded-none border-primary/30 bg-primary/10 text-[11px] font-mono uppercase text-primary hover:bg-primary/20 hover:text-white"
+                            className="h-7 rounded-none border-primary/30 bg-primary/10 text-[11px] font-mono uppercase text-primary hover:bg-primary/20 hover:text-slate-900 dark:hover:text-white"
                           >
                             <Link href={`/torneios/${res.tournamentId}/lista/${res.entryId}`}>
                               Ver Lista

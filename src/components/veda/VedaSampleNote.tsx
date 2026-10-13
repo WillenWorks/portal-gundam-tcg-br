@@ -67,8 +67,8 @@ export function VedaSampleNote({
           <span>{summaryText}</span>
         </span>
         {isSmall && (
-          <span className="inline-flex items-center gap-1 rounded-none border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-mono text-amber-400 uppercase tracking-wider">
-            <AlertTriangle className="size-3 text-amber-400" />
+          <span className="inline-flex items-center gap-1 rounded-none border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-mono text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+            <AlertTriangle className="size-3 text-amber-500 dark:text-amber-400" />
             Poucos dados (&lt;10)
           </span>
         )}
@@ -78,15 +78,15 @@ export function VedaSampleNote({
 
   if (variant === "banner") {
     return (
-      <div className={`panel-cut border border-primary/20 bg-slate-950/70 p-3 text-xs ${className}`}>
+      <div className={`panel-cut border border-primary/20 bg-slate-50 dark:bg-slate-950/70 p-3 text-xs ${className}`}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-slate-300">
+          <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
             <Database className="size-3.5 shrink-0 text-primary" />
-            <span className="font-mono text-slate-200">{summaryText}</span>
+            <span className="font-mono text-slate-900 dark:text-slate-200">{summaryText}</span>
           </div>
           {isSmall && (
-            <span className="inline-flex items-center gap-1 border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-mono text-amber-400 uppercase tracking-wider">
-              <AlertTriangle className="size-3 text-amber-400" />
+            <span className="inline-flex items-center gap-1 border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-mono text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+              <AlertTriangle className="size-3 text-amber-500 dark:text-amber-400" />
               Amostra preliminar (menos de 10 listas registradas)
             </span>
           )}
@@ -97,7 +97,7 @@ export function VedaSampleNote({
 
   // default: inline
   return (
-    <div className={`flex flex-wrap items-center gap-2 text-xs text-slate-300 ${className}`}>
+    <div className={`flex flex-wrap items-center gap-2 text-xs text-slate-700 dark:text-slate-300 ${className}`}>
       <span className="inline-flex items-center gap-1.5 font-mono">
         <Database className="size-3 text-primary shrink-0" />
         <span>{summaryText}</span>
@@ -105,9 +105,9 @@ export function VedaSampleNote({
       {isSmall && (
         <span
           title="Menos de 10 listas registradas neste recorte: índices podem oscilar com novos eventos"
-          className="inline-flex items-center gap-1 rounded-none border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.2 text-[10px] font-mono text-amber-400 uppercase tracking-wider"
+          className="inline-flex items-center gap-1 rounded-none border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.2 text-[10px] font-mono text-amber-600 dark:text-amber-400 uppercase tracking-wider"
         >
-          <AlertTriangle className="size-2.5 text-amber-400 shrink-0" />
+          <AlertTriangle className="size-2.5 text-amber-500 dark:text-amber-400 shrink-0" />
           poucos dados
         </span>
       )}

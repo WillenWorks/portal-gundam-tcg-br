@@ -38,14 +38,14 @@ export function VedaEmptyView({
   className?: string;
 }) {
   return (
-    <div className={`panel-cut border border-white/10 bg-slate-950/60 p-8 text-center space-y-3 ${className}`}>
+    <div className={`panel-cut border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/60 p-8 text-center space-y-3 ${className}`}>
       <div className="flex justify-center">
-        <div className="p-3 bg-white/5 border border-white/10">
-          <SearchX className="size-8 text-slate-400" />
+        <div className="p-3 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+          <SearchX className="size-8 text-slate-500 dark:text-slate-400" />
         </div>
       </div>
-      <h3 className="font-heading text-lg uppercase text-white tracking-wide">{title}</h3>
-      <p className="text-xs text-slate-400 max-w-md mx-auto">{description}</p>
+      <h3 className="font-heading text-lg uppercase text-slate-900 dark:text-white tracking-wide">{title}</h3>
+      <p className="text-xs text-slate-600 dark:text-slate-400 max-w-md mx-auto">{description}</p>
       {actionLabel && onAction && (
         <div className="pt-2">
           <Button
@@ -74,19 +74,19 @@ export function VedaErrorView({
   className?: string;
 }) {
   return (
-    <div className={`panel-cut border border-red-500/30 bg-red-950/20 p-6 text-center space-y-3 ${className}`}>
+    <div className={`panel-cut border border-red-500/30 bg-red-50 dark:bg-red-950/20 p-6 text-center space-y-3 ${className}`}>
       <div className="flex justify-center">
-        <AlertCircle className="size-8 text-red-400" />
+        <AlertCircle className="size-8 text-red-500 dark:text-red-400" />
       </div>
-      <h3 className="font-heading text-lg uppercase text-red-200 tracking-wide">{title}</h3>
-      <p className="text-xs text-red-300/80 max-w-md mx-auto font-mono">{error}</p>
+      <h3 className="font-heading text-lg uppercase text-red-700 dark:text-red-200 tracking-wide">{title}</h3>
+      <p className="text-xs text-red-600 dark:text-red-300/80 max-w-md mx-auto font-mono">{error}</p>
       {onRetry && (
         <div className="pt-2">
           <Button
             size="sm"
             variant="outline"
             onClick={onRetry}
-            className="rounded-none border-red-400/40 bg-red-500/10 text-xs font-mono uppercase text-red-200 hover:bg-red-500/20"
+            className="rounded-none border-red-400/40 bg-red-500/10 text-xs font-mono uppercase text-red-700 dark:text-red-200 hover:bg-red-500/20"
           >
             <RefreshCw className="size-3 mr-1.5" />
             Tentar novamente

@@ -28,7 +28,7 @@ export function VedaColorPills({
         return (
           <span
             key={`${color}-${idx}`}
-            className={`inline-flex items-center gap-1 font-mono uppercase ${textSizeClass} text-slate-300`}
+            className={`inline-flex items-center gap-1 font-mono uppercase ${textSizeClass} text-slate-700 dark:text-slate-300`}
             title={`Cor: ${label}`}
           >
             <span

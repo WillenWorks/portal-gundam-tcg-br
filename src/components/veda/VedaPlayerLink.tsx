@@ -27,8 +27,8 @@ export function VedaPlayerLink({
   }
 
   const content = (
-    <span className={`inline-flex items-center gap-1.5 font-medium text-slate-200 group-hover:text-primary transition-colors ${className}`}>
-      {showIcon && <User className="size-3 text-slate-400 group-hover:text-primary shrink-0" />}
+    <span className={`inline-flex items-center gap-1.5 font-medium text-slate-800 dark:text-slate-200 group-hover:text-primary transition-colors ${className}`}>
+      {showIcon && <User className="size-3 text-slate-500 dark:text-slate-400 group-hover:text-primary shrink-0" />}
       <span className="truncate">{name}</span>
     </span>
   );

@@ -144,7 +144,7 @@ export default function VedaTournamentReportPage() {
                   {regionalUrl ? (
                     <Link
                       href={regionalUrl}
-                      className="text-slate-200 hover:text-primary underline decoration-dotted transition-colors"
+                      className="text-slate-800 dark:text-slate-200 hover:text-primary underline decoration-dotted transition-colors"
                       title="Ver metagame deste estado/cidade"
                     >
                       {tournament.place.city ? `${tournament.place.city}, ` : ""}
@@ -162,28 +162,28 @@ export default function VedaTournamentReportPage() {
           </div>
 
           {/* Grid de Métricas Operacionais */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-white/10">
-            <div className="panel-cut border border-white/10 bg-slate-950/60 p-3">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Participantes</p>
-              <p className="mt-1 font-heading text-xl sm:text-2xl text-white">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-slate-200 dark:border-white/10">
+            <div className="panel-cut border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-950/60 p-3">
+              <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400">Participantes</p>
+              <p className="mt-1 font-heading text-xl sm:text-2xl text-slate-900 dark:text-white">
                 {tournament.participantCount || tournament.entriesCount}
               </p>
             </div>
-            <div className="panel-cut border border-white/10 bg-slate-950/60 p-3">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Inscrições com Deck</p>
+            <div className="panel-cut border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-950/60 p-3">
+              <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400">Inscrições com Deck</p>
               <p className="mt-1 font-heading text-xl sm:text-2xl text-primary">
                 {tournament.decklistsCount}
               </p>
             </div>
-            <div className="panel-cut border border-white/10 bg-slate-950/60 p-3">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Rodadas Suíço</p>
-              <p className="mt-1 font-heading text-xl sm:text-2xl text-slate-200">
+            <div className="panel-cut border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-950/60 p-3">
+              <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400">Rodadas Suíço</p>
+              <p className="mt-1 font-heading text-xl sm:text-2xl text-slate-800 dark:text-slate-200">
                 {tournament.roundCount ? `${tournament.roundCount} R` : "—"}
               </p>
             </div>
-            <div className="panel-cut border border-white/10 bg-slate-950/60 p-3">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Status do Snapshot</p>
-              <p className="mt-1 font-mono text-xs uppercase text-emerald-400 flex items-center gap-1">
+            <div className="panel-cut border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-950/60 p-3">
+              <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400">Status do Snapshot</p>
+              <p className="mt-1 font-mono text-xs uppercase text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-semibold">
                 <Shield className="size-3" />
                 Congelado
               </p>
@@ -193,19 +193,19 @@ export default function VedaTournamentReportPage() {
 
         {/* Destaque do Campeão (se houver) */}
         {tournament.winner && (
-          <div className="panel-cut border border-amber-500/40 bg-gradient-to-r from-amber-950/30 via-slate-950/80 to-slate-950/80 p-5 sm:p-6 space-y-3">
-            <div className="flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-amber-400">
-              <Crown className="size-4 shrink-0" />
+          <div className="panel-cut border border-amber-500/40 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-slate-50 dark:from-amber-950/30 dark:via-slate-950/80 dark:to-slate-950/80 p-5 sm:p-6 space-y-3">
+            <div className="flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-amber-600 dark:text-amber-400">
+              <Crown className="size-4 shrink-0 text-amber-500 dark:text-amber-400" />
               <span>Campeão do Evento</span>
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="space-y-1">
-                <div className="font-heading text-2xl uppercase text-white">
+                <div className="font-heading text-2xl uppercase text-slate-900 dark:text-white">
                   <VedaPlayerLink player={tournament.winner.player} />
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono text-slate-400">Arquétipo:</span>
+                  <span className="text-xs font-mono text-slate-600 dark:text-slate-400">Arquétipo:</span>
                   {tournament.winner.archetype ? (
                     <VedaArchetypeBadge archetype={tournament.winner.archetype} />
                   ) : (
@@ -231,15 +231,15 @@ export default function VedaTournamentReportPage() {
 
         {/* Quebra do Metagame do Torneio */}
         {tournament.meta && tournament.meta.length > 0 && (
-          <div className="panel-cut border border-white/10 bg-slate-950/80 p-5 sm:p-6 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+          <div className="panel-cut border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/80 p-5 sm:p-6 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-white/10 pb-3">
               <div className="flex items-center gap-2">
                 <PieChartIcon className="size-4 text-primary" />
-                <h2 className="font-heading text-lg sm:text-xl uppercase text-white">
+                <h2 className="font-heading text-lg sm:text-xl uppercase text-slate-900 dark:text-white">
                   Divisão do Metagame do Torneio
                 </h2>
               </div>
-              <span className="text-xs font-mono text-slate-400">
+              <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
                 {tournament.meta.length} arquétipo(s) registrado(s)
               </span>
             </div>
@@ -254,16 +254,16 @@ export default function VedaTournamentReportPage() {
                 return (
                   <div
                     key={slice.archetype.slug}
-                    className="panel-cut border border-white/10 bg-slate-900/40 p-3 hover:border-primary/40 transition-colors"
+                    className="panel-cut border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900/40 p-3 hover:border-primary/40 transition-colors"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5 text-xs">
                       <div className="flex items-center gap-2">
                         <VedaArchetypeBadge archetype={slice.archetype} />
                       </div>
-                      <div className="flex items-center gap-4 font-mono text-slate-300">
+                      <div className="flex items-center gap-4 font-mono text-slate-700 dark:text-slate-300">
                         {slice.bestPlacement && (
-                          <span className="text-[11px] text-slate-400">
-                            Melhor: <strong className="text-white">{slice.bestPlacement}º</strong>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Melhor: <strong className="text-slate-900 dark:text-white">{slice.bestPlacement}º</strong>
                           </span>
                         )}
                         <span>
@@ -274,7 +274,7 @@ export default function VedaTournamentReportPage() {
                     </div>
 
                     {/* Barra de Distribuição */}
-                    <div className="h-2 w-full bg-slate-950 overflow-hidden border border-white/10">
+                    <div className="h-2 w-full bg-slate-100 dark:bg-slate-950 overflow-hidden border border-slate-200 dark:border-white/10">
                       <div
                         className="h-full transition-all duration-500"
                         style={{
@@ -291,15 +291,15 @@ export default function VedaTournamentReportPage() {
         )}
 
         {/* Classificação Completa do Torneio */}
-        <div className="panel-cut border border-white/10 bg-slate-950/80 p-5 sm:p-6 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+        <div className="panel-cut border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/80 p-5 sm:p-6 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-white/10 pb-3">
             <div className="flex items-center gap-2">
               <Trophy className="size-4 text-primary" />
-              <h2 className="font-heading text-lg sm:text-xl uppercase text-white">
+              <h2 className="font-heading text-lg sm:text-xl uppercase text-slate-900 dark:text-white">
                 Classificação Completa & Inscrições
               </h2>
             </div>
-            <span className="text-xs font-mono text-slate-400">
+            <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
               {tournament.standings.length} jogador(es)
             </span>
           </div>
@@ -308,7 +308,7 @@ export default function VedaTournamentReportPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-white/15 text-[10px] font-mono uppercase tracking-wider text-slate-400 bg-white/5">
+                <tr className="border-b border-slate-200 dark:border-white/15 text-[10px] font-mono uppercase tracking-wider text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-white/5">
                   <th className="py-2.5 px-3 w-16">Colocação</th>
                   <th className="py-2.5 px-3">Jogador</th>
                   <th className="py-2.5 px-3">Arquétipo</th>
@@ -316,11 +316,11 @@ export default function VedaTournamentReportPage() {
                   <th className="py-2.5 px-3 text-right w-36">Decklist</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/10 font-mono">
+              <tbody className="divide-y divide-slate-200 dark:divide-white/10 font-mono">
                 {tournament.standings.map((st) => (
                   <tr
                     key={st.entryId}
-                    className="hover:bg-white/[0.03] transition-colors"
+                    className="hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors"
                   >
                     <td className="py-3 px-3">
                       <VedaPlacementBadge placement={st.placement} placementLabel={st.placementLabel} />
@@ -335,7 +335,7 @@ export default function VedaTournamentReportPage() {
                         <span className="text-slate-500 font-mono">—</span>
                       )}
                     </td>
-                    <td className="py-3 px-3 text-slate-300">
+                    <td className="py-3 px-3 text-slate-700 dark:text-slate-300">
                       {st.record || "—"}
                     </td>
                     <td className="py-3 px-3 text-right">
@@ -344,7 +344,7 @@ export default function VedaTournamentReportPage() {
                           size="sm"
                           variant="outline"
                           asChild
-                          className="h-7 rounded-none border-primary/30 bg-primary/10 text-[11px] font-mono uppercase text-primary hover:bg-primary/20 hover:text-white"
+                          className="h-7 rounded-none border-primary/30 bg-primary/10 text-[11px] font-mono uppercase text-primary hover:bg-primary/20 hover:text-slate-900 dark:hover:text-white"
                         >
                           <Link href={`/torneios/${tournament.id}/lista/${st.entryId}`}>
                             Ver Lista

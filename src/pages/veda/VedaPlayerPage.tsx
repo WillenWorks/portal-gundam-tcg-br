@@ -126,11 +126,11 @@ export default function VedaPlayerPage() {
 
             {/* Filtro Rápido de Temporada */}
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono text-slate-400 uppercase">Recorte:</span>
+              <span className="text-xs font-mono text-slate-600 dark:text-slate-400 uppercase">Recorte:</span>
               <select
                 value={selectedSeason}
                 onChange={(e) => setSelectedSeason(e.target.value)}
-                className="h-8 px-2 rounded-none border border-white/15 bg-slate-900 text-xs text-white font-mono focus:border-primary outline-none"
+                className="h-8 px-2 rounded-none border border-slate-300 dark:border-white/15 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white font-mono focus:border-primary outline-none"
               >
                 <option value="">Todas as Temporadas</option>
                 <option value="GD05">Temporada GD05</option>
@@ -144,16 +144,16 @@ export default function VedaPlayerPage() {
 
           {/* Cards de Métricas do Jogador */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="panel-cut border border-white/10 bg-slate-950/60 p-3 sm:p-4 text-center sm:text-left">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Torneios Disputados</p>
-              <p className="mt-1 font-heading text-2xl sm:text-3xl text-white">{player.tournaments}</p>
+            <div className="panel-cut border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-950/60 p-3 sm:p-4 text-center sm:text-left">
+              <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400">Torneios Disputados</p>
+              <p className="mt-1 font-heading text-2xl sm:text-3xl text-slate-900 dark:text-white">{player.tournaments}</p>
             </div>
-            <div className="panel-cut border border-amber-500/30 bg-amber-950/20 p-3 sm:p-4 text-center sm:text-left">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-amber-400 flex items-center gap-1 justify-center sm:justify-start">
-                <Trophy className="size-3" />
+            <div className="panel-cut border border-amber-500/40 bg-amber-500/10 dark:bg-amber-950/20 p-3 sm:p-4 text-center sm:text-left">
+              <p className="text-[10px] font-mono uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1 justify-center sm:justify-start">
+                <Trophy className="size-3 text-amber-500 dark:text-amber-400" />
                 Títulos (1º Lugar)
               </p>
-              <p className="mt-1 font-heading text-2xl sm:text-3xl text-amber-300">{player.wins}</p>
+              <p className="mt-1 font-heading text-2xl sm:text-3xl text-amber-600 dark:text-amber-300">{player.wins}</p>
             </div>
             <div className="panel-cut border border-primary/30 bg-primary/10 p-3 sm:p-4 text-center sm:text-left">
               <p className="text-[10px] font-mono uppercase tracking-wider text-primary flex items-center gap-1 justify-center sm:justify-start">
@@ -165,8 +165,8 @@ export default function VedaPlayerPage() {
           </div>
 
           {/* Aviso sobre Homônimos (Decisão do usuário e Contrato §2) */}
-          <div className="flex items-start gap-2 pt-2 text-[11px] text-slate-400 font-mono">
-            <Info className="size-3.5 shrink-0 text-slate-400 mt-0.5" />
+          <div className="flex items-start gap-2 pt-2 text-[11px] text-slate-600 dark:text-slate-400 font-mono">
+            <Info className="size-3.5 shrink-0 text-slate-500 dark:text-slate-400 mt-0.5" />
             <p className="leading-relaxed">
               Nomes de jogadores são exibidos completos a partir das súmulas oficiais dos torneios. Homônimos podem ser
               agrupados sob o mesmo registro histórico.
@@ -176,10 +176,10 @@ export default function VedaPlayerPage() {
 
         {/* Arquétipos Mais Jogados pelo Jogador */}
         {player.archetypes && player.archetypes.length > 0 && (
-          <div className="panel-cut border border-white/10 bg-slate-950/80 p-5 sm:p-6 space-y-4">
-            <div className="flex items-center gap-2 border-b border-white/10 pb-3">
+          <div className="panel-cut border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/80 p-5 sm:p-6 space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-200 dark:border-white/10 pb-3">
               <Layers className="size-4 text-primary" />
-              <h2 className="font-heading text-lg sm:text-xl uppercase text-white">
+              <h2 className="font-heading text-lg sm:text-xl uppercase text-slate-900 dark:text-white">
                 Arquétipos Mais Utilizados
               </h2>
             </div>
@@ -188,10 +188,10 @@ export default function VedaPlayerPage() {
               {player.archetypes.map(({ archetype, count }) => (
                 <div
                   key={archetype.slug}
-                  className="panel-cut border border-white/10 bg-slate-900/40 p-3 flex items-center justify-between gap-2 hover:border-primary/40 transition-colors"
+                  className="panel-cut border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900/40 p-3 flex items-center justify-between gap-2 hover:border-primary/40 transition-colors"
                 >
                   <VedaArchetypeBadge archetype={archetype} />
-                  <Badge variant="outline" className="border-white/15 text-[10px] font-mono shrink-0">
+                  <Badge variant="outline" className="border-slate-300 dark:border-white/15 text-slate-700 dark:text-slate-300 text-[10px] font-mono shrink-0">
                     {count} {count === 1 ? "torneio" : "torneios"}
                   </Badge>
                 </div>
@@ -201,15 +201,15 @@ export default function VedaPlayerPage() {
         )}
 
         {/* Histórico Completo de Resultados */}
-        <div className="panel-cut border border-white/10 bg-slate-950/80 p-5 sm:p-6 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+        <div className="panel-cut border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/80 p-5 sm:p-6 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-white/10 pb-3">
             <div className="flex items-center gap-2">
               <Trophy className="size-4 text-primary" />
-              <h2 className="font-heading text-lg sm:text-xl uppercase text-white">
+              <h2 className="font-heading text-lg sm:text-xl uppercase text-slate-900 dark:text-white">
                 Histórico de Participações & Resultados
               </h2>
             </div>
-            <span className="text-xs font-mono text-slate-400">
+            <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
               {player.results.length} resultado(s) registrado(s)
             </span>
           </div>
@@ -222,7 +222,7 @@ export default function VedaPlayerPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-white/15 text-[10px] font-mono uppercase tracking-wider text-slate-400 bg-white/5">
+                  <tr className="border-b border-slate-200 dark:border-white/15 text-[10px] font-mono uppercase tracking-wider text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-white/5">
                     <th className="py-2.5 px-3 w-16">Colocação</th>
                     <th className="py-2.5 px-3">Torneio</th>
                     <th className="py-2.5 px-3">Arquétipo</th>
@@ -230,7 +230,7 @@ export default function VedaPlayerPage() {
                     <th className="py-2.5 px-3 text-right w-32">Decklist</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/10 font-mono">
+                <tbody className="divide-y divide-slate-200 dark:divide-white/10 font-mono">
                   {player.results.map((res) => {
                     const regionalUrl = res.place?.uf
                       ? `/metagame/regional?uf=${encodeURIComponent(res.place.uf)}${
@@ -239,7 +239,7 @@ export default function VedaPlayerPage() {
                       : null;
 
                     return (
-                      <tr key={res.entryId} className="hover:bg-white/[0.03] transition-colors">
+                      <tr key={res.entryId} className="hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors">
                         <td className="py-3 px-3">
                           <VedaPlacementBadge placement={res.placement} placementLabel={res.placementLabel} />
                         </td>
@@ -247,11 +247,11 @@ export default function VedaPlayerPage() {
                           <div>
                             <Link
                               href={`/torneios/${res.tournamentId}`}
-                              className="font-medium text-slate-200 hover:text-primary transition-colors block"
+                              className="font-medium text-slate-800 dark:text-slate-200 hover:text-primary transition-colors block"
                             >
                               {res.tournamentName}
                             </Link>
-                            <div className="flex items-center gap-2 text-[11px] font-mono text-slate-400 pt-0.5">
+                            <div className="flex items-center gap-2 text-[11px] font-mono text-slate-500 dark:text-slate-400 pt-0.5">
                               <span>{formatDatePtBr(res.date)}</span>
                               {res.place?.uf && (
                                 <>
@@ -279,14 +279,14 @@ export default function VedaPlayerPage() {
                             <span className="text-slate-500 font-mono">—</span>
                           )}
                         </td>
-                        <td className="py-3 px-3 text-slate-300">{res.record || "—"}</td>
+                        <td className="py-3 px-3 text-slate-700 dark:text-slate-300">{res.record || "—"}</td>
                         <td className="py-3 px-3 text-right">
                           {res.hasDecklist ? (
                             <Button
                               size="sm"
                               variant="outline"
                               asChild
-                              className="h-7 rounded-none border-primary/30 bg-primary/10 text-[11px] font-mono uppercase text-primary hover:bg-primary/20 hover:text-white"
+                              className="h-7 rounded-none border-primary/30 bg-primary/10 text-[11px] font-mono uppercase text-primary hover:bg-primary/20 hover:text-slate-900 dark:hover:text-white"
                             >
                               <Link href={`/torneios/${res.tournamentId}/lista/${res.entryId}`}>
                                 Ver Lista

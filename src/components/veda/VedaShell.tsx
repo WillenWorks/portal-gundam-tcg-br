@@ -46,7 +46,7 @@ export function VedaShell({
     <PublicShell breadcrumbs={finalBreadcrumbs}>
       <div className="space-y-6">
         {/* Barra superior de navegação rápida entre frentes competitivas */}
-        <div className="panel-cut border border-white/10 bg-slate-950/80 p-2 sm:p-2.5">
+        <div className="panel-cut border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/80 p-2 sm:p-2.5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <nav className="flex flex-wrap items-center gap-1 sm:gap-2">
               {VEDA_NAV_ITEMS.map((item) => {
@@ -62,7 +62,7 @@ export function VedaShell({
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition ${
                       isActive
                         ? "border border-primary/50 bg-primary/20 text-primary font-bold shadow-[0_0_10px_rgba(59,130,246,0.15)]"
-                        : "border border-transparent text-slate-400 hover:text-white hover:bg-white/5"
+                        : "border border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5"
                     }`}
                   >
                     <Icon className="size-3.5 shrink-0" />
@@ -87,11 +87,11 @@ export function VedaShell({
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="space-y-2 max-w-4xl">
                 {title && (
-                  <h1 className="font-heading text-2xl sm:text-3xl uppercase tracking-wider text-white">
+                  <h1 className="font-heading text-2xl sm:text-3xl uppercase tracking-wider text-slate-900 dark:text-white">
                     {title}
                   </h1>
                 )}
-                {description && <p className="text-sm text-slate-300 leading-relaxed">{description}</p>}
+                {description && <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{description}</p>}
                 {(sample || source || sourceUrl) && (
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
                     {sample && <VedaSampleNote sample={sample} variant="inline" />}

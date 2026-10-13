@@ -19,13 +19,13 @@ export function VedaPlacementBadge({
   const isTop4 = (placement !== null && placement !== undefined && placement <= 4) || label.includes("4");
   const isTop8 = (placement !== null && placement !== undefined && placement <= 8) || label.includes("8");
 
-  let colorClasses = "border-white/15 bg-white/5 text-slate-300";
+  let colorClasses = "border-slate-300 dark:border-white/15 bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300";
   if (isWinner) {
-    colorClasses = "border-amber-400/60 bg-amber-400/15 text-amber-300 shadow-[0_0_8px_rgba(251,191,36,0.25)] font-bold";
+    colorClasses = "border-amber-400/60 bg-amber-400/15 text-amber-600 dark:text-amber-300 shadow-[0_0_8px_rgba(251,191,36,0.25)] font-bold";
   } else if (isSecond) {
-    colorClasses = "border-slate-300/50 bg-slate-300/10 text-slate-200 font-semibold";
+    colorClasses = "border-slate-400/50 bg-slate-300/20 text-slate-800 dark:text-slate-200 font-semibold";
   } else if (isTop4) {
-    colorClasses = "border-amber-600/50 bg-amber-600/10 text-amber-200";
+    colorClasses = "border-amber-600/50 bg-amber-600/10 text-amber-700 dark:text-amber-200";
   } else if (isTop8) {
     colorClasses = "border-primary/40 bg-primary/10 text-primary";
   }

@@ -148,18 +148,18 @@ export default function VedaArchetypesPage() {
     >
       <div className="space-y-6">
         {/* Barra de Filtros de Recorte */}
-        <div className="panel-cut border border-white/10 bg-slate-950/80 p-4 sm:p-5 space-y-3">
+        <div className="panel-cut border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/80 p-4 sm:p-5 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2.5">
               {/* Temporada */}
               <div className="space-y-1">
-                <label className="text-[10px] font-mono uppercase text-slate-400 tracking-wider">
+                <label className="text-[10px] font-mono uppercase text-slate-600 dark:text-slate-400 tracking-wider">
                   Temporada
                 </label>
                 <select
                   value={season}
                   onChange={(e) => setSeason(e.target.value)}
-                  className="h-8 px-2 rounded-none border border-white/15 bg-slate-900 text-xs text-white font-mono focus:border-primary outline-none"
+                  className="h-8 px-2 rounded-none border border-slate-300 dark:border-white/15 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white font-mono focus:border-primary outline-none"
                 >
                   <option value="all">Todas as Temporadas</option>
                   {filtersMeta ? (
@@ -176,13 +176,13 @@ export default function VedaArchetypesPage() {
 
               {/* Tier / Categoria */}
               <div className="space-y-1">
-                <label className="text-[10px] font-mono uppercase text-slate-400 tracking-wider">
+                <label className="text-[10px] font-mono uppercase text-slate-600 dark:text-slate-400 tracking-wider">
                   Categoria
                 </label>
                 <select
                   value={tier}
                   onChange={(e) => setTier(e.target.value)}
-                  className="h-8 px-2 rounded-none border border-white/15 bg-slate-900 text-xs text-white font-mono focus:border-primary outline-none"
+                  className="h-8 px-2 rounded-none border border-slate-300 dark:border-white/15 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white font-mono focus:border-primary outline-none"
                 >
                   <option value="">Todas as Categorias</option>
                   {TOURNAMENT_TIER_OPTIONS.map((t) => (
@@ -195,13 +195,13 @@ export default function VedaArchetypesPage() {
 
               {/* UF */}
               <div className="space-y-1">
-                <label className="text-[10px] font-mono uppercase text-slate-400 tracking-wider">
+                <label className="text-[10px] font-mono uppercase text-slate-600 dark:text-slate-400 tracking-wider">
                   Estado (UF)
                 </label>
                 <select
                   value={uf}
                   onChange={(e) => setUf(e.target.value)}
-                  className="h-8 px-2 rounded-none border border-white/15 bg-slate-900 text-xs text-white font-mono focus:border-primary outline-none"
+                  className="h-8 px-2 rounded-none border border-slate-300 dark:border-white/15 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white font-mono focus:border-primary outline-none"
                 >
                   <option value="">Todo o Brasil / Mundo</option>
                   {filtersMeta?.ufs.map((u) => (
@@ -213,16 +213,16 @@ export default function VedaArchetypesPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 text-xs font-mono text-slate-400">
+            <div className="flex items-center gap-3 text-xs font-mono text-slate-600 dark:text-slate-400">
               <span>
-                Total de listas no recorte: <strong className="text-white">{totalLists}</strong>
+                Total de listas no recorte: <strong className="text-slate-900 dark:text-white">{totalLists}</strong>
               </span>
               {hasActiveFilters && (
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={resetFilters}
-                  className="h-8 rounded-none border-white/15 bg-white/5 text-[11px] font-mono uppercase text-slate-300 hover:text-white"
+                  className="h-8 rounded-none border-slate-300 dark:border-white/15 bg-slate-100 dark:bg-white/5 text-[11px] font-mono uppercase text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
                 >
                   <RotateCcw className="mr-1 size-3" />
                   Limpar
@@ -245,11 +245,11 @@ export default function VedaArchetypesPage() {
             onAction={resetFilters}
           />
         ) : (
-          <div className="panel-cut border border-white/10 bg-slate-950/80 p-4 sm:p-6 space-y-4">
+          <div className="panel-cut border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/80 p-4 sm:p-6 space-y-4">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-white/15 text-[10px] font-mono uppercase tracking-wider text-slate-400 bg-white/5">
+                  <tr className="border-b border-slate-200 dark:border-white/15 text-[10px] font-mono uppercase tracking-wider text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-white/5">
                     <th className="py-3 px-3 w-12 text-center">#</th>
                     <th className="py-3 px-3">Arquétipo</th>
                     <th className="py-3 px-3 w-40">Presença no Meta</th>
@@ -260,7 +260,7 @@ export default function VedaArchetypesPage() {
                     <th className="py-3 px-3 w-24 text-right">Ação</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/10 font-mono">
+                <tbody className="divide-y divide-slate-200 dark:divide-white/10 font-mono">
                   {rows.map((row, idx) => {
                     const sharePercent = (row.share * 100).toFixed(1);
                     const top8Percent = (row.top8Share * 100).toFixed(1);
@@ -269,14 +269,14 @@ export default function VedaArchetypesPage() {
                     const barColor = primaryColor ? GAME_COLOR_HEX[primaryColor] || "#3b82f6" : "#3b82f6";
 
                     return (
-                      <tr key={row.archetype.slug} className="hover:bg-white/[0.03] transition-colors">
-                        <td className="py-3.5 px-3 text-center text-slate-400 font-bold">
+                      <tr key={row.archetype.slug} className="hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors">
+                        <td className="py-3.5 px-3 text-center text-slate-500 dark:text-slate-400 font-bold">
                           {idx === 0 ? (
-                            <span className="text-amber-400">1º</span>
+                            <span className="text-amber-500 dark:text-amber-400">1º</span>
                           ) : idx === 1 ? (
-                            <span className="text-slate-300">2º</span>
+                            <span className="text-slate-700 dark:text-slate-300">2º</span>
                           ) : idx === 2 ? (
-                            <span className="text-amber-600">3º</span>
+                            <span className="text-amber-700 dark:text-amber-600">3º</span>
                           ) : (
                             `${idx + 1}º`
                           )}
@@ -289,16 +289,16 @@ export default function VedaArchetypesPage() {
                         <td className="py-3.5 px-3">
                           <div className="space-y-1">
                             <div className="flex justify-between text-[11px]">
-                              <span className="text-white font-bold">{sharePercent}%</span>
-                              <span className="text-slate-400">{row.lists} decks</span>
+                              <span className="text-slate-900 dark:text-white font-bold">{sharePercent}%</span>
+                              <span className="text-slate-500 dark:text-slate-400">{row.lists} decks</span>
                             </div>
-                            <div className="h-1.5 w-full bg-slate-900 overflow-hidden border border-white/10">
+                            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-900 overflow-hidden border border-slate-200 dark:border-white/10">
                               <div
                                 className="h-full transition-all"
                                 style={{
-                                  width: `${Math.min(100, Math.max(3, parseFloat(sharePercent)))}%`,
-                                  backgroundColor: barColor,
-                                }}
+                                   width: `${Math.min(100, Math.max(3, parseFloat(sharePercent)))}%`,
+                                   backgroundColor: barColor,
+                                 }}
                               />
                             </div>
                           </div>
@@ -307,7 +307,9 @@ export default function VedaArchetypesPage() {
                         <td className="py-3.5 px-3 text-center">
                           <span
                             className={`font-semibold ${
-                              parseFloat(top8Percent) >= 50 ? "text-emerald-400" : "text-slate-200"
+                              parseFloat(top8Percent) >= 50
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-slate-700 dark:text-slate-200"
                             }`}
                           >
                             {top8Percent}%
@@ -316,22 +318,22 @@ export default function VedaArchetypesPage() {
 
                         <td className="py-3.5 px-3 text-center">
                           {row.wins > 0 ? (
-                            <span className="inline-flex items-center gap-1 text-amber-300 font-bold">
-                              <Trophy className="size-3 text-amber-400" />
+                            <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-300 font-bold">
+                              <Trophy className="size-3 text-amber-500 dark:text-amber-400" />
                               {row.wins} ({winPercent}%)
                             </span>
                           ) : (
-                            <span className="text-slate-500">—</span>
+                            <span className="text-slate-400 dark:text-slate-500">—</span>
                           )}
                         </td>
 
-                        <td className="py-3.5 px-3 text-center text-slate-300">{row.lists}</td>
+                        <td className="py-3.5 px-3 text-center text-slate-700 dark:text-slate-300">{row.lists}</td>
 
                         <td className="py-3.5 px-3 text-center">
                           {row.bestPlacement ? (
-                            <span className="text-white font-semibold">{row.bestPlacement}º</span>
+                            <span className="text-slate-900 dark:text-white font-semibold">{row.bestPlacement}º</span>
                           ) : (
-                            <span className="text-slate-500">—</span>
+                            <span className="text-slate-400 dark:text-slate-500">—</span>
                           )}
                         </td>
 
@@ -340,7 +342,7 @@ export default function VedaArchetypesPage() {
                             size="sm"
                             variant="outline"
                             asChild
-                            className="h-7 rounded-none border-primary/30 bg-primary/10 text-[10px] font-mono uppercase text-primary hover:bg-primary/20 hover:text-white"
+                            className="h-7 rounded-none border-primary/30 bg-primary/10 text-[10px] font-mono uppercase text-primary hover:bg-primary/20 hover:text-slate-900 dark:hover:text-white"
                           >
                             <Link href={`/arquetipos/${row.archetype.slug}`}>
                               Detalhes

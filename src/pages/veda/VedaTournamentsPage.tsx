@@ -317,7 +317,7 @@ export default function VedaTournamentsPage() {
                 size="sm"
                 variant="outline"
                 onClick={() => setMobileFiltersOpen((prev) => !prev)}
-                className="w-full rounded-none border-white/20 text-xs font-mono uppercase"
+                className="w-full rounded-none border-slate-300 dark:border-white/20 text-xs font-mono uppercase text-slate-700 dark:text-slate-300"
               >
                 <Filter className="mr-1.5 size-3.5" />
                 {mobileFiltersOpen ? "Ocultar Filtros" : "Exibir Filtros"}
@@ -327,7 +327,7 @@ export default function VedaTournamentsPage() {
                   size="sm"
                   variant="ghost"
                   onClick={resetAllFilters}
-                  className="rounded-none text-xs text-slate-400 hover:text-white"
+                  className="rounded-none text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                   title="Limpar todos os filtros"
                 >
                   <RotateCcw className="size-3.5" />
