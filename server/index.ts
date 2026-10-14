@@ -118,6 +118,7 @@ import { getRegionalMetagame } from "./services/regionalMetaService.ts";
 import { engineShaFromEnv } from "./engineSha.ts";
 import { purgeStaleSimulatorMatches, SIMULATOR_MATCH_PURGE_INTERVAL_MS } from "./simulatorMatchCleanup.ts";
 import { registerVedaRoutes } from "./vedaService.ts";
+import { registerAdminDashboardRoutes } from "./routes/adminDashboardRoutes.ts";
 import { createMailer, registerAuthEmailRoutes, sendVerificationEmail, validatePasswordRequirements } from "./authEmailService.ts";
 import { recaptchaVerifier } from "./recaptchaService.ts";
 
@@ -3121,6 +3122,7 @@ const tournamentEntryInclude = {
 // Veda System: resultados de torneio paginados para as páginas (contrato em src/lib/veda/types.ts) e disparo do
 // workflow "Dados do site". A rota /api/tournaments abaixo devolve tudo de uma vez e fica para o admin.
 registerVedaRoutes(app, prisma, [authRequired, roleRequired([UserRole.ADMIN])]);
+registerAdminDashboardRoutes(app, prisma, authRequired, roleRequired);
 
 app.get("/api/tournaments", async (_req, res) => {
   setPublicCache(res, 20, 90);

@@ -7,6 +7,7 @@ import anaheimLogo from "@/assets/anaheim-logo-transparent.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { AppFooter } from "@/components/layout/shared/AppFooter";
+import { SiteAnnouncementBanner } from "@/components/layout/shared/SiteAnnouncementBanner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -35,16 +36,16 @@ const hosterNav = [
 ] as const;
 
 const adminNav = [
-  { href: "/admin", label: "Visão geral", icon: ShieldCheck },
+  { href: "/admin", label: "Dashboard Geral", icon: ShieldCheck },
   { href: "/admin/users", label: "Usuários", icon: Users },
   { href: "/admin/cards", label: "Cartas", icon: PanelsTopLeft },
   { href: "/admin/collections", label: "Coleções", icon: BookMarked },
   { href: "/admin/seasons", label: "Temporadas", icon: CalendarRange },
+  { href: "/admin/events", label: "Torneios & Eventos", icon: CalendarDays },
+  { href: "/admin/articles", label: "Artigos & Notícias", icon: Newspaper },
+  { href: "/admin/rulings", label: "Regras", icon: ScrollText },
   { href: "/admin/media", label: "Mídias", icon: Image },
   { href: "/admin/traits", label: "Traits", icon: Tags },
-  { href: "/admin/articles", label: "Artigos", icon: Newspaper },
-  { href: "/admin/rulings", label: "Regras", icon: ScrollText },
-  { href: "/admin/events", label: "Eventos", icon: CalendarDays },
   { href: "/admin/simulador/cobertura", label: "Cobertura (sim.)", icon: ScrollText },
   { href: "/admin/simulador/autoria", label: "Autoria (sim.)", icon: ScrollText },
 ] as const;
@@ -54,7 +55,7 @@ const titles: Record<string, string> = {
   "/deckbuilder": "Hangar da OZ",
   "/profile": "Configurações",
   "/binders": "Pastas",
-  "/admin": "Gestão",
+  "/admin": "Dashboard do Administrador",
   "/admin/users": "Gestão de usuários",
   "/admin/cards": "Cadastro de cartas",
   "/admin/collections": "Coleções",
@@ -134,6 +135,7 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
 
   return (
     <div className="min-h-screen text-white dark:text-white light:text-slate-900">
+      <SiteAnnouncementBanner />
       <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/92 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-[2400px] items-center justify-between gap-4 px-4 py-4 sm:px-6 xl:px-8 2xl:px-10 3xl:px-12">
           <div className="flex min-w-0 items-center gap-3">

@@ -1056,6 +1056,159 @@ function computeClientSideZeroChat(message: string, persona: PilotPersonaId = "a
   };
 }
 
+export interface PublicSiteConfig {
+  announcement: {
+    active: boolean;
+    message: string;
+    type: "INFO" | "WARNING" | "SUCCESS" | "URGENT";
+    link?: string;
+    linkText?: string;
+  };
+  seo: {
+    metaTitleDefault: string;
+    metaDescriptionDefault: string;
+    targetKeywords: string[];
+  };
+  monetization: {
+    adsEnabled: boolean;
+    adSenseClientId: string;
+    slots: {
+      topBanner: boolean;
+      sidebarBanner: boolean;
+      inArticleSponsored: boolean;
+      torneiosSponsored: boolean;
+    };
+  };
+  metagame: {
+    featuredDeckId?: string | null;
+    featuredTournamentId?: string | null;
+    maintenanceMode: boolean;
+    maintenanceNotice?: string;
+  };
+  updatedAt: string;
+}
+
+export interface SiteConfig {
+  announcement: {
+    active: boolean;
+    message: string;
+    type: "INFO" | "WARNING" | "SUCCESS" | "URGENT";
+    link?: string;
+    linkText?: string;
+    updatedAt?: string;
+  };
+  seo: {
+    metaTitleDefault: string;
+    metaDescriptionDefault: string;
+    targetKeywords: string[];
+    googleAnalyticsId?: string;
+    googleSearchConsoleTag?: string;
+  };
+  monetization: {
+    adsEnabled: boolean;
+    adSenseClientId: string;
+    slots: {
+      topBanner: boolean;
+      sidebarBanner: boolean;
+      inArticleSponsored: boolean;
+      torneiosSponsored: boolean;
+    };
+    estimatedRpmBrl: number;
+  };
+  metagame: {
+    featuredDeckId?: string | null;
+    featuredTournamentId?: string | null;
+    maintenanceMode: boolean;
+    maintenanceNotice?: string;
+  };
+  updatedAt: string;
+}
+
+export interface AdminMetricsData {
+  kpis: {
+    totalUsers: number;
+    activeUsers: number;
+    adminUsers: number;
+    hosterUsers: number;
+    supporterUsers: number;
+    totalCards: number;
+    totalCardModels: number;
+    totalSets: number;
+    totalDecks: number;
+    publicDecks: number;
+    totalDeckViews: number;
+    totalDeckLikes: number;
+    totalTournaments: number;
+    totalHostedEvents: number;
+    totalPosts: number;
+    publishedPosts: number;
+    totalMatches: number;
+    finishedMatches: number;
+    totalBugReports: number;
+    newBugReports: number;
+    fixedBugReports: number;
+  };
+  userGrowthData: Array<{
+    period: string;
+    month: string;
+    users: number;
+    decks: number;
+  }>;
+  cardTypesDistribution: Array<{
+    type: string;
+    count: number;
+  }>;
+  deckFormatsDistribution: Array<{
+    format: string;
+    count: number;
+  }>;
+  seoHealth: {
+    score: number;
+    status: string;
+    totalIndexedCards: number;
+    sitemapUrl: string;
+    robotsUrl: string;
+    canonicalDomain: string;
+    openGraphTagsReady: boolean;
+    jsonLdStructuredDataReady: boolean;
+    missingImagesCount: number;
+  };
+  monetization: {
+    adsEnabled: boolean;
+    adSenseClientId: string;
+    slots: {
+      topBanner: boolean;
+      sidebarBanner: boolean;
+      inArticleSponsored: boolean;
+      torneiosSponsored: boolean;
+    };
+    estimatedRpmBrl: number;
+    estimatedMonthlyPageviews: number;
+    estimatedMonthlyRevenueBrl: number;
+  };
+}
+
+export interface AdminWorkflowItem {
+  id: string;
+  name: string;
+  file: string;
+  description: string;
+  inputs: Array<{
+    name: string;
+    type: string;
+    label: string;
+    options?: string[];
+    default: any;
+  }>;
+  cliSnippet: string;
+}
+
+export interface AdminWorkflowsResponse {
+  hasToken: boolean;
+  repo: string;
+  workflows: AdminWorkflowItem[];
+}
+
 export const api = {
   health: () =>
     request<{ ok: boolean; runtime: string; userCount: number; cardCount: number; deckCount: number; binderCount?: number; setCount?: number; productCount?: number }>("/health", undefined, { ttlMs: 15_000 }),
@@ -1450,6 +1603,36 @@ export const api = {
     }
     return computeClientSideZeroChat(message, persona);
   },
+
+  /* ── Admin Dashboard & Gestão Centralizada ────────────────────────── */
+  getPublicSiteConfig: () => request<PublicSiteConfig>("/site-config", undefined, { ttlMs: 15_000 }),
+  getAdminSiteConfig: () => request<SiteConfig>("/admin/site-config", undefined, { bypassCache: true }),
+  updateAdminSiteConfig: (payload: Partial<SiteConfig>) =>
+    mutate<SiteConfig>("/admin/site-config", { method: "PUT", body: JSON.stringify(payload) }, ["/site-config", "/admin/site-config"]),
+  getAdminMetrics: () => request<AdminMetricsData>("/admin/metrics", undefined, { ttlMs: 5_000, bypassCache: true }),
+  listAdminDecks: (params: { q?: string; visibility?: string; page?: number; pageSize?: number } = {}) =>
+    request<{ items: any[]; total: number; page: number; pageSize: number; totalPages: number }>(
+      `/admin/decks${toQuery({
+        q: params.q,
+        visibility: params.visibility,
+        page: params.page ? String(params.page) : undefined,
+        pageSize: params.pageSize ? String(params.pageSize) : undefined,
+      })}`,
+      undefined,
+      { bypassCache: true }
+    ),
+  toggleAdminDeckPrimary: (id: string) => mutate<any>(`/admin/decks/${id}/primary`, { method: "PUT" }, ["/admin/decks", "/decks"]),
+  getAdminWorkflows: () => request<AdminWorkflowsResponse>("/admin/workflows", undefined, { bypassCache: true }),
+  dispatchAdminWorkflow: (workflowFile: string, inputs?: Record<string, any>) =>
+    mutate<{ dispatched: boolean; tokenConfigured: boolean; message?: string; error?: string; repo: string; workflowFile: string }>(
+      "/admin/workflows/dispatch",
+      { method: "POST", body: JSON.stringify({ workflowFile, inputs }) },
+      ["/admin/workflows"]
+    ),
+  listSimulatorBugReports: (status?: string) => request<any[]>(`/simulator/bug-reports${status ? `?status=${encodeURIComponent(status)}` : ""}`, undefined, { bypassCache: true }),
+  resolveSimulatorBugReport: (shortCode: string) => mutate<any>(`/simulator/bug-reports/${shortCode}/resolve`, { method: "POST" }, ["/simulator/bug-reports"]),
+  updateSimulatorBugReport: (shortCode: string, payload: { status?: string; note?: string; prUrl?: string }) =>
+    mutate<any>(`/simulator/bug-reports/${shortCode}`, { method: "PUT", body: JSON.stringify(payload) }, ["/simulator/bug-reports"]),
 };
 
 export function mapApiCard(card: any): CardRecord {

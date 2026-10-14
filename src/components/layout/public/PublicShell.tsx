@@ -4,6 +4,7 @@ import { Link } from "wouter";
 
 import { AppTopNav } from "@/components/layout/shared/AppTopNav";
 import { AppFooter } from "@/components/layout/shared/AppFooter";
+import { SiteAnnouncementBanner } from "@/components/layout/shared/SiteAnnouncementBanner";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -25,6 +26,7 @@ export function PublicShell({ children, breadcrumbs, title, description, heroBan
       <div className="pointer-events-none absolute inset-0 bg-grid-tech opacity-30 dark:opacity-30 light:opacity-12" />
       <div className="pointer-events-none absolute inset-0 bg-scanlines opacity-15 dark:opacity-15 light:opacity-0" />
 
+      <SiteAnnouncementBanner />
       <AppTopNav />
 
       <main id="topo" className="relative mx-auto w-full max-w-[2400px] flex-1 px-4 py-8 sm:px-6 xl:px-8 2xl:px-10 3xl:px-12 lg:py-10">

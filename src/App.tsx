@@ -38,6 +38,7 @@ const DeckListPage = lazy(() => import("@/pages/DeckListPage"));
 const StatsPage = lazy(() => import("@/pages/StatsPage"));
 const RegionalMetaPage = lazy(() => import("@/pages/RegionalMetaPage"));
 const AdminPage = lazy(() => import("@/pages/AdminPage"));
+const AdminDashboardPage = lazy(() => import("@/pages/AdminDashboardPage"));
 const OrganizerPage = lazy(() => import("@/pages/OrganizerPage"));
 const SimulatorSandboxPage = lazy(() => import("@/pages/SimulatorSandboxPage"));
 const SimulatorMatchPage = lazy(() => import("@/pages/SimulatorMatchPage"));
@@ -247,8 +248,9 @@ function AppRouter() {
         <Route path="/admin/simulador/cobertura">{() => <RequireAuth adminOnly><LazyRoute label="Cobertura de efeitos"><SimulatorCoveragePage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin/simulador/autoria">{() => <RequireAuth adminOnly><LazyRoute label="RAG de autoria"><SimulatorAuthoringPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin/articles">{() => <RequireAuth adminOnly><LazyRoute label="Artigos"><AdminArticlesPage /></LazyRoute></RequireAuth>}</Route>
+        <Route path="/admin/dashboard">{() => <RequireAuth adminOnly><LazyRoute label="Dashboard Geral"><AdminDashboardPage /></LazyRoute></RequireAuth>}</Route>
+        <Route path="/admin">{() => <RequireAuth adminOnly><LazyRoute label="Dashboard Geral"><AdminDashboardPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin/:section">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
-        <Route path="/admin">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/">{() => <Home />}</Route>
         <Route path="/:section">{(params) => <Home targetSection={params.section} />}</Route>
         <Route component={NotFound} />

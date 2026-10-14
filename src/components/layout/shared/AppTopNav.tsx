@@ -1,7 +1,7 @@
 /* Layout shared v8.3 — topo público adaptativo e responsivo A2: sem estouro em 1366px, menu "Mais" dinâmico, dropdown acessível e drawer mobile. */
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { ChevronDown, CircleHelp, HeartHandshake, LogIn, LogOut, Menu, Moon, PanelsTopLeft, Sun, Swords, Trophy, X } from "lucide-react";
+import { ChevronDown, CircleHelp, HeartHandshake, LogIn, LogOut, Menu, Moon, PanelsTopLeft, ShieldCheck, Sun, Swords, Trophy, X } from "lucide-react";
 import { toast } from "sonner";
 
 import anaheimLogo from "@/assets/anaheim-logo-transparent.png";
@@ -259,7 +259,7 @@ function MoreDropdown({
 }
 
 export function AppTopNav() {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [location, navigate] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -467,6 +467,11 @@ export function AppTopNav() {
 
           {isAuthenticated ? (
             <>
+              {user?.role === "ADMIN" && (
+                <Button asChild variant="outline" size="sm" className="rounded-none border-primary/50 bg-primary/15 text-xs font-semibold uppercase tracking-[0.12em] xl:tracking-[0.14em] text-primary nav-hover-soft hover:bg-primary/25">
+                  <Link href="/admin"><ShieldCheck className="mr-1.5 size-3.5" />Admin</Link>
+                </Button>
+              )}
               <Button asChild variant="outline" size="sm" className="rounded-none border-white/20 bg-white/5 text-xs uppercase tracking-[0.12em] xl:tracking-[0.14em] text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">
                 <Link href={dashboardHref}><PanelsTopLeft className="mr-1.5 size-3.5" />Perfil</Link>
               </Button>
@@ -630,7 +635,17 @@ export function AppTopNav() {
             {/* Seção de Autenticação / Perfil no Mobile */}
             <div className="mt-2 pt-2 border-t border-white/10">
               {isAuthenticated ? (
-                <div className="grid grid-cols-2 gap-2">
+                <div className={cn("grid gap-2", user?.role === "ADMIN" ? "grid-cols-3" : "grid-cols-2")}>
+                  {user?.role === "ADMIN" && (
+                    <Link
+                      href="/admin"
+                      className="flex min-h-[44px] items-center justify-center gap-1.5 border border-primary/50 bg-primary/15 px-3 py-3 text-center text-xs font-semibold uppercase tracking-[0.14em] text-primary transition-colors hover:bg-primary/25 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      <ShieldCheck className="size-3.5" />
+                      Admin
+                    </Link>
+                  )}
                   <Link
                     href={dashboardHref}
                     className="flex min-h-[44px] items-center justify-center gap-1.5 border border-white/15 bg-white/5 px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.14em] text-slate-200 transition-colors hover:border-white/30 light:border-slate-300 light:bg-white light:text-slate-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
