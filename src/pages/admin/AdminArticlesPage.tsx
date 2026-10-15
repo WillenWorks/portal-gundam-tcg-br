@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ClipboardCopy, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
 
-import { PortalShell } from "@/components/layout/PortalShell";
+import { AdminShell } from "@/components/layout/AdminShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -241,11 +241,11 @@ export default function AdminArticlesPage() {
   };
 
   if (user?.role !== "ADMIN") {
-    return <PortalShell breadcrumbs={[{ label: "Artigos" }]}><Card className="panel-cut rounded-none surface-panel"><CardContent className="p-6">Essa área é exclusiva para administradores.</CardContent></Card></PortalShell>;
+    return <AdminShell breadcrumbs={[{ label: "Artigos" }]}><Card className="panel-cut rounded-none surface-panel"><CardContent className="p-6">Essa área é exclusiva para administradores.</CardContent></Card></AdminShell>;
   }
 
   return (
-    <PortalShell breadcrumbs={[{ label: "Artigos" }]}>
+    <AdminShell breadcrumbs={[{ label: "Artigos" }]}>
       <div className="space-y-6">
         {!editing ? (
           <>
@@ -365,6 +365,6 @@ export default function AdminArticlesPage() {
           </div>
         )}
       </div>
-    </PortalShell>
+    </AdminShell>
   );
 }

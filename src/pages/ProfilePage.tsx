@@ -1,7 +1,8 @@
 /* Perfil/configurações v9 — dados pessoais + senha (ciente de login social) + avatar
  * de verdade, perfil visual + idioma do site + link público, resumo de conta. */
 import { useEffect, useRef, useState } from "react";
-import { HeartHandshake, KeyRound, Save, ShieldCheck, Upload } from "lucide-react";
+import { HeartHandshake, KeyRound, Save, ShieldAlert, ShieldCheck, Upload } from "lucide-react";
+import { Link } from "wouter";
 import { toast } from "sonner";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -260,6 +261,26 @@ export default function ProfilePage() {
                     </div>
                   )}
                 </div>
+                {user?.role === "ADMIN" ? (
+                  <div className="panel-cut border border-amber-500/40 bg-amber-500/10 p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <ShieldAlert className="size-4 text-amber-400" />
+                        <span className="text-xs font-mono uppercase tracking-wider text-amber-300 font-semibold">Credenciais de Administrador</span>
+                      </div>
+                      <Badge className="rounded-none border-amber-400/50 bg-amber-400/20 text-amber-200 text-[10px] font-mono">NÍVEL ALPHA</Badge>
+                    </div>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      Sua conta possui acesso administrativo total. A governança de cartas, regras, usuários, torneios e CMS é operada através do Console Administrativo dedicado, separado do portal de jogador.
+                    </p>
+                    <Button asChild size="sm" className="w-full rounded-none bg-amber-500 text-slate-950 font-semibold hover:bg-amber-400 uppercase tracking-wider text-xs">
+                      <Link href="/admin">
+                        <ShieldCheck className="mr-2 size-4" />
+                        Abrir Console de Administração
+                      </Link>
+                    </Button>
+                  </div>
+                ) : null}
                 <div className="panel-cut flex items-center gap-3 border border-emerald-400/20 bg-emerald-400/5 p-4">
                   <ShieldCheck className="size-4 shrink-0 text-emerald-400" />
                   <span className="text-xs leading-5 text-slate-400 dark:text-slate-400 light:text-slate-600">Sua senha nunca é armazenada em texto puro, e o login com Google não expõe sua senha do Google pra este site.</span>

@@ -10,7 +10,7 @@
  * autorar o spec em `src/modules/simulator/content/stXX.ts`. */
 import { useMemo, useState } from "react";
 
-import { PortalShell } from "@/components/layout/PortalShell";
+import { AdminShell } from "@/components/layout/AdminShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,16 +39,16 @@ export default function SimulatorAuthoringPage() {
 
   if (user?.role !== "ADMIN") {
     return (
-      <PortalShell breadcrumbs={[{ label: "Admin", href: "/admin" }, { label: "RAG de autoria" }]}>
+      <AdminShell breadcrumbs={[{ label: "RAG de autoria" }]}>
         <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
           <CardContent className="p-6">Essa área é exclusiva para administradores.</CardContent>
         </Card>
-      </PortalShell>
+      </AdminShell>
     );
   }
 
   return (
-    <PortalShell breadcrumbs={[{ label: "Admin", href: "/admin" }, { label: "RAG de autoria" }]}>
+    <AdminShell breadcrumbs={[{ label: "RAG de autoria" }]}>
       <div className="space-y-6">
         <Card className="panel-cut rounded-none border-primary/30 hero-surface">
           <CardContent className="space-y-4 p-6">
@@ -170,6 +170,6 @@ export default function SimulatorAuthoringPage() {
           </div>
         )}
       </div>
-    </PortalShell>
+    </AdminShell>
   );
 }

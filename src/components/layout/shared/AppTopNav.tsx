@@ -468,8 +468,8 @@ export function AppTopNav() {
           {isAuthenticated ? (
             <>
               {user?.role === "ADMIN" && (
-                <Button asChild variant="outline" size="sm" className="rounded-none border-primary/50 bg-primary/15 text-xs font-semibold uppercase tracking-[0.12em] xl:tracking-[0.14em] text-primary nav-hover-soft hover:bg-primary/25">
-                  <Link href="/admin"><ShieldCheck className="mr-1.5 size-3.5" />Admin</Link>
+                <Button asChild variant="outline" size="sm" className="rounded-none border-amber-400/50 bg-amber-400/10 text-xs font-mono font-semibold uppercase tracking-[0.12em] text-amber-300 hover:bg-amber-400/20">
+                  <Link href="/admin"><ShieldCheck className="mr-1.5 size-3.5 text-amber-400" />Admin</Link>
                 </Button>
               )}
               <Button asChild variant="outline" size="sm" className="rounded-none border-white/20 bg-white/5 text-xs uppercase tracking-[0.12em] xl:tracking-[0.14em] text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">
@@ -639,10 +639,10 @@ export function AppTopNav() {
                   {user?.role === "ADMIN" && (
                     <Link
                       href="/admin"
-                      className="flex min-h-[44px] items-center justify-center gap-1.5 border border-primary/50 bg-primary/15 px-3 py-3 text-center text-xs font-semibold uppercase tracking-[0.14em] text-primary transition-colors hover:bg-primary/25 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                      className="flex min-h-[44px] items-center justify-center gap-1.5 border border-amber-400/50 bg-amber-400/10 px-3 py-3 text-center text-xs font-mono font-semibold uppercase tracking-[0.14em] text-amber-300 transition-colors hover:bg-amber-400/20 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400"
                       onClick={() => setMobileOpen(false)}
                     >
-                      <ShieldCheck className="size-3.5" />
+                      <ShieldCheck className="size-3.5 text-amber-400" />
                       Admin
                     </Link>
                   )}

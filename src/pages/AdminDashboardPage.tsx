@@ -73,7 +73,7 @@ import {
   Legend,
 } from "recharts";
 
-import { PortalShell } from "@/components/layout/PortalShell";
+import { AdminShell } from "@/components/layout/AdminShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -331,7 +331,7 @@ export default function AdminDashboardPage() {
 
   if (user?.role !== "ADMIN") {
     return (
-      <PortalShell breadcrumbs={[{ label: "Admin" }]}>
+      <AdminShell breadcrumbs={[{ label: "Terminal de Comando" }]}>
         <Card className="panel-cut rounded-none border-red-500/30 surface-panel">
           <CardContent className="p-8 text-center space-y-4">
             <ShieldAlert className="size-12 text-red-500 mx-auto" />
@@ -344,12 +344,12 @@ export default function AdminDashboardPage() {
             </Button>
           </CardContent>
         </Card>
-      </PortalShell>
+      </AdminShell>
     );
   }
 
   return (
-    <PortalShell breadcrumbs={[{ label: "Admin", href: "/admin" }, { label: "Terminal de Comando" }]}>
+    <AdminShell breadcrumbs={[{ label: "Terminal de Comando" }]}>
       <div className="space-y-6 pb-12">
         {/* Header HUD Tático Superior */}
         <Card className="panel-cut rounded-none border-primary/40 hero-surface relative overflow-hidden">
@@ -1859,6 +1859,6 @@ export default function AdminDashboardPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </PortalShell>
+    </AdminShell>
   );
 }

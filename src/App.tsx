@@ -1,6 +1,7 @@
 /* Design system reminder: Hangar Tático Neo-Militar — landing pública + portal interno modular. */
 import { Suspense, lazy, useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Router, Route, Switch, useLocation, Redirect } from "wouter";
 import { useHashLocationWithQuery } from "@/lib/hashLocationWithQuery";
@@ -85,27 +86,30 @@ function LazyRoute({ label, children }: { label: string; children: ReactNode }) 
 
 function RequireAuth({ children, adminOnly = false, hosterOnly = false }: { children: ReactNode; adminOnly?: boolean; hosterOnly?: boolean }) {
   const { isAuthenticated, user } = useAuth();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   // hosterOnly libera pra quem tem a flag isHoster (concedida pelo admin) OU é ADMIN
   // direto -- não é um degrau de role, é uma capacidade extra por fora.
   const deniedByHoster = hosterOnly && !(user?.isHoster || user?.role === "ADMIN");
 
   useEffect(() => {
     if (!isAuthenticated) {
-      navigate("/login", { replace: true });
+      const redirectParam = location && location !== "/login" ? `?redirect=${encodeURIComponent(location)}` : "";
+      navigate(`/login${redirectParam}`, { replace: true });
       return;
     }
     if (adminOnly && user?.role !== "ADMIN") {
+      toast.error("Acesso negado: área restrita a administradores.");
       navigate("/portal", { replace: true });
       return;
     }
     if (deniedByHoster) {
+      toast.error("Acesso negado: área restrita a organizadores.");
       navigate("/portal", { replace: true });
     }
-  }, [adminOnly, deniedByHoster, isAuthenticated, navigate, user?.role]);
+  }, [adminOnly, deniedByHoster, isAuthenticated, navigate, user?.role, location]);
 
   if (!isAuthenticated || (adminOnly && user?.role !== "ADMIN") || deniedByHoster) {
-    return <GlobalLoader label="Validando acesso" />;
+    return <GlobalLoader label="Validando credenciais" />;
   }
 
   return <>{children}</>;

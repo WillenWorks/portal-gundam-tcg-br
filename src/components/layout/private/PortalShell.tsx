@@ -35,38 +35,11 @@ const hosterNav = [
   { href: "/organizador", label: "Meus eventos", icon: Trophy },
 ] as const;
 
-const adminNav = [
-  { href: "/admin", label: "Dashboard Geral", icon: ShieldCheck },
-  { href: "/admin/users", label: "Usuários", icon: Users },
-  { href: "/admin/cards", label: "Cartas", icon: PanelsTopLeft },
-  { href: "/admin/collections", label: "Coleções", icon: BookMarked },
-  { href: "/admin/seasons", label: "Temporadas", icon: CalendarRange },
-  { href: "/admin/events", label: "Torneios & Eventos", icon: CalendarDays },
-  { href: "/admin/articles", label: "Artigos & Notícias", icon: Newspaper },
-  { href: "/admin/rulings", label: "Regras", icon: ScrollText },
-  { href: "/admin/media", label: "Mídias", icon: Image },
-  { href: "/admin/traits", label: "Traits", icon: Tags },
-  { href: "/admin/simulador/cobertura", label: "Cobertura (sim.)", icon: ScrollText },
-  { href: "/admin/simulador/autoria", label: "Autoria (sim.)", icon: ScrollText },
-] as const;
-
 const titles: Record<string, string> = {
   "/portal": "Minha área",
   "/deckbuilder": "Hangar da OZ",
   "/profile": "Configurações",
   "/binders": "Pastas",
-  "/admin": "Dashboard do Administrador",
-  "/admin/users": "Gestão de usuários",
-  "/admin/cards": "Cadastro de cartas",
-  "/admin/collections": "Coleções",
-  "/admin/seasons": "Temporadas",
-  "/admin/media": "Mídias",
-  "/admin/traits": "Traits",
-  "/admin/articles": "Artigos",
-  "/admin/rulings": "Regras",
-  "/admin/events": "Eventos",
-  "/admin/simulador/cobertura": "Cobertura de efeitos (simulador)",
-  "/admin/simulador/autoria": "RAG de autoria (simulador)",
   "/organizador": "Meus eventos",
   "/simulador": "Arena Asticassia",
   "/simulador/treino": "Treino Solo Asticassia",
@@ -78,7 +51,6 @@ function SidebarLinks({ location, isAdmin, isHoster, onNavigate, collapsed = fal
     { title: "Painel do usuário", items: userNav },
   ];
   if (isHoster || isAdmin) navGroups.push({ title: "Organizador", items: hosterNav });
-  if (isAdmin) navGroups.push({ title: "Gestão", items: adminNav });
 
   return (
     <div className="space-y-6">
@@ -109,6 +81,38 @@ function SidebarLinks({ location, isAdmin, isHoster, onNavigate, collapsed = fal
           })}
         </div>
       ))}
+
+      {/* Acesso separado para Administrador — sem misturar menus no portal de jogador */}
+      {isAdmin ? (
+        <div className="pt-2">
+          {!collapsed ? (
+            <div className="panel-cut border border-amber-500/30 bg-amber-500/[0.06] p-3 text-left">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400">Credencial Root</span>
+                <Badge variant="outline" className="rounded-none border-amber-500/40 text-[9px] text-amber-300">ADMIN</Badge>
+              </div>
+              <p className="mt-1 text-xs text-slate-400">Console isolado de governança e catálogo</p>
+              <Link
+                href="/admin"
+                onClick={onNavigate}
+                className="mt-2.5 flex items-center justify-center gap-2 border border-amber-400/40 bg-amber-400/10 py-1.5 text-xs font-semibold uppercase tracking-wider text-amber-300 transition hover:bg-amber-400/20"
+              >
+                <ShieldCheck className="size-3.5 text-amber-400" />
+                Abrir Console Admin
+              </Link>
+            </div>
+          ) : (
+            <Link
+              href="/admin"
+              onClick={onNavigate}
+              title="Abrir Console de Administração"
+              className="panel-cut flex items-center justify-center border border-amber-400/40 bg-amber-400/10 py-2.5 text-amber-300 transition hover:bg-amber-400/20"
+            >
+              <ShieldCheck className="size-4" />
+            </Link>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -143,7 +147,7 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
               <Menu className="size-4" />
               <span className="ml-2">Painel</span>
             </Button>
-            <Link href={isAdmin ? "/admin" : "/portal"} className="flex min-w-0 items-center gap-3 text-white transition-opacity hover:opacity-95">
+            <Link href="/portal" className="flex min-w-0 items-center gap-3 text-white transition-opacity hover:opacity-95">
               <img loading="lazy" decoding="async" src={anaheimLogo} alt="Anaheim Hub - Gundam Card Game" className="h-11 sm:h-12 w-auto object-contain drop-shadow-[0_0_12px_rgba(56,189,248,0.25)]" />
               <div className="hidden min-w-0 border-l border-white/15 pl-3.5 md:block">
                 <p className="font-heading text-xl uppercase tracking-[0.2em]">Anaheim Hub</p>
@@ -152,6 +156,14 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
           </div>
 
           <div className="flex items-center gap-2">
+            {isAdmin ? (
+              <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex rounded-none border-amber-500/40 bg-amber-500/10 text-xs font-mono uppercase tracking-wider text-amber-300 hover:bg-amber-500/20 hover:text-amber-100">
+                <Link href="/admin">
+                  <ShieldCheck className="mr-1.5 size-3.5 text-amber-400" />
+                  Console Admin
+                </Link>
+              </Button>
+            ) : null}
             <Button type="button" variant="outline" className="rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={toggleTheme}>
               {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </Button>
@@ -201,7 +213,7 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
             </Breadcrumb>
 
             <div className="panel-cut border border-white/10 bg-slate-950/70 px-5 py-5 dark:border-white/10 dark:bg-slate-950/70 light:border-slate-300/80 light:bg-white/88 light:shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
-              {isAdmin && currentPath.startsWith("/admin") ? <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Gestão administrativa</p> : null}
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Terminal do Piloto</p>
               <h1 className="mt-2 font-heading text-5xl uppercase leading-none dark:text-white light:text-slate-900">{currentTitle}</h1>
             </div>
           </header>

@@ -6,7 +6,7 @@
  * Esta tela é só leitura — não chama backend. */
 import { useMemo, useState } from "react";
 
-import { PortalShell } from "@/components/layout/PortalShell";
+import { AdminShell } from "@/components/layout/AdminShell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -89,16 +89,16 @@ export default function SimulatorCoveragePage() {
 
   if (user?.role !== "ADMIN") {
     return (
-      <PortalShell breadcrumbs={[{ label: "Admin", href: "/admin" }, { label: "Cobertura de efeitos" }]}>
+      <AdminShell breadcrumbs={[{ label: "Cobertura de efeitos" }]}>
         <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
           <CardContent className="p-6">Essa área é exclusiva para administradores.</CardContent>
         </Card>
-      </PortalShell>
+      </AdminShell>
     );
   }
 
   return (
-    <PortalShell breadcrumbs={[{ label: "Admin", href: "/admin" }, { label: "Cobertura de efeitos" }]}>
+    <AdminShell breadcrumbs={[{ label: "Cobertura de efeitos" }]}>
       <div className="space-y-6">
         <Card className="panel-cut rounded-none border-primary/30 hero-surface">
           <CardContent className="space-y-4 p-6">
@@ -229,6 +229,6 @@ export default function SimulatorCoveragePage() {
           );
         })}
       </div>
-    </PortalShell>
+    </AdminShell>
   );
 }

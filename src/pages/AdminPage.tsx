@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Copy, History, Pencil, Plus, RotateCcw, Sear
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
  
-import { PortalShell } from "@/components/layout/PortalShell";
+import { AdminShell } from "@/components/layout/AdminShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -879,11 +879,11 @@ export default function AdminPage() {
 
  
   if (user?.role !== "ADMIN") {
-    return <PortalShell breadcrumbs={[{ label: "Admin" }]}><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="p-6">Essa área é exclusiva para administradores.</CardContent></Card></PortalShell>;
+    return <AdminShell breadcrumbs={[{ label: "Gestão" }]}><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="p-6">Essa área é exclusiva para administradores.</CardContent></Card></AdminShell>;
   }
  
   return (
-    <PortalShell breadcrumbs={[{ label: "Admin" }]}>
+    <AdminShell breadcrumbs={[{ label: "Gestão", href: "/admin" }, { label: sectionLabel }]}>
       <div className="space-y-6">
         <Card className="panel-cut rounded-none border-primary/30 hero-surface">
           <CardContent className="space-y-4 p-6">
@@ -1495,6 +1495,6 @@ export default function AdminPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </PortalShell>
+    </AdminShell>
   );
 }
