@@ -461,11 +461,11 @@ export default function AuthPage() {
                   {/* Termos e Política */}
                   <div className="text-xs leading-5 text-slate-400 light:text-slate-600 md:col-span-2">
                     Ao criar sua conta, você concorda com os{" "}
-                    <a href="/termos" target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                    <a href="/termos/" target="_blank" rel="noreferrer" className="text-primary hover:underline">
                       Termos de Uso
                     </a>{" "}
                     e a{" "}
-                    <a href="/privacidade" target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                    <a href="/privacidade/" target="_blank" rel="noreferrer" className="text-primary hover:underline">
                       Política de Privacidade
                     </a>{" "}
                     do AnaheimHub.
