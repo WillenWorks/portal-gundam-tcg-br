@@ -18,6 +18,7 @@ import {
   FileCode,
   GitBranch,
   Globe,
+  HeartPulse,
   Layers,
   Megaphone,
   Newspaper,
@@ -63,6 +64,7 @@ import {
   type AdminWorkflowItem,
   type AdminWorkflowsResponse,
   type ApiPost,
+  type DataHealthResponse,
   type PostType,
   type PostStatus,
   type SiteConfig,
@@ -92,6 +94,7 @@ export default function AdminDashboardPage() {
 
   // Workflows
   const [workflowsData, setWorkflowsData] = useState<AdminWorkflowsResponse | null>(null);
+  const [dataHealth, setDataHealth] = useState<DataHealthResponse | null>(null);
   const [selectedWorkflow, setSelectedWorkflow] = useState<AdminWorkflowItem | null>(null);
   const [workflowInputs, setWorkflowInputs] = useState<Record<string, any>>({ tarefa: "auditoria", aplicar: false });
   const [dispatching, setDispatching] = useState(false);
@@ -123,7 +126,7 @@ export default function AdminDashboardPage() {
   // Carga inicial
   const loadDashboardData = async () => {
     try {
-      const [m, sc, u, d, s, t, p, w, b] = await Promise.all([
+      const [m, sc, u, d, s, t, p, w, b, h] = await Promise.all([
         api.getAdminMetrics().catch(() => null),
         api.getAdminSiteConfig().catch(() => null),
         api.listAdminUsers().catch(() => []),
@@ -133,7 +136,9 @@ export default function AdminDashboardPage() {
         api.listPosts().catch(() => []),
         api.getAdminWorkflows().catch(() => null),
         api.listSimulatorBugReports().catch(() => []),
+        api.getDataHealth().catch(() => null),
       ]);
+      setDataHealth(h);
 
       setMetrics(m);
       setSiteConfig(sc);
@@ -510,6 +515,7 @@ export default function AdminDashboardPage() {
             <TabsTrigger value="workflows" className="rounded-none text-xs uppercase tracking-wider py-2 px-3.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <GitBranch className="size-3.5 mr-1.5" />
               5. Git Workflows
+              {dataHealth?.stale && <span className="ml-1.5 inline-block size-2 rounded-full bg-red-500" aria-label="coleta atrasada" />}
             </TabsTrigger>
             <TabsTrigger value="bugs" className="rounded-none text-xs uppercase tracking-wider py-2 px-3.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Bug className="size-3.5 mr-1.5" />
@@ -1386,6 +1392,79 @@ export default function AdminDashboardPage() {
               ABA 5: WORKFLOWS DO GIT & COMANDOS DE POPULAÇÃO
           ──────────────────────────────────────────────────────────────── */}
           <TabsContent value="workflows" className="space-y-6">
+            {dataHealth && (
+              <Card
+                className={cn(
+                  "panel-cut rounded-none surface-panel",
+                  dataHealth.stale ? "border-red-500/40" : "border-white/10",
+                )}
+              >
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-heading text-lg uppercase text-white flex items-center gap-2">
+                        <HeartPulse className={cn("size-5", dataHealth.stale ? "text-red-400" : "text-emerald-400")} />
+                        Saúde da coleta de torneios
+                      </h3>
+                      <p className="text-xs text-slate-400">
+                        Última importação de cada fonte no banco. Sem importar há mais de {dataHealth.staleAfterHours} h, a fonte fica
+                        atrasada: veja o run do "Dados do site" ou dispare a tarefa <span className="font-mono">torneios</span> abaixo.
+                      </p>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "rounded-none font-mono text-[10px]",
+                        dataHealth.stale ? "border-red-400/40 text-red-300 bg-red-400/10" : "border-emerald-400/40 text-emerald-400 bg-emerald-400/10",
+                      )}
+                    >
+                      {dataHealth.stale ? "COLETA ATRASADA" : "COLETA EM DIA"}
+                    </Badge>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {dataHealth.sources.map((src) => (
+                      <div key={src.id} className={cn("border p-3 text-xs space-y-1", src.stale ? "border-red-500/30 bg-red-500/5" : "border-white/10 bg-white/[0.02]")}>
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold uppercase tracking-wider text-white">{src.name}</span>
+                          <span className={cn("font-mono text-[10px]", src.stale ? "text-red-300" : "text-emerald-400")}>
+                            {src.stale ? "ATRASADA" : "OK"}
+                          </span>
+                        </div>
+                        <p className="text-slate-400">
+                          Importado em:{" "}
+                          <span className="text-slate-200">{src.lastImportAt ? new Date(src.lastImportAt).toLocaleString("pt-BR") : "nunca"}</span>
+                        </p>
+                        <p className="text-slate-400">
+                          {src.tournaments.toLocaleString("pt-BR")} torneios · último evento {src.lastEventDate ?? "—"}
+                        </p>
+                      </div>
+                    ))}
+                    {dataHealth.workflow && (
+                      <div className="border border-white/10 bg-white/[0.02] p-3 text-xs space-y-1">
+                        <span className="font-bold uppercase tracking-wider text-white">Run do Dados do site</span>
+                        {dataHealth.workflow.lastRun ? (
+                          <p className="text-slate-400">
+                            Último:{" "}
+                            <a href={dataHealth.workflow.lastRun.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                              {dataHealth.workflow.lastRun.conclusion ?? dataHealth.workflow.lastRun.status}
+                            </a>{" "}
+                            em {new Date(dataHealth.workflow.lastRun.createdAt).toLocaleString("pt-BR")} ({dataHealth.workflow.lastRun.event})
+                          </p>
+                        ) : (
+                          <p className="text-slate-400">Nenhum run encontrado.</p>
+                        )}
+                        <p className="text-slate-400">
+                          Último com sucesso:{" "}
+                          <span className="text-slate-200">
+                            {dataHealth.workflow.lastSuccessAt ? new Date(dataHealth.workflow.lastSuccessAt).toLocaleString("pt-BR") : "—"}
+                          </span>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             <Card className="panel-cut rounded-none surface-panel border-white/10">
               <CardContent className="p-6 space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
