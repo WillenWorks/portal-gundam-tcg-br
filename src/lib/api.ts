@@ -1272,6 +1272,25 @@ export interface AdminWorkflowItem {
   cliSnippet: string;
 }
 
+export interface DataHealthSource {
+  id: string;
+  name: string;
+  tournaments: number;
+  lastImportAt: string | null;
+  lastEventDate: string | null;
+  stale: boolean;
+}
+
+export interface DataHealthResponse {
+  staleAfterHours: number;
+  stale: boolean;
+  sources: DataHealthSource[];
+  workflow: {
+    lastRun: { status: string; conclusion: string | null; createdAt: string; url: string; event: string } | null;
+    lastSuccessAt: string | null;
+  } | null;
+}
+
 export interface AdminWorkflowsResponse {
   hasToken: boolean;
   repo: string;
@@ -1704,6 +1723,7 @@ export const api = {
     ),
   toggleAdminDeckPrimary: (id: string) => mutate<any>(`/admin/decks/${id}/primary`, { method: "PUT" }, ["/admin/decks", "/decks"]),
   getAdminWorkflows: () => request<AdminWorkflowsResponse>("/admin/workflows", undefined, { bypassCache: true }),
+  getDataHealth: () => request<DataHealthResponse>("/admin/data-health", undefined, { bypassCache: true }),
   dispatchAdminWorkflow: (workflowFile: string, inputs?: Record<string, any>) =>
     mutate<{ dispatched: boolean; tokenConfigured: boolean; message?: string; error?: string; repo: string; workflowFile: string }>(
       "/admin/workflows/dispatch",

@@ -7,7 +7,7 @@ import { canPayLevel, deployCard, playCommand } from "./deploy";
 import { costRestsSelf, specResourceCost } from "./costs";
 import { declareAttack, proceedToBlockStep, activateBlocker, skipBlock, passAction, resolveDamageStep, resolveBattleEndStep } from "./combat";
 import { advanceToMainPhase, beginEndPhaseActionStep, finishEndPhaseAndAdvance, passEndPhaseAction } from "./phases";
-import { burstEligibleShieldIds, dispatchTrigger, findTriggerSpecs, specOncePerTurnMarker } from "./dispatcher";
+import { burstEligibleShieldIds, dispatchTrigger, findTriggerSpecs, specOncePerTurnMarker, specsListenTo } from "./dispatcher";
 import {
   attachQueuedTriggers,
   awaitingFollowUpOf,
@@ -212,7 +212,8 @@ function dispatchExResourceExiled(
   predicateResolver?: PredicateResolver,
   targetFilterResolver?: TargetFilterResolver,
 ): GameState {
-  if (after.gameOver || !specs.some((s) => s.reaction?.event === "exResourceExiled")) return after;
+  // índice em cache: varrer as specs (milhares) a cada ação aplicada era ~19% do tempo dos rollouts do bot
+  if (after.gameOver || !specsListenTo(specs, "exResourceExiled")) return after;
   let next = after;
   for (const p of [after.activePlayer, otherPlayer(after.activePlayer)]) {
     const exBefore = before.players[p].resourceArea.filter((r) => r.def.code === TOKEN_EX_RESOURCE_CODE).map((r) => r.instanceId);

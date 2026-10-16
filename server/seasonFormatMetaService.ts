@@ -211,7 +211,7 @@ function aggregateFormatData(formatKeys: string[]): {
         }
       }
 
-      let bestTier: "core" | "flex" | "tech" = "tech";
+      let bestTier: "core" | "flex" | "tech";
       if (rate >= 0.8) bestTier = "core";
       else if (rate >= 0.3) bestTier = "flex";
       else bestTier = "tech";
@@ -316,7 +316,7 @@ export async function getFormatMetaBreakdown(
 ): Promise<FormatMetaResponse | null> {
   const normalizedKey = format.trim().toUpperCase().replace(/\s+/g, "");
 
-  let formatKey = format;
+  let formatKey: string;
   let formatData: { lists: number; events: number; archetypes: any[] } | undefined;
   let tournamentLabel = `Torneios Competitivos Formato ${format} (Egman Events / Bandai)`;
 

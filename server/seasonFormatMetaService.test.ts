@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   getAvailableFormats,
   getFormatMetaBreakdown,
-  getFormatsEvolution,
 } from "./seasonFormatMetaService.ts";
 
 const mockPrisma: any = {

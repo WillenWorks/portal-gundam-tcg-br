@@ -13,7 +13,7 @@ import { api, type ClassifiedMetaCard, type MetaRecommendationsResponse } from "
 import type { CardRecord, DeckEntry } from "@/modules/core/types";
 import { calculateHypergeometric } from "@/lib/meta-analytics";
 import { earliestPlayableTurn } from "@/lib/opening-hand-score";
-import { NON_COUNTED_SECTIONS, NON_STATS_CARD_TYPES, isNonStatsCard } from "@/lib/deck-legality";
+import { NON_COUNTED_SECTIONS, isNonStatsCard } from "@/lib/deck-legality";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";

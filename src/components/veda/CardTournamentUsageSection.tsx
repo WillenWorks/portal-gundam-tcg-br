@@ -2,9 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   BarChart2,
-  Calendar,
   Layers,
-  Sparkles,
   Trophy,
 } from "lucide-react";
 

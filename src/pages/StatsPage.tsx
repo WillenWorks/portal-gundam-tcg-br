@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
-  Flame,
   TrendingUp,
   TrendingDown,
   Trophy,
@@ -23,10 +22,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { api, type MetagameStatsResponse, type FormatOverviewItem } from "@/lib/api";
+import { api, type MetagameStatsResponse } from "@/lib/api";
 import {
   NON_STATS_SECTIONS,
-  NON_STATS_CARD_TYPES,
   isNonStatsCard,
   isNonStatsSetCode,
   isNonStatsCardType,
@@ -54,7 +52,6 @@ export default function StatsPage() {
   const [cards, setCards] = useState<any[]>([]);
   const [publicDecks, setPublicDecks] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
-  const [availableFormats, setAvailableFormats] = useState<FormatOverviewItem[]>([]);
 
   // Filtro de formato / temporada (padrão oficial: GD05_COMBINED = GD05 / GD05.5)
   const [selectedFormat, setSelectedFormat] = useState<string>(DEFAULT_FORMAT);
@@ -64,14 +61,12 @@ export default function StatsPage() {
   const [selectedSeries, setSelectedSeries] = useState<string>("");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
-  const [filterMeta, setFilterMeta] = useState<{ series: string[]; traits: string[] }>({ series: [], traits: [] });
 
   // Aba ativa selecionada
   const [activeTab, setActiveTab] = useState<string>("competitive");
 
   // Dados do endpoint de metagame competitivo
   const [metagame, setMetagame] = useState<MetagameStatsResponse | null>(null);
-  const [metagameLoading, setMetagameLoading] = useState(true);
 
   // Deep-link para o painel ATMI
   const [atmiFocusKey, setAtmiFocusKey] = useState<{ key: string; token: number } | null>(null);
@@ -87,24 +82,19 @@ export default function StatsPage() {
       api.listCards(),
       api.listPublicDecks(),
       api.listTournaments(),
-      api.getFormatList(),
-      api.getCardFilters(),
     ])
-      .then(([healthRes, setsRes, cardsRes, decksRes, eventsRes, formatsRes, cardFiltersRes]) => {
+      .then(([healthRes, setsRes, cardsRes, decksRes, eventsRes]) => {
         setHealth(healthRes);
         setSets(setsRes);
         setCards(cardsRes);
         setPublicDecks(decksRes);
         setEvents(eventsRes);
-        setAvailableFormats(formatsRes);
-        setFilterMeta({ series: cardFiltersRes.series, traits: cardFiltersRes.traits });
       })
       .catch(() => undefined);
   }, []);
 
   // Metagame competitivo sincronizado com o filtro de formato/season
   useEffect(() => {
-    setMetagameLoading(true);
     const seasonParam = selectedFormat === "ALL" ? "all" : selectedFormat;
     api.getMetagameStats({
       seasonId: seasonParam,
@@ -116,8 +106,7 @@ export default function StatsPage() {
       endDate: endDate || undefined,
     })
       .then(setMetagame)
-      .catch(() => setMetagame(null))
-      .finally(() => setMetagameLoading(false));
+      .catch(() => setMetagame(null));
   }, [selectedFormat, selectedSetId, selectedColor, selectedTrait, selectedSeries, startDate, endDate]);
 
   const relevantItems = (deck: any) =>
@@ -150,8 +139,6 @@ export default function StatsPage() {
     if (selectedFormat === "ALL") return events;
     return events;
   }, [events, selectedFormat]);
-
-  const activeSetLabel = useMemo(() => sets.find((set) => set.id === selectedSetId)?.code, [sets, selectedSetId]);
 
   const isFiltered =
     selectedFormat !== DEFAULT_FORMAT ||
@@ -206,128 +193,9 @@ export default function StatsPage() {
     () => (metagame?.colorCombos || []).map((entry) => ({ name: entry.combo, value: entry.decks })),
     [metagame],
   );
-  const traitMetaChart = useMemo(
-    () => (metagame?.traitDistribution || []).map((entry) => ({ name: entry.trait, value: entry.decks })),
-    [metagame],
-  );
-  const seriesMetaChart = useMemo(
-    () => (metagame?.seriesDistribution || []).map((entry) => ({ name: entry.series, value: entry.decks })),
-    [metagame],
-  );
   const risingCards = metagame?.risingCards ?? [];
   const decliningCards = metagame?.decliningCards ?? [];
 
-  // Padrões consolidados do Gundam TCG
-  const popularArchetypes = useMemo(() => {
-    const archetypesMap = new Map<
-      string,
-      {
-        name: string;
-        color: string;
-        trait: string;
-        deckCount: number;
-        avgCost: number;
-        sampleNames: string[];
-        description: string;
-      }
-    >();
-
-    filteredDecks.forEach((deck) => {
-      const items = relevantItems(deck);
-      if (!items.length) return;
-
-      const colorCounts = new Map<string, number>();
-      const traitCounts = new Map<string, number>();
-      let totalCost = 0;
-      let costCount = 0;
-      const unitNames: string[] = [];
-
-      items.forEach((item: any) => {
-        const c = item.card;
-        if (!c || isNonStatsCard(c)) return;
-        const qty = item.quantity || 1;
-        if (c.color) {
-          colorCounts.set(c.color, (colorCounts.get(c.color) || 0) + qty);
-        }
-        if (c.trait) traitCounts.set(c.trait, (traitCounts.get(c.trait) || 0) + qty);
-        if (typeof c.cost === "number") {
-          totalCost += c.cost * qty;
-          costCount += qty;
-        }
-        if (c.cardType === "UNIT" && c.nameEn && !unitNames.includes(c.nameEn)) {
-          unitNames.push(c.nameEn);
-        }
-      });
-
-      const topColor = [...colorCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "Azul";
-      const topTrait = [...traitCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "Earth Federation";
-      const key = `${topColor} · ${topTrait}`;
-      const avg = costCount ? totalCost / costCount : 3;
-
-      const existing = archetypesMap.get(key);
-      if (!existing) {
-        archetypesMap.set(key, {
-          name: key,
-          color: topColor,
-          trait: topTrait,
-          deckCount: 1,
-          avgCost: avg,
-          sampleNames: unitNames.slice(0, 3),
-          description: `Arquétipo baseado em ${topTrait} com núcleo de recursos ${topColor}.`,
-        });
-      } else {
-        existing.deckCount += 1;
-        existing.avgCost = (existing.avgCost + avg) / 2;
-        unitNames.forEach((n) => {
-          if (!existing.sampleNames.includes(n) && existing.sampleNames.length < 3) {
-            existing.sampleNames.push(n);
-          }
-        });
-      }
-    });
-
-    const calculated = [...archetypesMap.values()].sort((a, b) => b.deckCount - a.deckCount);
-    if (calculated.length >= 2) return calculated.slice(0, 4);
-
-    return [
-      {
-        name: "Azul · Earth Federation",
-        color: "Azul",
-        trait: "Earth Federation",
-        deckCount: Math.max(1, filteredDecks.length),
-        avgCost: 3.2,
-        sampleNames: ["RX-78-2 Gundam", "Guncannon", "Amuro Ray"],
-        description: "Controle e presença constante em campo com bônus de Link do Gundam e pilotos de alta precisão.",
-      },
-      {
-        name: "Vermelho · Principality of Zeon",
-        color: "Vermelho",
-        trait: "Principality of Zeon",
-        deckCount: Math.max(1, Math.floor(filteredDecks.length * 0.8)),
-        avgCost: 2.8,
-        sampleNames: ["Char's Zaku II", "Zaku II", "Char Aznable"],
-        description: "Pressão agressiva inicial com First Strike e investidas velozes de Mobile Suits de baixo custo.",
-      },
-      {
-        name: "Verde · Asticassia Academy",
-        color: "Verde",
-        trait: "Asticassia",
-        deckCount: Math.max(1, Math.floor(filteredDecks.length * 0.6)),
-        avgCost: 3.5,
-        sampleNames: ["Gundam Aerial", "Suletta Mercury", "Dilanza"],
-        description: "Mecânica de pareamento G-Witch, aceleração de recursos e efeitos decisivos de duelo.",
-      },
-      {
-        name: "Branco · After Colony",
-        color: "Branco",
-        trait: "After Colony",
-        deckCount: Math.max(1, Math.floor(filteredDecks.length * 0.4)),
-        avgCost: 3.8,
-        sampleNames: ["Wing Gundam", "Deathscythe", "Heero Yuy"],
-        description: "Postura reativa com defensores pesados, anulação de ataques e bombas de dano em área.",
-      },
-    ];
-  }, [filteredDecks]);
 
   return (
     <PublicShell breadcrumbs={[{ label: "Sistema VEDA" }]}>

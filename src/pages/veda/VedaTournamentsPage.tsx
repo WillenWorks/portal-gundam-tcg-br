@@ -71,6 +71,8 @@ export default function VedaTournamentsPage() {
 
   // Estados locais reativos dos filtros e paginação
   const initial = useMemo(() => readFiltersFromUrl(), []);
+  // a temporada veio na URL? (ref: limpar o filtro desliga sem re-render, como antes)
+  const seasonFromUrl = useRef(initial.rawSeasonHasParam);
   const [country, setCountry] = useState(initial.country);
   const [season, setSeason] = useState(initial.season);
   const [tier, setTier] = useState(initial.tier);
@@ -141,7 +143,7 @@ export default function VedaTournamentsPage() {
 
     const sp = new URLSearchParams();
     if (country) sp.set("country", country);
-    if (season && (season !== currentSeasonCode || initial.rawSeasonHasParam)) {
+    if (season && (season !== currentSeasonCode || seasonFromUrl.current)) {
       sp.set("season", season);
     }
     if (tier) sp.set("tier", tier);
@@ -157,7 +159,7 @@ export default function VedaTournamentsPage() {
       const targetPath = `/torneios${qs ? `?${qs}` : ""}`;
       navigate(targetPath, { replace: true });
     }
-  }, [country, season, tier, source, uf, city, q, page, currentSeasonCode, initial.rawSeasonHasParam, navigate]);
+  }, [country, season, tier, source, uf, city, q, page, currentSeasonCode, navigate]);
 
   // Sincroniza quando o usuário clica nos botões Voltar/Avançar do navegador
   useEffect(() => {
@@ -192,7 +194,7 @@ export default function VedaTournamentsPage() {
   }, []);
 
   const resetAllFilters = useCallback(() => {
-    initial.rawSeasonHasParam = false;
+    seasonFromUrl.current = false;
     setCountry("");
     setSeason(currentSeasonCode);
     setTier("");

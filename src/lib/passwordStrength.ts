@@ -15,7 +15,7 @@ export interface PasswordStrength {
   requirements: PasswordRequirement[];
 }
 
-export const SPECIAL_CHARS_REGEX = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/;
+export const SPECIAL_CHARS_REGEX = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/;
 
 export function validatePasswordStrength(password: string): { valid: boolean; error?: string } {
   const p = password || "";
@@ -55,9 +55,9 @@ export function evaluatePasswordStrength(password: string): PasswordStrength {
 
   const metCount = requirements.filter((r) => r.met).length;
 
-  let score: 0 | 1 | 2 | 3 | 4 = 0;
-  let label: PasswordStrength["label"] = "Muito fraca";
-  let color = "bg-slate-600";
+  let score: 0 | 1 | 2 | 3 | 4;
+  let label: PasswordStrength["label"];
+  let color: string;
 
   if (p.length === 0) {
     score = 0;

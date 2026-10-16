@@ -3,19 +3,10 @@ import { Link, useRoute } from "wouter";
 import {
   Calendar,
   ChevronLeft,
-  Crown,
-  ExternalLink,
   Layers,
-  Medal,
-  Shield,
-  Sparkles,
   Trophy,
-  Users,
-  Wrench,
-  Zap,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { VedaShell } from "@/components/veda/VedaShell";
 import { VedaColorPills } from "@/components/veda/VedaColorPills";
@@ -67,11 +58,12 @@ export default function VedaArchetypeDetailPage() {
     loadArchetypeDetail();
   }, [archetypeSlug, selectedSeason]);
 
+  const detailCards = detail?.cards;
   const filteredCards = useMemo(() => {
-    if (!detail?.cards) return [];
-    if (activeCardTab === "all") return detail.cards;
-    return detail.cards.filter((c) => c.tier === activeCardTab);
-  }, [detail?.cards, activeCardTab]);
+    if (!detailCards) return [];
+    if (activeCardTab === "all") return detailCards;
+    return detailCards.filter((c) => c.tier === activeCardTab);
+  }, [detailCards, activeCardTab]);
 
   const coreCards = useMemo(() => detail?.cards.filter((c) => c.tier === "core") || [], [detail?.cards]);
   const flexCards = useMemo(() => detail?.cards.filter((c) => c.tier === "flex") || [], [detail?.cards]);
@@ -266,12 +258,6 @@ export default function VedaArchetypeDetailPage() {
                 const cardTargetId = inc.card.cardModelId || inc.card.code;
                 const inclusionPercent = Math.round(inc.inclusion * 100);
 
-                const tierBadgeColor =
-                  inc.tier === "core"
-                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
-                    : inc.tier === "flex"
-                      ? "border-primary/40 bg-primary/10 text-primary"
-                      : "border-purple-500/40 bg-purple-500/10 text-purple-400";
 
                 return (
                   <Link

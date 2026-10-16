@@ -100,6 +100,23 @@ describe("enumerateLegalActions", () => {
     expect(attacks.some((a) => a.kind === "declareAttack" && a.attackerId === rested)).toBe(false);
   });
 
+  it("candidatos crus (validate: false) já não trazem ataque que o motor recusaria", () => {
+    // regressão da matriz GD05: ataque de Unit recém-deployada / contra Unit ativa entrava cru nos rollouts do
+    // bot, a policy escolhia, o motor recusava e ela escolhia de novo (milhões de exceções por partida)
+    const state = mainPhaseGame();
+    giveResources(state, "A", 4);
+    const fresh = place(state, "A", ST01_CARD_DEFS.GUNDAM, "battleArea", { enteredZoneOnTurn: state.turnNumber });
+    const veteran = place(state, "A", ST01_CARD_DEFS.GUNCANNON, "battleArea");
+    const activeEnemy = place(state, "B", ST01_CARD_DEFS.GM, "battleArea");
+
+    const raw = enumerateLegalActions(state, "A", ALL_EFFECT_SPECS, { ...OPTS, validate: false }).filter((a) => a.kind === "declareAttack");
+    expect(raw.some((a) => a.kind === "declareAttack" && a.attackerId === fresh)).toBe(false);
+    expect(raw.some((a) => a.kind === "declareAttack" && typeof a.target === "object" && a.target.unitId === activeEnemy)).toBe(false);
+    expect(raw).toContainEqual({ kind: "declareAttack", attackerId: veteran, target: "player" });
+    // e todo ataque cru é aceito pelo motor
+    for (const a of raw) if (a.kind === "declareAttack") expect(() => declareAttack(state, a.attackerId, a.target)).not.toThrow();
+  });
+
   it("Main Phase: 【Activate·Main】 de White Base entra na lista", () => {
     const state = mainPhaseGame();
     giveResources(state, "A", 4);

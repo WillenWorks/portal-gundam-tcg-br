@@ -47,7 +47,7 @@ for (const l of raw.lists) byFormat.set(l.format, [...(byFormat.get(l.format) ??
 const formats = {};
 for (const f of [...byFormat.keys()].sort()) {
   // só os campos que a análise usa — o `player` fica para trás
-  const lists = byFormat.get(f).map(({ format, event, eventType, date, placing, label, main }) => ({ format, event, eventType, date, placing, label, main }));
+  const lists = byFormat.get(f).map(({ format, event, eventType, date, placing, label, players, main }) => ({ format, event, eventType, date, placing, label, players, main }));
   formats[f] = analyzeFormat(lists, catalog);
   const r = formats[f];
   console.log(`[meta-cores] ${f}: ${r.lists} listas, ${r.events} eventos, ${r.archetypes.length} arquétipos (${r.archetypes.filter((a) => a.simulavel).length} simuláveis)`);
@@ -59,7 +59,7 @@ const SEASON_SLICES = [{ id: "GD05.5", format: "GD05", since: "2026-09-25" }];
 for (const slice of SEASON_SLICES) {
   const lists = (byFormat.get(slice.format) ?? [])
     .filter((l) => (l.date ?? "") >= slice.since)
-    .map(({ event, eventType, date, placing, label, main }) => ({ format: slice.id, event, eventType, date, placing, label, main }));
+    .map(({ event, eventType, date, placing, label, players, main }) => ({ format: slice.id, event, eventType, date, placing, label, players, main }));
   if (!lists.length) continue;
   formats[slice.id] = analyzeFormat(lists, catalog);
   const r = formats[slice.id];

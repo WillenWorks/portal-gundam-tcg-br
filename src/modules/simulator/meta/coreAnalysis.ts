@@ -17,6 +17,8 @@ export interface RawMetaList {
   date?: string | null;
   placing: number | null;
   label?: string | null;
+  /** jogadores no evento, quando a fonte informa (DigiLab); a Egman não informa */
+  players?: number | null;
   main: Record<string, number>;
 }
 
@@ -99,13 +101,27 @@ export function listOverlap(a: Record<string, number>, b: Record<string, number>
 }
 
 /**
- * Peso do evento: regional/grande = 3; torneio de loja japonês (Newtype Challenge, Shop Battle —
- * muitos, pequenos, quase sempre só o campeão listado) = 0,5; o resto = 1.
+ * Teto de listas por evento: a DigiLab traz a classificação inteira (um regional chega a 500+ listas) e, sem
+ * teto, um evento só viraria o meta da temporada. Acima disso as listas do evento dividem o peso de EVENT_LIST_CAP.
  */
-export function eventWeight(l: Pick<RawMetaList, "event" | "eventType">): number {
-  if (/newtype chall|shop battle/i.test(l.event)) return 0.5;
+export const EVENT_LIST_CAP = 32;
+
+/**
+ * Peso do evento: regional/grande = 3; torneio de loja japonês (Newtype Challenge, Shop Battle —
+ * muitos, pequenos, quase sempre só o campeão listado) = 0,5; o resto = 1. Com o número de jogadores
+ * (DigiLab), o porte também conta: 128+ = 3, 48+ = 2 — vale o maior entre categoria e porte.
+ */
+export function eventWeight(l: Pick<RawMetaList, "event" | "eventType" | "players">): number {
+  const players = l.players ?? 0;
+  const bySize = players >= 128 ? 3 : players >= 48 ? 2 : 0;
+  if (/newtype chall|shop battle/i.test(l.event)) return Math.max(0.5, bySize);
   if (/large/i.test(l.eventType ?? "") || /regional|finals|qualifier|first combat|expo|national|world/i.test(l.event)) return 3;
-  return 1;
+  return Math.max(1, bySize);
+}
+
+/** fator do teto por evento (1 até EVENT_LIST_CAP listas; depois EVENT_LIST_CAP / listas) */
+export function eventCapFactor(listsInEvent: number): number {
+  return listsInEvent > EVENT_LIST_CAP ? EVENT_LIST_CAP / listsInEvent : 1;
 }
 
 /** 1º = 4 · 2º = 3 · top 4 = 2 · top 8 = 1 · resto/desconhecida = 0,5 */
@@ -116,6 +132,8 @@ export function placementPoints(placing: number | null): number {
   if (placing !== null && placing <= 8) return 1;
   return 0.5;
 }
+
+const eventKey = (l: RawMetaList) => `${l.event}\u0000${l.date ?? ""}`;
 
 function canonical(m: Record<string, number>): string {
   return Object.keys(m)
@@ -222,9 +240,16 @@ const avgPoints = (es: Entry[]) => es.reduce((s, e) => s + e.points * e.weight, 
 
 /** analisa as listas de UM formato */
 export function analyzeFormat(lists: RawMetaList[], catalog: CatalogLookup): MetaFormatResult {
-  const entries: Entry[] = lists
-    .filter((l) => sumValues(l.main) === DECK_SIZE)
-    .map((list) => ({ list, weight: eventWeight(list), points: placementPoints(list.placing), key: canonical(list.main) }))
+  const valid = lists.filter((l) => sumValues(l.main) === DECK_SIZE);
+  const perEvent = new Map<string, number>();
+  for (const l of valid) perEvent.set(eventKey(l), (perEvent.get(eventKey(l)) ?? 0) + 1);
+  const entries: Entry[] = valid
+    .map((list) => ({
+      list,
+      weight: eventWeight(list) * eventCapFactor(perEvent.get(eventKey(list)) ?? 1),
+      points: placementPoints(list.placing),
+      key: canonical(list.main),
+    }))
     // ordem estável: melhor colocação e evento maior primeiro — elas fundam os grupos
     .sort(
       (a, b) =>

@@ -32,7 +32,6 @@ const ArticleDetailPage = lazy(() => import("@/pages/ArticleDetailPage"));
 const BinderPage = lazy(() => import("@/pages/BinderPage"));
 const BinderListPage = lazy(() => import("@/pages/BinderListPage"));
 const AuthPage = lazy(() => import("@/pages/AuthPage"));
-const TournamentsPage = lazy(() => import("@/pages/TournamentsPage"));
 const ChangelogPage = lazy(() => import("@/pages/ChangelogPage"));
 
 const DeckbuilderPage = lazy(() => import("@/pages/DeckbuilderPage"));

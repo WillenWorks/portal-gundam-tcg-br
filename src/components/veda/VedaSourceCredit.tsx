@@ -12,7 +12,7 @@ export function VedaSourceCredit({
   source,
   sourceUrl,
   className = "",
-  compact = false,
+  compact: _compact = false,
 }: VedaSourceCreditProps) {
   if (!source && !sourceUrl) return null;
 
