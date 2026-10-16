@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
 import {
-  Calendar,
   ChevronLeft,
   Info,
   Layers,
-  MapPin,
   Medal,
   Trophy,
   User,

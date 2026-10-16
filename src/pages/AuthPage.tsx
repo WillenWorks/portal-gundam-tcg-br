@@ -17,7 +17,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { evaluatePasswordStrength, validatePasswordStrength } from "@/lib/passwordStrength";
 import { executeRecaptcha } from "@/lib/recaptcha";
-import { cn } from "@/lib/utils";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 

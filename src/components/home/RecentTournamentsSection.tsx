@@ -225,7 +225,6 @@ const ALL_TOURNAMENTS_FALLBACK: TournamentDisplay[] = [
 export function RecentTournamentsSection() {
   const [scope, setScope] = useState<"todos" | "brasil">("brasil");
   const [dbTournaments, setDbTournaments] = useState<TournamentDisplay[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api
@@ -274,7 +273,6 @@ export function RecentTournamentsSection() {
         // Fallback garantido
       })
       .finally(() => {
-        setLoading(false);
       });
   }, []);
 

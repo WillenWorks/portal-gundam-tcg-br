@@ -11,7 +11,6 @@ import {
   Hammer,
   Layers,
   MapPin,
-  Trophy,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";

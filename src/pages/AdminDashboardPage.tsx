@@ -4,35 +4,21 @@
  * Disparo de Workflows Git e Triagem de Bug Reports.
  */
 import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { toast } from "sonner";
 import {
-  Activity,
-  AlertCircle,
-  AlertTriangle,
   ArrowRight,
-  ArrowUpRight,
   BarChart3,
-  BookOpen,
   Bug,
   CheckCircle2,
-  ChevronRight,
   ClipboardCopy,
-  Clock,
   Compass,
   Cpu,
   DollarSign,
-  ExternalLink,
-  Eye,
   FileCode,
-  FileText,
-  Flame,
   GitBranch,
   Globe,
-  Heart,
-  HelpCircle,
   Layers,
-  LayoutDashboard,
   Megaphone,
   Newspaper,
   Package,
@@ -40,28 +26,16 @@ import {
   Play,
   Plus,
   RefreshCw,
-  Search,
-  Send,
-  Server,
   Settings,
   ShieldAlert,
   ShieldCheck,
-  Sparkles,
   Swords,
-  Tags,
-  ThumbsUp,
-  TrendingUp,
   Trophy,
   Users,
-  Video,
-  Wrench,
-  XCircle,
 } from "lucide-react";
 import {
   AreaChart,
   Area,
-  BarChart,
-  Bar,
   PieChart,
   Pie,
   Cell,
@@ -99,11 +73,9 @@ const CHART_COLORS = ["#00f0ff", "#38bdf8", "#f59e0b", "#10b981", "#ef4444", "#a
 
 export default function AdminDashboardPage() {
   const { user } = useAuth();
-  const [, navigate] = useLocation();
 
   // Estados principais
   const [activeTab, setActiveTab] = useState<"overview" | "marketing" | "dynamic" | "actions" | "workflows" | "bugs">("overview");
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [metrics, setMetrics] = useState<AdminMetricsData | null>(null);
   const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null);
@@ -114,8 +86,6 @@ export default function AdminDashboardPage() {
   const [userSearch, setUserSearch] = useState("");
   const [decksList, setDecksList] = useState<any[]>([]);
   const [deckSearch, setDeckSearch] = useState("");
-  const [cardsList, setCardsList] = useState<any[]>([]);
-  const [cardSearch, setCardSearch] = useState("");
   const [setsList, setSetsList] = useState<any[]>([]);
   const [tournamentsList, setTournamentsList] = useState<any[]>([]);
   const [postsList, setPostsList] = useState<ApiPost[]>([]);
@@ -153,7 +123,6 @@ export default function AdminDashboardPage() {
   // Carga inicial
   const loadDashboardData = async () => {
     try {
-      setLoading(true);
       const [m, sc, u, d, s, t, p, w, b] = await Promise.all([
         api.getAdminMetrics().catch(() => null),
         api.getAdminSiteConfig().catch(() => null),
@@ -182,7 +151,6 @@ export default function AdminDashboardPage() {
       console.error("[AdminDashboard] Erro ao carregar dados:", err);
       toast.error("Falha ao carregar métricas administrativas.");
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
   };

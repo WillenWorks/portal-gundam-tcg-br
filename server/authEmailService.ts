@@ -136,7 +136,7 @@ export interface AuthEmailDeps {
   authRequired: RequestHandler;
 }
 
-export const SPECIAL_CHARS_REGEX = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/;
+export const SPECIAL_CHARS_REGEX = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/;
 
 export function validatePasswordRequirements(password: string): { valid: boolean; error?: string } {
   const p = password || "";
