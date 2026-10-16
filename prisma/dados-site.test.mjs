@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { egmanTier, egmanToEvents, parseRecord } from "../scripts/meta-sources/egman.mjs";
 import { duplicateRulingIds, parseOfficialDate, planModelFaq } from "./import-card-faq.mjs";
 import { normalizeRarity, planSeedFix } from "./fix-seed-prints.mjs";
@@ -166,5 +166,134 @@ describe("coleta incremental e duplicidade entre fontes", async () => {
     expect(crossSourceDuplicate(ev, [{ ...egman, champion: "Outro" }])).toBeNull();
     expect(crossSourceDuplicate(ev, [{ ...egman, date: "2026-09-25T00:00:00.000Z" }])).toBeNull();
     expect(crossSourceDuplicate(ev, [{ ...egman, sourceUrl: "https://gundam.digilab.cards/tournament/7" }])).toBeNull(); // mesma fonte: são eventos diferentes
+  });
+});
+
+describe("DigiLab (API oficial)", async () => {
+  const { DigilabClient, baseCode, cacheFresh, entryKey, eventTypeLabel, flattenDecklist, planTournaments, seasonFor, toEvent } = await import(
+    "../scripts/meta-sources/digilab.mjs"
+  );
+  const card = (card_id, count) => ({ card_id, count });
+  const detail = (over = {}) => ({
+    tournament: {
+      id: 10869,
+      date: "2026-10-15",
+      event_type: "store_championship",
+      format: "GD05",
+      player_count: 12,
+      event_name: null,
+      store: { name: "Forja Hobby Store", city: "Mirassol", state: "São Paulo", country: "Brazil" },
+      venue: null,
+      scene: { country: "Brazil" },
+      ...over,
+    },
+    standings: [
+      { placement: 1, player: { name: "Ronaldo", slug: "ronaldo" }, record: { wins: 4, losses: 0, ties: 0 }, deck: { name: "Blue / Purple Char / Marine" }, has_decklist: true },
+      { placement: 2, player: { name: "Anonymous", slug: null }, record: { wins: 3, losses: 1, ties: 1 }, deck: { name: "Red / White Justice" }, has_decklist: false },
+    ],
+    dnfs: [{ player: { name: "Caio", slug: "caio" }, deck: { name: "Green / White Wing Zero" } }],
+  });
+
+  it("temporada: o formato quando é temporada, senão a vigente na data (EB01 cai no GD04)", () => {
+    expect(seasonFor("GD05", "2026-10-15")).toBe("GD05");
+    expect(seasonFor("EB01", "2026-06-26")).toBe("GD04");
+    expect(seasonFor("EB01", "2026-07-30")).toBe("GD05");
+    expect(seasonFor("XX", "2025-01-01")).toBeNull();
+  });
+
+  it("decklist: lê os grupos de Gundam sem somar os baldes repetidos do Digimon", () => {
+    const groups = { groups: [{ key: "unit", cards: [card("GD01-086", 3), card("GD01-086_p1", 1)] }, { key: "command", cards: [card("gd01-118", 4)] }], digimon: [card("GD01-086", 3), card("GD01-118", 4)] };
+    expect(flattenDecklist(groups)).toEqual({ "GD01-086": 4, "GD01-118": 4 });
+    expect(flattenDecklist({ eggs: [], digimon: [card("ST01-001", 4)], tamers: [], options: [card("ST01-010", 2)] })).toEqual({ "ST01-001": 4, "ST01-010": 2 });
+    expect(flattenDecklist(null)).toBeNull();
+    expect(flattenDecklist({ groups: [] })).toBeNull();
+    expect(baseCode(" gd05-002_p2 ")).toBe("GD05-002");
+    expect(eventTypeLabel("store_championship")).toBe("Store Championship");
+  });
+
+  it("torneio → evento do importador, com decklist casada pelo jogador e anônimo pela colocação", () => {
+    const decklists = new Map([[entryKey(10869, "ronaldo", 1), { "ST11-001": 4 }], [entryKey(10869, null, 2), { "GD01-001": 4 }]]);
+    const ev = toEvent(detail(), decklists);
+    expect(ev).toMatchObject({
+      key: "digilab:10869",
+      name: "Store Championship @ Forja Hobby Store — 2026-10-15",
+      format: "GD05",
+      tier: "SMALL_OFFICIAL",
+      sourceUrl: "https://gundam.digilab.cards/tournament/10869",
+      country: "Brasil",
+      city: "Mirassol",
+      participantCount: 12,
+    });
+    expect(ev.entries).toEqual([
+      { player: "Ronaldo", placement: 1, wins: 4, losses: 0, draws: 0, archetype: "Blue / Purple Char / Marine", main: { "ST11-001": 4 } },
+      { player: "Anonymous", placement: 2, wins: 3, losses: 1, draws: 1, archetype: "Red / White Justice", main: { "GD01-001": 4 } },
+      { player: "Caio", placement: null, wins: null, losses: null, draws: null, archetype: "Green / White Wing Zero", main: null },
+    ]);
+  });
+
+  it("formato fora de temporada leva a marca no nome; Edition Beta e regionais", () => {
+    expect(toEvent(detail({ format: "EB01", date: "2026-07-01" }))).toMatchObject({ format: "GD04", name: "Store Championship @ Forja Hobby Store [EB01] — 2026-07-01" });
+    expect(toEvent(detail({ format: "GD01_b", date: "2025-04-10" }))).toBeNull();
+    expect(toEvent(detail({ event_type: "regionals", store: { name: "X", country: "United States" }, scene: null }))).toMatchObject({ tier: "LARGE_OFFICIAL", country: "United States" });
+    expect(toEvent(null)).toBeNull();
+  });
+
+  it("incremental: monta só os novos e os recentes; cache vale para evento assentado ou lido há < 1 dia", () => {
+    const list = [
+      { tournament_id: 1, event_date: "2026-08-01", format: "GD05" },
+      { tournament_id: 2, event_date: "2026-10-01", format: "GD05" },
+      { tournament_id: 3, event_date: "2026-08-01", format: "GD05" },
+      { tournament_id: 4, event_date: "2025-04-10", format: "GD01_b" },
+    ];
+    const known = new Map([[1, "2026-08-01T00:00:00.000Z"], [2, "2026-10-01T00:00:00.000Z"]]);
+    expect(planTournaments(list, known, "2026-10-10T12:00:00.000Z").map((t) => t.tournament_id)).toEqual([2, 3]);
+    const now = Date.parse("2026-10-10T12:00:00Z");
+    expect(cacheFresh(null, "2026-08-01", now)).toBe(false);
+    expect(cacheFresh({ fetchedAt: "2026-09-01T00:00:00Z" }, "2026-08-01", now)).toBe(true);
+    expect(cacheFresh({ fetchedAt: "2026-10-08T00:00:00Z" }, "2026-10-05", now)).toBe(false);
+    expect(cacheFresh({ fetchedAt: "2026-10-10T06:00:00Z" }, "2026-10-05", now)).toBe(true);
+  });
+
+  it("cliente: repete em queda de rede e 429 (Retry-After), 404 vira null, chave recusada para", async () => {
+    const replies = [
+      () => Promise.reject(Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNRESET" } })),
+      () => Promise.resolve(new Response("{}", { status: 429, headers: { "retry-after": "7" } })),
+      () => Promise.resolve(Response.json({ data: [1] })),
+      () => Promise.resolve(new Response("{}", { status: 404 })),
+      () => Promise.resolve(new Response("{}", { status: 403 })),
+    ];
+    const seen = [];
+    const slept = [];
+    const api = new DigilabClient({
+      key: "k",
+      cacheDir: ".",
+      fetchImpl: (url, init) => {
+        seen.push([url, init.headers["X-API-Key"]]);
+        return replies.shift()();
+      },
+      sleep: async (ms) => slept.push(ms),
+    });
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    expect(await api.get("/tournaments?page=1")).toEqual({ data: [1] });
+    expect(await api.get("/tournament/9")).toBeNull();
+    await expect(api.get("/tournament/9")).rejects.toThrow(/chave recusada/);
+    log.mockRestore();
+    expect(seen[0]).toEqual(["https://gundam.digilab.cards/api/tournaments?page=1", "k"]);
+    expect(slept).toContain(7_000);
+    expect(api.requests).toBe(5);
+  });
+});
+
+describe("Zero System: diff dos núcleos de arquétipo", async () => {
+  const { diffMetaCores, parseFixture } = await import("../scripts/meta-cores-diff.mjs");
+  const file = (formats, generatedAt = "2026-10-10") => `export const META_CORES: MetaCoreFile = ${JSON.stringify({ generatedAt, source: "x", formats })};\n`;
+
+  it("ignora a data de geração e aponta a temporada que mudou", () => {
+    const a = parseFixture(file({ GD05: { lists: 10, events: 2, archetypes: [{}] } }));
+    expect(diffMetaCores(a, parseFixture(file({ GD05: { lists: 10, events: 2, archetypes: [{}] } }, "2026-10-16"))).changed).toBe(false);
+    const d = diffMetaCores(a, parseFixture(file({ GD05: { lists: 40, events: 9, archetypes: [{}, {}] } })));
+    expect(d.changed).toBe(true);
+    expect(d.rows[0]).toBe("| GD05 | 10 → 40 | 2 → 9 | 1 → 2 | **mudou** |");
+    expect(parseFixture("sem fixture")).toBeNull();
   });
 });

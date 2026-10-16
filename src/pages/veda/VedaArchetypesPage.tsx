@@ -31,6 +31,7 @@ function readFiltersFromUrl() {
     season: rawSeason !== null ? rawSeason : DEFAULT_SEASON,
     rawSeasonHasParam: rawSeason !== null,
     tier: sp.get("tier") || "",
+    country: sp.get("country") || "",
     uf: sp.get("uf") || "",
   };
 }
@@ -42,6 +43,8 @@ export default function VedaArchetypesPage() {
   const [season, setSeason] = useState(initial.season);
   const [tier, setTier] = useState(initial.tier);
   const [uf, setUf] = useState(initial.uf);
+  // meta local (Brasil) ou global (todas as fontes e países)
+  const [country, setCountry] = useState(initial.country);
 
   const [filtersMeta, setFiltersMeta] = useState<VedaFilters | null>(null);
   const [rows, setRows] = useState<VedaArchetypeRow[]>([]);
@@ -98,6 +101,7 @@ export default function VedaArchetypesPage() {
       sp.set("season", season);
     }
     if (tier) sp.set("tier", tier);
+    if (country) sp.set("country", country);
     if (uf) sp.set("uf", uf);
 
     const qs = sp.toString();
@@ -105,7 +109,7 @@ export default function VedaArchetypesPage() {
       lastNavigatedQs.current = qs;
       navigate(`/arquetipos${qs ? `?${qs}` : ""}`, { replace: true });
     }
-  }, [season, tier, uf, currentSeasonCode, initial.rawSeasonHasParam, navigate]);
+  }, [season, tier, country, uf, currentSeasonCode, initial.rawSeasonHasParam, navigate]);
 
   // Sincroniza histórico do navegador
   useEffect(() => {
@@ -122,6 +126,7 @@ export default function VedaArchetypesPage() {
       const f = readFiltersFromUrl();
       setSeason(f.season);
       setTier(f.tier);
+      setCountry(f.country);
       setUf(f.uf);
     };
 
@@ -137,6 +142,7 @@ export default function VedaArchetypesPage() {
     initial.rawSeasonHasParam = false;
     setSeason(currentSeasonCode);
     setTier("");
+    setCountry("");
     setUf("");
   }, [currentSeasonCode, initial]);
 
@@ -147,6 +153,7 @@ export default function VedaArchetypesPage() {
       const queryParams: VedaArchetypesQueryParams = {
         season: season && season !== "all" ? season : undefined,
         tier: (tier as any) || undefined,
+        country: country || undefined,
         uf: uf || undefined,
       };
       const result = await vedaApi.getArchetypes(queryParams);
@@ -156,14 +163,14 @@ export default function VedaArchetypesPage() {
     } finally {
       setLoading(false);
     }
-  }, [season, tier, uf]);
+  }, [season, tier, country, uf]);
 
   useEffect(() => {
     loadArchetypes();
   }, [loadArchetypes]);
 
   const isCurrentSeasonActive = season === currentSeasonCode;
-  const hasActiveFilters = Boolean((!isCurrentSeasonActive && season) || tier || uf);
+  const hasActiveFilters = Boolean((!isCurrentSeasonActive && season) || tier || country || uf);
   const totalLists = rows.reduce((acc, r) => acc + r.lists, 0);
 
   return (
@@ -216,6 +223,25 @@ export default function VedaArchetypesPage() {
                       {t.label}
                     </option>
                   ))}
+                </select>
+              </div>
+
+              {/* Recorte: meta global ou local (Brasil) */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-mono uppercase text-slate-600 dark:text-slate-400 tracking-wider">
+                  Meta
+                </label>
+                <select
+                  aria-label="Meta global ou local"
+                  value={country}
+                  onChange={(e) => {
+                    setCountry(e.target.value);
+                    if (!e.target.value) setUf("");
+                  }}
+                  className="h-8 px-2 rounded-none border border-slate-300 dark:border-white/15 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white font-mono focus:border-primary outline-none"
+                >
+                  <option value="">Global (todos os países)</option>
+                  <option value="Brasil">Local (Brasil)</option>
                 </select>
               </div>
 

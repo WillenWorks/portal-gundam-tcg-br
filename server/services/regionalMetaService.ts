@@ -139,6 +139,17 @@ function normalizeCityKey(text: string): string {
 /** Deriva a UF a partir do texto livre de cidade: primeiro tenta um sufixo explícito
  *  ("Curitiba - PR", "Curitiba/PR", "Curitiba, PR"), depois o dicionário de cidades
  *  conhecidas. Nunca adivinha -- sem match, cai em UNKNOWN_LABEL. */
+/**
+ * O meta regional é do Brasil: entra torneio com país Brasil/Brazil e reporte do próprio site sem país. Coletas
+ * externas sem país (Egman grava `country: null` para eventos do mundo todo) e de outros países (DigiLab) ficam no
+ * meta global do Veda, não aqui.
+ */
+export function isBrazilianTournament(t: { country: string | null; sourceUrl: string | null }): boolean {
+  const country = (t.country ?? "").trim().toLowerCase();
+  if (country) return country === "brasil" || country === "brazil";
+  return !/egmanevents\.com|digilab\.cards/.test(t.sourceUrl ?? "");
+}
+
 export function deriveStateFromCity(city: string | null | undefined, country: string | null | undefined): { uf: string | null; stateLabel: string; cityLabel: string } {
   const rawCity = (city || "").trim();
   if (!rawCity) return { uf: null, stateLabel: UNKNOWN_LABEL, cityLabel: UNKNOWN_LABEL };
@@ -361,7 +372,7 @@ export async function getRegionalMetagame(prisma: PrismaClient, params: Regional
   const eventBySnapshot = new Map<string, EventInfo>();
 
   for (const entry of reportEntries) {
-    if (!entry.deckSnapshotId || geoBySnapshot.has(entry.deckSnapshotId)) continue;
+    if (!entry.deckSnapshotId || geoBySnapshot.has(entry.deckSnapshotId) || !isBrazilianTournament(entry.tournament)) continue;
     outcomeBySnapshot.set(entry.deckSnapshotId, { wins: entry.wins ?? 0, losses: entry.losses ?? 0, draws: entry.draws ?? 0 });
     const derived = deriveStateFromCity(entry.tournament.city, entry.tournament.country);
     geoBySnapshot.set(entry.deckSnapshotId, {

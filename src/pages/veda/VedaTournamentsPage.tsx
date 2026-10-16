@@ -502,7 +502,7 @@ export default function VedaTournamentsPage() {
                 className="w-full h-8 px-2 rounded-none border dark:border-white/15 dark:bg-slate-900 dark:text-white light:border-slate-300 light:bg-slate-50 light:text-slate-900 text-xs font-mono focus:border-primary outline-none"
               >
                 <option value="">Todas as Fontes</option>
-                <option value="digilab">DigiLab (Brasil)</option>
+                <option value="digilab">DigiLab (Mundial)</option>
                 <option value="egman">Egman Events (Mundial)</option>
                 <option value="manual">Cadastro no Site</option>
               </select>

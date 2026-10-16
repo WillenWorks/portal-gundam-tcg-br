@@ -111,6 +111,19 @@ export function VedaShell({
 
         {/* Conteúdo da página */}
         {children}
+
+        {/* Crédito das fontes (exigência da licença da API da DigiLab: link visível para digilab.cards) */}
+        <p className="text-center font-mono text-[11px] text-slate-500 dark:text-slate-400">
+          Dados de torneio:{" "}
+          <a href="https://digilab.cards" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">
+            Data provided by DigiLab (digilab.cards)
+          </a>{" "}
+          ·{" "}
+          <a href="https://deckbuilder.egmanevents.com/gundam/tournaments" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">
+            Egman Events
+          </a>{" "}
+          · reportes da comunidade AnaheimHub
+        </p>
       </div>
     </PublicShell>
   );
