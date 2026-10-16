@@ -145,6 +145,7 @@ jobs:
             if quer torneios && [ -f "$P/events-egman.json" ]; then run prisma/import-tournaments.mjs --file="$P/events-egman.json" $FLAG; fi
             if { quer torneios || [ "$TAREFA" = "digilab" ]; } && [ -f "$P/events-digilab.json" ]; then run prisma/import-tournaments.mjs --file="$P/events-digilab.json" $FLAG; fi
             if [ "$TAREFA" = "digilab-br" ] && [ -f "$P/events-digilab-br.json" ]; then run prisma/import-tournaments.mjs --file="$P/events-digilab-br.json" $FLAG; fi
+            if quer torneios || [ "$TAREFA" = "digilab" ] || [ "$TAREFA" = "digilab-br" ]; then run prisma/audit-tournament-duplicates.mjs; fi
             run prisma/audit-catalog.mjs
 
   # Zero System: com os torneios novos gravados, regenera os núcleos de arquétipo por temporada (o que o bot e a
@@ -178,7 +179,8 @@ jobs:
           node scripts/gundam-meta-cores.mjs --raw=meta-raw-site.json
       - name: PR com o meta novo (se mudou além da data)
         env:
-          GH_TOKEN: ${{ github.token }}
+          # PAT com Pull requests: write (o repo bloqueia o GITHUB_TOKEN de criar PR); sem ele, tenta o do Actions
+          GH_TOKEN: ${{ secrets.ACTIONS_PR_TOKEN || github.token }}
         run: |
           if git diff --quiet -- src/modules/simulator/fixtures/metaCores.ts; then echo "metaCores sem mudança"; exit 0; fi
           if node scripts/meta-cores-diff.mjs --base=HEAD >> "$GITHUB_STEP_SUMMARY"; then echo "só a data mudou"; exit 0; fi
@@ -192,4 +194,4 @@ jobs:
           gh pr create --base dev --head auto/zero-system-meta \
             --title "Zero System: meta atualizado com os torneios coletados" \
             --body "Gerado pelo workflow Dados do site (run ${{ github.run_id }}): núcleos de arquétipo por temporada (fixtures/metaCores.ts) com todas as fontes importadas no site (Egman, DigiLab, reportes). Rodar a Bot matrix antes de mesclar se o meta mudou muito." \
-            || echo "::warning::não consegui abrir o PR (Settings → Actions → permitir que o Actions crie PRs) — a branch auto/zero-system-meta foi enviada"
+            || echo "::warning::não consegui abrir o PR (crie o segredo ACTIONS_PR_TOKEN com um PAT que tenha Pull requests: write) — a branch auto/zero-system-meta foi enviada"
