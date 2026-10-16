@@ -8,7 +8,7 @@
  * `PendingDecision.abilityResolution` pro `player` — o jogador ordena os efeitos
  * simultâneos, escolhe o alvo de cada um e ativa/pula os optativos. Os demais
  * (self / mandatório sem alvo) resolvem na hora, antes da pausa. */
-import { dispatchTrigger, findTriggerSpecs, specOncePerTurnMarker, specsListenTo } from "./dispatcher";
+import { dispatchTrigger, findTriggerSpecs, specOncePerTurnMarker, specsHaveReactions, specsListenTo } from "./dispatcher";
 import {
   callsChoicePrimitive,
   callsNeedChoice,
@@ -1302,7 +1302,7 @@ export function dispatchReactionsFromEffect(
     queueBudget?: TriggerQueueBudget;
   } = {},
 ): GameState {
-  if (!specs.some((s) => s.reaction)) return after;
+  if (!specsHaveReactions(specs)) return after;
   return dispatchReactions(after, collectEffectReactions(before, events, effectController, after, opts.sourceInstanceId), specs, opts);
 }
 
@@ -1318,7 +1318,7 @@ export function runEndOfTurnReactions(
   targetFilterResolver?: TargetFilterResolver,
 ): GameState {
   const delayedEnd = (["A", "B"] as PlayerId[]).some((p) => (state.players[p].delayedReactions ?? []).length > 0);
-  if (!delayedEnd && !specs.some((s) => s.reaction?.event === "endOfTurn")) return state;
+  if (!delayedEnd && !specsListenTo(specs, "endOfTurn")) return state;
   let next = state;
   const active = state.activePlayer;
   // W8 — reações com escolha ("you may choose 1 of your … Units", GD05-051): ficam pra uma decisão no fim (o End Step

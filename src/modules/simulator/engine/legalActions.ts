@@ -3,7 +3,7 @@ import { effectiveCost, effectiveDeployCost, hasKeyword, specPairGateOpen } from
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { commandHasNoAvailableMode, computeLegalTargets, costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, specNeedsNamedTarget, trashExileChoice } from "./effectSpec";
 import { findTriggerSpecs, specOncePerTurnMarker } from "./dispatcher";
-import { canActivateBlocker } from "./combat";
+import { attackIneligibilityReason, attackTargetError, canActivateBlocker } from "./combat";
 import { canPayLevel } from "./deploy";
 import { costRestsSelf, specResourceCost } from "./costs";
 import { applyPlayerAction, type PlayerAction } from "./actions";
@@ -57,6 +57,16 @@ export function actionOwner(state: GameState): PlayerId | null {
   if (state.endPhaseAction) return state.endPhaseAction.priority;
   if (state.phase === "main") return state.activePlayer;
   return null;
+}
+
+/** checagem de ataque sem motivo de recusa; erro comum nela conta como recusa — igual à aplicação de teste */
+function attackCheckPasses(check: () => string | null): boolean {
+  try {
+    return check() === null;
+  } catch (err) {
+    if (isPlainLegalityError(err)) return false;
+    throw err;
+  }
 }
 
 function isPlainLegalityError(err: unknown): boolean {
@@ -303,11 +313,15 @@ function mainPhaseCandidates(state: GameState, seat: PlayerId, specs: EffectSpec
     }
   }
 
-  // Ataque
+  // Ataque — já com as checagens do `declareAttack` (puras, sem exceção). Sem elas, os candidatos crus dos
+  // rollouts (`validate: false`) traziam ataques de Unit recém-deployada: a policy escolhia, o motor recusava e
+  // ela escolhia de novo — 3,7 mi de exceções em 1 min numa partida da matriz GD05 (deck que põe muita Unit em jogo).
   for (const attacker of friendlyUnits(state, seat)) {
-    if (attacker.rested) continue;
+    if (attacker.rested || !attackCheckPasses(() => attackIneligibilityReason(state, attacker))) continue;
     const targets: AttackTarget[] = ["player", ...enemyUnits(state, seat).map((u): AttackTarget => ({ unitId: u.instanceId }))];
-    for (const target of targets) out.push({ kind: "declareAttack", attackerId: attacker.instanceId, target });
+    for (const target of targets) {
+      if (attackCheckPasses(() => attackTargetError(state, attacker, target))) out.push({ kind: "declareAttack", attackerId: attacker.instanceId, target });
+    }
   }
 
   // 【Activate·Main】 / <Support>

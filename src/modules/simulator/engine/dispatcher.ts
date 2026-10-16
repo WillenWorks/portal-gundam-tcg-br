@@ -101,6 +101,12 @@ export function specsListenTo(specs: EffectSpec[], event: string): boolean {
   return index.events.has(event);
 }
 
+/** algum spec de `specs` é reação? (mesmo índice do `specsListenTo`) */
+export function specsHaveReactions(specs: EffectSpec[]): boolean {
+  specsListenTo(specs, "");
+  return (reactionEventIndex.get(specs)?.events.size ?? 0) > 0;
+}
+
 /**
  * Dispara todo EffectSpec de `sourceInstanceId` pro `trigger` dado, na ordem
  * em que aparecem em `specs`, aplicando os eventos de cada um antes de
