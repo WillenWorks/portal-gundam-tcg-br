@@ -4,13 +4,10 @@ import {
   Calendar,
   ChevronLeft,
   Crown,
-  ExternalLink,
-  Layers,
   MapPin,
   PieChart as PieChartIcon,
   Shield,
   Trophy,
-  Users,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";

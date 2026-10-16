@@ -3,6 +3,13 @@ name: CI
 on:
   pull_request:
     branches: [dev, main]
+  # commit direto (merge, hotfix) também passa pelo CI — o deploy não espera por ele, mas o vermelho aparece
+  push:
+    branches: [dev, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   checks:
@@ -26,6 +33,12 @@ jobs:
 
       - name: Type check
         run: corepack pnpm run check:types
+
+      - name: Lint (erros travam; avisos não)
+        run: corepack pnpm run lint
+
+      - name: Dependências de produção sem vulnerabilidade alta
+        run: corepack pnpm audit --prod --audit-level high
 
       - name: Unit tests
         run: corepack pnpm test

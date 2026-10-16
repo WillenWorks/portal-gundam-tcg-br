@@ -83,8 +83,9 @@ describe("GD05-017 Nu Gundam — batalha só com o Damage Step (FAQ Q346–Q348)
   it("exila 3 (Londo Bell) e batalha direto no Damage Step: dano dos dois lados, <Breach 5> e volta à Main Phase", () => {
     let s = game();
     const enemy = placeCard(s, "B", UNIT({ code: "TEST-E", ap: 2, hp: 3 }), "battleArea");
-    let nu: string;
-    ({ s, nu } = pairNu(s));
+    const paired = pairNu(s);
+    s = paired.s;
+    const nu = paired.nu;
     s = resolve(s, "A", "GD05-017-WhenPaired", []);
     expect(s.players.A.exile).toHaveLength(3);
     expect(entry(s, "A", "GD05-017-Then")?.legalTargets).toEqual([enemy]);

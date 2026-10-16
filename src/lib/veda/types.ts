@@ -208,6 +208,8 @@ export interface VedaExportList {
   record: string | null;
   label: string | null;
   player: string;
+  /** jogadores no evento, quando a fonte informa */
+  players: number | null;
   main: Record<string, number>;
   source: VedaSourceId;
   country: string | null;

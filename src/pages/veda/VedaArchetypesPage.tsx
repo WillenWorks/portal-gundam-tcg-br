@@ -1,16 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
-  ArrowRight,
   ChevronRight,
-  Filter,
-  Layers,
-  Medal,
   RotateCcw,
   Trophy,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { VedaShell } from "@/components/veda/VedaShell";
 import { VedaArchetypeBadge } from "@/components/veda/VedaArchetypeBadge";
@@ -40,6 +35,8 @@ export default function VedaArchetypesPage() {
   const [, navigate] = useLocation();
 
   const initial = useMemo(() => readFiltersFromUrl(), []);
+  // a temporada veio na URL? (ref: limpar o filtro desliga sem re-render, como antes)
+  const seasonFromUrl = useRef(initial.rawSeasonHasParam);
   const [season, setSeason] = useState(initial.season);
   const [tier, setTier] = useState(initial.tier);
   const [uf, setUf] = useState(initial.uf);
@@ -97,7 +94,7 @@ export default function VedaArchetypesPage() {
     }
 
     const sp = new URLSearchParams();
-    if (season && (season !== currentSeasonCode || initial.rawSeasonHasParam)) {
+    if (season && (season !== currentSeasonCode || seasonFromUrl.current)) {
       sp.set("season", season);
     }
     if (tier) sp.set("tier", tier);
@@ -109,7 +106,7 @@ export default function VedaArchetypesPage() {
       lastNavigatedQs.current = qs;
       navigate(`/arquetipos${qs ? `?${qs}` : ""}`, { replace: true });
     }
-  }, [season, tier, country, uf, currentSeasonCode, initial.rawSeasonHasParam, navigate]);
+  }, [season, tier, country, uf, currentSeasonCode, navigate]);
 
   // Sincroniza histórico do navegador
   useEffect(() => {
@@ -139,12 +136,12 @@ export default function VedaArchetypesPage() {
   }, []);
 
   const resetFilters = useCallback(() => {
-    initial.rawSeasonHasParam = false;
+    seasonFromUrl.current = false;
     setSeason(currentSeasonCode);
     setTier("");
     setCountry("");
     setUf("");
-  }, [currentSeasonCode, initial]);
+  }, [currentSeasonCode]);
 
   const loadArchetypes = useCallback(async () => {
     setLoading(true);

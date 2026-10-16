@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { loadSimulatorCardLookup, CANONICAL_ART_ALIASES } from "./cardArtService";
+import { loadSimulatorCardLookup } from "./cardArtService";
 import { api } from "@/lib/api";
 
 vi.mock("@/lib/api", () => ({

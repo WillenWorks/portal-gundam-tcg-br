@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { captureSimulatorSnapshot } from "./captureSnapshot";
 import type { PlayerId } from "@/modules/simulator/engine/types";
 import type { ViewGameState } from "@/modules/simulator/engine/viewState";

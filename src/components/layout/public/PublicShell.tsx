@@ -6,7 +6,6 @@ import { AppTopNav } from "@/components/layout/shared/AppTopNav";
 import { AppFooter } from "@/components/layout/shared/AppFooter";
 import { SiteAnnouncementBanner } from "@/components/layout/shared/SiteAnnouncementBanner";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   Breadcrumb,
   BreadcrumbItem,

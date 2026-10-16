@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { AlertCircle, ArrowRight, CheckCircle2, Info, Megaphone, ShieldAlert, X } from "lucide-react";
+import { AlertCircle, ArrowRight, CheckCircle2, Info, ShieldAlert, X } from "lucide-react";
 import { api, type PublicSiteConfig } from "@/lib/api";
 import { cn } from "@/lib/utils";
 

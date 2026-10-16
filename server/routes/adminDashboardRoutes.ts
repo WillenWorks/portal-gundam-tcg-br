@@ -1,6 +1,10 @@
 import type { Express, Request, Response, RequestHandler } from "express";
 import { PrismaClient, UserRole } from "@prisma/client";
 import { getSiteConfig, updateSiteConfig, type SiteConfig } from "../services/siteConfigService.ts";
+import { STALE_AFTER_MS, sourceHealth, summarizeRuns, type DataHealthResponse } from "../services/dataHealthService.ts";
+
+const RUNS_CACHE_MS = 5 * 60 * 1000;
+let runsCache: { at: number; value: DataHealthResponse["workflow"] } | null = null;
 
 export function registerAdminDashboardRoutes(
   app: Express,
@@ -355,6 +359,49 @@ export function registerAdminDashboardRoutes(
       repo: ghRepo,
       workflows,
     });
+  });
+
+  // 7b. Saúde da coleta de torneios: última importação por fonte (banco) + último run do Dados do site (GitHub)
+  app.get("/api/admin/data-health", authRequired, adminOnly, async (_req: Request, res: Response) => {
+    try {
+      const rows = await prisma.tournament.findMany({
+        where: { isActive: true, sourceUrl: { not: null } },
+        select: { sourceUrl: true, updatedAt: true, dateStart: true },
+      });
+      const sources = sourceHealth(rows, Date.now());
+
+      const ghToken = process.env.GH_DISPATCH_TOKEN;
+      const ghRepo = process.env.GH_DISPATCH_REPO || "WillenWorks/portal-gundam-tcg-br";
+      let workflow: DataHealthResponse["workflow"] = null;
+      if (ghToken && runsCache && Date.now() - runsCache.at < RUNS_CACHE_MS) {
+        workflow = runsCache.value;
+      } else if (ghToken) {
+        try {
+          const response = await fetch(`https://api.github.com/repos/${ghRepo}/actions/workflows/dados-site.yml/runs?per_page=20`, {
+            headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${ghToken}`, "User-Agent": "PortalGundamTCG-Admin" },
+          });
+          if (response.ok) {
+            const body = (await response.json()) as { workflow_runs?: Parameters<typeof summarizeRuns>[0] };
+            workflow = summarizeRuns(body.workflow_runs ?? []);
+            runsCache = { at: Date.now(), value: workflow };
+          } else {
+            console.warn(`[data-health] GitHub respondeu ${response.status} ao listar os runs do dados-site.yml`);
+          }
+        } catch (err) {
+          console.warn("[data-health] falha ao consultar o GitHub:", err);
+        }
+      }
+
+      const body: DataHealthResponse = {
+        staleAfterHours: STALE_AFTER_MS / 3_600_000,
+        stale: sources.some((s) => s.stale),
+        sources,
+        workflow,
+      };
+      res.json(body);
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || "Falha ao calcular a saúde da coleta." });
+    }
   });
 
   // 8. Disparar workflow do GitHub Actions via API

@@ -49,11 +49,10 @@ export function CardPlayabilityBadge({
   onClick,
 }: CardPlayabilityBadgeProps) {
   // Cartas fixas (Ex Base, Resources, Ex Resources, Tokens) não possuem selo de jogabilidade
-  if (isNonStatsCard({ code, name: propEntry?.name, cardType: (propEntry as any)?.cardType || (propEntry as any)?.type })) {
-    return null;
-  }
-
-  const query = useCardPlayability(propEntry || propStatus ? undefined : code);
+  // (o hook vem antes do retorno: hooks não podem ser condicionais)
+  const nonStats = isNonStatsCard({ code, name: propEntry?.name, cardType: (propEntry as any)?.cardType || (propEntry as any)?.type });
+  const query = useCardPlayability(nonStats || propEntry || propStatus ? undefined : code);
+  if (nonStats) return null;
 
   const entry = propEntry || query.entry;
   const status: PlayabilityStatus = propStatus || entry?.status || query.status || "fora";

@@ -567,6 +567,7 @@ export function exportLists(ix: VedaIndex, f: TournamentFilter & { since?: strin
         record: recordOf(e),
         label: e.archetype,
         player: e.playerName,
+        players: t.participantCount,
         main,
         source: sourceOf(t.sourceUrl).id,
         country: t.country,

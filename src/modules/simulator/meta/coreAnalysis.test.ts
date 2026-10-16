@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeFormat, eventWeight, listOverlap, placementPoints, type CatalogLookup, type RawMetaList } from "./coreAnalysis";
+import { EVENT_LIST_CAP, analyzeFormat, eventCapFactor, eventWeight, listOverlap, placementPoints, type CatalogLookup, type RawMetaList } from "./coreAnalysis";
 
 /**
  * Catálogo sintético: arquétipo A (azul/branco, chefe A-BOSS Lv.7), arquétipo B (vermelho/verde,
@@ -64,6 +64,31 @@ describe("helpers", () => {
     expect(eventWeight({ event: "Newtype Challenge", eventType: "Small Official Event" })).toBe(0.5);
     expect(eventWeight({ event: "Shop Battle", eventType: "Unofficial Event" })).toBe(0.5);
     expect(eventWeight({ event: "Store Tournament", eventType: "Small Official" })).toBe(1);
+  });
+
+  it("com o número de jogadores (DigiLab), o porte também pesa — vale o maior entre categoria e porte", () => {
+    expect(eventWeight({ event: "Store Championship @ Loja", eventType: "Small Official Event", players: 150 })).toBe(3);
+    expect(eventWeight({ event: "Store Championship @ Loja", eventType: "Small Official Event", players: 60 })).toBe(2);
+    expect(eventWeight({ event: "Locals @ Loja", eventType: "Small Official Event", players: 12 })).toBe(1);
+    expect(eventWeight({ event: "Newtype Challenge", eventType: "Small Official Event", players: 8 })).toBe(0.5);
+    expect(eventWeight({ event: "Gen Con Regionals", eventType: "Large Official Event", players: 10 })).toBe(3);
+  });
+
+  it("teto por evento: acima de EVENT_LIST_CAP listas, o evento inteiro vale EVENT_LIST_CAP", () => {
+    expect(eventCapFactor(10)).toBe(1);
+    expect(eventCapFactor(EVENT_LIST_CAP)).toBe(1);
+    expect(eventCapFactor(EVENT_LIST_CAP * 4)).toBe(0.25);
+  });
+
+  it("um regional com a classificação inteira não engole o meta da temporada", () => {
+    // 200 listas de B num só regional × 20 listas de A espalhadas em 5 eventos (mesmo peso de categoria)
+    const big = Array.from({ length: 200 }, (_, i) => list(deckB({ "B-11": 4, "B-12": 2 }), { event: "Mega Regionals", date: "2026-08-02", placing: i + 1, label: "B Boss" }));
+    const spread = Array.from({ length: 20 }, (_, i) => list(deckA({ "A-FLEX": 4, "A-11": 2 }), { event: `Regionals ${i % 5}`, date: "2026-08-03", placing: (i % 4) + 1, label: "A Boss" }));
+    const r = analyzeFormat([...big, ...spread], catalog);
+    const shareOf = (name: string) => r.archetypes.find((a) => a.name === name)?.share ?? 0;
+    // sem teto seria 200/220 ≈ 0,91; com o teto o regional vale 32 listas: 32/52 ≈ 0,62
+    expect(shareOf("B Boss")).toBeCloseTo(32 / 52, 2);
+    expect(shareOf("A Boss")).toBeCloseTo(20 / 52, 2);
   });
 
   it("pontos por colocação decrescem e colocação desconhecida vale pouco", () => {

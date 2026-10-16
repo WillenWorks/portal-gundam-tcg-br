@@ -1,7 +1,7 @@
 /* Layout privado v8.1 — painel em tela cheia, topo privado sem links públicos e sidebar responsiva. */
 import { type ComponentType, type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { BookMarked, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Globe, Home, Image, LogOut, Menu, Moon, Newspaper, PanelsTopLeft, ScrollText, Settings, ShieldCheck, Sun, Tags, Trophy, Users } from "lucide-react";
+import { BookMarked, ChevronLeft, ChevronRight, Globe, Home, LogOut, Menu, Moon, Settings, ShieldCheck, Sun, Trophy } from "lucide-react";
 
 import anaheimLogo from "@/assets/anaheim-logo-transparent.png";
 import { useAuth } from "@/contexts/AuthContext";
