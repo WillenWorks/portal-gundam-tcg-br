@@ -30,31 +30,73 @@ const hostOf = (url) => {
   }
 };
 
-function candidateOf(t) {
+function candidateOf(t, deckBySnapshot = new Map()) {
+  const champion = t.entries.find((e) => e.placement === 1);
   return {
     id: t.id,
     sourceUrl: t.sourceUrl,
     season: t.season,
     date: t.dateStart?.toISOString() ?? null,
-    champion: t.entries.find((e) => e.placement === 1)?.playerName ?? null,
+    champion: champion?.playerName ?? null,
+    championDeck: champion?.deckSnapshotId ? deckBySnapshot.get(champion.deckSnapshotId) ?? null : null,
+    players: t.entries.map((e) => e.playerName),
+    entries: t.entries.length,
     lists: t.entries.filter((e) => e.deckSnapshotId).length,
   };
 }
 
-/** Mesmo evento em outra fonte: outro site, mesma temporada, data a até 1 dia e o mesmo campeão. */
+const ANONYMOUS = new Set(["", "anonymous", "anonimo", "unknown"]);
+const playerSet = (names) => new Set(names.map(slug).filter((n) => !ANONYMOUS.has(n)));
+
+/** Jaccard entre os códigos de duas listas { código: cópias } (null quando falta uma delas) */
+export function deckSimilarity(a, b) {
+  const x = new Set(Object.keys(a ?? {}));
+  const y = new Set(Object.keys(b ?? {}));
+  if (!x.size || !y.size) return null;
+  const inter = [...x].filter((c) => y.has(c)).length;
+  return inter / (x.size + y.size - inter);
+}
+
+/**
+ * Mesmo evento em outra fonte (ex.: um regional na Egman e na DigiLab): outro site, mesma temporada, data a até
+ * 1 dia e o mesmo campeão — e mais uma confirmação, porque campeão e data sozinhos casam eventos diferentes
+ * (apelidos curtos como "JP", ou a mesma loja com dois eventos no dia):
+ *  - os dois lados com 2+ jogadores: metade dos jogadores do menor em comum (mínimo 2). Medido em 2026-10-16:
+ *    os 22 duplicados reais Egman×DigiLab dividem 60–100% dos nomes; os falsos, só o campeão;
+ *  - um lado só com o campeão: a lista do campeão parecida (Jaccard ≥ 0,6), quando as duas fontes a têm.
+ * Entre vários candidatos, fica o com mais jogadores em comum.
+ */
 export function crossSourceDuplicate(ev, candidates) {
   const champion = slug(ev.entries.find((e) => e.placement === 1)?.player);
-  if (!champion || !ev.date) return null;
+  if (!champion || ANONYMOUS.has(champion) || !ev.date) return null;
   const day = Date.parse(`${ev.date}T00:00:00Z`);
-  return (
-    candidates.find(
-      (c) =>
-        hostOf(c.sourceUrl) !== hostOf(ev.sourceUrl) &&
-        (!c.season || !ev.format || c.season === ev.format) &&
-        c.date && Math.abs(Date.parse(c.date) - day) <= DAY_MS &&
-        slug(c.champion) === champion,
-    ) ?? null
-  );
+  const ours = playerSet(ev.entries.map((e) => e.player));
+  const ourDeck = ev.entries.find((e) => e.placement === 1)?.main ?? null;
+  let best = null;
+  for (const c of candidates) {
+    if (hostOf(c.sourceUrl) === hostOf(ev.sourceUrl)) continue;
+    if (c.season && ev.format && c.season !== ev.format) continue;
+    if (!c.date || Math.abs(Date.parse(c.date) - day) > DAY_MS) continue;
+    if (slug(c.champion) !== champion) continue;
+    const theirs = playerSet(c.players ?? [c.champion]);
+    const shared = [...ours].filter((p) => theirs.has(p)).length;
+    const smaller = Math.min(ours.size, theirs.size);
+    if (smaller >= 2) {
+      if (shared < Math.max(2, Math.ceil(smaller / 2))) continue;
+    } else {
+      const sim = deckSimilarity(ourDeck, c.championDeck);
+      if (sim != null && sim < 0.6) continue;
+    }
+    if (!best || shared > best.shared) best = { candidate: c, shared };
+  }
+  return best?.candidate ?? null;
+}
+
+/** Qual coleta fica quando o evento existe nas duas fontes: a com mais listas; empate, a com mais jogadores. */
+export function keepsExisting(prepared, dup) {
+  const lists = prepared.filter((e) => e.items.length).length;
+  if (lists !== dup.lists) return lists < dup.lists;
+  return prepared.length <= (dup.entries ?? 0);
 }
 
 export function seasonRows() {
@@ -126,14 +168,18 @@ async function main() {
           where: { isActive: true, sourceUrl: { not: ev.sourceUrl }, dateStart: { gte: new Date(day - DAY_MS), lte: new Date(day + DAY_MS) } },
           select: { id: true, sourceUrl: true, season: true, dateStart: true, entries: { select: { playerName: true, placement: true, deckSnapshotId: true } } },
         });
-        const dup = crossSourceDuplicate(ev, nearby.map(candidateOf));
+        const championSnaps = nearby.flatMap((t) => t.entries.filter((e) => e.placement === 1 && e.deckSnapshotId).map((e) => e.deckSnapshotId));
+        const decks = championSnaps.length
+          ? await prisma.deckSnapshot.findMany({ where: { id: { in: championSnaps } }, select: { id: true, compactListJson: true } })
+          : [];
+        const deckBySnapshot = new Map(decks.map((d) => [d.id, d.compactListJson]));
+        const dup = crossSourceDuplicate(ev, nearby.map((t) => candidateOf(t, deckBySnapshot)));
         if (dup) {
-          const ours = prepared.filter((e) => e.items.length).length;
-          if (ours <= dup.lists) {
+          if (keepsExisting(prepared, dup)) {
             skipped.push(`${ev.name} (${ev.date}) = ${dup.sourceUrl}`);
             continue;
           }
-          existing = { id: dup.id }; // a coleta nova tem mais listas: substitui a outra fonte
+          existing = { id: dup.id }; // a coleta nova é mais completa: substitui a outra fonte
           replaced += 1;
         }
       }

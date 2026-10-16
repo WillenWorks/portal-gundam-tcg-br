@@ -119,6 +119,9 @@ import { engineShaFromEnv } from "./engineSha.ts";
 import { purgeStaleSimulatorMatches, SIMULATOR_MATCH_PURGE_INTERVAL_MS } from "./simulatorMatchCleanup.ts";
 import { registerVedaRoutes } from "./vedaService.ts";
 import { registerAdminDashboardRoutes } from "./routes/adminDashboardRoutes.ts";
+import { registerSocialRoutes } from "./routes/socialRoutes.ts";
+import { registerArticleSocialRoutes } from "./routes/articleSocialRoutes.ts";
+import { attachSocialSocket } from "./socialSocket.ts";
 import { createMailer, registerAuthEmailRoutes, sendVerificationEmail, validatePasswordRequirements } from "./authEmailService.ts";
 import { recaptchaVerifier } from "./recaptchaService.ts";
 
@@ -3123,6 +3126,8 @@ const tournamentEntryInclude = {
 // workflow "Dados do site". A rota /api/tournaments abaixo devolve tudo de uma vez e fica para o admin.
 registerVedaRoutes(app, prisma, [authRequired, roleRequired([UserRole.ADMIN])]);
 registerAdminDashboardRoutes(app, prisma, authRequired, roleRequired);
+registerSocialRoutes(app, prisma, authRequired, authOptional);
+registerArticleSocialRoutes(app, prisma, authRequired, authOptional);
 
 app.get("/api/tournaments", async (_req, res) => {
   setPublicCache(res, 20, 90);
@@ -5780,6 +5785,13 @@ async function boot() {
   attachSimulatorArena4pSocket(httpServer, {
     jwtSecret: JWT_SECRET,
     allowedOrigins,
+    resolveDeck: resolveOnlineSimulatorDeck,
+  });
+  // Rede Social & Chat P2P em tempo real (path /social.io)
+  attachSocialSocket(httpServer, {
+    jwtSecret: JWT_SECRET,
+    allowedOrigins,
+    prisma,
     resolveDeck: resolveOnlineSimulatorDeck,
   });
   httpServer.listen(PORT, () => {

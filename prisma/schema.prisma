@@ -151,6 +151,23 @@ model User {
   deckChangeLogsMade      TournamentEntryDeckChangeLog[]
   deckLikes               DeckLike[]
   deckViews               DeckView[]
+
+  // Rede Social & Comunidade (Anaheim Hub)
+  followers               UserFollow[]                   @relation("UserFollowers")
+  following               UserFollow[]                   @relation("UserFollowing")
+  friendshipsRequested    UserFriendship[]               @relation("FriendshipRequested")
+  friendshipsReceived     UserFriendship[]               @relation("FriendshipReceived")
+  sentPilotMails          PilotMailMessage[]             @relation("SentPilotMail")
+  receivedPilotMails      PilotMailMessage[]             @relation("ReceivedPilotMail")
+  reportsCreated          MailReport[]                   @relation("ReportsCreated")
+  reportsAgainst          MailReport[]                   @relation("ReportsAgainst")
+  notificationsReceived   Notification[]                 @relation("NotificationRecipient")
+  notificationsTriggered  Notification[]                 @relation("NotificationActor")
+
+  // Artigos: Curtidas e Comentários
+  postLikes               PostLike[]
+  postComments            PostComment[]
+  postCommentLikes        PostCommentLike[]
 }
 
 // Tokens de uso único enviados por e-mail (confirmação de e-mail e recuperação de senha). Só o hash
@@ -805,11 +822,15 @@ model Post {
   youtubeUrl  String?
   postType    PostType
   status      PostStatus @default(DRAFT)
+  likeCount   Int        @default(0)
+  viewCount   Int        @default(0)
   publishedAt DateTime?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  author User @relation(fields: [authorId], references: [id])
+  author   User          @relation(fields: [authorId], references: [id])
+  comments PostComment[]
+  likes    PostLike[]
 }
 
 /// Persistência da partida do Simulador (docs/23). O `matchStore` server-side
@@ -915,4 +936,184 @@ model SimulatorMatchLog {
   @@index([createdAt])
   @@index([deckKeyA, deckKeyB])
 }
+
+// ==========================================
+// REDE SOCIAL & COMUNIDADE ANAHEIM HUB
+// ==========================================
+
+/// Relação de seguidor/seguindo entre pilotos
+model UserFollow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower    User     @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  BLOCKED
+}
+
+/// Relação de amizade entre pilotos
+model UserFriendship {
+  id          String           @id @default(cuid())
+  requesterId String
+  addresseeId String
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  requester   User             @relation("FriendshipRequested", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee   User             @relation("FriendshipReceived", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([requesterId, status])
+  @@index([addresseeId, status])
+}
+
+/// Mensageria Assíncrona entre pilotos (Estilo E-mail / Caixa Postal - LGPD & Proteção a Menores)
+model PilotMailMessage {
+  id               String       @id @default(cuid())
+  senderId         String
+  recipientId      String
+  subject          String       @db.VarChar(120)
+  content          String       @db.VarChar(1500)
+  isRead           Boolean      @default(false)
+  readAt           DateTime?
+  senderDeleted    Boolean      @default(false)
+  recipientDeleted Boolean      @default(false)
+  createdAt        DateTime     @default(now())
+
+  sender           User         @relation("SentPilotMail", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient        User         @relation("ReceivedPilotMail", fields: [recipientId], references: [id], onDelete: Cascade)
+  reports          MailReport[]
+
+  @@index([recipientId, recipientDeleted, isRead, createdAt])
+  @@index([senderId, senderDeleted, createdAt])
+}
+
+/// Registro de denúncia de mensagem ou conduta de piloto para moderação administrativa
+model MailReport {
+  id             String       @id @default(cuid())
+  reporterId     String
+  reportedUserId String
+  messageId      String?
+  reason         String       @db.VarChar(255)
+  details        String?      @db.Text
+  status         ReportStatus @default(PENDING)
+  adminNotes     String?      @db.Text
+  resolvedAt     DateTime?
+  resolvedById   String?
+  createdAt      DateTime     @default(now())
+
+  reporter       User         @relation("ReportsCreated", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser   User         @relation("ReportsAgainst", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  message        PilotMailMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([reportedUserId])
+}
+
+enum ReportStatus {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+enum NotificationType {
+  NEW_FOLLOWER
+  FRIEND_REQUEST
+  FRIEND_ACCEPT
+  DECK_LIKE
+  NEW_MESSAGE
+  BINDER_INTEREST
+  ADMIN_REPORT_ALERT
+}
+
+/// Notificações e transmissões do sistema
+model Notification {
+  id          String           @id @default(cuid())
+  recipientId String
+  actorId     String?
+  type        NotificationType
+  entityId    String?
+  entityType  String?
+  message     String
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  recipient   User             @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor       User?            @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([recipientId, isRead, createdAt])
+}
+
+// ==========================================
+// MÓDULO EDITORIAL: LIKES & COMENTÁRIOS DE ARTIGOS
+// ==========================================
+
+/// Curtidas em artigos publicados
+model PostLike {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+/// Comentários e respostas nos artigos (com suporte a moderação)
+model PostComment {
+  id            String        @id @default(cuid())
+  postId        String
+  authorId      String
+  parentId      String?
+  content       String        @db.Text
+  isDeleted     Boolean       @default(false)
+  deletedByRole String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  post    Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author  User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent  PostComment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies PostComment[]     @relation("CommentReplies")
+  likes   PostCommentLike[]
+
+  @@index([postId, createdAt])
+  @@index([parentId])
+  @@index([authorId])
+}
+
+/// Curtidas em comentários de artigos
+model PostCommentLike {
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  comment PostComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([commentId])
+  @@index([userId])
+}
+
+
 

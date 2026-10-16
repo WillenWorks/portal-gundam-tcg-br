@@ -148,7 +148,7 @@ describe("DigiLab Brasil (páginas públicas)", async () => {
 
 describe("coleta incremental e duplicidade entre fontes", async () => {
   const { planTournamentFetch } = await import("../scripts/meta-sources/digilab-br.mjs");
-  const { crossSourceDuplicate } = await import("./import-tournaments.mjs");
+  const { crossSourceDuplicate, deckSimilarity, keepsExisting } = await import("./import-tournaments.mjs");
 
   it("relê só os torneios novos ou importados há menos de 21 dias", () => {
     const known = new Map([
@@ -159,13 +159,69 @@ describe("coleta incremental e duplicidade entre fontes", async () => {
     expect(planTournamentFetch([1, 2, 3, 4], known, "2026-10-10T12:00:00.000Z")).toEqual([2, 3, 4]);
   });
 
-  it("o mesmo evento de outra fonte é reconhecido pelo campeão, data e temporada", () => {
-    const ev = { sourceUrl: "https://gundam.digilab.cards/tournament/9", format: "GD05", date: "2026-09-20", entries: [{ player: "José Silva", placement: 1 }] };
-    const egman = { id: "t1", sourceUrl: "https://deckbuilder.egmanevents.com/gundam/tournaments#x", season: "GD05", date: "2026-09-21T00:00:00.000Z", champion: "Jose silva", lists: 8 };
+  const EGMAN = "https://deckbuilder.egmanevents.com/gundam/tournaments#x";
+  const DIGILAB = "https://gundam.digilab.cards/tournament/9";
+  const people = (...names) => names.map((player, i) => ({ player, placement: i + 1 }));
+
+  it("o mesmo evento de outra fonte é reconhecido pelo campeão, data, temporada e jogadores em comum", () => {
+    const ev = { sourceUrl: DIGILAB, format: "GD05", date: "2026-09-20", entries: people("José Silva", "Ana", "Bia", "Caio", "Davi") };
+    const egman = { id: "t1", sourceUrl: EGMAN, season: "GD05", date: "2026-09-21T00:00:00.000Z", champion: "Jose silva", players: ["Jose silva", "ana", "Caio"], lists: 3 };
     expect(crossSourceDuplicate(ev, [egman])?.id).toBe("t1");
     expect(crossSourceDuplicate(ev, [{ ...egman, champion: "Outro" }])).toBeNull();
     expect(crossSourceDuplicate(ev, [{ ...egman, date: "2026-09-25T00:00:00.000Z" }])).toBeNull();
+    expect(crossSourceDuplicate(ev, [{ ...egman, season: "GD04" }])).toBeNull();
     expect(crossSourceDuplicate(ev, [{ ...egman, sourceUrl: "https://gundam.digilab.cards/tournament/7" }])).toBeNull(); // mesma fonte: são eventos diferentes
+  });
+
+  it("campeão e data iguais, mas só o campeão em comum, são eventos diferentes (apelido curto, loja com 2 eventos no dia)", () => {
+    // Newtype Challenge de 04/08: "JP" venceu um na Egman e dois na DigiLab, com 1 jogador em comum cada
+    const ev = { sourceUrl: DIGILAB, format: "GD05", date: "2026-08-04", entries: people("JP", "Rui", "Leo", "Max") };
+    const egman = { id: "t1", sourceUrl: EGMAN, season: "GD05", date: "2026-08-04T00:00:00.000Z", champion: "JP", players: ["JP", "Kai", "Noa", "Ivo"], lists: 4 };
+    expect(crossSourceDuplicate(ev, [egman])).toBeNull();
+  });
+
+  it("entre dois candidatos fica o com mais jogadores em comum", () => {
+    const ev = { sourceUrl: EGMAN, format: "GD03", date: "2026-02-06", entries: people("CyberJX7", "A1", "A2", "A3", "A4") };
+    const small = { id: "pequeno", sourceUrl: DIGILAB, season: "GD03", date: "2026-02-06T00:00:00.000Z", champion: "CyberJX7", players: ["CyberJX7", "A1", "Z1", "Z2"], lists: 0 };
+    const big = { ...small, id: "grande", players: ["CyberJX7", "A1", "A2", "A3", "Z3"] };
+    expect(crossSourceDuplicate(ev, [small, big])?.id).toBe("grande");
+  });
+
+  it("evento só com o campeão: confirma pela lista dele quando as duas fontes a têm", () => {
+    const deck = { "GD05-001": 4, "GD05-002": 4, "GD05-003": 4, "ST11-001": 4, "GD05-010": 2 };
+    const ev = { sourceUrl: EGMAN, format: "GD05", date: "2026-10-12", entries: [{ player: "Citizen001", placement: 1, main: deck }] };
+    const dl = { id: "d1", sourceUrl: DIGILAB, season: "GD05", date: "2026-10-12T00:00:00.000Z", champion: "citizen001", players: ["citizen001", "x", "y"], championDeck: deck, lists: 1 };
+    expect(crossSourceDuplicate(ev, [dl])?.id).toBe("d1");
+    expect(crossSourceDuplicate(ev, [{ ...dl, championDeck: { "GD01-001": 4, "GD01-002": 4, "GD05-001": 4 } }])).toBeNull();
+    expect(crossSourceDuplicate(ev, [{ ...dl, championDeck: null }])?.id).toBe("d1"); // sem lista para comparar: campeão + data bastam
+    expect(deckSimilarity(deck, deck)).toBe(1);
+    expect(deckSimilarity(deck, null)).toBeNull();
+  });
+
+  it("fica a coleta com mais listas; no empate, a com mais jogadores", () => {
+    const withList = { items: [{}] };
+    const noList = { items: [] };
+    expect(keepsExisting([withList, withList], { lists: 16, entries: 16 })).toBe(true); // DigiLab menor: mantém a Egman
+    expect(keepsExisting(Array(20).fill(withList), { lists: 16, entries: 16 })).toBe(false); // DigiLab com 20 listas: substitui
+    expect(keepsExisting([withList, noList, noList], { lists: 1, entries: 1 })).toBe(false); // empate em listas, mais jogadores
+    expect(keepsExisting([withList], { lists: 1, entries: 1 })).toBe(true);
+  });
+});
+
+describe("auditoria de duplicados entre fontes", async () => {
+  const { findDuplicatePairs } = await import("./audit-tournament-duplicates.mjs");
+  const t = (id, sourceUrl, date, players) => ({
+    id, name: id, sourceUrl, season: "GD05", dateStart: new Date(`${date}T00:00:00Z`),
+    entries: players.map((playerName, i) => ({ playerName, placement: i + 1 })),
+  });
+
+  it("acha o mesmo evento em duas fontes e ignora eventos diferentes no mesmo dia", () => {
+    const rows = [
+      t("egman", "https://deckbuilder.egmanevents.com/gundam/tournaments#a", "2026-10-05", ["Taidana", "B", "C", "D"]),
+      t("digilab", "https://gundam.digilab.cards/tournament/10731", "2026-10-05", ["Taidana", "B", "C", "X", "Y"]),
+      t("outro", "https://gundam.digilab.cards/tournament/10732", "2026-10-06", ["Taidana", "Q", "R"]),
+    ];
+    expect(findDuplicatePairs(rows).map(([a, b]) => [a.id, b.id])).toEqual([["egman", "digilab"]]);
   });
 });
 

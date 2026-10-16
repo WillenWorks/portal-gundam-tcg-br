@@ -547,7 +547,76 @@ export type ApiPost = {
   publishedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+  likeCount?: number;
+  viewCount?: number;
   author?: AuthUser;
+};
+
+export type ApiCommentAuthor = {
+  id: string;
+  displayName: string;
+  username: string;
+  avatarUrl?: string | null;
+  role: "USER" | "EDITOR" | "ADMIN";
+  isSupporter?: boolean;
+};
+
+export type ApiComment = {
+  id: string;
+  postId: string;
+  authorId: string;
+  parentId?: string | null;
+  content: string;
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+  author: ApiCommentAuthor;
+  likeCount: number;
+  hasLiked: boolean;
+  replies?: ApiComment[];
+};
+
+export type PilotMailAuthor = {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  role: "USER" | "EDITOR" | "ADMIN";
+  isSupporter?: boolean;
+};
+
+export type PilotMailMessage = {
+  id: string;
+  senderId: string;
+  recipientId: string;
+  subject: string;
+  content: string;
+  isRead: boolean;
+  readAt?: string | null;
+  createdAt: string;
+  sender?: PilotMailAuthor;
+  recipient?: PilotMailAuthor;
+};
+
+export type MailReport = {
+  id: string;
+  reporterId: string;
+  reportedUserId: string;
+  messageId?: string | null;
+  reason: string;
+  details?: string | null;
+  status: "PENDING" | "UNDER_REVIEW" | "RESOLVED" | "DISMISSED";
+  adminNotes?: string | null;
+  resolvedAt?: string | null;
+  createdAt: string;
+  reporter?: PilotMailAuthor;
+  reportedUser?: PilotMailAuthor;
+  message?: {
+    id: string;
+    subject: string;
+    content: string;
+    createdAt: string;
+  } | null;
 };
 
 export type TaxonomyEntry = {
@@ -1242,6 +1311,18 @@ export const api = {
   createPost: (payload: Partial<ApiPost>) => mutate<ApiPost>("/posts", { method: "POST", body: JSON.stringify(payload) }, ["/posts"]),
   updatePost: (id: string, payload: Partial<ApiPost>) => mutate<ApiPost>(`/posts/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/posts"]),
   deletePost: (id: string) => mutate<void>(`/posts/${id}`, { method: "DELETE" }, ["/posts"]),
+  getPostLikeStatus: (slugOrId: string) =>
+    request<{ liked: boolean; likeCount: number }>(`/posts/${encodeURIComponent(slugOrId)}/like-status`, undefined, { bypassCache: true }),
+  togglePostLike: (slugOrId: string) =>
+    mutate<{ liked: boolean; likeCount: number }>(`/posts/${encodeURIComponent(slugOrId)}/like`, { method: "POST" }, ["/posts"]),
+  getPostComments: (slugOrId: string) =>
+    request<{ comments: ApiComment[]; totalCount: number }>(`/posts/${encodeURIComponent(slugOrId)}/comments`, undefined, { bypassCache: true }),
+  createPostComment: (slugOrId: string, payload: { content: string; parentId?: string | null }) =>
+    mutate<ApiComment>(`/posts/${encodeURIComponent(slugOrId)}/comments`, { method: "POST", body: JSON.stringify(payload) }, [`/posts/${slugOrId}/comments`]),
+  deletePostComment: (commentId: string) =>
+    mutate<{ ok: boolean; deleted: boolean; isStaffModerated?: boolean }>(`/posts/comments/${encodeURIComponent(commentId)}`, { method: "DELETE" }, ["/posts"]),
+  togglePostCommentLike: (commentId: string) =>
+    mutate<{ liked: boolean; likeCount: number }>(`/posts/comments/${encodeURIComponent(commentId)}/like`, { method: "POST" }, ["/posts"]),
   listSets: () => request<Array<{ id: string; code: string; namePt?: string | null; nameEn: string; releaseDate?: string | null; _count?: { cards: number } }>>("/sets", undefined, { ttlMs: 60_000 }),
   // Versão de gestão: traz também coleções ocultadas (isActive=false), pro admin poder
   // ver e reativar. GET /sets normal (acima) nunca devolve isso -- é a listagem pública.
@@ -1633,6 +1714,53 @@ export const api = {
   resolveSimulatorBugReport: (shortCode: string) => mutate<any>(`/simulator/bug-reports/${shortCode}/resolve`, { method: "POST" }, ["/simulator/bug-reports"]),
   updateSimulatorBugReport: (shortCode: string, payload: { status?: string; note?: string; prUrl?: string }) =>
     mutate<any>(`/simulator/bug-reports/${shortCode}`, { method: "PUT", body: JSON.stringify(payload) }, ["/simulator/bug-reports"]),
+
+  // --- REDE SOCIAL & COMUNIDADE ANAHEIM HUB ---
+  getFollowStatus: (username: string) =>
+    request<{ following: boolean; followerCount: number; followingCount: number }>(`/social/follow-status/${username}`, undefined, { ttlMs: 5_000 }),
+  followUser: (username: string) =>
+    mutate<{ following: boolean; followerCount: number }>(`/social/follow/${username}`, { method: "POST" }, ["/social/follow-status"]),
+  unfollowUser: (username: string) =>
+    mutate<{ following: boolean; followerCount: number }>(`/social/follow/${username}`, { method: "DELETE" }, ["/social/follow-status"]),
+  getFriendshipStatus: (username: string) =>
+    request<{ status: "NONE" | "PENDING_SENT" | "PENDING_RECEIVED" | "FRIENDS"; friendshipId?: string; online?: boolean }>(
+      `/social/friends/status/${username}`,
+      undefined,
+      { bypassCache: true }
+    ),
+  sendFriendRequest: (username: string) =>
+    mutate<{ status: string; friendshipId: string }>(`/social/friends/request/${username}`, { method: "POST" }, ["/social/friends"]),
+  acceptFriendRequest: (friendshipId: string) =>
+    mutate<{ ok: boolean; status: string }>(`/social/friends/accept/${friendshipId}`, { method: "POST" }, ["/social/friends"]),
+  removeFriend: (username: string) =>
+    mutate<{ ok: boolean; status: string }>(`/social/friends/${username}`, { method: "DELETE" }, ["/social/friends"]),
+  listFriends: () =>
+    request<{ friends: any[]; pendingReceived: any[]; pendingSent: any[] }>("/social/friends", undefined, { bypassCache: true }),
+  // --- MENSAGERIA ASSÍNCRONA & CAIXA POSTAL (LGPD & COMPLIANCE) ---
+  getInboxMails: () =>
+    request<PilotMailMessage[]>("/social/mail/inbox", undefined, { bypassCache: true }),
+  getSentMails: () =>
+    request<PilotMailMessage[]>("/social/mail/sent", undefined, { bypassCache: true }),
+  getUnreadMailCount: () =>
+    request<{ unreadCount: number }>("/social/mail/unread-count", undefined, { bypassCache: true }),
+  getMailById: (id: string) =>
+    request<PilotMailMessage>(`/social/mail/${encodeURIComponent(id)}`, undefined, { bypassCache: true }),
+  sendMail: (payload: { recipientUsername: string; subject: string; content: string }) =>
+    mutate<PilotMailMessage>("/social/mail", { method: "POST", body: JSON.stringify(payload) }, ["/social/mail"]),
+  deleteMail: (id: string) =>
+    mutate<{ ok: boolean; deleted: boolean }>(`/social/mail/${encodeURIComponent(id)}`, { method: "DELETE" }, ["/social/mail"]),
+  reportMail: (id: string, payload: { reason: string; details?: string }) =>
+    mutate<{ ok: boolean; reportId: string; message: string }>(`/social/mail/${encodeURIComponent(id)}/report`, { method: "POST", body: JSON.stringify(payload) }, ["/social/mail", "/social/admin/reports"]),
+  listAdminReports: () =>
+    request<MailReport[]>("/social/admin/reports", undefined, { bypassCache: true }),
+  resolveAdminReport: (id: string, payload: { status: "RESOLVED" | "DISMISSED"; adminNotes?: string }) =>
+    mutate<{ ok: boolean; report: MailReport }>(`/social/admin/reports/${encodeURIComponent(id)}/resolve`, { method: "POST", body: JSON.stringify(payload) }, ["/social/admin/reports"]),
+  listNotifications: () =>
+    request<{ notifications: any[]; unreadCount: number }>("/social/notifications", undefined, { bypassCache: true }),
+  markNotificationRead: (id: string) =>
+    mutate<{ ok: boolean }>(`/social/notifications/${id}/read`, { method: "POST" }, ["/social/notifications"]),
+  markAllNotificationsRead: () =>
+    mutate<{ ok: boolean }>("/social/notifications/read-all", { method: "POST" }, ["/social/notifications"]),
 };
 
 export function mapApiCard(card: any): CardRecord {

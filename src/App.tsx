@@ -10,6 +10,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { FactionProvider } from "@/contexts/FactionContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { GlobalLoader } from "@/components/layout/GlobalLoader";
+import { SocialQuickMatchOverlay } from "@/components/social/SocialQuickMatchOverlay";
 import Home from "@/pages/Home";
 import NotFound from "@/pages/NotFound";
 const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
@@ -118,8 +119,9 @@ function RequireAuth({ children, adminOnly = false, hosterOnly = false }: { chil
 function AppRouter() {
   return (
     <Router hook={useHashLocationWithQuery}>
-      <Suspense fallback={<GlobalLoader label="Carregando portal" />}>
-        <Switch>
+      <SocialQuickMatchOverlay>
+        <Suspense fallback={<GlobalLoader label="Carregando portal" />}>
+          <Switch>
         <Route path="/login" component={AuthPage} />
         <Route path="/recuperar-senha">{() => <LazyRoute label="Recuperar senha"><ForgotPasswordPage /></LazyRoute>}</Route>
         <Route path="/redefinir-senha">{() => <LazyRoute label="Redefinir senha"><ResetPasswordPage /></LazyRoute>}</Route>
@@ -260,6 +262,7 @@ function AppRouter() {
         <Route component={NotFound} />
       </Switch>
       </Suspense>
+      </SocialQuickMatchOverlay>
     </Router>
   );
 }
