@@ -7,6 +7,10 @@ on:
   push:
     branches: [dev, main]
 
+# o padrão da organização para o GITHUB_TOKEN é escrita; este workflow só lê o código
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
