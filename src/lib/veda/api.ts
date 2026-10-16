@@ -42,6 +42,8 @@ export interface VedaTournamentQueryParams {
 
 export interface VedaArchetypesQueryParams {
   season?: string;
+  /** "Brasil" = meta local; vazio = global */
+  country?: string;
   uf?: string;
   tier?: VedaTier;
   from?: string;

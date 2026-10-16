@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveStateFromCity, getRegionalMetagame } from "./regionalMetaService.ts";
+import { deriveStateFromCity, getRegionalMetagame, isBrazilianTournament } from "./regionalMetaService.ts";
 
 describe("deriveStateFromCity", () => {
   it("reconhece capitais e cidades comuns pelo dicionário", () => {
@@ -197,5 +197,15 @@ describe("buildRegionalProvenance (origem das listas do recorte em foco)", () =>
     expect(p.startDate).toBe("2026-09-01T00:00:00.000Z");
     expect(p.endDate).toBe("2026-09-20T00:00:00.000Z");
     expect(buildRegionalProvenance([], map).totalTournaments).toBe(0);
+  });
+});
+
+describe("isBrazilianTournament (o meta regional não mistura a coleta global)", () => {
+  it("entra Brasil/Brazil e reporte do site sem país; fica fora coleta externa sem país e outros países", () => {
+    expect(isBrazilianTournament({ country: "Brasil", sourceUrl: "https://gundam.digilab.cards/tournament/1" })).toBe(true);
+    expect(isBrazilianTournament({ country: " brazil ", sourceUrl: null })).toBe(true);
+    expect(isBrazilianTournament({ country: null, sourceUrl: null })).toBe(true);
+    expect(isBrazilianTournament({ country: null, sourceUrl: "https://deckbuilder.egmanevents.com/gundam/tournaments#x" })).toBe(false);
+    expect(isBrazilianTournament({ country: "United States", sourceUrl: "https://gundam.digilab.cards/tournament/2" })).toBe(false);
   });
 });

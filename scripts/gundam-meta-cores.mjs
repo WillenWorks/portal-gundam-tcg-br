@@ -71,7 +71,7 @@ const body = `import type { MetaCoreFile } from "../meta/coreAnalysis";
 
 /**
  * Núcleo dos arquétipos por temporada (spec bot-zero-system-meta-temporada). GERADA por
- * \`pnpm gundam:meta:cores\` a partir de ${path.basename(rawFile)} (listas de torneio da Egman Events) — não editar à mão.
+ * \`pnpm gundam:meta:cores\` a partir de ${path.basename(rawFile)} (listas de torneio: ${raw.source ?? "Egman Events"}) — não editar à mão.
  */
 export const META_CORES: MetaCoreFile = ${JSON.stringify(data)};
 `;

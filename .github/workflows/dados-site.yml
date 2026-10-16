@@ -1,9 +1,12 @@
 # Dados do site em produção (catálogo, FAQ, relações entre cartas e resultados de torneio do Veda System).
 # Coleta no runner (site oficial, Egman, DigiLab) e roda os scripts de prisma/ na VPS, contra o banco de produção.
 # Por padrão é SIMULAÇÃO: os scripts só relatam o que mudariam. Gravar exige marcar "aplicar" ao disparar.
-# O agendamento semanal só coleta torneios e só grava se a variável DADOS_APLICAR_AGENDADO = true.
-# Torneios: Egman + Brasil na DigiLab (páginas públicas, até a chave da API chegar), incremental: só lê o que o site
-# ainda não tem ou foi importado há menos de 21 dias. "digilab-br" roda só a parte da DigiLab.
+# O agendamento diário só coleta torneios e só grava se a variável DADOS_APLICAR_AGENDADO = true.
+# Torneios: Egman + DigiLab pela API oficial (mundo todo; segredo DIGILAB_API_KEY), incremental: só monta o que o
+# site ainda não tem ou foi importado há menos de 21 dias; a carga inicial termina em 2–3 dias (prazo por execução).
+# "digilab" roda só a API; "digilab-br" é o plano B por páginas públicas (só Brasil), para quando a API falhar.
+# Depois de gravar, o job zero-system regenera os núcleos de arquétipo do bot (fixtures/metaCores.ts) com todas as
+# fontes e abre/atualiza o PR "auto/zero-system-meta" para a dev quando o meta mudou.
 # Disparo também pela rota POST/GET /api/admin/dados/disparar do site (Postman ou URL, ver CONTRATO-VEDA).
 name: Dados do site
 
@@ -13,14 +16,14 @@ on:
       tarefa:
         description: "O que fazer"
         type: choice
-        options: [auditoria, impressoes, faq, relacoes, torneios, digilab-br, tudo]
+        options: [auditoria, impressoes, faq, relacoes, torneios, digilab, digilab-br, tudo]
         default: auditoria
       aplicar:
         description: "Gravar no banco de produção (senão só simula)"
         type: boolean
         default: false
   schedule:
-    - cron: "0 9 * * 1" # segunda, 06:00 de Brasília
+    - cron: "0 9 * * *" # todo dia, 06:00 de Brasília
 
 permissions:
   contents: read
@@ -36,7 +39,7 @@ env:
 jobs:
   coletar:
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 170
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -56,20 +59,29 @@ jobs:
           corepack pnpm exec playwright install --with-deps chromium
           node scripts/gundam-meta-scrape.mjs --formats=GD01,GD02,GD03,GD04,GD05 --refresh --cache=.cache/egman --out=payload/meta-raw.json
           node scripts/meta-sources/egman.mjs --in=payload/meta-raw.json --out=payload/events-egman.json
-      - name: Torneios da DigiLab (coleta bruta, se houver chave)
-        if: env.TAREFA == 'torneios' || env.TAREFA == 'tudo'
+      - name: Respostas da API da DigiLab (guardadas entre execuções)
+        if: env.TAREFA == 'digilab' || env.TAREFA == 'torneios' || env.TAREFA == 'tudo'
+        uses: actions/cache@v4
+        with:
+          path: .cache/digilab-api
+          key: digilab-api-${{ github.run_id }}
+          restore-keys: digilab-api-
+      - name: Torneios da DigiLab (API oficial, mundo todo, incremental)
+        if: env.TAREFA == 'digilab' || env.TAREFA == 'torneios' || env.TAREFA == 'tudo'
         env:
           DIGILAB_API_KEY: ${{ secrets.DIGILAB_API_KEY }}
-        run: node scripts/meta-sources/digilab.mjs --out=payload/digilab
+        run: >-
+          node scripts/meta-sources/digilab.mjs --out=payload/events-digilab.json --cache=.cache/digilab-api
+          --known=https://anaheimhub.com --max-minutes=100
       - name: País das lojas da DigiLab (guardado entre execuções)
-        if: env.TAREFA == 'digilab-br' || env.TAREFA == 'torneios' || env.TAREFA == 'tudo'
+        if: env.TAREFA == 'digilab-br'
         uses: actions/cache@v4
         with:
           path: .cache/digilab-lojas.json
           key: digilab-lojas-${{ github.run_id }}
           restore-keys: digilab-lojas-
-      - name: Torneios do Brasil na DigiLab (páginas públicas, 5 s entre requisições, incremental)
-        if: env.TAREFA == 'digilab-br' || env.TAREFA == 'torneios' || env.TAREFA == 'tudo'
+      - name: Torneios do Brasil na DigiLab (plano B, páginas públicas, 5 s entre requisições)
+        if: env.TAREFA == 'digilab-br'
         run: >-
           node scripts/meta-sources/digilab-br.mjs --out=payload/events-digilab-br.json --cache=.cache/digilab
           --stores-cache=.cache/digilab-lojas.json --known=https://anaheimhub.com
@@ -131,5 +143,53 @@ jobs:
             fi
             if quer relacoes; then run prisma/apply-gcg-official-curation.mjs $FLAG; fi
             if quer torneios && [ -f "$P/events-egman.json" ]; then run prisma/import-tournaments.mjs --file="$P/events-egman.json" $FLAG; fi
-            if { quer torneios || [ "$TAREFA" = "digilab-br" ]; } && [ -f "$P/events-digilab-br.json" ]; then run prisma/import-tournaments.mjs --file="$P/events-digilab-br.json" $FLAG; fi
+            if { quer torneios || [ "$TAREFA" = "digilab" ]; } && [ -f "$P/events-digilab.json" ]; then run prisma/import-tournaments.mjs --file="$P/events-digilab.json" $FLAG; fi
+            if [ "$TAREFA" = "digilab-br" ] && [ -f "$P/events-digilab-br.json" ]; then run prisma/import-tournaments.mjs --file="$P/events-digilab-br.json" $FLAG; fi
             run prisma/audit-catalog.mjs
+
+  # Zero System: com os torneios novos gravados, regenera os núcleos de arquétipo por temporada (o que o bot e a
+  # matriz de confrontos usam) a partir de todas as fontes do site. Mudou o meta → PR para a dev (revisão humana
+  # antes de chegar ao bot em produção). Um PR só, atualizado a cada execução.
+  zero-system:
+    needs: producao
+    # (env não existe no if de job: a mesma regra do APLICAR/TAREFA lá de cima)
+    if: >-
+      ((github.event_name == 'workflow_dispatch' && inputs.aplicar) || (github.event_name == 'schedule' && vars.DADOS_APLICAR_AGENDADO == 'true'))
+      && contains(fromJSON('["torneios","digilab","tudo"]'), inputs.tarefa || 'torneios')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: corepack pnpm install --frozen-lockfile
+      - name: Núcleos dos arquétipos com todas as fontes (Egman + DigiLab + reportes)
+        env:
+          DADOS_TOKEN: ${{ secrets.DADOS_TOKEN }}
+        run: |
+          node scripts/meta-sources/site-export.mjs --out=meta-raw-site.json
+          node scripts/gundam-meta-cores.mjs --raw=meta-raw-site.json
+      - name: PR com o meta novo (se mudou além da data)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet -- src/modules/simulator/fixtures/metaCores.ts; then echo "metaCores sem mudança"; exit 0; fi
+          if node scripts/meta-cores-diff.mjs --base=HEAD >> "$GITHUB_STEP_SUMMARY"; then echo "só a data mudou"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B auto/zero-system-meta
+          git add src/modules/simulator/fixtures/metaCores.ts
+          git commit -m "chore(zero-system): núcleos de arquétipo com os torneios coletados em $(date -u +%F)"
+          git push --force origin auto/zero-system-meta
+          if gh pr view auto/zero-system-meta --json state -q .state 2>/dev/null | grep -q OPEN; then echo "PR já aberto, atualizado"; exit 0; fi
+          gh pr create --base dev --head auto/zero-system-meta \
+            --title "Zero System: meta atualizado com os torneios coletados" \
+            --body "Gerado pelo workflow Dados do site (run ${{ github.run_id }}): núcleos de arquétipo por temporada (fixtures/metaCores.ts) com todas as fontes importadas no site (Egman, DigiLab, reportes). Rodar a Bot matrix antes de mesclar se o meta mudou muito." \
+            || echo "::warning::não consegui abrir o PR (Settings → Actions → permitir que o Actions crie PRs) — a branch auto/zero-system-meta foi enviada"

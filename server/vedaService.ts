@@ -28,7 +28,7 @@ import type { VedaTier } from "../src/lib/veda/types.ts";
 
 const CACHE_TTL_MS = 5 * 60_000;
 const WORKFLOW_FILE = "dados-site.yml";
-const TAREFAS = ["auditoria", "impressoes", "faq", "relacoes", "torneios", "digilab-br", "tudo"] as const;
+const TAREFAS = ["auditoria", "impressoes", "faq", "relacoes", "torneios", "digilab", "digilab-br", "tudo"] as const;
 
 let cache: { at: number; index: VedaIndex } | null = null;
 let loading: Promise<VedaIndex> | null = null;

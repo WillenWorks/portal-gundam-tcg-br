@@ -304,7 +304,7 @@ export function registerAdminDashboardRoutes(
             name: "tarefa",
             type: "choice",
             label: "Tarefa a Executar",
-            options: ["auditoria", "impressoes", "faq", "relacoes", "torneios", "digilab-br", "tudo"],
+            options: ["auditoria", "impressoes", "faq", "relacoes", "torneios", "digilab", "digilab-br", "tudo"],
             default: "auditoria",
           },
           {
