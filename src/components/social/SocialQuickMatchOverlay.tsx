@@ -7,6 +7,7 @@ import { io as ioClient, type Socket } from "socket.io-client";
 import { toast } from "sonner";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { getStoredAuth } from "@/lib/api";
 import { QuickMatchHostWidget } from "./QuickMatchHostWidget";
 import { QuickMatchInviteModal } from "./QuickMatchInviteModal";
 import { QuickMatchDeckSelectModal } from "./QuickMatchDeckSelectModal";
@@ -71,10 +72,11 @@ export function SocialQuickMatchOverlay({ children }: { children: React.ReactNod
       return;
     }
 
-    const token = localStorage.getItem("portal-gundam-tcg-br:token");
+    // o token fica salvo como o JWT cru (storeAuth), não como JSON
+    const { token } = getStoredAuth();
     const socket = ioClient(window.location.origin, {
       path: "/social.io",
-      auth: { token: token ? JSON.parse(token) : undefined },
+      auth: { token: token ?? undefined },
       transports: ["websocket", "polling"],
       reconnection: true,
     });
