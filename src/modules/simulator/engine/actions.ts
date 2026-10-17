@@ -476,6 +476,22 @@ function applyPlayerActionInner(
           predicateResolver,
           action.sourceInstanceId,
         );
+        // Ativação aceita sem nenhum spec despachável (ex.: GD05-079 sem outra (G Team)/(Preventer) em
+        // campo — a condição é checada na resolução) ainda GASTA o 【Once per Turn】. Sem isto o
+        // `dispatchTrigger` recebia lista vazia, nada era marcado e a ativação continuava legal: o bot
+        // reativava sem fim (travamentos da Bot matrix GD05, run 38918657397).
+        if (dispatchable.length === 0) {
+          let spent = state;
+          for (const s of usable) {
+            if (s.oncePerTurn) {
+              spent = applyEvent(spent, { type: "MARK_KEYWORD_USED", instanceId: action.sourceInstanceId, keyword: specOncePerTurnMarker(s) });
+            }
+          }
+          if (source.def.oncePerTurn) {
+            spent = applyEvent(spent, { type: "MARK_KEYWORD_USED", instanceId: action.sourceInstanceId, keyword: trigger });
+          }
+          return spent;
+        }
         return dispatchTrigger(state, action.sourceInstanceId, trigger, dispatchable, {
           targets: action.targets,
           costResourceIds: action.resourceInstanceIds,
