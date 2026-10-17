@@ -28,6 +28,7 @@ import { ST10_TEST_DECKS } from "../src/modules/simulator/fixtures/st10Decks.ts"
 import { EB01_TEST_DECKS } from "../src/modules/simulator/fixtures/eb01Decks.ts";
 import { ST11_TO_14_DECKS } from "../src/modules/simulator/fixtures/st11to14Decks.ts";
 import { validateDeckPayload, checkUserDeckSimulatorCoverage } from "./deckCoverageGate.ts";
+import { gzipJson } from "./jsonCompression.ts";
 import {
   computeSwissStandings,
   generateSwissPairings,
@@ -385,6 +386,19 @@ if (IS_PRODUCTION && allowedOrigins.length === 0) {
 }
 app.use(cors(allowedOrigins.length ? { origin: allowedOrigins } : undefined));
 app.use(express.json({ limit: "4mb" }));
+app.use(gzipJson());
+
+// Cache curto da listagem SEM paginação de /api/cards (o catálogo inteiro, ~7 MB de JSON): o simulador
+// (cardArtService) e a página de estatísticas pedem a lista toda, e cada chamada refazia a consulta e
+// montava milhares de objetos. Qualquer escrita em cartas, coleções, taxonomias ou importação limpa o cache — por isso
+// este middleware fica aqui, antes de todas as rotas (uma rota que responde encerra a cadeia).
+const CARDS_LIST_CACHE_MS = 30_000;
+const CARDS_LIST_CACHE_MAX = 20;
+const cardsListCache = new Map<string, { at: number; body: unknown }>();
+app.use((req, _res, next) => {
+  if (req.method !== "GET" && req.method !== "HEAD" && /^\/api\/(cards|sets|taxonomies|admin|import)/.test(req.path)) cardsListCache.clear();
+  next();
+});
 app.use("/uploads", express.static(uploadRootDir, {
   maxAge: STORAGE_DRIVER === "local" ? "1d" : 0,
   immutable: false,
@@ -2292,8 +2306,14 @@ app.get("/api/cards", async (req, res) => {
     return res.json({ items: items.map(flattenModel), page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
   }
 
+  const cacheKey = req.originalUrl;
+  const cached = cardsListCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < CARDS_LIST_CACHE_MS) return res.json(cached.body);
   const models = await prisma.cardModel.findMany({ where, include: printInclude, orderBy });
-  res.json(models.map(flattenModel));
+  const body = models.map(flattenModel);
+  if (cardsListCache.size >= CARDS_LIST_CACHE_MAX) cardsListCache.delete(cardsListCache.keys().next().value as string);
+  cardsListCache.set(cacheKey, { at: Date.now(), body });
+  res.json(body);
 });
 
 app.get("/api/cards/filters", async (_req, res) => {
