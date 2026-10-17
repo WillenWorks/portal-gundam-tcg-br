@@ -174,7 +174,7 @@ function CardPreviewModal({ card, onClose }: { card: BinderRow | null; onClose: 
         <div className="mx-auto h-[447px] w-[320px] overflow-hidden border border-white/10 bg-slate-950/70">{image ? <img loading="lazy" decoding="async" src={image} alt={card.namePt || card.name} className="h-full w-full object-cover" /> : null}</div>
         <div className="flex flex-col items-center gap-2 pt-1">
           <p className="text-sm text-slate-400">{card.quantity}x nesse binder</p>
-          <a href={`/#/cards/${card.cardModelId || card.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-none border border-white/15 bg-white/5 px-3 py-2 text-xs uppercase tracking-[0.16em] text-white nav-hover-soft hover:text-white">
+          <a href={`/cards/${card.cardModelId || card.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-none border border-white/15 bg-white/5 px-3 py-2 text-xs uppercase tracking-[0.16em] text-white nav-hover-soft hover:text-white">
             <ExternalLink className="size-3.5" />Abrir detalhe
           </a>
         </div>
@@ -348,7 +348,7 @@ export default function BinderPage() {
 
   const copyShareLink = async () => {
     if (!shareId) { toast.error("Salva o binder primeiro pra gerar o link."); return; }
-    await navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}#/binder/${shareId}`);
+    await navigator.clipboard.writeText(`${window.location.origin}/binder/${shareId}`);
     toast.success("Link compartilhável copiado.");
   };
 

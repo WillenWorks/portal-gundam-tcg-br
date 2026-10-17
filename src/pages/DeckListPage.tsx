@@ -47,7 +47,7 @@ export default function DeckListPage() {
   };
 
   const copyShareLink = async (deck: ApiDeck) => {
-    const url = `${window.location.origin}${window.location.pathname}#/deck/${deck.shareId}`;
+    const url = `${window.location.origin}/deck/${deck.shareId}`;
     await navigator.clipboard.writeText(url);
     toast.success("Link copiado.");
   };

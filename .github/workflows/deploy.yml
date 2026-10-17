@@ -51,6 +51,9 @@ jobs:
             # 4. Compilar o frontend com as variáveis do .env da VPS
             pnpm run build
 
+            # 4b. Sitemap com as páginas de detalhe do banco (best-effort: nunca derruba o deploy)
+            node scripts/generate-sitemap.mjs || true
+
             # 5. Reiniciar a API no PM2
             pm2 reload gundam-portal --update-env
 

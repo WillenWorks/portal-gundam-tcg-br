@@ -77,6 +77,7 @@ import { isNonStatsCard } from "@/lib/deck-legality";
 import { GAME_COLOR_HEX } from "@/lib/gundam-catalog";
 import { earliestPlayableTurn, isBoardDevelopmentCard } from "@/lib/opening-hand-score";
 import { mapApiCard } from "@/lib/api";
+import { usePageMeta } from "@/lib/pageMeta";
 import type { CardRecord } from "@/modules/core/types";
 
 import ozHangarBanner from "@/assets/oz_deck_hangar.jpg";
@@ -280,7 +281,7 @@ function CardPreviewModal({
             </p>
           )}
           <a
-            href={`#/card/${card.id}`}
+            href={`/cards/${card.id}`}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-300 underline font-mono pt-1"
@@ -298,6 +299,13 @@ export default function SharedDeckPage() {
   const [, navigate] = useLocation();
 
   const [deck, setDeck] = useState<ApiDeck | null>(null);
+  usePageMeta(deck ? {
+    title: deck.name,
+    description: `Deck "${deck.name}" de ${deck.user?.displayName || deck.user?.username || "piloto da comunidade"} — lista de cartas, curva e estatísticas de Gundam Card Game.`,
+    image: deck.coverImage || null,
+    // Só deck público entra no Google; "não listado" é acessível por link mas não indexado.
+    noindex: deck.visibility !== "PUBLIC",
+  } : null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 

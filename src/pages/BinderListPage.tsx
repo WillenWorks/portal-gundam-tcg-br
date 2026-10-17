@@ -66,7 +66,7 @@ export default function BinderListPage() {
   };
 
   const copyShareLink = async (shareId: string) => {
-    const url = `${window.location.origin}/#/binder/${shareId}`;
+    const url = `${window.location.origin}/binder/${shareId}`;
     try {
       await navigator.clipboard.writeText(url);
       toast.success("Link público da pasta copiado!");
