@@ -1,5 +1,20 @@
 # https://www.robotstxt.org/robotstxt.html
 User-agent: *
 Allow: /
+# Conta, ferramentas logadas e telas operacionais (também marcadas com noindex na página)
+Disallow: /api/
+Disallow: /admin
+Disallow: /portal
+Disallow: /profile
+Disallow: /my-decks
+Disallow: /deckbuilder
+Disallow: /simulador
+Disallow: /organizador
+Disallow: /binders
+Disallow: /login
+Disallow: /recuperar-senha
+Disallow: /redefinir-senha
+Disallow: /confirmar-email
+Disallow: /zero
 
 Sitemap: https://anaheimhub.com/sitemap.xml

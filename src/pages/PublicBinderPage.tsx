@@ -57,7 +57,7 @@ function CardPreviewModal({ rows, index, onNavigate, onClose }: { rows: BinderRo
         <div className="flex flex-col items-center gap-2 pt-1">
           <p className="text-sm text-slate-400">{card.quantity}x nessa pasta{rows.length > 1 ? ` · ${index + 1}/${rows.length}` : ""}</p>
           {card.tag ? <Badge className={cn("rounded-none border", TAG_BADGE_CLASS[card.tag])}>{TAG_LABEL[card.tag]}</Badge> : null}
-          <a href={`/#/cards/${card.cardModelId || card.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-none border border-white/15 bg-white/5 px-3 py-2 text-xs uppercase tracking-[0.16em] text-white nav-hover-soft hover:text-white">
+          <a href={`/cards/${card.cardModelId || card.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-none border border-white/15 bg-white/5 px-3 py-2 text-xs uppercase tracking-[0.16em] text-white nav-hover-soft hover:text-white">
             <ExternalLink className="size-3.5" />Abrir detalhe
           </a>
         </div>

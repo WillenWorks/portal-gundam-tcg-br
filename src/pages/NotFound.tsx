@@ -1,9 +1,11 @@
 import { Link } from "wouter";
+import { usePageMeta } from "@/lib/pageMeta";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function NotFound() {
+  usePageMeta({ title: "Página não encontrada", noindex: true });
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <Card className="panel-cut w-full max-w-xl rounded-none border-white/10 bg-slate-950/80 text-white">

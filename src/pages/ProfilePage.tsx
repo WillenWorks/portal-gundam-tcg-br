@@ -225,7 +225,7 @@ export default function ProfilePage() {
   };
 
   const copyBinderShareLink = async (shareId: string) => {
-    const url = `${window.location.origin}/#/binder/${shareId}`;
+    const url = `${window.location.origin}/binder/${shareId}`;
     try {
       await navigator.clipboard.writeText(url);
       toast.success("Link único da pasta copiado para a área de transferência!");
@@ -415,7 +415,7 @@ export default function ProfilePage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   {binders.map((binder) => {
                     const itemCount = binder._count?.items ?? binder.items?.length ?? 0;
-                    const shareUrl = `${window.location.origin}/#/binder/${binder.shareId}`;
+                    const shareUrl = `${window.location.origin}/binder/${binder.shareId}`;
                     return (
                       <div key={binder.id} className="panel-cut border border-white/15 bg-slate-950/70 p-4 space-y-3">
                         <div className="flex items-start justify-between gap-2">
@@ -479,7 +479,7 @@ export default function ProfilePage() {
                           </Button>
                           {binder.isPublic ? (
                             <Button asChild size="sm" variant="outline" className="rounded-none border-white/20 bg-white/5 text-xs text-white hover:bg-white/10">
-                              <a href={`/#/binder/${binder.shareId}`} target="_blank" rel="noreferrer">
+                              <a href={`/binder/${binder.shareId}`} target="_blank" rel="noreferrer">
                                 <ExternalLink className="mr-1.5 size-3" />
                                 Ver Vitrine
                               </a>
@@ -903,8 +903,8 @@ export default function ProfilePage() {
               {user?.username ? (
                 <div className="border-t border-white/10 pt-4">
                   <p className="text-xs text-slate-500">Seu perfil público:</p>
-                  <a href={`/#/u/${user.username}`} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs text-primary hover:underline">
-                    {window.location.origin}/#/u/{user.username}
+                  <a href={`/u/${user.username}`} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs text-primary hover:underline">
+                    {window.location.origin}/u/{user.username}
                   </a>
                 </div>
               ) : null}

@@ -344,7 +344,7 @@ export default function AuthPage() {
                         <CheckCircle2 className="size-3" /> Nome de usuário disponível!
                       </p>
                     ) : (
-                      <p className="text-[0.7rem] text-slate-500">Seu perfil: /#/u/{cleanUsername || "usuario"}</p>
+                      <p className="text-[0.7rem] text-slate-500">Seu perfil: /u/{cleanUsername || "usuario"}</p>
                     )}
                   </div>
 

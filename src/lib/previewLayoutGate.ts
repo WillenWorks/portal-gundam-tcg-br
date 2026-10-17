@@ -9,7 +9,7 @@
  *   no `localStorage` daquele navegador; daí em diante o preview abre direto.
  *
  * Continua "escondida" de quem só navega o site (nenhum link aponta pra ela),
- * mas um link compartilhado (`.../#/simulador/preview-layout?preview=1`) abre
+ * mas um link compartilhado (`.../simulador/preview-layout?preview=1`) abre
  * em qualquer navegador. */
 const STORAGE_KEY = "gundam:preview-layout";
 
