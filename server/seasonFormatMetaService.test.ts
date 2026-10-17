@@ -3,6 +3,12 @@ import {
   getAvailableFormats,
   getFormatMetaBreakdown,
 } from "./seasonFormatMetaService.ts";
+import { META_CORES } from "../src/modules/simulator/fixtures/metaCores.ts";
+
+// metaCores.ts é regenerado a cada coleta (PR auto/zero-system-meta): os números vêm do próprio arquivo, não fixos
+const F = META_CORES.formats;
+const sum = (keys: string[], field: "lists" | "events") => keys.reduce((n, k) => n + F[k as keyof typeof F][field], 0);
+const SEASONS = ["GD01", "GD02", "GD03", "GD04", "GD05"];
 
 const mockPrisma: any = {
   card: {
@@ -40,9 +46,9 @@ describe("seasonFormatMetaService", () => {
 
     const gd01 = formats.find((f) => f.format === "GD01");
     expect(gd01).toBeDefined();
-    expect(gd01!.totalLists).toBe(340);
-    expect(gd01!.totalEvents).toBe(25);
-    expect(gd01!.archetypeCount).toBeGreaterThan(0);
+    expect(gd01!.totalLists).toBe(F.GD01.lists);
+    expect(gd01!.totalEvents).toBe(F.GD01.events);
+    expect(gd01!.archetypeCount).toBe(F.GD01.archetypes.length);
     expect(gd01!.topArchetypes.length).toBeGreaterThan(0);
   });
 
@@ -50,26 +56,31 @@ describe("seasonFormatMetaService", () => {
     const res = await getFormatMetaBreakdown(mockPrisma, "GD01");
     expect(res).toBeDefined();
     expect(res!.format).toBe("GD01");
-    expect(res!.totalLists).toBe(340);
-    expect(res!.totalEvents).toBe(25);
-    expect(res!.provenance.totalDecks).toBe(340);
+    expect(res!.totalLists).toBe(F.GD01.lists);
+    expect(res!.totalEvents).toBe(F.GD01.events);
+    expect(res!.provenance.totalDecks).toBe(F.GD01.lists);
 
-    const wingZero = res!.archetypes.find((a) => a.name === "Wing Zero");
-    expect(wingZero).toBeDefined();
-    expect(wingZero!.share).toBeCloseTo(0.349, 2);
-    expect(wingZero!.top8Share).toBeCloseTo(0.338, 2);
-    expect(wingZero!.winShare).toBeCloseTo(0.35, 2);
+    const top = res!.archetypes[0];
+    const source = F.GD01.archetypes.find((a) => a.name === top.name)!;
+    expect(source).toBeDefined();
+    expect(top.share).toBeCloseTo(source.share, 6);
+    for (const a of res!.archetypes) {
+      for (const v of [a.share, a.top8Share, a.winShare]) {
+        expect(v).toBeGreaterThanOrEqual(0);
+        expect(v).toBeLessThanOrEqual(1);
+      }
+    }
 
-    // Núcleos categorizados: core, flex, tech
-    expect(wingZero!.cards.core.length).toBeGreaterThan(0);
-    expect(wingZero!.cards.flex.length).toBeGreaterThan(0);
-    expect(wingZero!.cards.tech.length).toBeGreaterThan(0);
-
-    const busterRifle = wingZero!.cards.core.find((c) => c.code === "GD01-086");
-    expect(busterRifle).toBeDefined();
-    expect(busterRifle!.namePt).toBe("Rifle Buster");
-    expect(busterRifle!.inclusionRate).toBe(1);
-    expect(busterRifle!.modeCopies).toBe(4);
+    // Núcleos categorizados (core, flex, tech) e nomes vindos do catálogo quando a carta existe nele
+    const withCore = res!.archetypes.find((a) => a.cards.core.length > 0);
+    expect(withCore).toBeDefined();
+    const cards = res!.archetypes.flatMap((a) => [...a.cards.core, ...a.cards.flex, ...a.cards.tech]);
+    const rifle = cards.find((c) => c.code === "GD01-086");
+    if (rifle) expect(rifle.namePt).toBe("Rifle Buster");
+    for (const c of cards) {
+      expect(c.inclusionRate).toBeGreaterThan(0);
+      expect(c.inclusionRate).toBeLessThanOrEqual(1);
+    }
   });
 
   it("filtra arquétipos por cor no formato", async () => {
@@ -81,33 +92,35 @@ describe("seasonFormatMetaService", () => {
   it("ordena GD05_COMBINED no topo de getAvailableFormats e inclui ALL", () => {
     const formats = getAvailableFormats();
     expect(formats[0].format).toBe("GD05_COMBINED");
-    expect(formats[0].totalLists).toBe(680);
-    expect(formats[0].totalEvents).toBe(177);
     expect(formats.some((f) => f.format === "ALL")).toBe(true);
   });
 
-  it("retorna agregação matemática precisa para a temporada GD05 / GD05.5", async () => {
+  it("temporada atual não soma o GD05.5 de novo (é um recorte por data do GD05)", async () => {
+    // o recorte está contido no GD05
+    expect(F["GD05.5"].lists).toBeLessThanOrEqual(F.GD05.lists);
+
     const res = await getFormatMetaBreakdown(mockPrisma, "GD05_COMBINED");
     expect(res).toBeDefined();
     expect(res!.format).toBe("GD05_COMBINED");
-    expect(res!.totalLists).toBe(680);
-    expect(res!.totalEvents).toBe(177);
-    expect(res!.provenance.totalDecks).toBe(680);
+    expect(res!.totalLists).toBe(F.GD05.lists);
+    expect(res!.totalEvents).toBe(F.GD05.events);
+    expect(res!.provenance.totalDecks).toBe(F.GD05.lists);
     expect(res!.provenance.tournaments[0].name).toContain("Temporada Atual GD05 & GD05.5");
+    expect(getAvailableFormats()[0].totalLists).toBe(F.GD05.lists);
 
-    // Strike Freedom Gundam é o líder absoluto com 171 listas (150 de GD05 + 21 de GD05.5)
-    const strikeFreedom = res!.archetypes.find((a) => a.name === "Strike Freedom Gundam");
-    expect(strikeFreedom).toBeDefined();
-    expect(strikeFreedom!.lists).toBe(171);
-    expect(strikeFreedom!.share).toBeCloseTo(0.251, 2);
+    // cada arquétipo com as mesmas listas que tem no GD05
+    for (const a of res!.archetypes) {
+      const source = F.GD05.archetypes.find((s) => s.name === a.name);
+      if (source) expect(a.lists).toBe(source.lists);
+    }
   });
 
-  it("retorna agregação de Todas as Temporadas (ALL)", async () => {
+  it("retorna agregação de Todas as Temporadas (ALL) sem contar o GD05.5 duas vezes", async () => {
     const res = await getFormatMetaBreakdown(mockPrisma, "ALL");
     expect(res).toBeDefined();
     expect(res!.format).toBe("ALL");
-    expect(res!.totalLists).toBe(1555);
-    expect(res!.totalEvents).toBe(265);
+    expect(res!.totalLists).toBe(sum(SEASONS, "lists"));
+    expect(res!.totalEvents).toBe(sum(SEASONS, "events"));
     expect(res!.archetypes.length).toBeGreaterThan(20);
   });
 });

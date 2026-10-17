@@ -261,6 +261,21 @@ describe("GD05 Units (W6 lote B)", () => {
     for (const offer of offers) state = act(state, "A", offer);
     expect(ap(state, lv4)).toBe(4);
   });
+
+  it("079: ativada sem outra (G Team)/(Preventer), gasta o 【Once per Turn】 e não é oferecida de novo", () => {
+    // regressão: a ativação sem efeito não marcava o uso e continuava legal — o bot reativava sem fim
+    // (travamentos da Bot matrix GD05 com os decks que levam a 079, run 38918657397)
+    let state = game();
+    const self = placeCard(state, "A", G["GD05-079"], "battleArea");
+    const lv4 = placeCard(state, "B", UNIT({ level: 4, ap: 4 }), "battleArea");
+    const offers = enumerateLegalActions(state, "A", ALL_EFFECT_SPECS, OPTS).filter((a) => a.kind === "activateAbility" && a.sourceInstanceId === self);
+    expect(offers).toHaveLength(1);
+    state = act(state, "A", offers[0]);
+    expect(ap(state, lv4)).toBe(4);
+    const again = enumerateLegalActions(state, "A", ALL_EFFECT_SPECS, OPTS).filter((a) => a.kind === "activateAbility" && a.sourceInstanceId === self);
+    expect(again).toEqual([]);
+    expect(() => act(state, "A", offers[0])).toThrow(/Once per Turn/);
+  });
 });
 
 describe("GD05 Pilotos (W6 lote B) — \"this Unit\" = a Unit pareada", () => {

@@ -252,11 +252,16 @@ function aggregateFormatData(formatKeys: string[]): {
  * Lista todos os formatos disponíveis em metaCores, ordenando a Temporada Atual (GD05 / GD05.5)
  * no topo, seguida pelos formatos em ordem decrescente e pela opção de histórico geral (ALL).
  */
+// GD05.5 é um recorte por data do GD05 (listas desde o ST11–ST14, ver scripts/gundam-meta-cores.mjs), não uma
+// temporada à parte: somar os dois contaria essas listas duas vezes. A temporada atual é o próprio GD05.
+const CURRENT_SEASON_KEYS = ["GD05"];
+const ALL_SEASON_KEYS = ["GD01", "GD02", "GD03", "GD04", "GD05"];
+
 export function getAvailableFormats(): FormatOverviewItem[] {
   const result: FormatOverviewItem[] = [];
 
   // 1. Temporada Atual Combinada: GD05 + GD05.5
-  const currentSeason = aggregateFormatData(["GD05", "GD05.5"]);
+  const currentSeason = aggregateFormatData(CURRENT_SEASON_KEYS);
   result.push({
     format: "GD05_COMBINED",
     totalLists: currentSeason.lists,
@@ -289,7 +294,7 @@ export function getAvailableFormats(): FormatOverviewItem[] {
   }
 
   // 3. Histórico Geral (Todas as Temporadas)
-  const allSeasons = aggregateFormatData(["GD01", "GD02", "GD03", "GD04", "GD05", "GD05.5"]);
+  const allSeasons = aggregateFormatData(ALL_SEASON_KEYS);
   result.push({
     format: "ALL",
     totalLists: allSeasons.lists,
@@ -318,7 +323,7 @@ export async function getFormatMetaBreakdown(
 
   let formatKey: string;
   let formatData: { lists: number; events: number; archetypes: any[] } | undefined;
-  let tournamentLabel = `Torneios Competitivos Formato ${format} (Egman Events / Bandai)`;
+  let tournamentLabel = `Torneios Competitivos Formato ${format} (Egman Events + DigiLab)`;
 
   if (
     normalizedKey === "GD05_COMBINED" ||
@@ -328,12 +333,12 @@ export async function getFormatMetaBreakdown(
     normalizedKey === "GD05+GD05.5"
   ) {
     formatKey = "GD05_COMBINED";
-    formatData = aggregateFormatData(["GD05", "GD05.5"]);
-    tournamentLabel = "Torneios Competitivos Temporada Atual GD05 & GD05.5 (Egman Events / Bandai)";
+    formatData = aggregateFormatData(CURRENT_SEASON_KEYS);
+    tournamentLabel = "Torneios Competitivos Temporada Atual GD05 & GD05.5 (Egman Events + DigiLab)";
   } else if (normalizedKey === "ALL" || normalizedKey === "TODAS") {
     formatKey = "ALL";
-    formatData = aggregateFormatData(["GD01", "GD02", "GD03", "GD04", "GD05", "GD05.5"]);
-    tournamentLabel = "Torneios Competitivos de Todas as Temporadas (Egman Events / Bandai)";
+    formatData = aggregateFormatData(ALL_SEASON_KEYS);
+    tournamentLabel = "Torneios Competitivos de Todas as Temporadas (Egman Events + DigiLab)";
   } else {
     formatKey = format.toUpperCase();
     formatData = META_CORES.formats[formatKey as keyof typeof META_CORES.formats];
