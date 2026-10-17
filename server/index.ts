@@ -11,6 +11,7 @@ import jwt from "jsonwebtoken";
 import multer from "multer";
 import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType, HostedEventStatus, HostedEventRoundStatus, HostedEventMatchResult, TournamentTier, PostStatus, BinderItemTag } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
+import { resolvePublicAppUrl as resolvePublicAppUrlFrom } from "./publicAppUrl.ts";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, NON_STATS_SECTIONS, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
 import { buildSt01DeckList } from "../src/modules/simulator/fixtures/st01Deck.ts";
@@ -28,7 +29,6 @@ import { ST10_TEST_DECKS } from "../src/modules/simulator/fixtures/st10Decks.ts"
 import { EB01_TEST_DECKS } from "../src/modules/simulator/fixtures/eb01Decks.ts";
 import { ST11_TO_14_DECKS } from "../src/modules/simulator/fixtures/st11to14Decks.ts";
 import { validateDeckPayload, checkUserDeckSimulatorCoverage } from "./deckCoverageGate.ts";
-import { resolvePublicAppUrl as resolvePublicAppUrlFrom } from "./publicAppUrl.ts";
 import {
   computeSwissStandings,
   generateSwissPairings,
