@@ -59,10 +59,9 @@ function readChallengeParam(): string | null {
   return value ? value.trim().toUpperCase() : null;
 }
 
-/** Link compartilhável pro amigo — mantém o padrão de hash routing do app. */
+/** Link compartilhável pro amigo. */
 function buildInviteLink(code: string): string {
-  const { origin, pathname } = window.location;
-  return `${origin}${pathname}?challenge=${encodeURIComponent(code)}#/simulador`;
+  return `${window.location.origin}/simulador?challenge=${encodeURIComponent(code)}`;
 }
 
 type Screen = "checking" | "lobby" | "queued" | "challenge-host" | "challenge-guest";

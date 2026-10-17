@@ -6,6 +6,7 @@ import { PublicShell } from "@/components/layout/PublicShell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api";
+import { usePageMeta } from "@/lib/pageMeta";
 
 // "Fechada" = conteudo pre-definido e conhecido (starter deck, build box, acessorio,
 // premium) -- faz sentido mostrar quantidade por carta. "Regular" = booster pack
@@ -25,6 +26,11 @@ const setKindLabel = (setType?: string | null) => {
 export default function SetDetailPage() {
   const [, params] = useRoute<{ code: string }>("/sets/:code");
   const [setData, setSetData] = useState<any | null>(null);
+  usePageMeta(setData ? {
+    title: `${setData.namePt || setData.nameEn} (${setData.code})`,
+    description: setData.shortDescription || `Todas as cartas da coleção ${setData.code} · ${setData.namePt || setData.nameEn} de Gundam Card Game.`,
+    image: setData.coverImage || null,
+  } : null);
   const [error, setError] = useState("");
 
   useEffect(() => {

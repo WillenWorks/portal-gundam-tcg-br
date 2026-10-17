@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Router, Route, Switch, useLocation, Redirect } from "wouter";
-import { useHashLocationWithQuery } from "@/lib/hashLocationWithQuery";
+import { applyPageMeta, routeMetaFor } from "@/lib/pageMeta";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { FactionProvider } from "@/contexts/FactionContext";
@@ -115,13 +115,29 @@ function RequireAuth({ children, adminOnly = false, hosterOnly = false }: { chil
   return <>{children}</>;
 }
 
+/** Metadados de SEO padrão da rota (title, description, canonical, robots) a cada troca de caminho.
+ *  Páginas de detalhe refinam com `usePageMeta` quando os dados chegam. */
+function RouteMeta() {
+  const [location] = useLocation();
+  useEffect(() => {
+    applyPageMeta(routeMetaFor(location));
+  }, [location]);
+  return null;
+}
+
+/** Seções da landing acessíveis por caminho (`/ultimos-eventos` rola até a seção). Qualquer
+ *  outro caminho desconhecido é 404 de verdade, em vez de mostrar a landing (soft 404). */
+const HOME_SECTIONS = new Set(["topo", "sobre-anaheim-hub", "cockpit-registro", "conheca-gundam", "ultimas-colecoes", "ultimos-eventos"]);
+
 function AppRouter() {
   return (
-    <Router hook={useHashLocationWithQuery}>
+    <Router>
+      <RouteMeta />
       <SocialQuickMatchOverlay>
         <Suspense fallback={<GlobalLoader label="Carregando portal" />}>
           <Switch>
         <Route path="/login" component={AuthPage} />
+        <Route path="/auth">{() => <Redirect to="/login" replace />}</Route>
         <Route path="/recuperar-senha">{() => <LazyRoute label="Recuperar senha"><ForgotPasswordPage /></LazyRoute>}</Route>
         <Route path="/redefinir-senha">{() => <LazyRoute label="Redefinir senha"><ResetPasswordPage /></LazyRoute>}</Route>
         <Route path="/confirmar-email">{() => <LazyRoute label="Confirmar e-mail"><VerifyEmailPage /></LazyRoute>}</Route>
@@ -257,7 +273,7 @@ function AppRouter() {
         <Route path="/admin">{() => <RequireAuth adminOnly><LazyRoute label="Dashboard Geral"><AdminDashboardPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin/:section">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/">{() => <Home />}</Route>
-        <Route path="/:section">{(params) => <Home targetSection={params.section} />}</Route>
+        <Route path="/:section">{(params) => (HOME_SECTIONS.has(params.section) ? <Home targetSection={params.section} /> : <NotFound />)}</Route>
         <Route component={NotFound} />
       </Switch>
       </Suspense>

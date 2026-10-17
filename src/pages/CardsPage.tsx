@@ -49,9 +49,7 @@ const defaultFilters: CardFilters = {
   sort: "code_asc",
 };
 
-// Lê os filtros da URL REAL (?color=Blue), não do hash -- o wouter guarda a query da
-// navegação em window.location.search mesmo em roteamento por hash (ver
-// src/lib/hashLocationWithQuery.ts), então é ali que qualquer link com filtro embutido
+// Lê os filtros da query da URL (?color=Blue) -- é ali que qualquer link com filtro embutido
 // (clique numa cor/série/trait/coleção/raridade em outra página) deixa o valor.
 function readFiltersFromLocation(): { filters: CardFilters; page: number; pageSize: number } {
   const params = new URLSearchParams(window.location.search);
@@ -84,14 +82,9 @@ function buildHash(basePath: string, filters: CardFilters, page: number, pageSiz
   return query ? `${basePath}?${query}` : basePath;
 }
 
-// O link de busca copiado precisa refletir a mesma URL real que o app produz ao
-// navegar (query em window.location.search, hash só com o caminho) -- senão colar o
-// link copiado numa aba nova nem bate com a rota certa.
+// O link de busca copiado é a mesma URL que o app produz ao navegar (caminho + query).
 function buildShareUrl(basePath: string, filters: CardFilters, page: number, pageSize: number) {
-  const target = buildHash(basePath, filters, page, pageSize);
-  const [path, query = ""] = target.split("?");
-  const search = query ? `?${query}` : "";
-  return `${window.location.origin}${window.location.pathname}${search}#${path}`;
+  return `${window.location.origin}${buildHash(basePath, filters, page, pageSize)}`;
 }
 
 export default function CardsPage() {

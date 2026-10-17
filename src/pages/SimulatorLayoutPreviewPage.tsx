@@ -331,7 +331,7 @@ export default function SimulatorLayoutPreviewPage() {
           Esta página é uma ferramenta interna de visualização do simulador. Abra o link com{" "}
           <code>?preview=1</code> no final para liberá-la neste navegador.
         </p>
-        <a href="#/" className="text-sm text-primary underline">
+        <a href="/" className="text-sm text-primary underline">
           Voltar ao início
         </a>
       </div>

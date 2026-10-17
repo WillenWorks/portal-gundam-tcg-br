@@ -10,10 +10,16 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { api, type SeriesMetadata, type TaxonomyEntry } from "@/lib/api";
+import { usePageMeta } from "@/lib/pageMeta";
 
 export default function SeriesDetailPage() {
   const [, params] = useRoute<{ slug: string }>("/series/:slug");
   const [entry, setEntry] = useState<TaxonomyEntry | null | undefined>(undefined);
+  usePageMeta(entry === undefined ? null : entry === null ? { title: "Série não encontrada", noindex: true } : {
+    title: entry.name,
+    description: entry.description || `Cartas de Gundam Card Game da série ${entry.name}.`,
+    image: entry.coverImage || null,
+  });
   const [cards, setCards] = useState<any[]>([]);
   const [cardsLoading, setCardsLoading] = useState(true);
 

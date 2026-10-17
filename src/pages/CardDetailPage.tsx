@@ -18,6 +18,7 @@ import type { CardLanguage } from "@/i18n/types";
 import { CardPlayabilityBadge } from "@/components/catalog/CardPlayabilityBadge";
 import { CardPlayabilityDetailBox } from "@/components/catalog/CardPlayabilityDetailBox";
 import { CardTournamentUsageSection } from "@/components/veda/CardTournamentUsageSection";
+import { usePageMeta } from "@/lib/pageMeta";
 
 const RELATION_LABELS: Record<string, string> = {
   PILOT_OF: "Piloto",
@@ -122,6 +123,13 @@ export default function CardDetailPage() {
     const flags = [card.hasBurst && "Burst", card.hasMain && "Main", card.hasAction && "Action", card.oncePerTurn && "Once per turn"].filter(Boolean) as string[];
     return Array.from(new Set([...(card.triggerKeywords || []), ...(card.effectKeywords || []), ...flags]));
   }, [card]);
+
+  const metaName = card ? (card.namePt || card.nameEn || card.code) : "";
+  usePageMeta(card ? {
+    title: `${metaName} (${card.code})`,
+    description: `${card.code} · ${metaName}${card.nameEn && card.nameEn !== metaName ? ` (${card.nameEn})` : ""} — carta de Gundam Card Game. ${typeof resolvedEffect === "string" ? resolvedEffect : ""}`.slice(0, 300),
+    image: artUrl || null,
+  } : null);
 
   return <PublicShell breadcrumbs={breadcrumbs}>
     <div className="space-y-6">
