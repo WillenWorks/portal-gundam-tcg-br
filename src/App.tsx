@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Router, Route, Switch, useLocation, Redirect } from "wouter";
-import { applyPageMeta, routeMetaFor } from "@/lib/pageMeta";
+import { applyPageMeta, routeMetaFor, HOME_SECTIONS } from "@/lib/pageMeta";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { FactionProvider } from "@/contexts/FactionContext";
@@ -124,10 +124,6 @@ function RouteMeta() {
   }, [location]);
   return null;
 }
-
-/** Seções da landing acessíveis por caminho (`/ultimos-eventos` rola até a seção). Qualquer
- *  outro caminho desconhecido é 404 de verdade, em vez de mostrar a landing (soft 404). */
-const HOME_SECTIONS = new Set(["topo", "sobre-anaheim-hub", "cockpit-registro", "conheca-gundam", "ultimas-colecoes", "ultimos-eventos"]);
 
 function AppRouter() {
   return (
@@ -273,6 +269,7 @@ function AppRouter() {
         <Route path="/admin">{() => <RequireAuth adminOnly><LazyRoute label="Dashboard Geral"><AdminDashboardPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin/:section">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/">{() => <Home />}</Route>
+        {/* Só as seções da landing; qualquer outro caminho é 404 de verdade (não a landing = soft 404). */}
         <Route path="/:section">{(params) => (HOME_SECTIONS.has(params.section) ? <Home targetSection={params.section} /> : <NotFound />)}</Route>
         <Route component={NotFound} />
       </Switch>

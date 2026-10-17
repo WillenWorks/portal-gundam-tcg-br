@@ -12,6 +12,10 @@ const DEFAULT_DESCRIPTION =
   "Plataforma pública e gratuita de Gundam Card Game no Brasil: catálogo de cartas, deckbuilder, torneios, regras e metagame.";
 const DEFAULT_IMAGE = `${SITE_URL}/favicon-64.png`;
 
+/** Seções da landing acessíveis por caminho (`/ultimos-eventos` rola até a seção). São a home:
+ *  canonical "/". Qualquer outro caminho de um nível desconhecido é 404 (ver App.tsx). */
+export const HOME_SECTIONS = new Set(["topo", "sobre-anaheim-hub", "cockpit-registro", "conheca-gundam", "ultimas-colecoes", "ultimos-eventos"]);
+
 export type PageMeta = {
   title?: string;
   description?: string;
@@ -63,6 +67,9 @@ const ROUTE_META: Array<[RegExp, { title: string; description?: string }]> = [
   [/^\/privacidade$/, { title: "Política de Privacidade" }],
   [/^\/termos$/, { title: "Termos de Uso" }],
   [/^\/login$/, { title: "Entrar" }],
+  [/^\/recuperar-senha$/, { title: "Recuperar senha" }],
+  [/^\/redefinir-senha$/, { title: "Criar nova senha" }],
+  [/^\/confirmar-email$/, { title: "Confirmar e-mail" }],
   [/^\/simulador/, { title: "Simulador" }],
   [/^\/deckbuilder/, { title: "Deckbuilder" }],
 ];
@@ -70,7 +77,7 @@ const ROUTE_META: Array<[RegExp, { title: string; description?: string }]> = [
 export function routeMetaFor(pathname: string): PageMeta {
   const path = pathname.replace(/\/+$/, "") || "/";
   const noindex = isPrivatePath(path);
-  if (path === "/") return { title: undefined, description: DEFAULT_DESCRIPTION, noindex, path };
+  if (path === "/" || HOME_SECTIONS.has(path.slice(1))) return { title: undefined, description: DEFAULT_DESCRIPTION, noindex: false, path: "/" };
   const hit = ROUTE_META.find(([re]) => re.test(path));
   return { title: hit?.[1].title, description: hit?.[1].description ?? DEFAULT_DESCRIPTION, noindex, path };
 }

@@ -17,6 +17,7 @@ describe("routeMetaFor", () => {
     expect(routeMetaFor("/cards").title).toBe("Catálogo de cartas");
     expect(routeMetaFor("/cards/abc/").path).toBe("/cards/abc");
     expect(routeMetaFor("/").title).toBeUndefined();
+    expect(routeMetaFor("/ultimos-eventos").path).toBe("/");
   });
 });
 
