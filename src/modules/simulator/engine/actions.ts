@@ -548,10 +548,13 @@ function applyPlayerActionInner(
         if (decision.cardDef.cardType === "COMMAND" && dispatchable.some((s) => s.sourceText.includes("Activate this card's 【Main】"))) {
           next = dispatchCommandActivated(next, decision.cardInstanceId, specs, { predicateResolver, targetFilterResolver });
         }
-        // W8 — o 【Burst】 abriu uma continuação (GD05-089 "deploy it as a Unit instead"): a fila de 【Burst】 e o Damage
-        // Step esperam por ela (retomados no fim da `resolveAbility`)
+        // W8 — o 【Burst】 abriu uma continuação (GD05-089 "deploy it as a Unit instead") ou pausou num gatilho
+        // encadeado (【Deploy】 com alvo da Base que o 【Burst】 pôs em campo — ST03-015 Rewloola): a fila de 【Burst】,
+        // os 【Destroyed】 deste Damage Step e o Battle End esperam por ela (retomados no fim da `resolveAbility`).
+        // Antes só a continuação `Then:`/`Mode:` esperava; com o 【Deploy】 os 【Destroyed】 disparavam por cima — e um
+        // 【Destroyed】 do oponente que pausa deixava decisão pendente nos dois lados (achado da matriz de confrontos).
         const followUp = next.pendingDecision[actingPlayer];
-        if (followUp?.kind === "abilityResolution" && isFollowUpTrigger(followUp.trigger)) {
+        if (followUp?.kind === "abilityResolution" && !followUp.burstContinuation) {
           return applyEvent(next, {
             type: "SET_PENDING_DECISION",
             player: actingPlayer,
