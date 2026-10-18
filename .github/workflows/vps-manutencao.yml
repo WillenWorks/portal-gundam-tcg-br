@@ -6,6 +6,7 @@ name: Manutenção da VPS
 #
 #   diagnostico       só leitura: sistema, disco, memória, pm2, PostgreSQL, nginx do anaheimhub.com
 #   logs-api          reinícios do gundam-portal: só as linhas de erro/saída do pm2 (sem e-mails, tokens ou corpo de requisição)
+#   investigar-oom    tráfego agregado (rotas sem query/IP, robôs) nos 10 min antes de cada queda por falta de memória
 #   backup            pg_dumpall dos bancos + nginx/letsencrypt + .env dos apps + pm2 save, em /root/backups
 #   baseline-conferir confere se o banco bate com o prisma/schema.prisma (não altera nada)
 #   baseline-aplicar  faz um backup e então troca o histórico de migrations (scripts/prisma-baseline.mjs --yes)
@@ -16,7 +17,7 @@ on:
       tarefa:
         description: "O que fazer"
         type: choice
-        options: [diagnostico, logs-api, backup, baseline-conferir, baseline-aplicar]
+        options: [diagnostico, logs-api, investigar-oom, backup, baseline-conferir, baseline-aplicar]
         default: diagnostico
 
 # nunca junto com um deploy ou outra manutenção
@@ -88,6 +89,37 @@ jobs:
               grep -aE "gundam-portal" /root/.pm2/pm2.log 2>/dev/null | grep -aiE "exit|restart|stop|start|kill" | tail -n 30 | cut -c1-200
             }
 
+            investigar_oom() {
+              secao "memória dos processos node agora"
+              ps -eo rss,etime,args --sort=-rss | grep -E "[n]ode|[t]sx" | head -6 | awk '{printf "%6d MB  %s  ", $1/1024, $2; $1="";$2=""; print substr($0,1,110)}'
+              secao "quedas (exit 134) nos últimos 3 dias"
+              grep -a "gundam-portal" /root/.pm2/pm2.log | grep -a "code \[134\]" | tail -n 12 | cut -c1-19 > /tmp/oom-times.txt
+              cat /tmp/oom-times.txt
+              LOGS=$(ls -1 /var/log/nginx/access.log /var/log/nginx/access.log.1 2>/dev/null)
+              zcat -f /var/log/nginx/access.log.2.gz 2>/dev/null > /tmp/acc-old.log || true
+              while read -r T; do
+                [ -z "$T" ] && continue
+                END=$(date -u -d "${T/T/ }" +%s); START=$((END - 600))
+                secao "10 min antes da queda de $T UTC"
+                cat $LOGS /tmp/acc-old.log 2>/dev/null | node -e '
+                  const [start,end]=process.argv.slice(1).map(Number); const M={Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+                  const paths=new Map(), bots=new Map(); let n=0;
+                  require("readline").createInterface({input:process.stdin}).on("line",l=>{
+                    const m=l.match(/\[(\d+)\/(\w+)\/(\d+):(\d+):(\d+):(\d+) ([+-]\d{4})\] "(\w+) ([^ "]*)[^"]*" (\d+) (\d+) "[^"]*" "([^"]*)"/); if(!m) return;
+                    const off=(m[7][0]==="-"?-1:1)*(Number(m[7].slice(1,3))*60+Number(m[7].slice(3)));
+                    const t=Date.UTC(+m[3],M[m[2]],+m[1],+m[4],+m[5],+m[6])/1000-off*60; if(t<start||t>end) return;
+                    n++; const p=m[8]+" "+m[9].split("?")[0].replace(/\/c[a-z0-9]{20,}/g,"/:id").replace(/\/[A-Z]{2,4}\d{2}-\d{3}\w*/g,"/:code").replace(/\/\d+/g,"/:n");
+                    const e=paths.get(p)||{c:0,b:0}; e.c++; e.b+=Number(m[11]); paths.set(p,e);
+                    const ua=(m[12].match(/(Googlebot|bingbot|YandexBot|AhrefsBot|SemrushBot|GPTBot|ClaudeBot|Bytespider|facebookexternalhit|curl|python|Go-http|node|axios|UptimeRobot|bot|crawler|spider)/i)||["navegador"])[0];
+                    bots.set(ua,(bots.get(ua)||0)+1);
+                  }).on("close",()=>{
+                    console.log("requisições:",n);
+                    console.log("agentes:",[...bots].sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v])=>k+"="+v).join(" "));
+                    for(const [p,e] of [...paths].sort((a,b)=>b[1].b-a[1].b).slice(0,8)) console.log(String(e.c).padStart(5),(e.b/1048576).toFixed(1).padStart(7)+"MB",p.slice(0,90));
+                  });' $START $END
+              done < /tmp/oom-times.txt
+            }
+
             backup() {
               D=/root/backups/$(date +%F-%H%M)
               mkdir -p "$D/patanet" && chmod 700 /root/backups "$D"
@@ -109,6 +141,7 @@ jobs:
             case "$TAREFA" in
               diagnostico) diagnostico ;;
               logs-api) logs_api ;;
+              investigar-oom) investigar_oom ;;
               backup) backup ;;
               baseline-conferir) cd "$APP" && node scripts/prisma-baseline.mjs ;;
               baseline-aplicar) backup; cd "$APP" && node scripts/prisma-baseline.mjs --yes ;;
