@@ -285,6 +285,8 @@ export function deferOrDispatchAbilities(
     queueBudget?: TriggerQueueBudget;
     /** W7 (C10) — quem toma a decisão (padrão: `player`, o controlador). A fila é montada pelo controlador. */
     decider?: PlayerId;
+    /** origem da continuação (ver `DispatchOptions.parentTrigger`) */
+    parentTrigger?: string;
   } = {},
 ): GameState {
   const cascadeDepth = opts.cascadeDepth ?? 0;
@@ -306,6 +308,7 @@ export function deferOrDispatchAbilities(
     allSpecs: specs,
     cascadeDepth,
     queueBudget,
+    parentTrigger: opts.parentTrigger,
   };
 
   // Avalia as chamadas ativas de cada spec no contexto atual

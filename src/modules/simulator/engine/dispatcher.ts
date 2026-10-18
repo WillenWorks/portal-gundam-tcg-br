@@ -61,6 +61,12 @@ export interface DispatchOptions {
   cascadeDepth?: number;
   /** orçamento COMPARTILHADO de largura da fila de gatilhos numa única ação (ver `MAX_QUEUE_BREADTH`). */
   queueBudget?: TriggerQueueBudget;
+  /**
+   * Gatilho de origem (ex. `Reaction:destroyedShieldInBattle`) quando este dispatch é uma continuação
+   * (`Then:`/`Mode:`) que resolveu na hora, sem pausar. Se a continuação DELA pausar, a decisão precisa lembrar a
+   * origem — é por ela que `resolveAbility` retoma o fluxo (Damage Step, Block Step…) depois da escolha.
+   */
+  parentTrigger?: string;
 }
 
 /** Acha os EffectSpec de uma carta pra um trigger específico (ex.: "Deploy", "Burst", "Attack"). */
@@ -289,6 +295,7 @@ export function dispatchTrigger(
         }
       }
     }
+    const rootTrigger = isFollowUpTrigger(trigger) ? opts.parentTrigger : trigger;
     for (const followUp of followUps) {
       if (next.gameOver) break;
       // o alvo do passo anterior segue como alvo implícito `previousTarget` ("…whose Lv. is equal to or lower than the
@@ -318,8 +325,12 @@ export function dispatchTrigger(
         cascadeDepth: cascadeDepth + 1,
         queueBudget,
         decider: followUp.decidedBy === "opponent" ? otherPlayer(current.owner) : undefined,
+        parentTrigger: rootTrigger,
       });
-      if (!isFollowUpTrigger(trigger)) next = withParentTrigger(next, followUp.trigger, trigger);
+      // a continuação que pausou lembra a ORIGEM (não o `Then:` intermediário que resolveu na hora): senão, numa
+      // reação de combate cuja continuação encadeia outra (GD05-034: Then:1 sem escolha → Then:2 do controlador),
+      // a decisão fecha e o Damage Step nunca segue pro Battle End (achado da matriz de confrontos)
+      if (rootTrigger) next = withParentTrigger(next, followUp.trigger, rootTrigger);
     }
 
     // W7 — escudo destruído por EFEITO (GD05-107/033) também oferece o 【Burst】 ao dono (CR 13-2-5-1). No Damage

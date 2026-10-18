@@ -151,6 +151,23 @@ describe("GD05-034 Gaia Gundam — o oponente decide se descarta", () => {
     expect(entry(s, "A", "GD05-034-NoHand")?.handChoice?.legalHandIds).toEqual([pp]);
   });
 
+  // achado da matriz de confrontos: a continuação `Then:2` (opponent sem mão) resolvia e o combate ficava parado no
+  // Damage Step — "nenhum jogador pode agir mas o jogo não acabou (phase=main, combat=damage)"
+  it("oponente sem mão: depois do deploy (ou de recusar) o combate fecha o Battle End", () => {
+    let s = game();
+    const pp = placeCard(s, "A", UNIT({ code: "TEST-PP", traits: ["Phantom Pain"], level: 2 }), "hand");
+    s = gaiaBreaksShield(s);
+    expect(pending(s, "A")?.parentTrigger).toBe("Reaction:destroyedShieldInBattle");
+    const deployed = resolve(s, "A", "GD05-034-NoHand", [pp]);
+    expect(inZone(deployed, "A", "battleArea", pp)).toBe(true);
+    expect(deployed.combat).toBeNull();
+    expect(deployed.pendingDecision.A).toBeNull();
+
+    const declined = act(s, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD05-034-NoHand", activate: false, targetIds: [] }] });
+    expect(inZone(declined, "A", "hand", pp)).toBe(true);
+    expect(declined.combat).toBeNull();
+  });
+
   it("sem Piloto pareado o efeito não existe", () => {
     let s = game();
     placeCard(s, "B", UNIT(), "hand");
