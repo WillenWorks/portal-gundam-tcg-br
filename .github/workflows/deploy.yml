@@ -45,8 +45,9 @@ jobs:
             # 2. Instalar dependências exatas
             pnpm install --frozen-lockfile
 
-            # 3. Sincronizar schema do banco (sem rodar migrations com bug de ordenação)
-            pnpm run prisma:push
+            # 3. Sincronizar schema do banco: `migrate deploy` se o banco já tem o histórico de
+            #    migrations (baseline), senão `db push` como antes — ver scripts/prisma-sync.mjs
+            pnpm run prisma:sync
 
             # 4. Compilar o frontend com as variáveis do .env da VPS
             pnpm run build
