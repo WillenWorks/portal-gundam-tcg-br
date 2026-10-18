@@ -79,6 +79,7 @@ jobs:
               secao "PostgreSQL"
               pg_lsclusters
               runuser -u postgres -- psql -Atc "select datname, pg_size_pretty(pg_database_size(datname)) from pg_database where not datistemplate order by 1"
+              runuser -u postgres -- psql -d gundam_portal -Atc "select 'torneios ativos', count(*) from \"Tournament\" where \"isActive\" union all select 'participações', count(*) from \"TournamentEntry\" union all select 'participações com lista', count(*) from \"TournamentEntry\" where \"deckSnapshotId\" is not null union all select 'itens de listas', count(*) from \"DeckSnapshotItem\""
               secao "nginx"
               nginx -v 2>&1; nginx -t 2>&1 | tail -1
               ls -l /etc/nginx/sites-enabled/
