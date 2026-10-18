@@ -131,10 +131,7 @@ function buildHash(filters: RulingFilters) {
 }
 
 function buildShareUrl(filters: RulingFilters) {
-  const target = buildHash(filters);
-  const [path, query = ""] = target.split("?");
-  const search = query ? `?${query}` : "";
-  return `${window.location.origin}${window.location.pathname}${search}#${path}`;
+  return `${window.location.origin}${buildHash(filters)}`;
 }
 
 // Item folha do accordion: mostra a PERGUNTA como gatilho e expande a RESPOSTA direto ali

@@ -109,7 +109,7 @@ export function SourceDecksModal({
                       className="h-8 shrink-0 rounded-none border-slate-300 dark:border-white/15 bg-white dark:bg-white/5 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10"
                       asChild
                     >
-                      <a href={`#/deck/${deck.shareId}`} target="_blank" rel="noreferrer">
+                      <a href={`/deck/${deck.shareId}`} target="_blank" rel="noreferrer">
                         <ExternalLink className="size-3.5 mr-1" />
                         Ver Deck
                       </a>

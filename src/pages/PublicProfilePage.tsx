@@ -189,7 +189,7 @@ export default function PublicProfilePage() {
   };
 
   const handleCopyBinderUrl = async (shareId: string) => {
-    const url = `${window.location.origin}/#/binder/${shareId}`;
+    const url = `${window.location.origin}/binder/${shareId}`;
     try {
       await navigator.clipboard.writeText(url);
       toast.success("Link único da pasta copiado!");
@@ -503,7 +503,7 @@ export default function PublicProfilePage() {
               <div className="grid gap-6 lg:grid-cols-2">
                 {profile.binders.map((binder) => {
                   const itemCount = binder._count?.items ?? binder.items?.length ?? 0;
-                  const shareUrl = `${window.location.origin}/#/binder/${binder.shareId}`;
+                  const shareUrl = `${window.location.origin}/binder/${binder.shareId}`;
                   return (
                     <Card key={binder.id} className="panel-cut rounded-none surface-panel">
                       <CardContent className="space-y-4 p-5">

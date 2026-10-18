@@ -420,7 +420,7 @@ function CardPreviewModal({ card, onClose }: { card: (CardRecord & { quantity?: 
             </div>
             {card.quantity !== undefined ? <p className="text-center text-xs text-slate-400">{card.quantity}x nesse deck</p> : null}
             <div className="flex justify-center">
-              <a href={`/#/cards/${modelId}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-none border border-white/15 bg-white/5 px-2.5 py-1.5 text-[11px] uppercase tracking-[0.14em] text-white nav-hover-soft hover:text-white">
+              <a href={`/cards/${modelId}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-none border border-white/15 bg-white/5 px-2.5 py-1.5 text-[11px] uppercase tracking-[0.14em] text-white nav-hover-soft hover:text-white">
                 <ExternalLink className="size-3" />Abrir detalhe
               </a>
             </div>
@@ -1379,7 +1379,7 @@ export default function DeckbuilderPage() {
       }
       return;
     }
-    const url = `${window.location.origin}${window.location.pathname}#/deck/${selectedShareId}`;
+    const url = `${window.location.origin}/deck/${selectedShareId}`;
     await navigator.clipboard.writeText(url);
     toast.success("Link permanente de compartilhamento copiado.");
   };
@@ -1858,7 +1858,7 @@ export default function DeckbuilderPage() {
                   size="lg"
                   onClick={() => {
                     localStorage.setItem("gundam_deckbuilder_draft", JSON.stringify({ deckName, visibility, entries }));
-                    navigate("/auth");
+                    navigate("/login");
                   }}
                   className="rounded-none bg-primary text-primary-foreground font-heading uppercase tracking-wider text-sm px-6 shadow-lg shadow-primary/20"
                 >
@@ -1869,7 +1869,7 @@ export default function DeckbuilderPage() {
                   variant="outline"
                   onClick={() => {
                     localStorage.setItem("gundam_deckbuilder_draft", JSON.stringify({ deckName, visibility, entries }));
-                    navigate("/auth");
+                    navigate("/login");
                   }}
                   className="rounded-none border-white/20 font-heading uppercase tracking-wider text-sm px-6"
                 >
@@ -2449,7 +2449,7 @@ export default function DeckbuilderPage() {
               <Button
                 onClick={() => {
                   setAuthModalOpen(false);
-                  navigate("/auth");
+                  navigate("/login");
                 }}
                 className="rounded-none bg-primary text-primary-foreground font-heading uppercase tracking-wider"
               >

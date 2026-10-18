@@ -39,6 +39,7 @@ import {
 import { CardMarkdown } from "@/components/articles/CardMarkdown";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, type ApiPost, type ApiComment, type PostType } from "@/lib/api";
+import { usePageMeta } from "@/lib/pageMeta";
 
 const POST_TYPE_LABEL: Record<PostType, string> = {
   NEWS: "Notícia",
@@ -83,6 +84,11 @@ export default function ArticleDetailPage() {
   const { user: currentUser, isAuthenticated } = useAuth();
 
   const [post, setPost] = useState<ApiPost | null | undefined>(undefined);
+  usePageMeta(post === undefined ? null : post === null ? { title: "Artigo não encontrado", noindex: true } : {
+    title: post.title,
+    description: post.excerpt || `${post.title} — artigo do Anaheim Hub sobre Gundam Card Game.`,
+    image: post.coverImage || null,
+  });
 
   // Social: Curtidas do artigo
   const [liked, setLiked] = useState(false);
@@ -744,7 +750,7 @@ export default function ArticleDetailPage() {
                         </span>
                       </div>
                       <Link
-                        href="/auth"
+                        href="/login"
                         className="inline-flex items-center rounded-none border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs uppercase tracking-wider text-primary hover:bg-primary/20 transition font-semibold shrink-0"
                       >
                         Entrar ou Cadastrar

@@ -11,6 +11,7 @@ import jwt from "jsonwebtoken";
 import multer from "multer";
 import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType, HostedEventStatus, HostedEventRoundStatus, HostedEventMatchResult, TournamentTier, PostStatus, BinderItemTag } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
+import { resolvePublicAppUrl as resolvePublicAppUrlFrom } from "./publicAppUrl.ts";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, NON_STATS_SECTIONS, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
 import { buildSt01DeckList } from "../src/modules/simulator/fixtures/st01Deck.ts";
@@ -28,6 +29,7 @@ import { ST10_TEST_DECKS } from "../src/modules/simulator/fixtures/st10Decks.ts"
 import { EB01_TEST_DECKS } from "../src/modules/simulator/fixtures/eb01Decks.ts";
 import { ST11_TO_14_DECKS } from "../src/modules/simulator/fixtures/st11to14Decks.ts";
 import { validateDeckPayload, checkUserDeckSimulatorCoverage } from "./deckCoverageGate.ts";
+import { gzipJson } from "./jsonCompression.ts";
 import {
   computeSwissStandings,
   generateSwissPairings,
@@ -347,6 +349,12 @@ setMatchLogSink((log) => {
 });
 
 const app = express();
+// A API roda atrás do nginx na mesma máquina: confia só no proxy local, para que `req.ip` seja o IP do
+// visitante (vindo do X-Forwarded-For que o nginx acrescenta). Sem isto, todo mundo aparecia como
+// 127.0.0.1 e os limites de tentativa por IP (login com Google, redefinir senha) eram um balde só para o
+// site inteiro.
+app.set("trust proxy", "loopback");
+app.disable("x-powered-by");
 const PORT = Number(process.env.API_PORT ?? 8787);
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 const INSECURE_JWT_SECRET_PLACEHOLDER = "change-this-secret";
@@ -385,6 +393,19 @@ if (IS_PRODUCTION && allowedOrigins.length === 0) {
 }
 app.use(cors(allowedOrigins.length ? { origin: allowedOrigins } : undefined));
 app.use(express.json({ limit: "4mb" }));
+app.use(gzipJson());
+
+// Cache curto da listagem SEM paginação de /api/cards (o catálogo inteiro, ~7 MB de JSON): o simulador
+// (cardArtService) e a página de estatísticas pedem a lista toda, e cada chamada refazia a consulta e
+// montava milhares de objetos. Qualquer escrita em cartas, coleções, taxonomias ou importação limpa o cache — por isso
+// este middleware fica aqui, antes de todas as rotas (uma rota que responde encerra a cadeia).
+const CARDS_LIST_CACHE_MS = 30_000;
+const CARDS_LIST_CACHE_MAX = 20;
+const cardsListCache = new Map<string, { at: number; body: unknown }>();
+app.use((req, _res, next) => {
+  if (req.method !== "GET" && req.method !== "HEAD" && /^\/api\/(cards|sets|taxonomies|admin|import)/.test(req.path)) cardsListCache.clear();
+  next();
+});
 app.use("/uploads", express.static(uploadRootDir, {
   maxAge: STORAGE_DRIVER === "local" ? "1d" : 0,
   immutable: false,
@@ -1320,44 +1341,38 @@ const AUTH_RATE_LIMIT = 8;
 const AUTH_RATE_WINDOW_MS = 15 * 60 * 1000;
 const authRateLimiter = createBugReportRateLimiter(AUTH_RATE_LIMIT, AUTH_RATE_WINDOW_MS);
 
+// Teto por conta, independente do IP: mesmo que o IP do visitante seja falsificável (X-Forwarded-For mal
+// configurado no proxy), tentativas contra UM e-mail continuam limitadas.
+const AUTH_IDENTIFIER_RATE_LIMIT = 20;
+const authIdentifierRateLimiter = createBugReportRateLimiter(AUTH_IDENTIFIER_RATE_LIMIT, AUTH_RATE_WINDOW_MS);
+function authIdentifierLimited(identifier?: string): boolean {
+  if (!identifier) return false;
+  const key = `id:${identifier}`;
+  if (authIdentifierRateLimiter.isLimited(key)) return true;
+  authIdentifierRateLimiter.record(key);
+  return false;
+}
+
 function authRateLimitKey(req: Request, identifier?: string): string {
   const ip = req.ip || req.socket.remoteAddress || "unknown";
   return identifier ? `${ip}:${identifier}` : ip;
 }
 
-const resolvePublicAppUrl = (req?: Request): string => {
-  // 1. Se recebemos requisição HTTP ativa, inspeciona headers de proxy reverso (Nginx) ou host
-  if (req) {
-    const forwardedHost = req.get("x-forwarded-host") || req.get("host");
-    const forwardedProto = req.get("x-forwarded-proto") || req.protocol || "https";
-    if (forwardedHost && !forwardedHost.includes("localhost") && !forwardedHost.includes("127.0.0.1")) {
-      return `${forwardedProto}://${forwardedHost}`.replace(/\/$/, "");
-    }
-  }
-
-  // 2. Se PUBLIC_APP_URL foi configurado e não aponta para localhost
-  const envUrl = process.env.PUBLIC_APP_URL?.trim();
-  if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
-    return envUrl.replace(/\/$/, "");
-  }
-
-  // 3. Se estiver na VPS ou ambiente remoto (mesmo que NODE_ENV não esteja explicitamente como 'production')
-  const isRemoteEnv =
-    process.env.NODE_ENV === "production" ||
+// Ambiente remoto (VPS/produção), mesmo sem NODE_ENV explícito — mesma detecção de antes.
+const isRemoteEnv = Boolean(
+  process.env.NODE_ENV === "production" ||
     process.env.SMTP_HOST?.includes("hostinger") ||
     process.env.MAIL_FROM?.includes("anaheimhub.com") ||
-    Boolean(process.env.PM2_HOME) ||
-    Boolean(process.env.PWD?.includes("/root/")) ||
-    Boolean(process.env.HOME?.includes("/root")) ||
-    (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes("localhost") && !process.env.DATABASE_URL.includes("127.0.0.1"));
+    process.env.PM2_HOME ||
+    process.env.PWD?.includes("/root/") ||
+    process.env.HOME?.includes("/root") ||
+    (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes("localhost") && !process.env.DATABASE_URL.includes("127.0.0.1")),
+);
 
-  if (isRemoteEnv) {
-    return "https://anaheimhub.com";
-  }
-
-  // 4. Desenvolvimento local
-  return envUrl || "http://localhost:8787";
-};
+// Link dos e-mails: o cabeçalho Host/X-Forwarded-Host só vale se a origem estiver em ALLOWED_ORIGINS
+// (ver server/publicAppUrl.ts — antes um cabeçalho forjado mandava o token de reset para outro site).
+const resolvePublicAppUrl = (req?: Request): string =>
+  resolvePublicAppUrlFrom(req, { allowedOrigins, envUrl: process.env.PUBLIC_APP_URL, isRemote: isRemoteEnv });
 
 // Recuperação de senha e confirmação de e-mail (SMTP da Hostinger, remetente nao-responda@anaheimhub.com).
 const authEmailDeps = {
@@ -1366,6 +1381,7 @@ const authEmailDeps = {
   publicUrl: resolvePublicAppUrl,
   rateLimited: (req: Request, identifier?: string) => {
     const key = authRateLimitKey(req, identifier);
+    if (authIdentifierLimited(identifier)) return true;
     if (authRateLimiter.isLimited(key)) return true;
     authRateLimiter.record(key);
     return false;
@@ -1379,7 +1395,7 @@ app.post("/api/auth/login", async (req, res) => {
   const normalizedEmail = String(email || "").trim().toLowerCase();
   const normalizedPassword = String(password || "");
   const rateLimitKey = authRateLimitKey(req, normalizedEmail || undefined);
-  if (authRateLimiter.isLimited(rateLimitKey)) {
+  if (authIdentifierLimited(normalizedEmail || undefined) || authRateLimiter.isLimited(rateLimitKey)) {
     return res.status(429).json({ error: "Muitas tentativas de login. Aguarde alguns minutos antes de tentar de novo." });
   }
   authRateLimiter.record(rateLimitKey);
@@ -2292,8 +2308,14 @@ app.get("/api/cards", async (req, res) => {
     return res.json({ items: items.map(flattenModel), page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
   }
 
+  const cacheKey = req.originalUrl;
+  const cached = cardsListCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < CARDS_LIST_CACHE_MS) return res.json(cached.body);
   const models = await prisma.cardModel.findMany({ where, include: printInclude, orderBy });
-  res.json(models.map(flattenModel));
+  const body = models.map(flattenModel);
+  if (cardsListCache.size >= CARDS_LIST_CACHE_MAX) cardsListCache.delete(cardsListCache.keys().next().value as string);
+  cardsListCache.set(cacheKey, { at: Date.now(), body });
+  res.json(body);
 });
 
 app.get("/api/cards/filters", async (_req, res) => {
@@ -4420,7 +4442,7 @@ app.post("/api/decks/:id/view", authOptional, async (req: RequestWithUser, res) 
       return res.json({ recorded: false, viewCount: deck.viewCount });
     }
 
-    const ip = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || "";
+    const ip = req.ip || req.socket.remoteAddress || "";
     const ua = (req.headers["user-agent"] as string) || "";
     const viewerHash = crypto.createHash("sha256").update(`${ip}::${ua}`).digest("hex");
 
