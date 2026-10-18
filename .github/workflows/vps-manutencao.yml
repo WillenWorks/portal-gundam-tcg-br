@@ -1,0 +1,100 @@
+name: Manutenção da VPS
+
+# Tarefas de manutenção da VPS de produção, disparadas à mão (Actions → "Manutenção da VPS" → Run workflow).
+# Só quem tem acesso de escrita ao repositório consegue disparar. O repositório é público, então o log
+# também é: as tarefas imprimem só status, tamanhos e configuração, nunca .env, senhas ou dados.
+#
+#   diagnostico       só leitura: sistema, disco, memória, pm2, PostgreSQL, nginx do anaheimhub.com
+#   backup            pg_dumpall dos bancos + nginx/letsencrypt + .env dos apps + pm2 save, em /root/backups
+#   baseline-conferir confere se o banco bate com o prisma/schema.prisma (não altera nada)
+#   baseline-aplicar  faz um backup e então troca o histórico de migrations (scripts/prisma-baseline.mjs --yes)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tarefa:
+        description: "O que fazer"
+        type: choice
+        options: [diagnostico, backup, baseline-conferir, baseline-aplicar]
+        default: diagnostico
+
+# nunca junto com um deploy ou outra manutenção
+concurrency:
+  group: vps-producao
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  vps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: ${{ inputs.tarefa }}
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          TAREFA: ${{ inputs.tarefa }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          envs: TAREFA
+          command_timeout: 35m
+          script_stop: true
+          script: |
+            set -e
+            export NVM_DIR="$HOME/.nvm"
+            . "$NVM_DIR/nvm.sh"
+            APP=/root/portal-gundam-tcg-br
+            secao() { echo; echo "=================== $*"; }
+
+            diagnostico() {
+              secao "sistema"
+              . /etc/os-release && echo "$PRETTY_NAME"; uname -r; uptime
+              [ -f /var/run/reboot-required ] && echo "REINÍCIO PENDENTE" || echo "sem reinício pendente"
+              secao "disco e memória"
+              df -h / | tail -1; free -m
+              secao "pm2"
+              pm2 jlist | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{for(const p of JSON.parse(s))console.log(`${p.name.padEnd(16)} ${p.pm2_env.status.padEnd(8)} restarts=${p.pm2_env.restart_time} mem=${Math.round((p.monit?.memory||0)/1048576)}MB node=${p.pm2_env.node_version}`)})'
+              secao "PostgreSQL"
+              pg_lsclusters
+              runuser -u postgres -- psql -Atc "select datname, pg_size_pretty(pg_database_size(datname)) from pg_database where not datistemplate order by 1"
+              secao "nginx"
+              nginx -v 2>&1; nginx -t 2>&1 | tail -1
+              ls -l /etc/nginx/sites-enabled/
+              echo "--- /etc/nginx/sites-enabled/anaheimhub.com"
+              cat /etc/nginx/sites-enabled/anaheimhub.com
+              secao "apt"
+              apt-get update -qq 2>&1 | grep -E "^(E:|Err)" || echo "apt update sem erros"
+              apt list --upgradable 2>/dev/null | tail -n +2 | wc -l | xargs echo "pacotes com atualização:"
+              secao "backups existentes"
+              ls -1 /root/backups 2>/dev/null || echo "(nenhum)"
+            }
+
+            backup() {
+              D=/root/backups/$(date +%F-%H%M)
+              mkdir -p "$D/patanet" && chmod 700 /root/backups "$D"
+              secao "backup em $D"
+              runuser -u postgres -- pg_dumpall | gzip > "$D/pg_dumpall.sql.gz"
+              gunzip -t "$D/pg_dumpall.sql.gz"
+              echo "bancos no dump: $(zcat "$D/pg_dumpall.sql.gz" | grep -c '^CREATE DATABASE')"
+              tar czf "$D/nginx-letsencrypt.tgz" /etc/nginx /etc/letsencrypt 2>/dev/null
+              cp "$APP/.env" "$D/env-anaheimhub"
+              (cd /root/patanet-deploy && find . -maxdepth 4 -name ".env*" -not -path "*/node_modules/*" -exec cp --parents {} "$D/patanet/" \;)
+              pm2 save >/dev/null && cp /root/.pm2/dump.pm2 "$D/" 2>/dev/null || true
+              dpkg --get-selections > "$D/pacotes.txt"
+              chmod -R go-rwx "$D"
+              ls -lh "$D" "$D/patanet" | grep -v '^total'
+              # mantém os 5 backups mais recentes
+              ls -1d /root/backups/*/ | head -n -5 | xargs -r rm -rf
+            }
+
+            case "$TAREFA" in
+              diagnostico) diagnostico ;;
+              backup) backup ;;
+              baseline-conferir) cd "$APP" && node scripts/prisma-baseline.mjs ;;
+              baseline-aplicar) backup; cd "$APP" && node scripts/prisma-baseline.mjs --yes ;;
+              *) echo "tarefa desconhecida: $TAREFA"; exit 1 ;;
+            esac

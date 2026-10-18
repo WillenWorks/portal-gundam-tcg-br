@@ -113,3 +113,37 @@ describe("ST03-015 Rewloola 【Deploy】 — caminho real (deployCard + resolveA
     expect(draC?.damage).toBe(1);
   });
 });
+
+// achado da matriz de confrontos (GD05, seed 137579): 【Burst】 da Rewloola no Damage Step → o 【Deploy】 dela pausa pra
+// alvo, mas os 【Destroyed】 e o Battle End seguiam por cima — com um 【Destroyed】 do oponente que pausa, ficava decisão
+// pendente nos dois lados. Agora o 【Deploy】 leva a continuação do 【Burst】 e o combate só fecha depois dele.
+describe("ST03-015 Rewloola via 【Burst】 no Damage Step", () => {
+  it("o 【Deploy】 pausa com a continuação do 【Burst】; resolvido, o combate fecha", () => {
+    const state = advanceToMainPhase(createGame(buildSt03DeckList(), buildSt03DeckList(), { seed: 7, firstPlayer: "B" }));
+    state.players.A.baseSection = [];
+    state.players.A.shields = [];
+    place(state, "A", ST03_CARD_DEFS.REWLOOLA, "shields");
+    const attacker = place(state, "B", ST01_CARD_DEFS.DEMI_TRAINER, "battleArea");
+    const target = place(state, "B", ST03_CARD_DEFS.DRA_C, "battleArea", { rested: true });
+
+    let s = apply(state, "B", { kind: "declareAttack", attackerId: attacker, target: "player" });
+    for (let i = 0; i < 6 && s.combat && !s.pendingDecision.A && !s.pendingDecision.B; i++) {
+      if (s.combat.step === "block") s = apply(s, "A", { kind: "skipBlock" });
+      else if (s.combat.step === "action") s = apply(s, s.combat.actionPriority, { kind: "passAction" });
+      else break;
+    }
+    expect(s.pendingDecision.A?.kind).toBe("burst");
+    s = apply(s, "A", { kind: "resolveBurstDecision", activate: true });
+
+    const deploy = s.pendingDecision.A;
+    expect(deploy?.kind === "abilityResolution" && deploy.trigger).toBe("Deploy");
+    expect(deploy?.kind === "abilityResolution" && deploy.burstContinuation).toBeDefined();
+    expect(s.pendingDecision.B).toBeNull();
+    expect(s.combat?.step).toBe("damage");
+
+    s = apply(s, "A", { kind: "resolveAbility", resolutions: [{ specId: "ST03-015-Deploy-Damage", activate: true, targetIds: [target] }] });
+    expect(s.pendingDecision.A).toBeNull();
+    expect(s.pendingDecision.B).toBeNull();
+    expect(s.combat).toBeNull();
+  });
+});
