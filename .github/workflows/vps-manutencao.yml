@@ -7,6 +7,7 @@ name: Manutenção da VPS
 #   diagnostico       só leitura: sistema, disco, memória, pm2, PostgreSQL, nginx do anaheimhub.com
 #   logs-api          reinícios do gundam-portal: só as linhas de erro/saída do pm2 (sem e-mails, tokens ou corpo de requisição)
 #   investigar-oom    tráfego agregado (rotas sem query/IP, robôs) nos 10 min antes de cada queda por falta de memória
+#   monitorar-memoria 25 min de amostras de memória do processo da API + atividade do simulador (só contagens)
 #   backup            pg_dumpall dos bancos + nginx/letsencrypt + .env dos apps + pm2 save, em /root/backups
 #   baseline-conferir confere se o banco bate com o prisma/schema.prisma (não altera nada)
 #   baseline-aplicar  faz um backup e então troca o histórico de migrations (scripts/prisma-baseline.mjs --yes)
@@ -17,7 +18,7 @@ on:
       tarefa:
         description: "O que fazer"
         type: choice
-        options: [diagnostico, logs-api, investigar-oom, backup, baseline-conferir, baseline-aplicar]
+        options: [diagnostico, logs-api, investigar-oom, monitorar-memoria, backup, baseline-conferir, baseline-aplicar]
         default: diagnostico
 
 # nunca junto com um deploy ou outra manutenção
@@ -120,6 +121,25 @@ jobs:
               done < /tmp/oom-times.txt
             }
 
+            monitorar_memoria() {
+              Q() { runuser -u postgres -- psql -d gundam_portal -Atc "$1"; }
+              secao "simulador: partidas e turnos do bot (contagens)"
+              Q "select 'partidas abertas (atualizadas 24h)', count(*), coalesce(max(pg_column_size(state))/1024,0)||' KB maior estado' from \"SimulatorMatch\" where \"finishedAt\" is null and \"updatedAt\" > now() - interval '24 hours'"
+              Q "select 'partidas abertas (total)', count(*), coalesce(sum(pg_column_size(state))/1048576,0)||' MB' from \"SimulatorMatch\" where \"finishedAt\" is null"
+              Q "select 'turnos do bot 24h', status, count(*), max(attempts) from \"SimulatorBotTurn\" where \"createdAt\" > now() - interval '24 hours' group by status"
+              Q "select to_char(date_trunc('hour', \"createdAt\"), 'DD HH24')||'h', count(*) from \"SimulatorBotTurn\" where \"createdAt\" > now() - interval '14 hours' group by 1 order by 1"
+              secao "memória da API a cada minuto (MB) — 25 min"
+              START=$(date -u +%FT%T)
+              for i in $(seq 1 25); do
+                P=$(pgrep -f "tsx/dist/loader|--require .*tsx" | head -1)
+                R=$([ -n "$P" ] && ps -o rss= -p "$P" | awk '{print int($1/1024)}' || echo "-")
+                T=$(Q "select count(*) from \"SimulatorBotTurn\" where \"createdAt\" > '$START'")
+                M=$(Q "select count(*) from \"SimulatorMatch\" where \"updatedAt\" > now() - interval '1 minute'")
+                echo "$(date -u +%H:%M) pid=$P rss=${R}MB turnos_bot_desde_inicio=$T partidas_mexidas_1min=$M"
+                sleep 60
+              done
+            }
+
             backup() {
               D=/root/backups/$(date +%F-%H%M)
               mkdir -p "$D/patanet" && chmod 700 /root/backups "$D"
@@ -142,6 +162,7 @@ jobs:
               diagnostico) diagnostico ;;
               logs-api) logs_api ;;
               investigar-oom) investigar_oom ;;
+              monitorar-memoria) monitorar_memoria ;;
               backup) backup ;;
               baseline-conferir) cd "$APP" && node scripts/prisma-baseline.mjs ;;
               baseline-aplicar) backup; cd "$APP" && node scripts/prisma-baseline.mjs --yes ;;
