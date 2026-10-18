@@ -119,17 +119,19 @@ jobs:
                 secao "10 min antes da queda de $T UTC"
                 cat $LOGS /tmp/acc-old.log 2>/dev/null | node -e '
                   const [start,end]=process.argv.slice(1).map(Number); const M={Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
-                  const paths=new Map(), bots=new Map(); let n=0;
+                  const paths=new Map(), bots=new Map(), falhas=[]; let n=0;
                   require("readline").createInterface({input:process.stdin}).on("line",l=>{
                     const m=l.match(/\[(\d+)\/(\w+)\/(\d+):(\d+):(\d+):(\d+) ([+-]\d{4})\] "(\w+) ([^ "]*)[^"]*" (\d+) (\d+) "[^"]*" "([^"]*)"/); if(!m) return;
                     const off=(m[7][0]==="-"?-1:1)*(Number(m[7].slice(1,3))*60+Number(m[7].slice(3)));
-                    const t=Date.UTC(+m[3],M[m[2]],+m[1],+m[4],+m[5],+m[6])/1000-off*60; if(t<start||t>end) return;
+                    const t=Date.UTC(+m[3],M[m[2]],+m[1],+m[4],+m[5],+m[6])/1000-off*60; if(t<start||t>end+60) return;
                     n++; const p=m[8]+" "+m[9].split("?")[0].replace(/\/c[a-z0-9]{20,}/g,"/:id").replace(/\/[A-Z]{2,4}\d{2}-\d{3}\w*/g,"/:code").replace(/\/\d+/g,"/:n");
                     const e=paths.get(p)||{c:0,b:0}; e.c++; e.b+=Number(m[11]); paths.set(p,e);
                     const ua=(m[12].match(/(Googlebot|bingbot|YandexBot|AhrefsBot|SemrushBot|GPTBot|ClaudeBot|Bytespider|facebookexternalhit|curl|python|Go-http|node|axios|UptimeRobot|bot|crawler|spider)/i)||["navegador"])[0];
                     bots.set(ua,(bots.get(ua)||0)+1);
+                    if((m[10]==="502"||m[10]==="499"||m[10]==="504") && t>=end-240 && t<=end+60) falhas.push(new Date(t*1000).toISOString().slice(11,19)+" "+m[10]+" "+p.slice(0,100)+" ["+ua+"]");
                   }).on("close",()=>{
                     console.log("requisições:",n);
+                    console.log("em andamento quando caiu (502/499/504 de 4 min antes a 1 min depois):"); for (const f of falhas.slice(0,15)) console.log("   "+f);
                     console.log("agentes:",[...bots].sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v])=>k+"="+v).join(" "));
                     for(const [p,e] of [...paths].sort((a,b)=>b[1].b-a[1].b).slice(0,8)) console.log(String(e.c).padStart(5),(e.b/1048576).toFixed(1).padStart(7)+"MB",p.slice(0,90));
                   });' $START $END
