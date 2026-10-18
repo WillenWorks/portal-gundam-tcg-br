@@ -1438,7 +1438,9 @@ export const api = {
   updateRuling: (id: string, payload: any) => mutate<any>(`/rulings/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/rulings", "/rulings/filters"]),
   deleteRuling: (id: string) => mutate<void>(`/rulings/${id}`, { method: "DELETE" }, ["/rulings", "/rulings/filters"]),
   importRulings: (payload: any) => mutate<{ imported: number }>("/import/rulings", { method: "POST", body: JSON.stringify(payload) }, ["/rulings", "/rulings/filters"]),
-  listTournaments: () => request<any[]>("/tournaments", undefined, { ttlMs: 20_000 }),
+  /** `resumo`: sem as listas de cartas das participações (bem mais leve — a home só mostra pódio e arquétipo) */
+  listTournaments: (opts: { resumo?: boolean } = {}) =>
+    request<any[]>(opts.resumo ? "/tournaments?resumo=1" : "/tournaments", undefined, { ttlMs: 60_000 }),
   getTournament: (id: string) => request<any>(`/tournaments/${id}`, undefined, { ttlMs: 20_000 }),
   createTournament: (payload: any) => mutate<any>("/tournaments", { method: "POST", body: JSON.stringify(payload) }, ["/tournaments", "/stats"]),
   updateTournament: (id: string, payload: any) => mutate<any>(`/tournaments/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/tournaments", "/stats"]),
