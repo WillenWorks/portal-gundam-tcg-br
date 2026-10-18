@@ -5,6 +5,7 @@ name: Manutenção da VPS
 # também é: as tarefas imprimem só status, tamanhos e configuração, nunca .env, senhas ou dados.
 #
 #   diagnostico       só leitura: sistema, disco, memória, pm2, PostgreSQL, nginx do anaheimhub.com
+#   logs-api          reinícios do gundam-portal: só as linhas de erro/saída do pm2 (sem e-mails, tokens ou corpo de requisição)
 #   backup            pg_dumpall dos bancos + nginx/letsencrypt + .env dos apps + pm2 save, em /root/backups
 #   baseline-conferir confere se o banco bate com o prisma/schema.prisma (não altera nada)
 #   baseline-aplicar  faz um backup e então troca o histórico de migrations (scripts/prisma-baseline.mjs --yes)
@@ -15,7 +16,7 @@ on:
       tarefa:
         description: "O que fazer"
         type: choice
-        options: [diagnostico, backup, baseline-conferir, baseline-aplicar]
+        options: [diagnostico, logs-api, backup, baseline-conferir, baseline-aplicar]
         default: diagnostico
 
 # nunca junto com um deploy ou outra manutenção
@@ -73,6 +74,20 @@ jobs:
               ls -1 /root/backups 2>/dev/null || echo "(nenhum)"
             }
 
+            logs_api() {
+              secao "pm2 describe gundam-portal"
+              pm2 describe gundam-portal | grep -E "status|restarts|unstable restarts|uptime|created at|script path|interpreter|node.js version|max memory|exec mode" | sed 's/│/|/g'
+              L=$(pm2 jlist | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const p=JSON.parse(s).find(x=>x.name==="gundam-portal");console.log(p.pm2_env.pm_err_log_path+" "+p.pm2_env.pm_out_log_path)})')
+              ERR=${L%% *}; OUT=${L##* }
+              secao "erros fatais/saídas (últimos 7 dias, sem dados pessoais)"
+              # só linhas de erro de processo; e-mails/tokens trocados por ***
+              grep -ahE "FATAL|heap|out of memory|Killed|SIGKILL|SIGTERM|exited|exit code|Unhandled|uncaught|EADDRINUSE|ECONNREFUSED|PrismaClient|Error:" "$ERR" "$OUT" 2>/dev/null \
+                | sed -E 's/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/***@***/g; s/(token|password|senha|secret|authorization)[^ ]*/\1=***/Ig' \
+                | cut -c1-220 | tail -n 60
+              secao "pm2 log do daemon (reinícios)"
+              grep -aE "gundam-portal" /root/.pm2/pm2.log 2>/dev/null | grep -aiE "exit|restart|stop|start|kill" | tail -n 30 | cut -c1-200
+            }
+
             backup() {
               D=/root/backups/$(date +%F-%H%M)
               mkdir -p "$D/patanet" && chmod 700 /root/backups "$D"
@@ -93,6 +108,7 @@ jobs:
 
             case "$TAREFA" in
               diagnostico) diagnostico ;;
+              logs-api) logs_api ;;
               backup) backup ;;
               baseline-conferir) cd "$APP" && node scripts/prisma-baseline.mjs ;;
               baseline-aplicar) backup; cd "$APP" && node scripts/prisma-baseline.mjs --yes ;;
