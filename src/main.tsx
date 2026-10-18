@@ -3,10 +3,12 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { legacyHashToPath } from './lib/legacyHashRoute'
+import { initAnalytics } from './lib/analytics'
 
 // Links antigos com hash (`/#/cards/abc`) viram o caminho limpo equivalente antes do roteador montar.
 const legacyTarget = legacyHashToPath(window.location.pathname, window.location.search, window.location.hash)
 if (legacyTarget) window.history.replaceState(null, '', legacyTarget)
+initAnalytics()
 
 // Proteção contra scripts injetados de telemetria / DevTools Live Metrics (ex: web-vitals reportAllChanges lendo 'startTime')
 // para evitar que falhas em observadores de performance externos emitam Uncaught TypeError no console.
