@@ -56,6 +56,9 @@ jobs:
             node scripts/generate-sitemap.mjs || true
 
             # 5. Reiniciar a API no PM2
+            # teto de heap do Node: o pm2 roda a API via bash/pnpm, então `--max-old-space-size` como argumento do
+            # interpretador não chegava ao Node — vai por NODE_OPTIONS (o --update-env leva pro processo)
+            export NODE_OPTIONS="--max-old-space-size=3072"
             pm2 reload gundam-portal --update-env
 
             echo "✅ Deploy concluído com sucesso!"

@@ -3151,10 +3151,60 @@ registerAdminDashboardRoutes(app, prisma, authRequired, roleRequired);
 registerSocialRoutes(app, prisma, authRequired, authOptional);
 registerArticleSocialRoutes(app, prisma, authRequired, authOptional);
 
-app.get("/api/tournaments", async (_req, res) => {
-  setPublicCache(res, 20, 90);
-  const events = await prisma.tournament.findMany({ where: { isActive: true }, include: tournamentEntryInclude, orderBy: [{ dateStart: "desc" }] });
-  res.json(events);
+// Lista de TODOS os torneios (home, estatísticas, admin, deck compartilhado). Com ~1.300 torneios / 21 mil
+// participações / 105 mil itens de lista, o include completo (`card: true` em cada item) passava de 2 GB de heap e
+// derrubava a API (quedas de 2026-10-17/18 — sempre com um GET /api/tournaments em andamento). Agora: card só com os
+// campos que as telas usam, `?resumo=1` sem as listas (home), e o resultado fica em memória por alguns minutos com uma
+// única consulta em voo por variante (várias visitas simultâneas não multiplicam o custo).
+const tournamentSnapshotCardSelect = { id: true, code: true, nameEn: true, namePt: true, color: true, cardType: true, rarity: true } as const;
+const tournamentEntryUserDeck = {
+  user: { select: { id: true, username: true, displayName: true } },
+  deck: { select: { id: true, name: true, shareId: true } },
+} as const;
+const tournamentListInclude = {
+  seasonRef: true,
+  entries: {
+    include: {
+      ...tournamentEntryUserDeck,
+      deckSnapshot: {
+        select: {
+          id: true,
+          name: true,
+          format: true,
+          items: { select: { id: true, quantity: true, section: true, card: { select: tournamentSnapshotCardSelect } } },
+        },
+      },
+    },
+  },
+} as const;
+const tournamentSummaryInclude = {
+  seasonRef: true,
+  entries: { include: { ...tournamentEntryUserDeck, deckSnapshot: { select: { id: true, name: true, format: true } } } },
+} as const;
+const TOURNAMENTS_LIST_CACHE_MS = 5 * 60_000;
+const tournamentsListCache = new Map<"full" | "resumo", { at: number; data: Promise<unknown[]> }>();
+app.use((req, _res, next) => {
+  if (req.method !== "GET" && req.method !== "HEAD" && /^\/api\/(tournaments|seasons|admin|import|veda)/.test(req.path)) tournamentsListCache.clear();
+  next();
+});
+
+app.get("/api/tournaments", async (req, res) => {
+  setPublicCache(res, 60, 300);
+  const variant = req.query.resumo === "1" || req.query.resumo === "true" ? "resumo" : "full";
+  const cached = tournamentsListCache.get(variant);
+  if (cached && Date.now() - cached.at < TOURNAMENTS_LIST_CACHE_MS) return res.json(await cached.data);
+  const data = prisma.tournament.findMany({
+    where: { isActive: true },
+    include: variant === "resumo" ? tournamentSummaryInclude : tournamentListInclude,
+    orderBy: [{ dateStart: "desc" }],
+  }) as Promise<unknown[]>;
+  tournamentsListCache.set(variant, { at: Date.now(), data });
+  try {
+    res.json(await data);
+  } catch (err) {
+    tournamentsListCache.delete(variant);
+    throw err;
+  }
 });
 
 app.get("/api/tournaments/:id", async (req, res) => {
