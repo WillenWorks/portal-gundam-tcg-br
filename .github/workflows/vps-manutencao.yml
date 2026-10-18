@@ -42,7 +42,7 @@ jobs:
           port: ${{ secrets.VPS_PORT || 22 }}
           envs: TAREFA
           command_timeout: 35m
-          script_stop: true
+          # sem script_stop: ele quebra funções e `case` multilinha (o script já usa `set -e`)
           script: |
             set -e
             export NVM_DIR="$HOME/.nvm"
