@@ -5,6 +5,10 @@ name: Manutenção da VPS
 # também é: as tarefas imprimem só status, tamanhos e configuração, nunca .env, senhas ou dados.
 #
 #   diagnostico       só leitura: sistema, disco, memória, pm2, PostgreSQL, nginx do anaheimhub.com
+#   logs-api          reinícios do gundam-portal: só as linhas de erro/saída do pm2 (sem e-mails, tokens ou corpo de requisição)
+#   investigar-oom    tráfego agregado (rotas sem query/IP, robôs) nos 10 min antes de cada queda por falta de memória
+#   monitorar-memoria 25 min de amostras de memória do processo da API + atividade do simulador (só contagens)
+#   nginx-aplicar     instala deploy/nginx/anaheimhub.com.conf (guarda o anterior; `nginx -t` falhou → volta o anterior)
 #   backup            pg_dumpall dos bancos + nginx/letsencrypt + .env dos apps + pm2 save, em /root/backups
 #   baseline-conferir confere se o banco bate com o prisma/schema.prisma (não altera nada)
 #   baseline-aplicar  faz um backup e então troca o histórico de migrations (scripts/prisma-baseline.mjs --yes)
@@ -15,7 +19,7 @@ on:
       tarefa:
         description: "O que fazer"
         type: choice
-        options: [diagnostico, backup, baseline-conferir, baseline-aplicar]
+        options: [diagnostico, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar]
         default: diagnostico
 
 # nunca junto com um deploy ou outra manutenção
@@ -31,6 +35,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
+      - uses: actions/checkout@v4
+        if: inputs.tarefa == 'nginx-aplicar'
+      - name: Envia a configuração do nginx
+        if: inputs.tarefa == 'nginx-aplicar'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          source: deploy/nginx/anaheimhub.com.conf
+          target: /root/nginx-novo
+          strip_components: 2
+          overwrite: true
       - name: ${{ inputs.tarefa }}
         uses: appleboy/ssh-action@v1.2.0
         env:
@@ -42,7 +60,7 @@ jobs:
           port: ${{ secrets.VPS_PORT || 22 }}
           envs: TAREFA
           command_timeout: 35m
-          script_stop: true
+          # sem script_stop: ele quebra funções e `case` multilinha (o script já usa `set -e`)
           script: |
             set -e
             export NVM_DIR="$HOME/.nvm"
@@ -61,6 +79,7 @@ jobs:
               secao "PostgreSQL"
               pg_lsclusters
               runuser -u postgres -- psql -Atc "select datname, pg_size_pretty(pg_database_size(datname)) from pg_database where not datistemplate order by 1"
+              runuser -u postgres -- psql -d gundam_portal -Atc "select 'torneios ativos', count(*) from \"Tournament\" where \"isActive\" union all select 'participações', count(*) from \"TournamentEntry\" union all select 'participações com lista', count(*) from \"TournamentEntry\" where \"deckSnapshotId\" is not null union all select 'itens de listas', count(*) from \"DeckSnapshotItem\""
               secao "nginx"
               nginx -v 2>&1; nginx -t 2>&1 | tail -1
               ls -l /etc/nginx/sites-enabled/
@@ -71,6 +90,99 @@ jobs:
               apt list --upgradable 2>/dev/null | tail -n +2 | wc -l | xargs echo "pacotes com atualização:"
               secao "backups existentes"
               ls -1 /root/backups 2>/dev/null || echo "(nenhum)"
+            }
+
+            logs_api() {
+              secao "pm2 describe gundam-portal"
+              pm2 describe gundam-portal | grep -E "status|restarts|unstable restarts|uptime|created at|script path|interpreter|node.js version|max memory|exec mode" | sed 's/│/|/g'
+              L=$(pm2 jlist | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const p=JSON.parse(s).find(x=>x.name==="gundam-portal");console.log(p.pm2_env.pm_err_log_path+" "+p.pm2_env.pm_out_log_path)})')
+              ERR=${L%% *}; OUT=${L##* }
+              secao "erros fatais/saídas (últimos 7 dias, sem dados pessoais)"
+              # só linhas de erro de processo; e-mails/tokens trocados por ***
+              grep -ahE "FATAL|heap|out of memory|Killed|SIGKILL|SIGTERM|exited|exit code|Unhandled|uncaught|EADDRINUSE|ECONNREFUSED|PrismaClient|Error:" "$ERR" "$OUT" 2>/dev/null \
+                | sed -E 's/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/***@***/g; s/(token|password|senha|secret|authorization)[^ ]*/\1=***/Ig' \
+                | cut -c1-220 | tail -n 60
+              secao "pm2 log do daemon (reinícios)"
+              grep -aE "gundam-portal" /root/.pm2/pm2.log 2>/dev/null | grep -aiE "exit|restart|stop|start|kill" | tail -n 30 | cut -c1-200
+            }
+
+            investigar_oom() {
+              secao "memória dos processos node agora"
+              ps -eo rss,etime,args --sort=-rss | grep -E "[n]ode|[t]sx" | head -6 | awk '{printf "%6d MB  %s  ", $1/1024, $2; $1="";$2=""; print substr($0,1,110)}'
+              secao "quedas (exit 134) nos últimos 3 dias"
+              grep -a "gundam-portal" /root/.pm2/pm2.log | grep -a "code \[134\]" | tail -n 12 | cut -c1-19 > /tmp/oom-times.txt
+              cat /tmp/oom-times.txt
+              LOGS=$(ls -1 /var/log/nginx/access.log /var/log/nginx/access.log.1 2>/dev/null)
+              zcat -f /var/log/nginx/access.log.2.gz 2>/dev/null > /tmp/acc-old.log || true
+              while read -r T; do
+                [ -z "$T" ] && continue
+                END=$(date -u -d "${T/T/ }" +%s); START=$((END - 600))
+                secao "10 min antes da queda de $T UTC"
+                cat $LOGS /tmp/acc-old.log 2>/dev/null | node -e '
+                  const [start,end]=process.argv.slice(1).map(Number); const M={Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+                  const paths=new Map(), bots=new Map(), falhas=[]; let n=0;
+                  require("readline").createInterface({input:process.stdin}).on("line",l=>{
+                    const m=l.match(/\[(\d+)\/(\w+)\/(\d+):(\d+):(\d+):(\d+) ([+-]\d{4})\] "(\w+) ([^ "]*)[^"]*" (\d+) (\d+) "[^"]*" "([^"]*)"/); if(!m) return;
+                    const off=(m[7][0]==="-"?-1:1)*(Number(m[7].slice(1,3))*60+Number(m[7].slice(3)));
+                    const t=Date.UTC(+m[3],M[m[2]],+m[1],+m[4],+m[5],+m[6])/1000-off*60; if(t<start||t>end+60) return;
+                    n++; const p=m[8]+" "+m[9].split("?")[0].replace(/\/c[a-z0-9]{20,}/g,"/:id").replace(/\/[A-Z]{2,4}\d{2}-\d{3}\w*/g,"/:code").replace(/\/\d+/g,"/:n");
+                    const e=paths.get(p)||{c:0,b:0}; e.c++; e.b+=Number(m[11]); paths.set(p,e);
+                    const ua=(m[12].match(/(Googlebot|bingbot|YandexBot|AhrefsBot|SemrushBot|GPTBot|ClaudeBot|Bytespider|facebookexternalhit|curl|python|Go-http|node|axios|UptimeRobot|bot|crawler|spider)/i)||["navegador"])[0];
+                    bots.set(ua,(bots.get(ua)||0)+1);
+                    if((m[10]==="502"||m[10]==="499"||m[10]==="504") && t>=end-240 && t<=end+60) falhas.push(new Date(t*1000).toISOString().slice(11,19)+" "+m[10]+" "+p.slice(0,100)+" ["+ua+"]");
+                  }).on("close",()=>{
+                    console.log("requisições:",n);
+                    console.log("em andamento quando caiu (502/499/504 de 4 min antes a 1 min depois):"); for (const f of falhas.slice(0,15)) console.log("   "+f);
+                    console.log("agentes:",[...bots].sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v])=>k+"="+v).join(" "));
+                    for(const [p,e] of [...paths].sort((a,b)=>b[1].b-a[1].b).slice(0,8)) console.log(String(e.c).padStart(5),(e.b/1048576).toFixed(1).padStart(7)+"MB",p.slice(0,90));
+                  });' $START $END
+              done < /tmp/oom-times.txt
+            }
+
+            monitorar_memoria() {
+              Q() { runuser -u postgres -- psql -d gundam_portal -Atc "$1"; }
+              secao "simulador: partidas e turnos do bot (contagens)"
+              Q "select 'partidas abertas (atualizadas 24h)', count(*), coalesce(max(pg_column_size(state))/1024,0)||' KB maior estado' from \"SimulatorMatch\" where \"finishedAt\" is null and \"updatedAt\" > now() - interval '24 hours'"
+              Q "select 'partidas abertas (total)', count(*), coalesce(sum(pg_column_size(state))/1048576,0)||' MB' from \"SimulatorMatch\" where \"finishedAt\" is null"
+              Q "select 'turnos do bot 24h', status, count(*), max(attempts) from \"SimulatorBotTurn\" where \"createdAt\" > now() - interval '24 hours' group by status"
+              Q "select to_char(date_trunc('hour', \"createdAt\"), 'DD HH24')||'h', count(*) from \"SimulatorBotTurn\" where \"createdAt\" > now() - interval '14 hours' group by 1 order by 1"
+              secao "memória da API a cada minuto (MB) — 25 min"
+              START=$(date -u +%FT%T)
+              for i in $(seq 1 25); do
+                P=$(pgrep -f "tsx/dist/loader|--require .*tsx" | head -1)
+                R=$([ -n "$P" ] && ps -o rss= -p "$P" | awk '{print int($1/1024)}' || echo "-")
+                T=$(Q "select count(*) from \"SimulatorBotTurn\" where \"createdAt\" > '$START'")
+                M=$(Q "select count(*) from \"SimulatorMatch\" where \"updatedAt\" > now() - interval '1 minute'")
+                echo "$(date -u +%H:%M) pid=$P rss=${R}MB turnos_bot_desde_inicio=$T partidas_mexidas_1min=$M"
+                sleep 60
+              done
+            }
+
+            nginx_aplicar() {
+              NEW=/root/nginx-novo/anaheimhub.com.conf
+              TARGET=$(readlink -f /etc/nginx/sites-enabled/anaheimhub.com)
+              [ -s "$NEW" ] || { echo "arquivo novo não chegou"; exit 1; }
+              mkdir -p /root/backups && OLD=/root/backups/nginx-anaheimhub.com.$(date +%F-%H%M)
+              cp -a "$TARGET" "$OLD"
+              secao "diferença (anterior → novo)"
+              diff -u "$OLD" "$NEW" | head -n 150 || true
+              cp "$NEW" "$TARGET"
+              secao "nginx -t"
+              if nginx -t 2>&1; then
+                systemctl reload nginx && echo "nginx recarregado com a configuração nova"
+              else
+                cp -a "$OLD" "$TARGET"; nginx -t 2>&1 | tail -1
+                echo "CONFIGURAÇÃO NOVA REJEITADA — a anterior foi restaurada"; exit 1
+              fi
+              sleep 2
+              secao "conferência"
+              curl -s -o /dev/null -w "https://anaheimhub.com/ → %{http_code}\n" https://anaheimhub.com/
+              curl -s -o /dev/null -w "https://www.anaheimhub.com/cards → %{http_code} %{redirect_url}\n" https://www.anaheimhub.com/cards
+              curl -s -o /dev/null -w "http://anaheimhub.com/ → %{http_code} %{redirect_url}\n" http://anaheimhub.com/
+              curl -s -o /dev/null -w "/api/health → %{http_code}\n" https://anaheimhub.com/api/health
+              A=$(curl -s https://anaheimhub.com/ | grep -o '/assets/index-[^"]*\.js' | head -1)
+              curl -sI -H 'Accept-Encoding: gzip' "https://anaheimhub.com$A" | grep -iE "^(HTTP|cache-control|content-encoding|server|strict-transport)" 
+              curl -sI https://anaheimhub.com/ | grep -iE "^(cache-control|x-frame|x-content|referrer|server)"
             }
 
             backup() {
@@ -93,6 +205,10 @@ jobs:
 
             case "$TAREFA" in
               diagnostico) diagnostico ;;
+              logs-api) logs_api ;;
+              investigar-oom) investigar_oom ;;
+              monitorar-memoria) monitorar_memoria ;;
+              nginx-aplicar) nginx_aplicar ;;
               backup) backup ;;
               baseline-conferir) cd "$APP" && node scripts/prisma-baseline.mjs ;;
               baseline-aplicar) backup; cd "$APP" && node scripts/prisma-baseline.mjs --yes ;;
