@@ -8,6 +8,7 @@ name: Manutenção da VPS
 #   logs-api          reinícios do gundam-portal: só as linhas de erro/saída do pm2 (sem e-mails, tokens ou corpo de requisição)
 #   investigar-oom    tráfego agregado (rotas sem query/IP, robôs) nos 10 min antes de cada queda por falta de memória
 #   monitorar-memoria 25 min de amostras de memória do processo da API + atividade do simulador (só contagens)
+#   nginx-aplicar     instala deploy/nginx/anaheimhub.com.conf (guarda o anterior; `nginx -t` falhou → volta o anterior)
 #   backup            pg_dumpall dos bancos + nginx/letsencrypt + .env dos apps + pm2 save, em /root/backups
 #   baseline-conferir confere se o banco bate com o prisma/schema.prisma (não altera nada)
 #   baseline-aplicar  faz um backup e então troca o histórico de migrations (scripts/prisma-baseline.mjs --yes)
@@ -18,7 +19,7 @@ on:
       tarefa:
         description: "O que fazer"
         type: choice
-        options: [diagnostico, logs-api, investigar-oom, monitorar-memoria, backup, baseline-conferir, baseline-aplicar]
+        options: [diagnostico, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar]
         default: diagnostico
 
 # nunca junto com um deploy ou outra manutenção
@@ -34,6 +35,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
+      - uses: actions/checkout@v4
+        if: inputs.tarefa == 'nginx-aplicar'
+      - name: Envia a configuração do nginx
+        if: inputs.tarefa == 'nginx-aplicar'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          source: deploy/nginx/anaheimhub.com.conf
+          target: /root/nginx-novo
+          strip_components: 2
+          overwrite: true
       - name: ${{ inputs.tarefa }}
         uses: appleboy/ssh-action@v1.2.0
         env:
@@ -140,6 +155,33 @@ jobs:
               done
             }
 
+            nginx_aplicar() {
+              NEW=/root/nginx-novo/anaheimhub.com.conf
+              TARGET=$(readlink -f /etc/nginx/sites-enabled/anaheimhub.com)
+              [ -s "$NEW" ] || { echo "arquivo novo não chegou"; exit 1; }
+              mkdir -p /root/backups && OLD=/root/backups/nginx-anaheimhub.com.$(date +%F-%H%M)
+              cp -a "$TARGET" "$OLD"
+              secao "diferença (anterior → novo)"
+              diff -u "$OLD" "$NEW" | head -n 150 || true
+              cp "$NEW" "$TARGET"
+              secao "nginx -t"
+              if nginx -t 2>&1; then
+                systemctl reload nginx && echo "nginx recarregado com a configuração nova"
+              else
+                cp -a "$OLD" "$TARGET"; nginx -t 2>&1 | tail -1
+                echo "CONFIGURAÇÃO NOVA REJEITADA — a anterior foi restaurada"; exit 1
+              fi
+              sleep 2
+              secao "conferência"
+              curl -s -o /dev/null -w "https://anaheimhub.com/ → %{http_code}\n" https://anaheimhub.com/
+              curl -s -o /dev/null -w "https://www.anaheimhub.com/cards → %{http_code} %{redirect_url}\n" https://www.anaheimhub.com/cards
+              curl -s -o /dev/null -w "http://anaheimhub.com/ → %{http_code} %{redirect_url}\n" http://anaheimhub.com/
+              curl -s -o /dev/null -w "/api/health → %{http_code}\n" https://anaheimhub.com/api/health
+              A=$(curl -s https://anaheimhub.com/ | grep -o '/assets/index-[^"]*\.js' | head -1)
+              curl -sI -H 'Accept-Encoding: gzip' "https://anaheimhub.com$A" | grep -iE "^(HTTP|cache-control|content-encoding|server|strict-transport)" 
+              curl -sI https://anaheimhub.com/ | grep -iE "^(cache-control|x-frame|x-content|referrer|server)"
+            }
+
             backup() {
               D=/root/backups/$(date +%F-%H%M)
               mkdir -p "$D/patanet" && chmod 700 /root/backups "$D"
@@ -163,6 +205,7 @@ jobs:
               logs-api) logs_api ;;
               investigar-oom) investigar_oom ;;
               monitorar-memoria) monitorar_memoria ;;
+              nginx-aplicar) nginx_aplicar ;;
               backup) backup ;;
               baseline-conferir) cd "$APP" && node scripts/prisma-baseline.mjs ;;
               baseline-aplicar) backup; cd "$APP" && node scripts/prisma-baseline.mjs --yes ;;
