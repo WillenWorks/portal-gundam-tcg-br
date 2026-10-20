@@ -48,7 +48,7 @@ export default function ArticlesPage() {
       breadcrumbs={[{ label: "Artigos" }]}
       heroBanner={
         <ParallaxHeroBanner
-          image="/images/gundam_hangar_deploy_banner.png"
+          image="/images/gundam_hangar_deploy_banner.webp"
           eyebrow="Content Hub"
           title="Artigos"
           badge={`${total} artigos publicados`}

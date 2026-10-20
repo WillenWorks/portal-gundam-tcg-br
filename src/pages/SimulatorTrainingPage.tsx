@@ -97,7 +97,7 @@ export default function SimulatorTrainingPage() {
         {/* Imagem de Fundo Cockpit de Treino com Instrumentos de Medição em alta visibilidade */}
         <div className="pointer-events-none absolute inset-0">
           <img loading="lazy" decoding="async"
-            src="/images/gundam_training_cockpit.jpg"
+            src="/images/gundam_training_cockpit.webp"
             alt="Cockpit de Treinamento Gundam com Instrumentos de Medição"
             className="h-full w-full object-cover object-center opacity-95 brightness-105 contrast-105 transition-opacity duration-500"
           />

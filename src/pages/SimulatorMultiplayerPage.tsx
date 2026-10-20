@@ -391,7 +391,7 @@ export default function SimulatorMultiplayerPage() {
       <div className="relative mx-auto w-full max-w-[1720px] overflow-hidden rounded-2xl border border-violet-500/40 bg-slate-950 shadow-[0_0_60px_rgba(139,92,246,0.25)]">
         <div className="pointer-events-none absolute inset-0">
           <img loading="lazy" decoding="async"
-            src="/images/multiplayer_total_war_arena.jpg"
+            src="/images/multiplayer_total_war_arena.webp"
             alt="Guerra Total no Espaço"
             className="h-full w-full object-cover object-center opacity-95 brightness-105 contrast-105"
           />

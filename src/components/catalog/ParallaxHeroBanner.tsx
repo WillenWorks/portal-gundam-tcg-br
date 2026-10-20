@@ -31,7 +31,7 @@ export function ParallaxHeroBanner({
   const containerRef = useRef<HTMLDivElement>(null);
   const [offsetY, setOffsetY] = useState(0);
 
-  const finalImage = imageSrc || image || "/images/unicorn_blueprint_banner.png";
+  const finalImage = imageSrc || image || "/images/unicorn_blueprint_banner.webp";
   const finalBadge = badgeText || eyebrow;
   const finalCount = telemetryCount !== undefined ? telemetryCount : badge;
 

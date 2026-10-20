@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import ozDeckHangarImg from "@/assets/home/oz_deck_hangar.jpg";
+import ozDeckHangarImg from "@/assets/home/oz_deck_hangar.webp";
 import { PublicShell } from "@/components/layout/PublicShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";

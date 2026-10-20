@@ -80,7 +80,7 @@ import { mapApiCard } from "@/lib/api";
 import { usePageMeta } from "@/lib/pageMeta";
 import type { CardRecord } from "@/modules/core/types";
 
-import ozHangarBanner from "@/assets/oz_deck_hangar.jpg";
+import ozHangarBanner from "@/assets/oz_deck_hangar.webp";
 
 const DECK_MAIN_SIZE = 50;
 const DECK_RESOURCE_SIZE = 10;

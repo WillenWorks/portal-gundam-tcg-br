@@ -4,7 +4,7 @@ import { Link, useLocation } from "wouter";
 import { ChevronDown, CircleHelp, HeartHandshake, LogIn, LogOut, Menu, Moon, PanelsTopLeft, ShieldCheck, Sun, Swords, Trophy, X } from "lucide-react";
 import { toast } from "sonner";
 
-import anaheimLogo from "@/assets/anaheim-logo-transparent.png";
+import anaheimLogo from "@/assets/anaheim-logo-transparent.webp";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";

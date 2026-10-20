@@ -83,7 +83,7 @@ export function routeMetaFor(pathname: string): PageMeta {
 }
 
 export function formatTitle(title?: string) {
-  return title ? `${title} · ${SITE_NAME}` : `${SITE_NAME} | Laboratório Tático · Gundam Card Game BR`;
+  return title ? `${title} · ${SITE_NAME}` : `${SITE_NAME} | Cartas, decks e torneios de Gundam Card Game`;
 }
 
 function setMeta(attr: "name" | "property", key: string, content: string) {

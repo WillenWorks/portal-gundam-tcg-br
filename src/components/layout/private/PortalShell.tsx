@@ -3,7 +3,7 @@ import { type ComponentType, type ReactNode, useEffect, useMemo, useState } from
 import { Link, useLocation } from "wouter";
 import { BookMarked, ChevronLeft, ChevronRight, Globe, Home, LogOut, Menu, Moon, Settings, ShieldCheck, Sun, Trophy } from "lucide-react";
 
-import anaheimLogo from "@/assets/anaheim-logo-transparent.png";
+import anaheimLogo from "@/assets/anaheim-logo-transparent.webp";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { AppFooter } from "@/components/layout/shared/AppFooter";

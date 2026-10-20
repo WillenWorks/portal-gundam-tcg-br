@@ -32,7 +32,7 @@ import {
   X,
 } from "lucide-react";
 
-import anaheimLogo from "@/assets/anaheim-logo-transparent.png";
+import anaheimLogo from "@/assets/anaheim-logo-transparent.webp";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Badge } from "@/components/ui/badge";
