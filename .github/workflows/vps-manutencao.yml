@@ -28,7 +28,7 @@ on:
       tarefa:
         description: "O que fazer"
         type: choice
-        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar]
+        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, postgres-18, fail2ban-instalar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar]
         default: diagnostico
 
 # nunca junto com um deploy ou outra manutenção
@@ -395,6 +395,60 @@ jobs:
               tail -n 3 /var/log/backup-externo.log 2>/dev/null || true
             }
 
+            contagens_pg() {
+              Q() { runuser -u postgres -- psql -p "$1" -d "$2" -Atc "$3"; }
+              echo "gundam_portal: $(Q "$1" gundam_portal "select (select count(*) from \"Tournament\")||' torneios, '||(select count(*) from \"TournamentEntry\")||' participações, '||(select count(*) from \"User\")||' usuários, '||(select count(*) from \"Deck\")||' decks'")"
+              echo "patanet_prod: $(Q "$1" patanet_prod "select count(*)||' tabelas' from information_schema.tables where table_schema not in ('pg_catalog','information_schema')") · linhas: $(Q "$1" patanet_prod "select coalesce(sum(n_live_tup),0) from pg_stat_user_tables")"
+            }
+
+            postgres_18() {
+              # PostgreSQL 17 → 18 com pg_upgradecluster (pg_upgrade em modo cópia: o cluster 17 fica intacto, parado, para voltar)
+              pg_lsclusters
+              if pg_lsclusters -h | awk '$1==18' | grep -q .; then echo "já existe um cluster 18 — nada a fazer"; pg_lsclusters; return 0; fi
+              secao "antes (17, porta 5432)"
+              contagens_pg 5432 > /tmp/pg-antes.txt; cat /tmp/pg-antes.txt
+              secao "backups antes de migrar"
+              backup
+              /usr/local/sbin/backup-externo.sh >> /var/log/backup-externo.log 2>&1 && tail -n 1 /var/log/backup-externo.log || { echo "backup externo falhou — parando"; exit 1; }
+              secao "parando os apps (evita escrita durante a cópia)"
+              pm2 stop gundam-portal nestjs-app >/dev/null && echo "apps parados"
+              secao "pg_upgradecluster 17 main → 18"
+              START=$(date +%s)
+              if ! pg_upgradecluster -m upgrade -v 18 17 main 2>&1 | grep -vE '^\s*$' | tail -n 25 | cut -c1-200; then :; fi
+              if pg_lsclusters -h | awk '$1==18 && $2=="main" && $3==5432 && $4 ~ /online/' | grep -q .; then
+                echo "migração concluída em $(( $(date +%s) - START ))s"
+              else
+                echo "MIGRAÇÃO FALHOU — voltando para o 17"
+                pg_lsclusters
+                pg_ctlcluster 18 main stop 2>/dev/null || true
+                pg_lsclusters -h | awk '$1==18' | grep -q . && pg_dropcluster 18 main 2>/dev/null || true
+                pg_conftool 17 main set port 5432 2>/dev/null || true
+                pg_ctlcluster 17 main start || true
+                pm2 start gundam-portal nestjs-app >/dev/null; sleep 5; saude; exit 1
+              fi
+              secao "depois (18, porta 5432)"
+              contagens_pg 5432 > /tmp/pg-depois.txt; cat /tmp/pg-depois.txt
+              if diff -q /tmp/pg-antes.txt /tmp/pg-depois.txt >/dev/null; then echo "contagens iguais antes e depois"; else echo "ATENÇÃO: contagens diferentes"; diff /tmp/pg-antes.txt /tmp/pg-depois.txt || true; fi
+              secao "estatísticas do planejador (vacuumdb --analyze-in-stages)"
+              runuser -u postgres -- vacuumdb --all --analyze-in-stages -p 5432 2>&1 | tail -n 3
+              secao "religando os apps"
+              pm2 start gundam-portal nestjs-app >/dev/null && pm2 save >/dev/null && echo "apps religados e pm2 salvo"
+              sleep 15
+              saude
+              echo "cluster 17 mantido parado (porta 5433) para voltar, se precisar; apagar depois com pg_dropcluster 17 main"
+            }
+
+            fail2ban_instalar() {
+              command -v fail2ban-client >/dev/null || DEBIAN_FRONTEND=noninteractive apt-get install -y -qq fail2ban >/dev/null
+              # SSH: 5 erros em 10 min → bloqueio de 10 min (curto, para não trancar ninguém por muito tempo)
+              printf '[DEFAULT]\nbantime = 10m\nfindtime = 10m\nmaxretry = 5\nbackend = systemd\n\n[sshd]\nenabled = true\n' > /etc/fail2ban/jail.d/anaheimhub.local
+              systemctl enable --now fail2ban >/dev/null 2>&1
+              systemctl restart fail2ban
+              sleep 3
+              echo "fail2ban: $(systemctl is-active fail2ban) · jails: $(fail2ban-client status | sed -n 's/.*Jail list:\s*//p')"
+              fail2ban-client status sshd | grep -E "Currently banned|Total banned" | sed 's/^[^A-Z]*//'
+            }
+
             case "$TAREFA" in
               diagnostico) diagnostico ;;
               seguranca-conferir) seguranca_conferir ;;
@@ -403,6 +457,8 @@ jobs:
               upgrade-status) upgrade_status ;;
               backup-externo-configurar) backup_externo_configurar ;;
               backup-externo-testar) backup_externo_testar ;;
+              postgres-18) postgres_18 ;;
+              fail2ban-instalar) fail2ban_instalar ;;
               logs-api) logs_api ;;
               investigar-oom) investigar_oom ;;
               monitorar-memoria) monitorar_memoria ;;
