@@ -41,8 +41,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 170
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - run: corepack enable
@@ -61,7 +61,7 @@ jobs:
           node scripts/meta-sources/egman.mjs --in=payload/meta-raw.json --out=payload/events-egman.json
       - name: Respostas da API da DigiLab (guardadas entre execuções)
         if: env.TAREFA == 'digilab' || env.TAREFA == 'torneios' || env.TAREFA == 'tudo'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .cache/digilab-api
           key: digilab-api-${{ github.run_id }}
@@ -75,7 +75,7 @@ jobs:
           --known=https://anaheimhub.com --max-minutes=100
       - name: País das lojas da DigiLab (guardado entre execuções)
         if: env.TAREFA == 'digilab-br'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .cache/digilab-lojas.json
           key: digilab-lojas-${{ github.run_id }}
@@ -85,7 +85,7 @@ jobs:
         run: >-
           node scripts/meta-sources/digilab-br.mjs --out=payload/events-digilab-br.json --cache=.cache/digilab
           --stores-cache=.cache/digilab-lojas.json --known=https://anaheimhub.com
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dados-site-coleta
           path: payload/
@@ -97,14 +97,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: dados-site-coleta
           path: payload
         continue-on-error: true
       - run: mkdir -p payload && ls -la payload
       - name: Envia a coleta para a VPS
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
@@ -115,7 +115,7 @@ jobs:
           rm: true
           overwrite: true
       - name: Roda os scripts na VPS
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v1.2.5
         env:
           TAREFA: ${{ env.TAREFA }}
           APLICAR: ${{ env.APLICAR }}
@@ -163,10 +163,10 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: dev
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - run: corepack enable

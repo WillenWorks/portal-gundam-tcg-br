@@ -44,11 +44,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: inputs.tarefa == 'nginx-aplicar'
       - name: Envia a configuração do nginx
         if: inputs.tarefa == 'nginx-aplicar'
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
@@ -59,7 +59,7 @@ jobs:
           strip_components: 2
           overwrite: true
       - name: ${{ inputs.tarefa }}
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v1.2.5
         env:
           TAREFA: ${{ inputs.tarefa }}
           # os segredos do backup externo só chegam à VPS na tarefa que os grava
