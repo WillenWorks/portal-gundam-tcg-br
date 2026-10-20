@@ -1,7 +1,7 @@
 /* Catálogo público de cartas — filtros compostos via /api/cards, estado sincronizado com a URL, paginado. */
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Copy, HelpCircle, CheckCircle2 } from "lucide-react";
+import { Copy, HelpCircle, CheckCircle2, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
 import { PublicShell } from "@/components/layout/PublicShell";
@@ -13,6 +13,7 @@ import { ParallaxHeroBanner } from "@/components/catalog/ParallaxHeroBanner";
 import { CardPlayabilityBadge } from "@/components/catalog/CardPlayabilityBadge";
 import { SetPlayabilityProgress } from "@/components/catalog/SetPlayabilityProgress";
 import { api, type CardFilters } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX } from "@/lib/gundam-catalog";
 import { MultiSelectFilter } from "@/components/catalog/MultiSelectFilter";
 import { normalizeRarityLabel, groupRaritiesByLabel, expandRarityFilter } from "@/lib/rarityLabels";
@@ -102,6 +103,8 @@ export default function CardsPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  // no celular os filtros ficam recolhidos atrás do botão "Filtros" (as cartas aparecem logo de cara)
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   useEffect(() => {
     api.getCardFilters().then(setMeta).catch(() => undefined);
@@ -185,7 +188,17 @@ export default function CardsPage() {
                 placeholder="Nome, código, trait, efeito ou série"
                 className="field-shell h-11 flex-1 text-sm light:border-slate-300/80 light:bg-white light:text-slate-900"
               />
-              <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setMobileFiltersOpen((open) => !open)}
+                aria-expanded={mobileFiltersOpen}
+                aria-controls="filtros-catalogo"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-none border border-white/15 bg-white/5 px-4 text-xs uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950 sm:hidden"
+              >
+                <SlidersHorizontal className="size-4" />
+                {mobileFiltersOpen ? "Esconder filtros" : `Filtros${activeFilters > 0 ? ` (${activeFilters})` : ""}`}
+              </button>
+              <div className={cn("flex-wrap items-center gap-2 sm:flex", mobileFiltersOpen ? "flex" : "hidden")}>
                 <button
                   type="button"
                   onClick={() => setFilter("playability", filters.playability === "apta" ? "" : "apta")}
@@ -217,7 +230,7 @@ export default function CardsPage() {
             </div>
 
             {/* Barra de Parâmetros Principais */}
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div id="filtros-catalogo" className={cn("gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-4", mobileFiltersOpen ? "grid" : "hidden")}>
               <MultiSelectFilter label="Cores" options={meta.colors} value={filters.color ?? ""} onChange={(v) => setFilter("color", v)} />
               <select value={filters.cardType ?? ""} onChange={(event) => setFilter("cardType", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todos os tipos</option>{meta.cardTypes.map((item) => <option key={item} value={item}>{cardTypeLabel(item)}</option>)}</select>
               <select value={filters.setCode ?? ""} onChange={(event) => setFilter("setCode", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as coleções</option>{meta.sets.map((item) => <option key={item.code} value={item.code}>{item.code} · {isPt ? (item.namePt || item.nameEn) : (item.nameEn || item.namePt)}</option>)}</select>
@@ -225,7 +238,7 @@ export default function CardsPage() {
             </div>
 
             {/* Barra de Parâmetros de Lore, Simulador & Ordenação */}
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+            <div className={cn("gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-6", mobileFiltersOpen ? "grid" : "hidden")}>
               <select value={filters.series ?? ""} onChange={(event) => setFilter("series", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as séries</option>{meta.series.map((item) => <option key={item} value={item}>{item}</option>)}</select>
               <MultiSelectFilter label="Traits" options={meta.traits} value={filters.trait ?? ""} onChange={(v) => setFilter("trait", v)} />
               <select value={filters.keyword ?? ""} onChange={(event) => setFilter("keyword", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as keywords</option>{meta.keywords.map((item) => <option key={item} value={item}>{item}</option>)}</select>

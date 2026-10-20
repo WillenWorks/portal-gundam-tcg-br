@@ -61,3 +61,31 @@ test("política de privacidade cita os serviços de terceiros", async ({ page })
   await expect(page.getByText("Sentry").first()).toBeVisible();
   await expect(page.getByText("Cloudflare").first()).toBeVisible();
 });
+
+test("busca global encontra carta pelo código e abre a página dela", async ({ page }) => {
+  await page.goto("/decks");
+  // uma instância visível por tamanho de tela (desktop no topo, celular junto do menu)
+  await page.getByRole("button", { name: /buscar cartas, decks e páginas/i }).filter({ visible: true }).first().click();
+  await page.getByPlaceholder(/nome ou código da carta/i).fill("GD01");
+  const item = page.getByRole("option").filter({ hasText: "GD01-002" });
+  await expect(item).toBeVisible();
+  await item.click();
+  await expect(page).toHaveURL(/\/cards\/card-gd01-002$/);
+});
+
+test("busca global acha páginas pelo nome, sem acento", async ({ page }) => {
+  await page.goto("/");
+  await page.keyboard.press("Control+k");
+  await page.getByPlaceholder(/nome ou código da carta/i).fill("estatisticas");
+  await expect(page.getByRole("option").filter({ hasText: "Estatísticas do meta" })).toBeVisible();
+});
+
+test("no celular os filtros do catálogo ficam recolhidos até tocar em Filtros", async ({ page, isMobile }) => {
+  test.skip(!isMobile, "só no celular");
+  await page.goto("/cards");
+  await expect(page.getByText("GD01-001").first()).toBeVisible();
+  const ordenar = page.locator("select").filter({ hasText: "Ordenar por código" });
+  await expect(ordenar).toBeHidden();
+  await page.getByRole("button", { name: /^filtros/i }).click();
+  await expect(ordenar).toBeVisible();
+});
