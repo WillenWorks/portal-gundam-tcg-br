@@ -17,12 +17,19 @@ jobs:
   deploy:
     name: Deploy to Hostinger VPS
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Deploy atômico:
+      # - o site é compilado numa pasta nova (/root/anaheimhub-releases/<versão>) e só entra no ar com a troca
+      #   de um link (dist → pasta nova), de uma vez; quem está com a página aberta não vê arquivo pela metade;
+      # - os arquivos JS/CSS da versão anterior são copiados para a nova, então abas abertas antes do deploy
+      #   continuam carregando as telas sob demanda;
+      # - build que falha não mexe no banco nem no site; API que não volta saudável → volta a versão anterior;
+      # - guarda as 5 versões mais recentes.
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -30,35 +37,85 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
-          script_stop: true
+          command_timeout: 18m
+          # sem script_stop: ele quebra blocos multilinha; o script usa `set -e` e trata as falhas
           script: |
+            set -e
             echo "🚀 Iniciando deploy em produção..."
             # Sessão SSH não interativa não lê o .bashrc: carregar o nvm (node/pnpm/pm2 vêm dele)
             export NVM_DIR="$HOME/.nvm"
             . "$NVM_DIR/nvm.sh"
-            cd /root/portal-gundam-tcg-br
+            APP=/root/portal-gundam-tcg-br
+            RELEASES=/root/anaheimhub-releases
+            mkdir -p "$RELEASES"
+            cd "$APP"
 
-            # 1. Garantir que estamos na branch main limpa
-            git fetch origin main
-            git reset --hard origin/main
+            PREV_SHA=$(git rev-parse HEAD)
+            # versão no ar agora (link ou, antes do primeiro deploy atômico, a pasta dist de verdade)
+            PREV_DIST=$(readlink -f dist 2>/dev/null || true)
 
-            # 2. Instalar dependências exatas
+            volta_codigo() {
+              echo "↩️  voltando o código para ${PREV_SHA:0:7}"
+              git reset -q --hard "$PREV_SHA"
+              pnpm install --frozen-lockfile >/dev/null
+              pnpm exec prisma generate >/dev/null
+            }
+
+            # 1. Código novo e dependências exatas
+            git fetch -q origin main
+            git reset -q --hard origin/main
+            SHA=$(git rev-parse --short HEAD)
             pnpm install --frozen-lockfile
 
-            # 3. Sincronizar schema do banco: `migrate deploy` se o banco já tem o histórico de
-            #    migrations (baseline), senão `db push` como antes — ver scripts/prisma-sync.mjs
+            # 2. Compilar o site numa pasta nova (com as variáveis do .env da VPS). Falhou → nada mudou no ar.
+            REL="$RELEASES/$(date -u +%Y%m%d-%H%M%S)-$SHA"
+            if ! { pnpm exec prisma generate && pnpm exec tsc -b && pnpm exec vite build --outDir "$REL" --emptyOutDir; }; then
+              echo "❌ build falhou — banco e site intactos"
+              rm -rf "$REL"; volta_codigo; exit 1
+            fi
+
+            # 3. Arquivos da versão anterior continuam disponíveis para abas abertas antes do deploy
+            if [ -n "$PREV_DIST" ] && [ -d "$PREV_DIST/assets" ]; then cp -rn "$PREV_DIST/assets/." "$REL/assets/"; fi
+
+            # 4. Sitemap com as páginas de detalhe do banco (best-effort: nunca derruba o deploy)
+            node scripts/generate-sitemap.mjs --out="$REL/sitemap.xml" || true
+
+            # 5. Sincronizar schema do banco: `migrate deploy` (ver scripts/prisma-sync.mjs)
             pnpm run prisma:sync
 
-            # 4. Compilar o frontend com as variáveis do .env da VPS
-            pnpm run build
+            # 6. Publicar: troca atômica do link dist → pasta nova (na primeira vez, a pasta antiga vira uma versão)
+            if [ -d dist ] && [ ! -L dist ]; then
+              mv dist "$RELEASES/00000000-000000-antes-do-deploy-atomico"
+              PREV_DIST="$RELEASES/00000000-000000-antes-do-deploy-atomico"
+            fi
+            ln -sfn "$REL" dist.novo && mv -Tf dist.novo dist
+            echo "site publicado: $(basename "$REL")"
 
-            # 4b. Sitemap com as páginas de detalhe do banco (best-effort: nunca derruba o deploy)
-            node scripts/generate-sitemap.mjs || true
-
-            # 5. Reiniciar a API no PM2
+            # 7. Reiniciar a API no PM2
             # teto de heap do Node: o pm2 roda a API via bash/pnpm, então `--max-old-space-size` como argumento do
             # interpretador não chegava ao Node — vai por NODE_OPTIONS (o --update-env leva pro processo)
             export NODE_OPTIONS="--max-old-space-size=3072"
             pm2 reload gundam-portal --update-env
 
-            echo "✅ Deploy concluído com sucesso!"
+            # 8. Conferir: API e uma página do site respondendo. Não voltou em ~90 s → versão anterior.
+            OK=""
+            for i in $(seq 1 30); do
+              if curl -sf -o /dev/null -m 5 http://127.0.0.1:8787/api/health && curl -sf -o /dev/null -m 10 https://anaheimhub.com/cards; then OK=1; break; fi
+              sleep 3
+            done
+            if [ -z "$OK" ]; then
+              echo "❌ API não respondeu depois do deploy — voltando a versão anterior"
+              volta_codigo
+              if [ -n "$PREV_DIST" ]; then ln -sfn "$PREV_DIST" dist.novo && mv -Tf dist.novo dist; fi
+              pm2 reload gundam-portal --update-env
+              exit 1
+            fi
+            pm2 save >/dev/null
+
+            # 9. Guardar as 5 versões mais recentes (nunca apaga a que está no ar)
+            ATUAL=$(readlink -f dist)
+            ls -1dt "$RELEASES"/*/ | sed 's:/$::' | tail -n +6 | while read -r d; do
+              if [ "$d" != "$ATUAL" ]; then rm -rf "$d"; fi
+            done
+
+            echo "✅ Deploy concluído com sucesso! ($SHA)"
