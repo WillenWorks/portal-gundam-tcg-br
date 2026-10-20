@@ -353,6 +353,8 @@ jobs:
             print(json.dumps(obj, separators=(",", ":")))
             ')
               printf '[gdrive]\ntype = drive\nscope = drive.file\ntoken = %s\n' "$TOKEN_JSON" > /root/.config/rclone/rclone.conf
+              # o rclone lê RCLONE_DRIVE_* do ambiente como opção do backend: sem isto ele ignora o arquivo acima
+              unset RCLONE_DRIVE_TOKEN TOKEN_JSON
               printf '%s' "$BACKUP_PASSPHRASE" > /root/.config/backup-externo/senha
               cat > /usr/local/sbin/backup-externo.sh <<'SCRIPT'
             #!/bin/bash
