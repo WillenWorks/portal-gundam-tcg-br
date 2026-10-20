@@ -53,14 +53,14 @@ export default function DeckListPage() {
   };
 
   return (
-    <PortalShell breadcrumbs={[{ label: "Hangar da OZ", href: "/portal" }, { label: "Projetos do Hangar" }]}>
+    <PortalShell breadcrumbs={[{ label: "Minha área", href: "/portal" }, { label: "Meus decks" }]}>
       <div className="space-y-6">
         <Card className="panel-cut rounded-none border-primary/30 hero-surface">
           <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-primary font-semibold">Hangar da OZ · Linha de Montagem</p>
-              <h1 className="mt-2 font-heading text-4xl uppercase heading-portal">Projetos do Hangar</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-soft">Gerencie seus projetos táticos, calibração de Mobile Suits e acompanhe a conformidade de regras em tempo real — capa vertical, curva de recursos e telemetria completa.</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-primary font-semibold">Minha área</p>
+              <h1 className="mt-2 font-heading text-4xl uppercase heading-portal">Meus decks</h1>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-soft">Seus decks salvos, com a validação das regras, a curva de custo e as estatísticas de cada um.</p>
             </div>
             <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => navigate("/deckbuilder/new")}><Plus className="mr-2 size-4" />Novo Projeto</Button>
           </CardContent>

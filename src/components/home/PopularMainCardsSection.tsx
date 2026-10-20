@@ -172,7 +172,7 @@ export function PopularMainCardsSection() {
                     Ver mais
                   </span>
                   <span className="text-[10px] dark:text-slate-400 light:text-slate-600 uppercase tracking-widest font-mono">
-                    Ver LRs no Database
+                    Ver LRs no catálogo
                   </span>
                 </div>
               </Link>

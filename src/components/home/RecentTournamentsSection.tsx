@@ -28,199 +28,6 @@ type TournamentDisplay = {
   podium: TournamentPodiumEntry[];
 };
 
-/** Torneios oficiais da temporada GD05 no Brasil */
-const BR_TOURNAMENTS_FALLBACK: TournamentDisplay[] = [
-  {
-    id: "br-regional-ccg",
-    name: "CCG Eventos Brazil Regionals",
-    date: "20 Set 2026",
-    time: "10:00",
-    venueName: "CCG Eventos · Hakka",
-    location: "São Paulo / SP",
-    country: "Brasil",
-    format: "GD05 Large Official (Top Cut)",
-    totalPlayers: 128,
-    podium: [
-      {
-        placement: 1,
-        playerName: "[Mz] Urick",
-        deckName: "Barbatos 1st Form / Strike Freedom",
-        deckArchetype: "Iron-Blooded & SEED",
-        score: "6-0-0 (18 pts)",
-        color: "bg-amber-600/30 text-amber-300 border-amber-500/40",
-      },
-      {
-        placement: 2,
-        playerName: "Bonow",
-        deckName: "Strike Freedom Gundam",
-        deckArchetype: "SEED Blue/White",
-        score: "5-1-0 (15 pts)",
-        color: "bg-cyan-600/30 text-cyan-300 border-cyan-500/40",
-      },
-      {
-        placement: 3,
-        playerName: "Doug",
-        deckName: "Shining Gundam / Master Gundam",
-        deckArchetype: "G Gundam Red",
-        score: "5-1-0 (15 pts)",
-        color: "bg-red-600/30 text-red-300 border-red-500/40",
-      },
-    ],
-  },
-  {
-    id: "sample-1",
-    name: "Torneio Inaugural Anaheim HUB",
-    date: "06 Set 2026",
-    time: "14:00",
-    venueName: "Epic Game Store Hangar",
-    location: "São Paulo / SP",
-    country: "Brasil",
-    format: "Constructed Oficial (4 Rodadas)",
-    totalPlayers: 24,
-    podium: [
-      {
-        placement: 1,
-        playerName: "AmuroRay_BR",
-        deckName: "RX-78-2 Core Aggro",
-        deckArchetype: "Federation White",
-        score: "4-0-0 (12 pts)",
-        color: "bg-blue-600/30 text-blue-300 border-blue-500/40",
-      },
-      {
-        placement: 2,
-        playerName: "Char_Aznable",
-        deckName: "Zeon Red Pressure",
-        deckArchetype: "Zeon Red",
-        score: "3-1-0 (9 pts)",
-        color: "bg-red-600/30 text-red-300 border-red-500/40",
-      },
-      {
-        placement: 3,
-        playerName: "Kira_Yamato",
-        deckName: "Freedom Strike Control",
-        deckArchetype: "SEED Blue",
-        score: "3-1-0 (9 pts)",
-        color: "bg-cyan-600/30 text-cyan-300 border-cyan-500/40",
-      },
-    ],
-  },
-  {
-    id: "sample-2",
-    name: "Clash de Starters & Pilotos SP",
-    date: "30 Ago 2026",
-    time: "15:30",
-    venueName: "Taverna do Newtype",
-    location: "Campinas / SP",
-    country: "Brasil",
-    format: "Starters ST01-ST04 Fechado",
-    totalPlayers: 18,
-    podium: [
-      {
-        placement: 1,
-        playerName: "Suletta_Mercury",
-        deckName: "Aerial Tech Burst",
-        deckArchetype: "Witch Green",
-        score: "4-0-0 (12 pts)",
-        color: "bg-emerald-600/30 text-emerald-300 border-emerald-500/40",
-      },
-      {
-        placement: 2,
-        playerName: "Zechs_Marquise",
-        deckName: "Tallgeese High Mobility",
-        deckArchetype: "Zeon Red",
-        score: "3-1-0 (9 pts)",
-        color: "bg-red-600/30 text-red-300 border-red-500/40",
-      },
-      {
-        placement: 3,
-        playerName: "Setsuna_00",
-        deckName: "Exia Burst Protocol",
-        deckArchetype: "Federation White",
-        score: "3-1-0 (9 pts)",
-        color: "bg-blue-600/30 text-blue-300 border-blue-500/40",
-      },
-    ],
-  },
-];
-
-/** Torneios oficiais globais mais recentes */
-const ALL_TOURNAMENTS_FALLBACK: TournamentDisplay[] = [
-  {
-    id: "global-milwaukee",
-    name: "Play!TCG Milwaukee Regionals",
-    date: "05 Out 2026",
-    time: "09:00",
-    venueName: "Play!TCG Wisconsin",
-    location: "Milwaukee / EUA",
-    country: "Estados Unidos",
-    format: "GD05 Large Official",
-    totalPlayers: 164,
-    podium: [
-      {
-        placement: 1,
-        playerName: "John D.",
-        deckName: "Wing Zero Burst Annihilation",
-        deckArchetype: "Wing Red/Blue",
-        score: "7-0-0 (21 pts)",
-        color: "bg-red-600/30 text-red-300 border-red-500/40",
-      },
-      {
-        placement: 2,
-        playerName: "Alex V.",
-        deckName: "Tallgeese Red Tempo",
-        deckArchetype: "Zeon Red",
-        score: "6-1-0 (18 pts)",
-        color: "bg-amber-600/30 text-amber-300 border-amber-500/40",
-      },
-      {
-        placement: 3,
-        playerName: "Sarah M.",
-        deckName: "Strike Freedom Control",
-        deckArchetype: "SEED Blue/White",
-        score: "6-1-0 (18 pts)",
-        color: "bg-cyan-600/30 text-cyan-300 border-cyan-500/40",
-      },
-    ],
-  },
-  {
-    id: "global-dusseldorf",
-    name: "NoHEROES' Düsseldorf Regionals",
-    date: "04 Out 2026",
-    time: "10:00",
-    venueName: "NoHEROES Events",
-    location: "Düsseldorf / Alemanha",
-    country: "Alemanha",
-    format: "GD05 Large Official",
-    totalPlayers: 128,
-    podium: [
-      {
-        placement: 1,
-        playerName: "Klaus M.",
-        deckName: "Nu Gundam Fin Funnel Control",
-        deckArchetype: "Federation Blue/White",
-        score: "7-0-0 (21 pts)",
-        color: "bg-blue-600/30 text-blue-300 border-blue-500/40",
-      },
-      {
-        placement: 2,
-        playerName: "Jean P.",
-        deckName: "Zeon Swarm Aggro",
-        deckArchetype: "Zeon Red",
-        score: "6-1-0 (18 pts)",
-        color: "bg-red-600/30 text-red-300 border-red-500/40",
-      },
-      {
-        placement: 3,
-        playerName: "Marco R.",
-        deckName: "Master Gundam Melee",
-        deckArchetype: "G Gundam Red",
-        score: "5-1-1 (16 pts)",
-        color: "bg-emerald-600/30 text-emerald-300 border-emerald-500/40",
-      },
-    ],
-  },
-  BR_TOURNAMENTS_FALLBACK[0], // CCG Eventos Brazil Regionals
-];
 
 export function RecentTournamentsSection() {
   const [scope, setScope] = useState<"todos" | "brasil">("brasil");
@@ -241,8 +48,8 @@ export function RecentTournamentsSection() {
 
             const podium: TournamentPodiumEntry[] = sortedEntries.slice(0, 3).map((e, idx) => ({
               placement: e.placement || idx + 1,
-              playerName: e.playerName || e.user?.displayName || "Piloto Registrado",
-              deckName: e.deck?.name || e.archetype || "Deck Personalizado",
+              playerName: e.playerName || e.user?.displayName || "Jogador",
+              deckName: e.deck?.name || e.archetype || "Deck sem nome",
               deckArchetype: e.archetype || "Gundam TCG",
               score:
                 e.wins != null
@@ -257,13 +64,13 @@ export function RecentTournamentsSection() {
               id: t.id,
               name: t.name,
               date: dateStr,
-              time: timeStr !== "00:00" ? timeStr : "14:00",
-              venueName: t.organizer || "Hangar Competitivo",
+              time: timeStr !== "00:00" ? timeStr : "",
+              venueName: t.organizer || "",
               location: locationStr,
               country: country,
               format: t.format ? t.format.toUpperCase() : "CONSTRUCTED",
-              totalPlayers: t.participantCount || entries.length || 16,
-              podium: podium.length > 0 ? podium : BR_TOURNAMENTS_FALLBACK[0].podium,
+              totalPlayers: t.participantCount || entries.length || 0,
+              podium,
             };
           });
           setDbTournaments(formatted);
@@ -289,19 +96,12 @@ export function RecentTournamentsSection() {
             t.location.toLowerCase().includes("sp") ||
             t.location.toLowerCase().includes("são paulo"),
         );
-        if (brList.length >= 3) return brList.slice(0, 3);
-        // Se houver menos de 3 no banco, completa com o fallback nacional representativo
-        const merged = [...brList];
-        for (const fb of BR_TOURNAMENTS_FALLBACK) {
-          if (merged.length < 3 && !merged.some((m) => m.name === fb.name)) {
-            merged.push(fb);
-          }
-        }
-        return merged.slice(0, 3);
+        return brList.slice(0, 3);
       }
       return dbTournaments.slice(0, 3);
     }
-    return scope === "brasil" ? BR_TOURNAMENTS_FALLBACK : ALL_TOURNAMENTS_FALLBACK;
+    // só dados reais: sem torneios no banco (ou API fora), a seção mostra o aviso de vazio
+    return [];
   }, [dbTournaments, scope]);
 
   const getPlacementBadge = (placement: number) => {
@@ -351,7 +151,7 @@ export function RecentTournamentsSection() {
               Últimos Eventos
             </h2>
             <p className="text-soft text-xs sm:text-sm mt-1 max-w-2xl dark:text-slate-400 light:text-slate-600">
-              Relatórios dos confrontos recentes de Gundam TCG, pódios oficiais, decks campeões e desempenho dos pilotos.
+              Relatórios dos confrontos recentes de Gundam TCG, pódios oficiais, decks campeões e desempenho dos jogadores.
             </p>
           </div>
 
@@ -400,6 +200,13 @@ export function RecentTournamentsSection() {
           </div>
         </div>
 
+        {displayedTournaments.length === 0 && (
+          <p className="rounded-xl border dark:border-white/10 light:border-slate-300 p-6 text-sm dark:text-slate-300 light:text-slate-700">
+            Nenhum torneio registrado {scope === "brasil" ? "no Brasil " : ""}ainda.{" "}
+            <Link href="/torneios" className="font-semibold text-amber-600 dark:text-amber-400 hover:underline">Ver a página de torneios</Link>
+          </p>
+        )}
+
         {/* Grid com os 3 Torneios */}
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {displayedTournaments.map((tournament) => (
@@ -414,9 +221,11 @@ export function RecentTournamentsSection() {
                     <span className="inline-flex items-center gap-1.5 rounded-xs border dark:border-white/15 dark:bg-white/5 dark:text-slate-300 light:border-slate-300 light:bg-slate-100 light:text-slate-700 px-2 py-0.5 font-mono text-[10px] uppercase font-semibold">
                       {tournament.format}
                     </span>
-                    <span className="dark:text-slate-400 light:text-slate-600 text-[11px] font-mono font-semibold">
-                      {tournament.totalPlayers} pilotos
-                    </span>
+                    {tournament.totalPlayers > 0 && (
+                      <span className="dark:text-slate-400 light:text-slate-600 text-[11px] font-mono font-semibold">
+                        {tournament.totalPlayers} jogadores
+                      </span>
+                    )}
                   </div>
 
                   <h3 className="font-heading text-xl uppercase tracking-wide dark:text-white light:text-slate-950 dark:group-hover:text-amber-300 light:group-hover:text-amber-600 transition-colors">
@@ -430,16 +239,24 @@ export function RecentTournamentsSection() {
                     <div className="flex items-center gap-2">
                       <Calendar className="size-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
                       <span className="font-mono text-[11px] font-medium">{tournament.date}</span>
-                      <span className="text-slate-400">·</span>
-                      <Clock className="size-3.5 text-amber-500 dark:text-amber-400 shrink-0 ml-1" />
-                      <span className="font-mono text-[11px]">{tournament.time}</span>
+                      {tournament.time && (
+                        <>
+                          <span className="text-slate-400">·</span>
+                          <Clock className="size-3.5 text-amber-500 dark:text-amber-400 shrink-0 ml-1" />
+                          <span className="font-mono text-[11px]">{tournament.time}</span>
+                        </>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 pt-0.5">
                       <MapPin className="size-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
-                      <span className="font-semibold dark:text-slate-200 light:text-slate-800">
-                        {tournament.venueName}
+                      {tournament.venueName && (
+                        <span className="font-semibold dark:text-slate-200 light:text-slate-800">
+                          {tournament.venueName}
+                        </span>
+                      )}
+                      <span className="text-slate-500 dark:text-slate-400">
+                        {tournament.venueName ? `(${tournament.location})` : tournament.location}
                       </span>
-                      <span className="text-slate-500 dark:text-slate-400">({tournament.location})</span>
                     </div>
                   </div>
                 </div>
@@ -447,10 +264,13 @@ export function RecentTournamentsSection() {
                 {/* Bloco Top 3 */}
                 <div className="space-y-3">
                   <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                    <Trophy className="size-3.5" /> Pódio & Decks Usados
+                    <Trophy className="size-3.5" /> Pódio e decks usados
                   </p>
 
                   <div className="space-y-2">
+                    {tournament.podium.length === 0 && (
+                      <p className="text-xs dark:text-slate-400 light:text-slate-600">Resultado ainda não publicado.</p>
+                    )}
                     {tournament.podium.map((pod) => (
                       <div
                         key={pod.placement}
@@ -480,15 +300,12 @@ export function RecentTournamentsSection() {
               </CardContent>
 
               {/* Rodapé do Torneio */}
-              <div className="border-t dark:border-white/10 dark:bg-slate-900/40 light:border-slate-200 light:bg-slate-50 p-3.5 px-6 flex items-center justify-between text-xs">
-                <span className="text-[11px] dark:text-slate-400 light:text-slate-600 font-mono">
-                  Súmula Homologada
-                </span>
+              <div className="border-t dark:border-white/10 dark:bg-slate-900/40 light:border-slate-200 light:bg-slate-50 p-3.5 px-6 flex items-center justify-end text-xs">
                 <Link
                   href={`/torneios/${tournament.id}`}
                   className="font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 hover:text-amber-500 dark:hover:text-amber-300 transition-colors flex items-center gap-1 text-[11px]"
                 >
-                  Ver Relatório <ArrowRight className="size-3" />
+                  Ver resultado <ArrowRight className="size-3" />
                 </Link>
               </div>
             </Card>

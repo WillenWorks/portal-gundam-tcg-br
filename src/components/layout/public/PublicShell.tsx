@@ -34,7 +34,7 @@ export function PublicShell({ children, breadcrumbs, title, description, heroBan
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
-                  <Link href="/">Home</Link>
+                  <Link href="/">Início</Link>
                 </BreadcrumbLink>
               </BreadcrumbItem>
               {trail.map((crumb, index) => (
@@ -66,7 +66,7 @@ export function PublicShell({ children, breadcrumbs, title, description, heroBan
                   {title ? <h1 className="mt-2 font-heading text-3xl uppercase leading-none sm:text-4xl lg:text-5xl dark:text-white light:text-slate-900">{title}</h1> : null}
                   {description ? <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{description}</p> : null}
                 </div>
-                <Badge className="rounded-none border border-primary/40 bg-primary/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-primary">Hangar público</Badge>
+                <Badge className="rounded-none border border-primary/40 bg-primary/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-primary">Área pública</Badge>
               </div>
             </div>
           ) : null}

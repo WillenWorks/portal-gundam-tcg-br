@@ -34,7 +34,7 @@ export default function CollectionsPage() {
       heroBanner={
         <ParallaxHeroBanner
           image="/images/gundam_hangar_deploy_banner.png"
-          eyebrow="Hangar de Produção & Deploy"
+          eyebrow="Coleções oficiais"
           title="Coleções & Produtos"
           badge={`${sets.length} coleções catalogadas`}
         />

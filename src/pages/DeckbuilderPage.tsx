@@ -1346,7 +1346,7 @@ export default function DeckbuilderPage() {
       localStorage.removeItem("gundam_deckbuilder_draft");
       toast.success(
         visibility === "PUBLIC"
-          ? "Deck salvo e publicado no Hangar da OZ!"
+          ? "Deck salvo e publicado!"
           : "Deck salvo com sucesso como projeto privado!"
       );
     } catch (err: any) {
@@ -1371,7 +1371,7 @@ export default function DeckbuilderPage() {
   const copyShareLink = async () => {
     if (!selectedShareId) {
       if (!isAuthenticated) {
-        toast.error("Para gerar um link permanente, faça login e salve o deck no Arsenal.");
+        toast.error("Para gerar um link permanente, entre na sua conta e salve o deck.");
         setAuthModalOpen(true);
       } else {
         toast.error("Salve o deck primeiro para gerar o link permanente.");
@@ -1524,7 +1524,7 @@ export default function DeckbuilderPage() {
   };
 
   return (
-    <PublicShell breadcrumbs={[{ label: "Decks", href: "/decks" }, { label: "Hangar da OZ", href: "/decks" }, { label: deckId ? deckName || "Editando" : "Novo projeto" }]}>
+    <PublicShell breadcrumbs={[{ label: "Decks", href: "/decks" }, { label: "Deckbuilder", href: "/deckbuilder" }, { label: deckId ? deckName || "Editando" : "Novo projeto" }]}>
       {loadingDeck ? (
         <p className="text-sm text-muted-portal">Carregando deck...</p>
       ) : (
@@ -1550,7 +1550,7 @@ export default function DeckbuilderPage() {
                       ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 shadow-sm"
                       : "text-slate-400 hover:text-white"
                   }`}
-                  title="Público: Visível para toda a comunidade no Hangar da OZ"
+                  title="Público: visível para toda a comunidade"
                 >
                   <Globe className="size-3.5" />
                   Público
@@ -1563,7 +1563,7 @@ export default function DeckbuilderPage() {
                       ? "bg-slate-700/60 text-slate-200 border border-white/20 shadow-sm"
                       : "text-slate-400 hover:text-white"
                   }`}
-                  title="Privado: Visível apenas para você em sua área de piloto"
+                  title="Privado: visível só para você"
                 >
                   <Lock className="size-3.5" />
                   Privado
@@ -1586,7 +1586,7 @@ export default function DeckbuilderPage() {
               <Button
                 className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90 font-heading uppercase tracking-wider text-xs px-4 h-9 shadow-md shadow-primary/20"
                 onClick={handleSaveClick}
-                title="Salvar projeto no Arsenal da OZ"
+                title="Salvar deck"
               >
                 <Save className="mr-1.5 size-4" />
                 Salvar Deck
@@ -1597,10 +1597,10 @@ export default function DeckbuilderPage() {
                 data-testid="zero-copilot-btn"
                 className="rounded-none border border-cyan-500/50 bg-cyan-950/70 text-cyan-300 hover:bg-cyan-500/20 hover:text-cyan-200 font-heading uppercase tracking-wider text-xs px-3.5 h-9 shadow-md shadow-cyan-500/20 transition-all"
                 onClick={() => setZeroCopilotOpen(true)}
-                title="Abrir Zero Copilot — Assistente IA de Consistência e Tech Cards"
+                title="Abrir o assistente de IA — sugestões de consistência e cartas"
               >
                 <BrainCircuit className="mr-1.5 size-4 text-cyan-400" />
-                Zero Copilot
+                Assistente IA
                 <span className="ml-1.5 rounded-none bg-cyan-500/30 px-1 py-0.2 text-[9px] font-mono font-bold text-cyan-200 border border-cyan-400/40">
                   IA
                 </span>
@@ -1631,7 +1631,7 @@ export default function DeckbuilderPage() {
                     Copiar formato Wing Table
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={generateDeckImage} disabled={generatingImage} className="cursor-pointer focus:bg-white/10 focus:text-white text-xs font-semibold text-primary">
-                    {generatingImage ? "Gerando imagem..." : "Baixar imagem com Selo OZ (PNG)"}
+                    {generatingImage ? "Gerando imagem..." : "Baixar imagem do deck (PNG)"}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -1654,9 +1654,9 @@ export default function DeckbuilderPage() {
           <CardContent className="p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Deckbuilder via API</p>
-                <h2 className="mt-2 font-heading text-4xl uppercase">Pool filtrada para montar o deck</h2>
-                <p className="mt-4 max-w-2xl text-sm leading-7 text-soft">A pool agora pode ser refinada por cor, tipo, série e trait antes de entrar na lista. Isso acelera montagem, revisão e testes por arquétipo.</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Deckbuilder</p>
+                <h2 className="mt-2 font-heading text-4xl uppercase">Escolha as cartas</h2>
+                <p className="mt-4 max-w-2xl text-sm leading-7 text-soft">Filtre por cor, tipo, série e trait e clique na carta para adicionar ao deck.</p>
               </div>
             </div>
 
@@ -1842,13 +1842,13 @@ export default function DeckbuilderPage() {
                 <Lock className="size-8" />
               </div>
               <Badge variant="outline" className="rounded-none border-amber-500/50 bg-amber-950/40 text-amber-400 uppercase font-mono text-xs px-3 py-1">
-                ACESSO TÁTICO VEDA RESTRITO
+                ESTATÍSTICAS COMPLETAS
               </Badge>
               <h2 className="font-heading text-2xl sm:text-3xl uppercase tracking-wider text-white">
-                Telemetria Avançada Bloqueada
+                Disponível com conta gratuita
               </h2>
               <p className="text-sm text-slate-300 leading-relaxed font-sans">
-                A telemetria profunda VEDA — com análise avançada de curva de custos e níveis, distribuição hipergeométrica de probabilidade de mão inicial, índice de docking sinérgico de pilotos e recomendações inteligentes de metagame — está disponível exclusivamente para Pilotos Cadastrados da OZ.
+                A análise completa — com análise avançada de curva de custos e níveis, distribuição hipergeométrica de probabilidade de mão inicial, índice de docking sinérgico de pilotos e recomendações inteligentes de metagame — está disponível exclusivamente para Pilotos Cadastrados da OZ.
               </p>
               <div className="p-3 border border-emerald-500/30 bg-emerald-950/20 text-emerald-300 text-xs font-mono">
                 ✓ O rascunho do seu deck atual está salvo localmente e será mantido intacto após entrar.
@@ -1862,7 +1862,7 @@ export default function DeckbuilderPage() {
                   }}
                   className="rounded-none bg-primary text-primary-foreground font-heading uppercase tracking-wider text-sm px-6 shadow-lg shadow-primary/20"
                 >
-                  Cadastre-se para Liberar Telemetria
+                  Criar conta e ver as estatísticas
                 </Button>
                 <Button
                   size="lg"
@@ -1884,7 +1884,7 @@ export default function DeckbuilderPage() {
             <CardContent className="p-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Diagnóstico operacional · Telemetria do Hangar & Sistema VEDA</p>
+                  <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Diagnóstico do deck</p>
                   <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Calibração Técnica da Lista<MetricTooltip metric="leitura-rapida" what="Cinco checagens rápidas da lista: volume de cartas, variedade, cópias no limite (4x), cobertura por keywords e linha principal (trait dominante)." howToRead="Borda azul = ok, borda âmbar = vale revisar. É diagnóstico, não bloqueia o deck de ser legal." /></h3>
                 </div>
                 <div className="panel-cut border border-primary/30 bg-primary/10 px-4 py-3">
@@ -1906,7 +1906,7 @@ export default function DeckbuilderPage() {
 
           <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Processamento VEDA</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Análise do deck</p>
               <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Identidade Tática da Lista<MetricTooltip metric="identidade-lista" what="Os pilares do arquétipo que o sistema detectou na lista: cor-base, trait-base, série-base e tipo-base, com quantas cartas sustentam cada um." howToRead="Quanto mais definidos os quatro, mais focado o deck. Vazio = ainda faltam cartas pro sistema cravar o arquétipo." /></h3>
               <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {archetypeBlocks.length ? archetypeBlocks.map((block) => (
@@ -1930,9 +1930,9 @@ export default function DeckbuilderPage() {
 
           <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sugestões do Hangar</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sugestões</p>
               <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Recomendações por carta</h3>
-              <p className="mt-1 text-xs leading-5 text-slate-500">Reage ao que já está no deck (pilotos necessários para Link, trait, cor e série dominantes) — calibração do Hangar OZ.</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">Reage ao que já está no deck (pilotos necessários para Link, trait, cor e série dominantes).</p>
               <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {recommendationCards.length ? recommendationCards.map((card) => (
                   <div key={card.id} className="panel-cut border surface-strong p-3">
@@ -2109,7 +2109,7 @@ export default function DeckbuilderPage() {
                     onClick={() => setZeroCopilotOpen(true)}
                   >
                     <BrainCircuit className="mr-1.5 size-4 text-cyan-400" />
-                    Zero Copilot (IA)
+                    Assistente IA
                   </Button>
                   <Button variant="outline" className="rounded-none" disabled={stats.mainDeckCount === 0} onClick={() => setOpeningHandOpen(true)}>
                     <Eye className="mr-2 size-4" />
@@ -2276,7 +2276,7 @@ export default function DeckbuilderPage() {
           open={exportImageModalOpen}
           onClose={() => setExportImageModalOpen(false)}
           deckName={deckName || "Novo Deck"}
-          authorName={user?.displayName || user?.username || "Piloto da OZ"}
+          authorName={user?.displayName || user?.username || "Jogador"}
           shareId={selectedShareId || "OZ-SPEC"}
           mainCards={mainDeckRows.map((r) => ({
             code: r.code,
@@ -2314,7 +2314,7 @@ export default function DeckbuilderPage() {
         <DialogContent className="rounded-none border-primary/40 bg-slate-950 text-white max-w-md">
           <DialogHeader>
             <DialogTitle className="font-heading text-xl uppercase tracking-wider text-primary flex items-center gap-2">
-              <Save className="size-5" /> Salvar no Arsenal da OZ
+              <Save className="size-5" /> Salvar deck
             </DialogTitle>
             <DialogDescription className="text-slate-400 text-xs">
               Defina o nome e a visibilidade do seu projeto de Mobile Suits.
@@ -2352,7 +2352,7 @@ export default function DeckbuilderPage() {
                     <Globe className="size-4" /> Público
                   </div>
                   <p className="text-[0.7rem] text-slate-300 leading-snug">
-                    Visível no Hangar da OZ e aberto para calibração e estudo da comunidade.
+                    Aparece na lista de decks públicos para toda a comunidade.
                   </p>
                 </button>
 
@@ -2369,7 +2369,7 @@ export default function DeckbuilderPage() {
                     <Lock className="size-4" /> Privado
                   </div>
                   <p className="text-[0.7rem] text-slate-300 leading-snug">
-                    Visível apenas para você na sua área de piloto. Não entra no catálogo público.
+                    Visível só para você. Não aparece na lista de decks públicos.
                   </p>
                 </button>
               </div>
@@ -2425,7 +2425,7 @@ export default function DeckbuilderPage() {
               <Shield className="size-5" /> Identificação de Piloto Necessária
             </DialogTitle>
             <DialogDescription className="text-slate-300 text-xs leading-relaxed">
-              Para salvar, gerar link permanente ou publicar arsenais na rede da OZ, é necessário estar conectado à sua conta de piloto.
+              Para salvar, gerar um link permanente ou publicar o deck, entre na sua conta.
             </DialogDescription>
           </DialogHeader>
 
@@ -2435,7 +2435,7 @@ export default function DeckbuilderPage() {
             </div>
 
             <p className="text-xs text-slate-400">
-              Cadastre-se gratuitamente ou faça login para salvar permanentemente, gerar link público e desbloquear a aba completa de estatísticas VEDA.
+              Cadastre-se gratuitamente ou faça login para salvar permanentemente, gerar link público e ver as estatísticas completas do deck.
             </p>
 
             <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">

@@ -149,13 +149,13 @@ export default function CardsPage() {
 
   return (
     <PublicShell
-      breadcrumbs={[{ label: "Database de Cards" }]}
+      breadcrumbs={[{ label: "Cartas" }]}
       heroBanner={
         <ParallaxHeroBanner
           image="/images/unicorn_blueprint_banner.png"
-          eyebrow="Anaheim Electronics · UC 0096 / Project UC"
-          title="Database de Cards"
-          badge={`${total} cartas indexadas`}
+          eyebrow="Catálogo oficial"
+          title="Cartas"
+          badge={`${total} cartas`}
         />
       }
     >

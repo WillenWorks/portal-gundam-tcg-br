@@ -217,7 +217,7 @@ export default function TournamentsPage() {
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar piloto, arquétipo ou evento..."
+                placeholder="Buscar jogador, arquétipo ou evento..."
                 className="h-9 max-w-xs rounded-none border-white/15 bg-slate-950/70 text-sm"
               />
               <div className="flex flex-wrap items-center gap-1.5">
