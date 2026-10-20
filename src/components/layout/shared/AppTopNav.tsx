@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { GlobalSearch } from "@/components/layout/shared/GlobalSearch";
 
 export type NavItem = {
   href: string;
@@ -426,8 +427,9 @@ export function AppTopNav() {
           </nav>
         </div>
 
-        {/* Bloco Direito Desktop: Apoiar, Novidades, Tema e Autenticação */}
+        {/* Bloco Direito Desktop: Busca, Apoiar, Novidades (só 2xl; abaixo disso fica no Mais), Tema e Autenticação */}
         <div className="hidden items-center gap-1.5 sm:gap-2 md:flex">
+          <GlobalSearch shortcut className="rounded-none" />
           <Button
             type="button"
             size="icon"
@@ -444,7 +446,7 @@ export function AppTopNav() {
             asChild
             variant="outline"
             size="icon"
-            className="hidden xl:inline-flex rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-primary light:border-slate-400/90 light:bg-white light:text-slate-950"
+            className="hidden 2xl:inline-flex rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-primary light:border-slate-400/90 light:bg-white light:text-slate-950"
             title="Novidades e Atualizações do Portal"
             aria-label="Novidades e Atualizações do Portal"
           >
@@ -488,6 +490,7 @@ export function AppTopNav() {
 
         {/* Mobile Header Actions (< 1024px) */}
         <div className="flex items-center gap-1.5 sm:gap-2 lg:hidden">
+          <GlobalSearch className="rounded-none md:hidden" />
           <Button
             asChild
             variant="outline"
