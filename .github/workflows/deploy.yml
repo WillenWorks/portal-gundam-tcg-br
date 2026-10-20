@@ -57,8 +57,9 @@ jobs:
             volta_codigo() {
               echo "↩️  voltando o código para ${PREV_SHA:0:7}"
               git reset -q --hard "$PREV_SHA"
-              pnpm install --frozen-lockfile >/dev/null
-              pnpm exec prisma generate >/dev/null
+              # sem NODE_ENV=production aqui: com ele o pnpm não instala as devDependencies (tsx, prisma, vite)
+              env -u NODE_ENV pnpm install --frozen-lockfile >/dev/null
+              env -u NODE_ENV pnpm exec prisma generate >/dev/null
             }
 
             # 1. Código novo e dependências exatas
@@ -95,9 +96,10 @@ jobs:
             # teto de heap do Node: o pm2 roda a API via bash/pnpm, então `--max-old-space-size` como argumento do
             # interpretador não chegava ao Node — vai por NODE_OPTIONS (o --update-env leva pro processo)
             export NODE_OPTIONS="--max-old-space-size=3072"
-            # o processo não roda com NODE_ENV=production; estes dois ligam o que é de produção explicitamente:
-            # API só aceita conexão de dentro da VPS (o nginx fala com ela por 127.0.0.1) e Sentry da API ligado
-            export API_HOST=127.0.0.1 SENTRY_ENABLED=true
+            # produção explícita no processo da API: checagens de JWT_SECRET e ALLOWED_ORIGINS no boot (o .env já
+            # tem os dois — conferido pelo diagnóstico), API só em 127.0.0.1 e Sentry da API ligado.
+            # Exportado só aqui, depois do install/build (com NODE_ENV=production o pnpm pularia as devDependencies).
+            export NODE_ENV=production API_HOST=127.0.0.1 SENTRY_ENABLED=true
             pm2 reload gundam-portal --update-env
 
             # 8. Conferir: API e uma página do site respondendo. Não voltou em ~90 s → versão anterior.
