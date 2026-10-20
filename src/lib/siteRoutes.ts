@@ -1,7 +1,7 @@
 /* Rotas que o site conhece, no formato do wouter (App.tsx). Usado pela API para responder 404 de verdade
  * a endereços inexistentes e para saber de que tipo é cada página de detalhe (server/htmlMeta.ts).
  * O teste siteRoutes.test.ts falha se o App.tsx ganhar uma rota que não esteja aqui. */
-import { HOME_SECTIONS } from "./pageMeta";
+import { HOME_SECTIONS } from "./pageMetaRoutes";
 
 export type DetailKind = "card" | "deck" | "set" | "series" | "article" | "tournament";
 

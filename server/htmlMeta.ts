@@ -8,7 +8,7 @@
  * quando o endereço ou o item não existem. O React continua montando a página normalmente por cima.
  *
  * As consultas ao banco ficam em `DetailLoaders` (server/index.ts); aqui só a montagem, testável. */
-import { formatTitle, routeMetaFor, SITE_NAME, SITE_URL } from "../src/lib/pageMeta.ts";
+import { formatTitle, routeMetaFor, SITE_NAME, SITE_URL } from "../src/lib/pageMetaRoutes.ts";
 import { matchSiteRoute, type DetailKind } from "../src/lib/siteRoutes.ts";
 
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.jpg`;
