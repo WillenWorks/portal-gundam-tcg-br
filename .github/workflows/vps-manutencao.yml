@@ -63,14 +63,15 @@ jobs:
         env:
           TAREFA: ${{ inputs.tarefa }}
           # os segredos do backup externo só chegam à VPS na tarefa que os grava
-          RCLONE_DRIVE_TOKEN: ${{ inputs.tarefa == 'backup-externo-configurar' && secrets.RCLONE_DRIVE_TOKEN || '' }}
+          # nome diferente do segredo: o rclone trataria RCLONE_DRIVE_* do ambiente como opção do backend
+          BACKUP_DRIVE_TOKEN: ${{ inputs.tarefa == 'backup-externo-configurar' && secrets.RCLONE_DRIVE_TOKEN || '' }}
           BACKUP_PASSPHRASE: ${{ inputs.tarefa == 'backup-externo-configurar' && secrets.BACKUP_PASSPHRASE || '' }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
-          envs: TAREFA,RCLONE_DRIVE_TOKEN,BACKUP_PASSPHRASE
+          envs: TAREFA,BACKUP_DRIVE_TOKEN,BACKUP_PASSPHRASE
           command_timeout: 35m
           # sem script_stop: ele quebra funções e `case` multilinha (o script já usa `set -e`)
           script: |
@@ -328,14 +329,14 @@ jobs:
             }
 
             backup_externo_configurar() {
-              [ -n "$RCLONE_DRIVE_TOKEN" ] || { echo "falta o segredo RCLONE_DRIVE_TOKEN no repositório"; exit 1; }
+              [ -n "$BACKUP_DRIVE_TOKEN" ] || { echo "falta o segredo RCLONE_DRIVE_TOKEN no repositório"; exit 1; }
               [ ${#BACKUP_PASSPHRASE} -ge 20 ] || { echo "falta o segredo BACKUP_PASSPHRASE (mínimo 20 caracteres)"; exit 1; }
               command -v rclone >/dev/null || DEBIAN_FRONTEND=noninteractive apt-get install -y -qq rclone >/dev/null
               rclone version | head -1
               umask 077
               mkdir -p /root/.config/rclone /root/.config/backup-externo
               # o `rclone authorize` novo entrega o token em base64 (às vezes dentro de {"token": "..."}); o antigo, em JSON
-              TOKEN_JSON=$(printf '%s' "$RCLONE_DRIVE_TOKEN" | python3 -c '
+              TOKEN_JSON=$(printf '%s' "$BACKUP_DRIVE_TOKEN" | python3 -c '
             import base64, json, sys
             raw = sys.stdin.read().strip()
             def as_json(s):
@@ -353,8 +354,7 @@ jobs:
             print(json.dumps(obj, separators=(",", ":")))
             ')
               printf '[gdrive]\ntype = drive\nscope = drive.file\ntoken = %s\n' "$TOKEN_JSON" > /root/.config/rclone/rclone.conf
-              # o rclone lê RCLONE_DRIVE_* do ambiente como opção do backend: sem isto ele ignora o arquivo acima
-              unset RCLONE_DRIVE_TOKEN TOKEN_JSON
+              unset BACKUP_DRIVE_TOKEN TOKEN_JSON
               printf '%s' "$BACKUP_PASSPHRASE" > /root/.config/backup-externo/senha
               cat > /usr/local/sbin/backup-externo.sh <<'SCRIPT'
             #!/bin/bash
