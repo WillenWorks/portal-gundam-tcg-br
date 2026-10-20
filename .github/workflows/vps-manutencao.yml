@@ -19,7 +19,7 @@ on:
       tarefa:
         description: "O que fazer"
         type: choice
-        options: [diagnostico, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar]
+        options: [diagnostico, seguranca-conferir, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar]
         default: diagnostico
 
 # nunca junto com um deploy ou outra manutenção
@@ -205,8 +205,32 @@ jobs:
               ls -1d /root/backups/*/ | head -n -5 | xargs -r rm -rf
             }
 
+            seguranca_conferir() {
+              # repo público: só um resumo sim/não e contagens, sem endereços, portas ou nomes de usuário
+              secao "exposição de rede"
+              FORA=$(ss -Htln | awk '{print $4}' | grep -vE '^(127\.|\[::1\]|\[::ffff:127\.)' | grep -vE ':(22|80|443)$' | sort -u | wc -l)
+              echo "portas TCP escutando fora do localhost além de 22/80/443: $FORA"
+              ss -Htln | awk '{print $4}' | grep -qE '^(0\.0\.0\.0|\*|\[::\]):5432$' && echo "PostgreSQL escuta em todas as interfaces: sim" || echo "PostgreSQL escuta em todas as interfaces: não"
+              ss -Htln | awk '{print $4}' | grep -qE '^(0\.0\.0\.0|\*|\[::\]):8787$' && echo "API do AnaheimHub escuta em todas as interfaces: sim" || echo "API do AnaheimHub escuta em todas as interfaces: não"
+              if command -v ufw >/dev/null; then ufw status | head -1 | sed 's/^/ufw: /'; else echo "ufw: não instalado"; fi
+              echo "regras iptables INPUT com DROP/REJECT: $(iptables -S INPUT 2>/dev/null | grep -cE 'DROP|REJECT' || true) · política INPUT: $(iptables -S INPUT 2>/dev/null | head -1 | awk '{print $3}')"
+              echo "pg_hba: linhas 'host' liberando qualquer endereço: $(grep -hvE '^\s*(#|$)' /etc/postgresql/*/main/pg_hba.conf | awk '$1 ~ /^host/ && ($4=="all" || $4 ~ /^0\.0\.0\.0/ || $4=="::/0")' | wc -l)"
+              secao "SSH"
+              sshd -T 2>/dev/null | grep -iE '^(passwordauthentication|permitrootlogin|pubkeyauthentication|kbdinteractiveauthentication) ' || echo "sshd -T indisponível"
+              systemctl is-active fail2ban >/dev/null 2>&1 && echo "fail2ban: ativo" || echo "fail2ban: inativo/ausente"
+              echo "falhas de login SSH nas últimas 24h: $(journalctl -u ssh -u sshd --since '24 hours ago' 2>/dev/null | grep -ciE 'failed password|invalid user' || true)"
+              secao "atualizações automáticas"
+              dpkg -l unattended-upgrades 2>/dev/null | grep -q '^ii' && echo "unattended-upgrades: instalado ($(systemctl is-enabled unattended-upgrades 2>/dev/null))" || echo "unattended-upgrades: ausente"
+              secao "backups"
+              echo "backups locais: $(ls -1d /root/backups/*/ 2>/dev/null | wc -l) · mais recente: $(ls -1td /root/backups/*/ 2>/dev/null | head -1 | xargs -r basename)"
+              echo "dumps diários (.sql/.gz soltos em /root/backups): $(ls -1 /root/backups/*.sql* 2>/dev/null | wc -l) · mais recente: $(ls -1t /root/backups/*.sql* 2>/dev/null | head -1 | xargs -r basename)"
+              echo "cópia fora da VPS configurada (rclone/restic/aws/s3cmd): $(for c in rclone restic aws s3cmd; do command -v $c >/dev/null && echo -n "$c "; done; crontab -l 2>/dev/null | grep -cE 'rclone|restic|s3|scp|rsync' ) "
+              echo "tarefas no crontab do root: $(crontab -l 2>/dev/null | grep -cvE '^\s*(#|$)' || true) · com pg_dump: $(crontab -l 2>/dev/null | grep -c pg_dump || true) · timers systemd de backup: $(systemctl list-timers --all 2>/dev/null | grep -ciE 'backup|dump' || true)"
+            }
+
             case "$TAREFA" in
               diagnostico) diagnostico ;;
+              seguranca-conferir) seguranca_conferir ;;
               logs-api) logs_api ;;
               investigar-oom) investigar_oom ;;
               monitorar-memoria) monitorar_memoria ;;
