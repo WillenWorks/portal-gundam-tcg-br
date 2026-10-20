@@ -10,6 +10,7 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { ChevronUp, Hand } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 interface HandDrawerProps {
   count: number;
@@ -25,6 +26,7 @@ const SWIPE_THRESHOLD = 36;
 const TAP_SLOP = 8;
 
 export function HandDrawer({ count, subtitle, open, onToggle, children }: HandDrawerProps) {
+  const { tr } = useSiteLanguage();
   const startY = useRef<number | null>(null);
   const [dragDy, setDragDy] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -80,7 +82,7 @@ export function HandDrawer({ count, subtitle, open, onToggle, children }: HandDr
       >
         <span className="h-1 w-8 rounded-full bg-primary/40" />
         <Hand className="size-4" />
-        Mão ({count})
+        {tr("Mão", "Hand")} ({count})
         {subtitle ? <span className="text-primary/70">· {subtitle}</span> : null}
         <ChevronUp className={cn("size-4 transition-transform", open && "rotate-180")} />
       </div>

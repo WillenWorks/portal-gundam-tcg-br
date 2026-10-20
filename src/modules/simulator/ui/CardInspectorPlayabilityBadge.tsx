@@ -3,6 +3,7 @@ import { CheckCircle2, AlertTriangle, HelpCircle } from "lucide-react";
 import { useCardPlayability } from "@/components/catalog/useCardPlayability";
 import { isNonStatsCard } from "@/lib/deck-legality";
 import { cn } from "@/lib/utils";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export interface CardInspectorPlayabilityBadgeProps {
   code?: string;
@@ -20,6 +21,7 @@ export function CardInspectorPlayabilityBadge({
   className,
   showIcon = true,
 }: CardInspectorPlayabilityBadgeProps) {
+  const { tr } = useSiteLanguage();
   const { entry, isLoading } = useCardPlayability(code);
 
   if (!code?.trim() || isNonStatsCard({ code }) || isLoading || !entry) return null;
@@ -31,14 +33,14 @@ export function CardInspectorPlayabilityBadge({
       <Link
         href="/rules"
         onClick={(e) => e.stopPropagation()}
-        title="Carta 100% implementada no motor do simulador"
+        title={tr("Carta 100% implementada no motor do simulador", "Card fully implemented in the simulator engine")}
         className={cn(
           "inline-flex items-center gap-1 border border-emerald-400/40 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300 transition-colors hover:bg-emerald-500/20",
           className,
         )}
       >
         {showIcon ? <CheckCircle2 className="size-2.5" /> : null}
-        <span>Apta no simulador</span>
+        <span>{tr("Apta no simulador", "Simulator-ready")}</span>
       </Link>
     );
   }
@@ -46,8 +48,8 @@ export function CardInspectorPlayabilityBadge({
   if (status === "revisao") {
     const missingCount = missingClauses?.length ?? 0;
     const title = missingCount > 0
-      ? `Em revisão: ${missingCount} cláusula(s) em implementação no motor`
-      : "Em revisão: conjunto em implementação no motor";
+      ? tr(`Em revisão: ${missingCount} cláusula(s) em implementação no motor`, `Under review: ${missingCount} clause(s) still being implemented`)
+      : tr("Em revisão: conjunto em implementação no motor", "Under review: set still being implemented");
 
     return (
       <Link
@@ -60,21 +62,21 @@ export function CardInspectorPlayabilityBadge({
         )}
       >
         {showIcon ? <AlertTriangle className="size-2.5" /> : null}
-        <span>Em revisão</span>
+        <span>{tr("Em revisão", "Under review")}</span>
       </Link>
     );
   }
 
   return (
     <span
-      title="Carta fora do catálogo ativo do simulador"
+      title={tr("Carta fora do catálogo ativo do simulador", "Card not in the simulator's active catalog")}
       className={cn(
         "inline-flex items-center gap-1 border border-slate-600/40 bg-slate-800/40 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400",
         className,
       )}
     >
       {showIcon ? <HelpCircle className="size-2.5" /> : null}
-      <span>Fora do simulador</span>
+      <span>{tr("Fora do simulador", "Not in simulator")}</span>
     </span>
   );
 }

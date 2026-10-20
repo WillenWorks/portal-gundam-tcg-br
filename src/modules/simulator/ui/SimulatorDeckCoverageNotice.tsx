@@ -1,6 +1,7 @@
 import { ShieldAlert } from "lucide-react";
 import type { SimulatorDeckOption } from "@/lib/api";
 import { CardInspectorPlayabilityBadge } from "./CardInspectorPlayabilityBadge";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 /**
  * Mensagem persistente (não é toast — fica na tela) explicando por que um
@@ -10,17 +11,18 @@ import { CardInspectorPlayabilityBadge } from "./CardInspectorPlayabilityBadge";
  * "se ele insistir, aparece a mensagem na tela com o impeditivo").
  */
 export function SimulatorDeckCoverageNotice({ deck }: { deck: SimulatorDeckOption }) {
+  const { tr } = useSiteLanguage();
   return (
     <div className="flex items-start gap-2.5 rounded-md border border-red-500/40 bg-red-950/30 p-3 text-xs leading-relaxed text-red-200">
       <ShieldAlert className="mt-0.5 size-4 shrink-0 text-red-400" />
       <div className="space-y-1.5">
         <p className="font-semibold uppercase tracking-wide text-red-300">
-          "{deck.name}" não pode entrar em partida
+          {tr(`"${deck.name}" não pode entrar em partida`, `"${deck.name}" can't be used in a match`)}
         </p>
         {deck.unplayableCards.length > 0 ? (
           <div>
             <p className="mb-1 text-slate-300">
-              Carta(s) sem cobertura no motor do simulador ainda:
+              {tr("Carta(s) sem cobertura no motor do simulador ainda:", "Card(s) the simulator engine doesn't support yet:")}
             </p>
             <div className="flex flex-wrap gap-1.5 py-0.5">
               {deck.unplayableCards.map((code) => (
@@ -34,11 +36,11 @@ export function SimulatorDeckCoverageNotice({ deck }: { deck: SimulatorDeckOptio
               ))}
             </div>
             <p className="mt-1 text-[11px] text-red-300/80">
-              Troque essas cartas no deckbuilder ou escolha outro deck.
+              {tr("Troque essas cartas no deckbuilder ou escolha outro deck.", "Swap these cards in the deckbuilder or pick another deck.")}
             </p>
           </div>
         ) : (
-          <p>{deck.reason ?? "Este deck não passou na checagem de cobertura do simulador."}</p>
+          <p>{deck.reason ?? tr("Este deck não passou na checagem de cobertura do simulador.", "This deck didn't pass the simulator's coverage check.")}</p>
         )}
       </div>
     </div>

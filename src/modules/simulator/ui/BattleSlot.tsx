@@ -21,6 +21,7 @@ import { CardFace } from "./CardFace";
 import { DockedPilot } from "./DockedPilot";
 import { sfx } from "../audio/soundEffects";
 import { useCardLanguage } from "@/i18n/useCardLanguage";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export interface BattleSlotActions {
   onAttack?: (unit: CardInstance) => void;
@@ -133,6 +134,7 @@ export function BattleSlot({
   abilitySelected,
   isAbilitySource,
 }: BattleSlotProps) {
+  const { tr } = useSiteLanguage();
   // Hooks precisam rodar em toda renderização, mesmo quando o slot está vazio
   // (early return abaixo) — Rules of Hooks.
   const { isPt } = useCardLanguage();
@@ -308,7 +310,7 @@ export function BattleSlot({
           isAbilityTarget
             ? `${abilitySelected ? "Desfazer alvo" : "Selecionar como alvo"}: ${unit.def.nameEn}`
             : bodyInspects
-              ? `Ver ${unit.def.nameEn}`
+              ? tr(`Ver ${unit.def.nameEn}`, `View ${unit.def.nameEn}`)
               : undefined
         }
         aria-pressed={isAbilityTarget ? abilitySelected : undefined}
@@ -375,7 +377,7 @@ export function BattleSlot({
           {legalTarget ? (
             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
               <span
-                aria-label="Alvo Válido"
+                aria-label={tr("Alvo Válido", "Valid Target")}
                 className="flex size-[clamp(1.5rem,calc(var(--card-w-std,2.17rem)*0.55),2.6rem)] items-center justify-center rounded-full border border-emerald-400 bg-emerald-950/70 text-emerald-300 shadow-[0_0_14px_rgba(52,211,153,0.75)] animate-pulse"
               >
                 <Crosshair className="size-3/4" />
@@ -419,7 +421,7 @@ export function BattleSlot({
           ) : pilot ? (
             <span
               className="absolute left-0 top-0 z-10 rounded-br-arena bg-cyan-500 px-1 text-[clamp(0.5rem,calc(var(--card-w-std,2.17rem)*0.14),0.8125rem)] font-black uppercase leading-tight tracking-wider text-black shadow-[0_0_6px_rgba(6,182,212,0.6)]"
-              aria-label="Unit pareada com Piloto"
+              aria-label={tr("Unit pareada com Piloto", "Unit paired with a Pilot")}
             >
               Pair
             </span>
@@ -429,7 +431,7 @@ export function BattleSlot({
             {isToken ? (
               <span
                 className="rounded-r-xs bg-fuchsia-600/90 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-white shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
-                title="Token Unit (gerada por efeito)"
+                title={tr("Token Unit (gerada por efeito)", "Token Unit (created by an effect)")}
               >
                 Token
               </span>
@@ -437,7 +439,7 @@ export function BattleSlot({
             {isBlocker ? (
               <span
                 className="rounded-r-xs bg-sky-600/90 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-white shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
-                title="Blocker: Pode redirecionar ataques para si"
+                title={isPt ? "Blocker: Pode redirecionar ataques para si" : "Blocker: Can redirect attacks to itself"}
               >
                 BLK
               </span>
@@ -445,7 +447,7 @@ export function BattleSlot({
             {isBreach ? (
               <span
                 className="rounded-r-xs bg-rose-600/90 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-white shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
-                title={`Breach ${breachVal ?? 1}: Causa dano a shields ao destruir units em batalha`}
+                title={isPt ? `Breach ${breachVal ?? 1}: Causa dano a shields ao destruir units em batalha` : `Breach ${breachVal ?? 1}: Deals damage to shields when it destroys a unit in battle`}
               >
                 BRC{breachVal && breachVal > 1 ? ` ${breachVal}` : ""}
               </span>
@@ -453,7 +455,7 @@ export function BattleSlot({
             {isFirstStrike ? (
               <span
                 className="rounded-r-xs bg-amber-600/90 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-white shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
-                title="First Strike: Causa dano de combate primeiro"
+                title={isPt ? "First Strike: Causa dano de combate primeiro" : "First Strike: Deals battle damage first"}
               >
                 FST
               </span>
@@ -469,7 +471,7 @@ export function BattleSlot({
             {isRepair ? (
               <span
                 className="rounded-r-xs bg-teal-600/90 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-white shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
-                title={`Repair ${repairVal ?? 1}: Recupera HP no início do seu turno`}
+                title={isPt ? `Repair ${repairVal ?? 1}: Recupera HP no início do seu turno` : `Repair ${repairVal ?? 1}: Recovers HP at the start of your turn`}
               >
                 REP{repairVal && repairVal > 1 ? ` ${repairVal}` : ""}
               </span>
@@ -477,7 +479,7 @@ export function BattleSlot({
             {isHighMobility ? (
               <span
                 className="rounded-r-xs bg-purple-600/90 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-white shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
-                title="High Mobility: Só pode ser bloqueada por Units com High Mobility"
+                title={isPt ? "High Mobility: Só pode ser bloqueada por Units com High Mobility" : "High Mobility: Can only be blocked by Units with High Mobility"}
               >
                 HM
               </span>
@@ -485,7 +487,7 @@ export function BattleSlot({
             {hasStatImmunity ? (
               <span
                 className="rounded-r-xs bg-indigo-600/90 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-white shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
-                title="Imunidade: AP/HP não podem ser reduzidos por efeitos"
+                title={isPt ? "Imunidade: AP/HP não podem ser reduzidos por efeitos" : "Immunity: AP/HP can't be reduced by effects"}
               >
                 IMMUNE
               </span>
@@ -493,7 +495,7 @@ export function BattleSlot({
             {hasDamageProtection ? (
               <span
                 className="rounded-r-xs bg-emerald-700/90 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-white shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
-                title="Proteção: O primeiro dano sofrido a cada turno é anulado"
+                title={isPt ? "Proteção: O primeiro dano sofrido a cada turno é anulado" : "Protection: The first damage taken each turn is negated"}
               >
                 GUARD
               </span>

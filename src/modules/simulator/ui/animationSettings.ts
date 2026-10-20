@@ -16,6 +16,13 @@ export const ANIM_SPEED_LABELS: Record<AnimSpeed, string> = {
   2: "2x Turbo",
 };
 
+export const ANIM_SPEED_LABELS_EN: Record<AnimSpeed, string> = {
+  0.75: "0.75x Learning",
+  1: "1x Normal",
+  1.5: "1.5x Fast",
+  2: "2x Turbo",
+};
+
 const STORAGE_KEY = "portal_gundam_sim_anim_speed";
 const DEFAULT_SPEED: AnimSpeed = 1;
 const CSS_VAR = "--sim-anim-speed-mult";

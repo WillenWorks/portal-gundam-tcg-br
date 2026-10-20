@@ -4,6 +4,7 @@
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { cardBackUrl } from "./cardArt";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 interface FirstPlayerRevealProps {
   goesFirst: boolean;
@@ -13,6 +14,7 @@ interface FirstPlayerRevealProps {
 }
 
 export function FirstPlayerReveal({ goesFirst, onDismiss, autoDismissMs = 3500 }: FirstPlayerRevealProps) {
+  const { tr } = useSiteLanguage();
   // `onDismiss` costuma ser uma closure nova a cada render do pai (o
   // SimulatorMatchPage re-renderiza a cada 1s pelo relógio do turno). Ler via
   // ref mantém o timeout ancorado no mount — senão ele era recriado sem parar
@@ -49,17 +51,17 @@ export function FirstPlayerReveal({ goesFirst, onDismiss, autoDismissMs = 3500 }
             />
           ))}
         </div>
-        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-portal">Sorteio de iniciativa</p>
+        <p className="text-[11px] uppercase tracking-[0.22em] text-muted-portal">{tr("Sorteio de iniciativa", "Who goes first")}</p>
         <p
           className={cn(
             "text-2xl font-black uppercase tracking-[0.08em] sm:text-3xl",
             goesFirst ? "text-primary" : "text-amber-300",
           )}
         >
-          {goesFirst ? "Você joga primeiro" : "Oponente joga primeiro"}
+          {goesFirst ? tr("Você joga primeiro", "You go first") : tr("Oponente joga primeiro", "Opponent goes first")}
         </p>
         <p className="text-[11px] text-muted-portal">
-          {goesFirst ? "Você abre a partida." : "Você começa com 1 EX Resource ativo."}
+          {goesFirst ? tr("Você abre a partida.", "You open the match.") : tr("Você começa com 1 EX Resource ativo.", "You start with 1 active EX Resource.")}
         </p>
       </div>
     </button>

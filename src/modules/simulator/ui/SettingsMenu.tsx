@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { sfx } from "../audio/soundEffects";
-import { ANIM_SPEED_LABELS, ANIM_SPEEDS, getSavedAnimSpeed, saveAnimSpeed, type AnimSpeed } from "./animationSettings";
+import { ANIM_SPEED_LABELS, ANIM_SPEED_LABELS_EN, ANIM_SPEEDS, getSavedAnimSpeed, saveAnimSpeed, type AnimSpeed } from "./animationSettings";
 import { getSavedPlaymatSkin, PLAYMAT_SKINS, savePlaymatSkin, type PlaymatSkinId } from "./playmatSkins";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 interface SettingsMenuProps {
   autoPass: boolean;
@@ -19,6 +20,7 @@ interface SettingsMenuProps {
 }
 
 export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, busy }: SettingsMenuProps) {
+  const { tr } = useSiteLanguage();
   const [currentSkin, setCurrentSkin] = useState<PlaymatSkinId>(getSavedPlaymatSkin);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => sfx.isEnabled());
   const [animSpeed, setAnimSpeed] = useState<AnimSpeed>(getSavedAnimSpeed);
@@ -49,21 +51,21 @@ export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, bu
           variant="outline"
           size="icon"
           className="size-8 rounded-arena border-primary/30 bg-slate-950/70"
-          aria-label="Configurações da partida"
-          title="Configurações da partida"
+          aria-label={tr("Configurações da partida", "Match settings")}
+          title={tr("Configurações da partida", "Match settings")}
         >
           <Settings className="size-4" />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 rounded-arena border-primary/25 bg-slate-950/95 text-soft p-4 shadow-xl">
         <div className="flex flex-col gap-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">Configurações de Partida</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">{tr("Configurações de Partida", "Match Settings")}</p>
 
           {/* Visual do Tabuleiro (Playmat Skin) */}
           <div className="space-y-1.5 border-b border-white/10 pb-3">
             <label className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
               <Palette className="size-3.5 text-accent" />
-              Tema do Tabuleiro (Playmat)
+              {tr("Tema do Tabuleiro (Playmat)", "Board theme (Playmat)")}
             </label>
             <select
               value={currentSkin}
@@ -82,7 +84,7 @@ export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, bu
           <div className="space-y-1.5 border-b border-white/10 pb-3">
             <label className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
               <Gauge className="size-3.5 text-accent" />
-              Velocidade das Animações
+              {tr("Velocidade das Animações", "Animation speed")}
             </label>
             <select
               value={animSpeed}
@@ -91,7 +93,7 @@ export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, bu
             >
               {ANIM_SPEEDS.map((speed) => (
                 <option key={speed} value={speed}>
-                  {ANIM_SPEED_LABELS[speed]}
+                  {tr(ANIM_SPEED_LABELS[speed], ANIM_SPEED_LABELS_EN[speed])}
                 </option>
               ))}
             </select>
@@ -101,18 +103,18 @@ export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, bu
           <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3 text-xs">
             <span className="flex items-center gap-1.5">
               {soundEnabled ? <Volume2 className="size-3.5 text-primary" /> : <VolumeX className="size-3.5 text-slate-500" />}
-              <span>Efeitos Sonoros</span>
+              <span>{tr("Efeitos Sonoros", "Sound effects")}</span>
             </span>
-            <Switch checked={soundEnabled} onCheckedChange={handleToggleSound} aria-label="Efeitos Sonoros" />
+            <Switch checked={soundEnabled} onCheckedChange={handleToggleSound} aria-label={tr("Efeitos Sonoros", "Sound effects")} />
           </div>
 
           {/* Auto-passar Ação */}
           <label className="flex items-center justify-between gap-3 text-xs">
             <span className="min-w-0">
-              <span className="block font-medium">Auto-passar Ação</span>
-              <span className="block text-[10px] text-muted-portal">Avança quando não houver 【Action】 disponível.</span>
+              <span className="block font-medium">{tr("Auto-passar Ação", "Auto-pass Action")}</span>
+              <span className="block text-[10px] text-muted-portal">{tr("Avança quando não houver 【Action】 disponível.", "Moves on when no 【Action】 is available.")}</span>
             </span>
-            <Switch checked={autoPass} onCheckedChange={onToggleAutoPass} disabled={busy} aria-label="Auto-passar o Passo de Ação" />
+            <Switch checked={autoPass} onCheckedChange={onToggleAutoPass} disabled={busy} aria-label={tr("Auto-passar o Passo de Ação", "Auto-pass the Action Step")} />
           </label>
 
           {/* Sair / Desistir */}
@@ -125,11 +127,11 @@ export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, bu
               onClick={onLeave}
             >
               <LogOut className="mr-1.5 size-3.5" />
-              {gameOver ? "Voltar ao lobby" : "Desistir da partida"}
+              {gameOver ? tr("Voltar ao lobby", "Back to lobby") : tr("Desistir da partida", "Concede match")}
             </Button>
             {!gameOver ? (
               <p className="mt-1 text-[10px] leading-tight text-muted-portal">
-                Desistir concede a vitória imediata ao oponente.
+                {tr("Desistir concede a vitória imediata ao oponente.", "Conceding gives your opponent the win immediately.")}
               </p>
             ) : null}
           </div>

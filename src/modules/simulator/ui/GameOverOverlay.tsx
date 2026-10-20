@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import type { GameOverInfo } from "@/modules/simulator/engine/types";
 import type { ReactNode } from "react";
 import { gameOverReasonLabel } from "./gameOverReason";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 interface GameOverOverlayProps {
   won: boolean;
@@ -20,11 +21,12 @@ interface GameOverOverlayProps {
 }
 
 export function GameOverOverlay({ won, reason, redirectSeconds, onLeave, children }: GameOverOverlayProps) {
+  const { tr } = useSiteLanguage();
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/85 backdrop-blur-sm"
       role="alertdialog"
-      aria-label={won ? "Você venceu" : "Você perdeu"}
+      aria-label={won ? tr("Você venceu", "You won") : tr("Você perdeu", "You lost")}
     >
       <div className="flex flex-col items-center gap-3 px-6 text-center">
         <p
@@ -33,7 +35,7 @@ export function GameOverOverlay({ won, reason, redirectSeconds, onLeave, childre
             won ? "text-emerald-400" : "text-red-400",
           )}
         >
-          {won ? "Você venceu" : "Você perdeu"}
+          {won ? tr("Você venceu", "You won") : tr("Você perdeu", "You lost")}
         </p>
         <p className="text-sm text-muted-portal sm:text-base">{gameOverReasonLabel(reason, won)}</p>
         {children}
@@ -41,7 +43,7 @@ export function GameOverOverlay({ won, reason, redirectSeconds, onLeave, childre
           className="mt-3 rounded-arena bg-primary px-6 text-primary-foreground hover:bg-primary/90"
           onClick={onLeave}
         >
-          Voltar ao lobby{redirectSeconds !== null ? ` (${redirectSeconds}s)` : ""}
+          {tr("Voltar ao lobby", "Back to lobby")}{redirectSeconds !== null ? ` (${redirectSeconds}s)` : ""}
         </Button>
       </div>
     </div>

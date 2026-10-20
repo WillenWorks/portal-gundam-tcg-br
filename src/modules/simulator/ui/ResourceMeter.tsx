@@ -19,6 +19,7 @@
 import type { CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 import { artSrc, cardBackUrl, type ArtLookup } from "./cardArt";
+import { tr as trNow, useSiteLanguage } from "@/i18n/siteLanguage";
 
 interface ResourceMeterItem {
   instanceId: string;
@@ -47,7 +48,7 @@ interface ResourceMeterProps {
 }
 
 function pieceTitle(r: ResourceMeterItem): string {
-  return r.isEx ? "EX Resource — sai de jogo se gasto" : r.rested ? "Recurso gasto" : "Recurso ativo";
+  return r.isEx ? trNow("EX Resource — sai de jogo se gasto", "EX Resource — leaves play when spent") : r.rested ? trNow("Recurso gasto", "Spent resource") : trNow("Recurso ativo", "Active resource");
 }
 
 /** largura-padrão da carta na arena (docs/34) — retrato; a peça gasta ocupa a
@@ -66,8 +67,9 @@ export function ResourceMeter({
   className,
   highlightTone,
 }: ResourceMeterProps) {
+  const { tr } = useSiteLanguage();
   const active = resources.filter((r) => !r.rested).length;
-  const summary = `${active} recurso(s) ativo(s) de ${resources.length} · nível ${level}`;
+  const summary = tr(`${active} recurso(s) ativo(s) de ${resources.length} · nível ${level}`, `${active} of ${resources.length} resource(s) active · level ${level}`);
   const interactive = Boolean(selectable && !readOnly && onSelect);
 
   function pieceVisual(r: ResourceMeterItem, selected: boolean, pickable: boolean) {
