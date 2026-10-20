@@ -12,6 +12,15 @@ name: Manutenção da VPS
 #   backup            pg_dumpall dos bancos + nginx/letsencrypt + .env dos apps + pm2 save, em /root/backups
 #   baseline-conferir confere se o banco bate com o prisma/schema.prisma (não altera nada)
 #   baseline-aplicar  faz um backup e então troca o histórico de migrations (scripts/prisma-baseline.mjs --yes)
+#   seguranca-conferir só leitura: exposição de portas, firewall, SSH, backups (só sim/não e contagens)
+#   upgrade-preparar  só leitura: o que o upgrade de versão do Ubuntu vai encontrar
+#   upgrade-executar  em segundo plano (systemd-run, unidade temporária): com atualizações pendentes, instala e
+#                     reinicia; sem pendências no 25.04, faz o do-release-upgrade não interativo (mantém as configs
+#                     e não remove pacotes obsoletos, como o PostgreSQL 17) e reinicia
+#   upgrade-status    andamento do upgrade + saúde do AnaheimHub e da Patanet
+#   backup-externo-configurar  grava o token do Google Drive e a senha (segredos RCLONE_DRIVE_TOKEN e
+#                     BACKUP_PASSPHRASE), agenda o backup diário criptografado no Drive e roda o primeiro
+#   backup-externo-testar      baixa o backup mais recente do Drive, descriptografa e confere
 
 on:
   workflow_dispatch:
@@ -19,7 +28,7 @@ on:
       tarefa:
         description: "O que fazer"
         type: choice
-        options: [diagnostico, seguranca-conferir, upgrade-preparar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar]
+        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar]
         default: diagnostico
 
 # nunca junto com um deploy ou outra manutenção
@@ -53,12 +62,15 @@ jobs:
         uses: appleboy/ssh-action@v1.2.0
         env:
           TAREFA: ${{ inputs.tarefa }}
+          # os segredos do backup externo só chegam à VPS na tarefa que os grava
+          RCLONE_DRIVE_TOKEN: ${{ inputs.tarefa == 'backup-externo-configurar' && secrets.RCLONE_DRIVE_TOKEN || '' }}
+          BACKUP_PASSPHRASE: ${{ inputs.tarefa == 'backup-externo-configurar' && secrets.BACKUP_PASSPHRASE || '' }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
-          envs: TAREFA
+          envs: TAREFA,RCLONE_DRIVE_TOKEN,BACKUP_PASSPHRASE
           command_timeout: 35m
           # sem script_stop: ele quebra funções e `case` multilinha (o script já usa `set -e`)
           script: |
@@ -259,10 +271,117 @@ jobs:
               command -v rclone gpg 2>/dev/null | xargs -r echo "rclone/gpg:"
             }
 
+            saude() {
+              secao "saúde dos sites"
+              for u in https://anaheimhub.com/ https://anaheimhub.com/api/health https://api.patanet.app.br/; do
+                curl -s -o /dev/null -m 15 -w "$u → %{http_code}\n" "$u" || echo "$u → sem resposta"
+              done
+              pm2 jlist | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{for(const p of JSON.parse(s))console.log(`${p.name.padEnd(16)} ${p.pm2_env.status.padEnd(8)} restarts=${p.pm2_env.restart_time}`)})'
+              pg_lsclusters
+              dpkg -l 'postgresql-1*' 2>/dev/null | awk '/^ii/{print $2, $3}'
+            }
+
+            upgrade_executar() {
+              . /etc/os-release
+              if systemctl is-active --quiet upgrade-ubuntu 2>/dev/null; then echo "já há um upgrade rodando"; exit 1; fi
+              pm2 save >/dev/null && echo "pm2 save feito (processos e variáveis atuais voltam após o reinício)"
+              backup
+              # o upgrade não remove pacotes "obsoletos" (o PostgreSQL 17 vira obsoleto no 26.04)
+              mkdir -p /etc/update-manager/release-upgrades.d
+              printf '[Distro]\nRemoveObsoletes=no\n' > /etc/update-manager/release-upgrades.d/zz-manter-obsoletos.cfg
+              apt-get update -qq
+              PEND=$(apt list --upgradable 2>/dev/null | tail -n +2 | wc -l)
+              if [ "$PEND" -gt 0 ]; then
+                FASE="atualizar $VERSION_ID ($PEND pacotes) e reiniciar"
+                CMD='env DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold full-upgrade'
+              elif [ "$VERSION_ID" = "25.04" ]; then
+                FASE="do-release-upgrade 25.04 → 26.04 e reiniciar"
+                CMD='do-release-upgrade -f DistUpgradeViewNonInteractive'
+              else
+                echo "nada a fazer: $PRETTY_NAME sem atualizações pendentes"; return 0
+              fi
+              secao "iniciando em segundo plano: $FASE"
+              systemd-run --unit=upgrade-ubuntu --collect /bin/bash -c "
+                exec >>/root/upgrade-ubuntu.log 2>&1
+                echo \"=== \$(date -u +%FT%TZ) início: $FASE\"
+                if $CMD; then
+                  echo \"=== \$(date -u +%FT%TZ) FIM OK — reiniciando\"; sleep 5; systemctl reboot
+                else
+                  echo \"=== \$(date -u +%FT%TZ) FALHOU (código \$?) — sem reiniciar\"
+                fi"
+              sleep 20
+              echo "serviço do upgrade: $(systemctl is-active upgrade-ubuntu 2>/dev/null || true)"
+              tail -n 5 /root/upgrade-ubuntu.log | cut -c1-200
+            }
+
+            upgrade_status() {
+              secao "sistema"
+              . /etc/os-release && echo "$PRETTY_NAME"; uname -r; uptime
+              echo "serviço do upgrade: $(systemctl is-active upgrade-ubuntu 2>/dev/null || true)"
+              [ -f /var/run/reboot-required ] && echo "REINÍCIO PENDENTE" || echo "sem reinício pendente"
+              secao "log do upgrade (marcos e últimas linhas)"
+              grep -aE '^=== ' /root/upgrade-ubuntu.log 2>/dev/null | tail -n 10
+              tail -n 20 /root/upgrade-ubuntu.log 2>/dev/null | cut -c1-200
+              secao "erros no log do do-release-upgrade"
+              grep -ahE '^(ERROR|CRITICAL)' /var/log/dist-upgrade/main.log 2>/dev/null | tail -n 15 | cut -c1-200 || true
+              saude
+            }
+
+            backup_externo_configurar() {
+              [ -n "$RCLONE_DRIVE_TOKEN" ] || { echo "falta o segredo RCLONE_DRIVE_TOKEN no repositório"; exit 1; }
+              [ ${#BACKUP_PASSPHRASE} -ge 20 ] || { echo "falta o segredo BACKUP_PASSPHRASE (mínimo 20 caracteres)"; exit 1; }
+              command -v rclone >/dev/null || DEBIAN_FRONTEND=noninteractive apt-get install -y -qq rclone >/dev/null
+              rclone version | head -1
+              umask 077
+              mkdir -p /root/.config/rclone /root/.config/backup-externo
+              printf '[gdrive]\ntype = drive\nscope = drive.file\ntoken = %s\n' "$RCLONE_DRIVE_TOKEN" > /root/.config/rclone/rclone.conf
+              printf '%s' "$BACKUP_PASSPHRASE" > /root/.config/backup-externo/senha
+              cat > /usr/local/sbin/backup-externo.sh <<'SCRIPT'
+            #!/bin/bash
+            # backup diário criptografado (gpg simétrico, AES-256) no Google Drive; guarda 30 dias
+            set -euo pipefail
+            D=$(date -u +%F)
+            T=$(mktemp -d /root/.backup-externo-XXXX); trap 'rm -rf "$T"' EXIT
+            G="gpg --batch --yes --pinentry-mode loopback --passphrase-file /root/.config/backup-externo/senha --symmetric --cipher-algo AES256"
+            runuser -u postgres -- pg_dumpall | gzip | $G -o "$T/bancos-$D.sql.gz.gpg"
+            ENVS=$(find /root/portal-gundam-tcg-br /root/patanet-deploy -maxdepth 4 -name ".env*" -not -path "*/node_modules/*" 2>/dev/null || true)
+            tar czf - /etc/nginx /etc/letsencrypt /root/.pm2/dump.pm2 $ENVS 2>/dev/null | $G -o "$T/config-$D.tgz.gpg"
+            rclone copy "$T" "gdrive:anaheimhub-backups/$D"
+            rclone delete gdrive:anaheimhub-backups --min-age 30d
+            rclone rmdirs gdrive:anaheimhub-backups --leave-root
+            echo "$(date -u +%FT%TZ) ok: $(du -ch "$T"/* | tail -1 | cut -f1)"
+            SCRIPT
+              chmod 700 /usr/local/sbin/backup-externo.sh
+              echo '30 6 * * * root /usr/local/sbin/backup-externo.sh >> /var/log/backup-externo.log 2>&1' > /etc/cron.d/backup-externo
+              chmod 644 /etc/cron.d/backup-externo
+              secao "primeiro backup"
+              /usr/local/sbin/backup-externo.sh | tee -a /var/log/backup-externo.log
+              secao "no Drive (pasta anaheimhub-backups)"
+              rclone lsl gdrive:anaheimhub-backups | tail -n 6
+              echo "agendado: todo dia às 06:30 do relógio da VPS ($(date +%Z))"
+            }
+
+            backup_externo_testar() {
+              U=$(rclone lsf --dirs-only gdrive:anaheimhub-backups | sort | tail -1)
+              [ -n "$U" ] || { echo "nenhum backup no Drive"; exit 1; }
+              T=$(mktemp -d /root/.teste-XXXX); trap 'rm -rf "$T"' EXIT
+              rclone copy "gdrive:anaheimhub-backups/$U" "$T"
+              secao "backup $U"
+              ls -lh "$T" | tail -n +2 | awk '{print $5, $9}'
+              GD="gpg --batch --quiet --pinentry-mode loopback --passphrase-file /root/.config/backup-externo/senha -d"
+              $GD "$T"/bancos-*.gpg | gunzip | grep -c '^CREATE DATABASE' | xargs echo "bancos no dump:"
+              $GD "$T"/config-*.gpg | tar tzf - | wc -l | xargs echo "arquivos de configuração:"
+              tail -n 3 /var/log/backup-externo.log 2>/dev/null || true
+            }
+
             case "$TAREFA" in
               diagnostico) diagnostico ;;
               seguranca-conferir) seguranca_conferir ;;
               upgrade-preparar) upgrade_preparar ;;
+              upgrade-executar) upgrade_executar ;;
+              upgrade-status) upgrade_status ;;
+              backup-externo-configurar) backup_externo_configurar ;;
+              backup-externo-testar) backup_externo_testar ;;
               logs-api) logs_api ;;
               investigar-oom) investigar_oom ;;
               monitorar-memoria) monitorar_memoria ;;
