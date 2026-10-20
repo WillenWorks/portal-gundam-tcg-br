@@ -13,8 +13,8 @@ import {
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-import haroRulesOff from "@/assets/home/haro_rules_off.jpg";
-import haroRulesOn from "@/assets/home/haro_rules_on.jpg";
+import haroRulesOff from "@/assets/home/haro_rules_off.webp";
+import haroRulesOn from "@/assets/home/haro_rules_on.webp";
 
 // Subsequentes aos 4 primeiros da Hero (Artigos #5 a #8)
 const SUBSEQUENT_ARTICLES = [

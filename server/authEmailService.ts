@@ -209,7 +209,8 @@ export function registerAuthEmailRoutes(app: Express, deps: AuthEmailDeps) {
     const passwordHash = await bcrypt.hash(password!, 10);
     const user = await prisma.user.findUnique({ where: { id: result.userId } });
     // quem recebeu o link no e-mail também provou que o e-mail é dele
-    await prisma.user.update({ where: { id: result.userId }, data: { passwordHash, emailVerifiedAt: user?.emailVerifiedAt ?? new Date() } });
+    // tokenVersion +1: sessões abertas antes da redefinição deixam de valer (ver server/sessionState.ts)
+    await prisma.user.update({ where: { id: result.userId }, data: { passwordHash, emailVerifiedAt: user?.emailVerifiedAt ?? new Date(), tokenVersion: { increment: 1 } } });
     res.json({ ok: true, message: "Senha redefinida. Entre com a nova senha." });
   });
 

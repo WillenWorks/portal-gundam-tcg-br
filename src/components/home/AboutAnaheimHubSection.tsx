@@ -1,7 +1,7 @@
 import { Globe, Shield, Sparkles, Terminal, Users } from "lucide-react";
 
-import anaheimLogo from "@/assets/anaheim-logo.png";
-import anaheimLogoTransparent from "@/assets/anaheim-logo-transparent.png";
+import anaheimLogo from "@/assets/anaheim-logo.webp";
+import anaheimLogoTransparent from "@/assets/anaheim-logo-transparent.webp";
 
 export function AboutAnaheimHubSection() {
   return (

@@ -1316,7 +1316,13 @@ export const api = {
   resendVerificationEmail: () => request<{ ok: true; message: string }>("/auth/verify-email/resend", { method: "POST" }),
   requestVerificationEmail: (email: string) => request<{ ok: true; message: string }>("/auth/verify-email/request", { method: "POST", body: JSON.stringify({ email }) }),
   updateMe: (payload: { displayName?: string; bio?: string; avatarUrl?: string; preferredCardLanguage?: "PT_BR" | "EN"; preferredTheme?: string }) => mutate<AuthUser>("/auth/me", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me", "/users/", "/decks/me", "/binders/me"]),
-  updatePassword: (payload: { currentPassword?: string; newPassword: string }) => mutate<{ ok: true }>("/auth/password", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me"]),
+  // a troca de senha encerra as outras sessões; este aparelho recebe um token novo e segue conectado
+  updatePassword: async (payload: { currentPassword?: string; newPassword: string }) => {
+    const result = await mutate<{ ok: true; token?: string }>("/auth/password", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me"]);
+    const { user } = getStoredAuth();
+    if (result.token && user) storeAuth(result.token, user);
+    return result;
+  },
   uploadAvatar: (formData: FormData) => mutate<AuthUser>("/auth/me/avatar", { method: "POST", body: formData }, ["/auth/me"]),
   getPublicProfile: (username: string) => request<{ id: string; username: string; displayName: string; bio?: string | null; avatarUrl?: string | null; isSupporter?: boolean; supporterSince?: string | null; decks: ApiDeck[]; binders: ApiBinder[] }>(`/users/${username}`, undefined, { ttlMs: 30_000 }),
   confirmSupport: (message?: string) => mutate<{ ok: true; user: AuthUser; message?: string }>("/support/confirm", { method: "POST", body: JSON.stringify({ message }) }, ["/auth/me", "/support/supporters"]),

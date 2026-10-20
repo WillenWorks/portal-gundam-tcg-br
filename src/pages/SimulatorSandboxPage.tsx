@@ -72,7 +72,7 @@ function ArenaBackgroundWrapper({ children }: { children: React.ReactNode }) {
       {/* Imagem de Fundo Shining vs Destiny Arena em tamanho total e alta visibilidade */}
       <div className="pointer-events-none absolute inset-0">
         <img loading="lazy" decoding="async"
-          src="/images/shining_vs_destiny_space_arena.jpg"
+          src="/images/shining_vs_destiny_space_arena.webp"
           alt="Shining Gundam vs Destiny Gundam Arena de Combate Espacial"
           className="h-full w-full object-cover object-center opacity-95 brightness-105 contrast-105 transition-opacity duration-500"
         />

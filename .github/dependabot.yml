@@ -1,0 +1,23 @@
+# Dependabot: só correções de segurança para as dependências npm (open-pull-requests-limit: 0 desliga os PRs
+# de versão comum; os de segurança continuam vindo, desde que "Dependabot security updates" esteja ligado em
+# Settings → Code security; esses PRs vão para a branch padrão, main). As GitHub Actions recebem atualização mensal, agrupada num PR só.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 0
+    labels: [dependencies, security]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    target-branch: dev
+    groups:
+      actions:
+        patterns: ["*"]
+    labels: [dependencies]

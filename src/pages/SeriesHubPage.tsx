@@ -22,7 +22,7 @@ export default function SeriesHubPage() {
       breadcrumbs={[{ label: "Universo Gundam" }]}
       heroBanner={
         <ParallaxHeroBanner
-          image="/images/unicorn_blueprint_banner.png"
+          image="/images/unicorn_blueprint_banner.webp"
           eyebrow="Arquivo Central de Lore"
           title="Universo Gundam"
           badge={`${series.length} séries catalogadas`}

@@ -11,8 +11,8 @@ import { api, type PopularRecentDeck } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-import defaultDeckCover from "@/assets/home/default_deck_cover.jpg";
-import defaultPilotAvatar from "@/assets/home/default_pilot_avatar.jpg";
+import defaultDeckCover from "@/assets/home/default_deck_cover.webp";
+import defaultPilotAvatar from "@/assets/home/default_pilot_avatar.webp";
 
 // Bordas neon temáticas para as 4 miniaturas de cartas chave (ref: imagem 1)
 const KEY_CARD_BORDER_CLASSES = [

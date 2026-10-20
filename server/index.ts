@@ -127,6 +127,9 @@ import { attachSocialSocket } from "./socialSocket.ts";
 import { createMailer, registerAuthEmailRoutes, sendVerificationEmail, validatePasswordRequirements } from "./authEmailService.ts";
 import { recaptchaVerifier } from "./recaptchaService.ts";
 import { captureServerError, initServerErrorMonitoring } from "./errorMonitoring.ts";
+import { checkSession, createSessionStateCache } from "./sessionState.ts";
+import { createPageCache, renderHtml, resolveHtmlPage, type DetailLoaders } from "./htmlMeta.ts";
+import { GAME_COLOR_LABEL_PT } from "../src/lib/gundam-catalog.ts";
 
 const prisma = new PrismaClient();
 
@@ -356,6 +359,24 @@ const app = express();
 // site inteiro.
 app.set("trust proxy", "loopback");
 app.disable("x-powered-by");
+
+// Log das requisições da API que valem olhar: erro 5xx ou mais de 1,5 s. Uma linha JSON por requisição,
+// com um id que também vai no cabeçalho X-Request-Id (dá para casar a reclamação de alguém com o log).
+// Sem query string, IP, usuário ou corpo.
+const SLOW_REQUEST_MS = 1500;
+app.use((req, res, next) => {
+  if (!req.path.startsWith("/api/")) return next();
+  const started = process.hrtime.bigint();
+  const id = crypto.randomUUID().slice(0, 8);
+  res.setHeader("X-Request-Id", id);
+  res.on("finish", () => {
+    const ms = Number(process.hrtime.bigint() - started) / 1e6;
+    if (res.statusCode >= 500 || ms >= SLOW_REQUEST_MS) {
+      console.log(JSON.stringify({ t: new Date().toISOString(), tipo: res.statusCode >= 500 ? "erro" : "lenta", id, metodo: req.method, rota: req.path, status: res.statusCode, ms: Math.round(ms) }));
+    }
+  });
+  next();
+});
 const PORT = Number(process.env.API_PORT ?? 8787);
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 const INSECURE_JWT_SECRET_PLACEHOLDER = "change-this-secret";
@@ -427,6 +448,8 @@ type AuthPayload = {
   email: string;
   username: string;
   isHoster: boolean;
+  /** versão da senha quando o token foi emitido (ver server/sessionState.ts); tokens antigos não têm */
+  tv?: number;
 };
 
 type RequestWithUser = Request & { user?: AuthPayload };
@@ -545,24 +568,51 @@ function signToken(payload: AuthPayload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
 }
 
-function authRequired(req: RequestWithUser, res: Response, next: NextFunction) {
+const sessions = createSessionStateCache((userId) =>
+  prisma.user.findUnique({ where: { id: userId }, select: { isActive: true, role: true, isHoster: true, tokenVersion: true } }),
+);
+
+/** Confere no banco (cache de 60 s) se a conta segue ativa e se o token é de depois da última troca de senha;
+ *  papel e flag de organizador passam a vir do banco. Banco fora do ar → segue com o que o token diz. */
+async function resolveSession(payload: AuthPayload): Promise<AuthPayload | "inactive" | "revoked"> {
+  let state;
+  try {
+    state = await sessions.get(payload.userId);
+  } catch (error) {
+    console.warn("[auth] estado da sessão indisponível — usando o token", error instanceof Error ? error.message : error);
+    return payload;
+  }
+  const verdict = checkSession(payload.tv, state);
+  if (verdict !== "ok") return verdict;
+  return { ...payload, role: state!.role as UserRole, isHoster: state!.isHoster };
+}
+
+async function authRequired(req: RequestWithUser, res: Response, next: NextFunction) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Token ausente." });
+  let payload: AuthPayload;
   try {
-    req.user = jwt.verify(auth.slice(7), JWT_SECRET) as AuthPayload;
-    next();
+    payload = jwt.verify(auth.slice(7), JWT_SECRET) as AuthPayload;
   } catch {
     return res.status(401).json({ error: "Token inválido." });
   }
+  const session = await resolveSession(payload);
+  if (session === "inactive") return res.status(401).json({ error: "Conta sem acesso ativo." });
+  if (session === "revoked") return res.status(401).json({ error: "Sessão encerrada. Entre de novo." });
+  req.user = session;
+  next();
 }
 
 /** Como authRequired, mas não bloqueia se não tiver token — só preenche req.user
  *  quando o token existe e é válido. Usado em rotas públicas onde o dono logado
  *  deve enxergar mais do que um visitante anônimo (ex: pasta privada só pro dono). */
-function authOptional(req: RequestWithUser, _res: Response, next: NextFunction) {
+async function authOptional(req: RequestWithUser, _res: Response, next: NextFunction) {
   const auth = req.headers.authorization;
   if (auth?.startsWith("Bearer ")) {
-    try { req.user = jwt.verify(auth.slice(7), JWT_SECRET) as AuthPayload; } catch { /* token invalido, segue como anonimo */ }
+    try {
+      const session = await resolveSession(jwt.verify(auth.slice(7), JWT_SECRET) as AuthPayload);
+      if (typeof session !== "string") req.user = session;
+    } catch { /* token invalido, segue como anonimo */ }
   }
   next();
 }
@@ -1327,7 +1377,7 @@ app.post("/api/auth/register", async (req, res) => {
   });
   // o link de confirmação vai em segundo plano: o cadastro não espera o SMTP
   void sendVerificationEmail(authEmailDeps, user, req).catch((err) => console.error("[email] confirmação no cadastro:", err));
-  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username, isHoster: user.isHoster });
+  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username, isHoster: user.isHoster, tv: user.tokenVersion });
   res.status(201).json({ token, user: serializeUser(user) });
 });
 
@@ -1409,7 +1459,7 @@ app.post("/api/auth/login", async (req, res) => {
   if (!user || !user.isActive) return res.status(401).json({ error: "Credenciais inválidas ou usuário inativo." });
   if (!user.passwordHash) return res.status(401).json({ error: "Essa conta usa login com Google — entre pelo botão \"Continuar com Google\"." });
   if (!(await bcrypt.compare(normalizedPassword, user.passwordHash))) return res.status(401).json({ error: "Credenciais inválidas ou usuário inativo." });
-  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username, isHoster: user.isHoster });
+  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username, isHoster: user.isHoster, tv: user.tokenVersion });
   res.json({ token, user: serializeUser(user) });
 });
 
@@ -1476,7 +1526,7 @@ app.post("/api/auth/google", async (req, res) => {
   }
 
   if (!user.isActive) return res.status(401).json({ error: "Usuário inativo." });
-  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username, isHoster: user.isHoster });
+  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username, isHoster: user.isHoster, tv: user.tokenVersion });
   res.json({ token, user: serializeUser(user) });
 });
 
@@ -1523,8 +1573,11 @@ app.put("/api/auth/password", authRequired, async (req: RequestWithUser, res) =>
   // definir uma agora (isso NAO desativa o login por Google, so adiciona um segundo
   // caminho de acesso pra essa conta).
   const passwordHash = await bcrypt.hash(newPassword, 10);
-  await prisma.user.update({ where: { id: current.id }, data: { passwordHash } });
-  res.json({ ok: true });
+  // nova versão: tokens emitidos antes (outros aparelhos, token vazado) deixam de valer; este aparelho recebe um novo
+  const updated = await prisma.user.update({ where: { id: current.id }, data: { passwordHash, tokenVersion: { increment: 1 } } });
+  sessions.invalidate(current.id);
+  const token = signToken({ userId: updated.id, role: updated.role, email: updated.email, username: updated.username, isHoster: updated.isHoster, tv: updated.tokenVersion });
+  res.json({ ok: true, token });
 });
 
 // Upload de avatar -- aberto a qualquer usuario autenticado (diferente do upload
@@ -1564,6 +1617,8 @@ app.put("/api/users/admin/:id", authRequired, roleRequired([UserRole.ADMIN]), as
       supporterSince: payload.isSupporter ? new Date() : (payload.isSupporter === false ? null : undefined),
     },
   });
+  // papel, organizador ou desativação valem na próxima requisição da pessoa, sem esperar o cache
+  sessions.invalidate(id);
   res.json(serializeUser(user));
 });
 
@@ -5794,6 +5849,125 @@ app.post("/api/simulator/matches/:id/join", authRequired, hosterRequired, (req: 
   }
 });
 
+// ---------------------------------------------------------------------------------------------
+// HTML das páginas do site com metadados próprios (server/htmlMeta.ts). Só chega aqui o que o nginx
+// encaminha em `location @app_html` (caminhos que não são arquivo do build); fora da VPS, ninguém chama.
+const WEB_DIST_DIR = process.env.WEB_DIST_DIR || path.resolve(process.cwd(), "dist");
+let indexHtmlCache: { key: string; html: string } | null = null;
+function readIndexHtml(): string | null {
+  try {
+    const file = path.join(WEB_DIST_DIR, "index.html");
+    // `dist` pode ser um link para a versão publicada (deploy atômico): realpath + mtime trocam a chave
+    const key = `${fs.realpathSync(file)}:${fs.statSync(file).mtimeMs}`;
+    if (indexHtmlCache?.key !== key) indexHtmlCache = { key, html: fs.readFileSync(file, "utf8") };
+    return indexHtmlCache.html;
+  } catch {
+    return null;
+  }
+}
+
+const CARD_TYPE_PT: Record<string, string> = {
+  UNIT: "Unidade", PILOT: "Piloto", COMMAND: "Comando", COMMAND_PILOT: "Comando (Piloto)", BASE: "Base",
+  RESOURCE: "Recurso", EX_BASE: "EX Base", EX_RESOURCE: "EX Recurso", UNIT_TOKEN: "Ficha de Unidade",
+};
+const colorPt = (color?: string | null) => {
+  if (!color) return "";
+  const key = color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
+  return GAME_COLOR_LABEL_PT[key] ?? color;
+};
+const dayPt = (date?: Date | null) => (date ? new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", year: "numeric", timeZone: "UTC" }).format(date) : "");
+
+const htmlDetailLoaders: DetailLoaders = {
+  card: async (key) => {
+    const card = await prisma.cardModel.findFirst({
+      where: { OR: [{ id: key }, { code: key }], isActive: true },
+      select: { code: true, nameEn: true, namePt: true, cardType: true, color: true, level: true, cost: true, prints: { where: { isActive: true }, select: { imageMediumUrl: true, imageUrl: true }, take: 1 } },
+    });
+    if (!card) return null;
+    const name = card.namePt || card.nameEn;
+    const traits = [CARD_TYPE_PT[card.cardType] ?? card.cardType, colorPt(card.color), card.level != null ? `nível ${card.level}` : "", card.cost != null ? `custo ${card.cost}` : ""].filter(Boolean).join(", ");
+    return {
+      title: `${name} (${card.code})`,
+      description: `Carta ${card.code} de Gundam Card Game: ${traits}. Veja as impressões, as regras e em quais decks ela aparece.`,
+      image: card.prints[0]?.imageMediumUrl || card.prints[0]?.imageUrl,
+    };
+  },
+  deck: async (key) => {
+    const deck = await prisma.deck.findUnique({
+      where: { shareId: key },
+      select: { name: true, visibility: true, coverImage: true, user: { select: { displayName: true, username: true } }, items: { select: { quantity: true, section: true } } },
+    });
+    if (!deck || deck.visibility === "PRIVATE") return null;
+    const main = deck.items.filter((i) => i.section === "main").reduce((sum, i) => sum + i.quantity, 0);
+    const author = deck.user?.displayName || deck.user?.username;
+    return {
+      title: deck.name,
+      description: `Deck${author ? ` de ${author}` : ""} para Gundam Card Game${main ? `, com ${main} cartas no deck principal` : ""}: lista completa, curva de custo e estatísticas.`,
+      image: deck.coverImage,
+      noindex: deck.visibility !== "PUBLIC",
+    };
+  },
+  set: async (key) => {
+    const set = await prisma.cardSet.findUnique({ where: { code: key }, select: { code: true, nameEn: true, namePt: true, releaseDate: true, coverImage: true, isActive: true } });
+    if (!set || !set.isActive) return null;
+    const name = set.namePt || set.nameEn;
+    return {
+      title: `${name} (${set.code})`,
+      description: `Coleção ${set.code} de Gundam Card Game${set.releaseDate ? `, lançada em ${dayPt(set.releaseDate)}` : ""}: todas as cartas da coleção, com filtros e imagens.`,
+      image: set.coverImage,
+    };
+  },
+  series: async (key) => {
+    const series = await prisma.taxonomyEntry.findFirst({ where: { kind: TaxonomyKind.SOURCE_TITLE, slug: key, isActive: true }, select: { name: true, description: true, coverImage: true } });
+    if (!series) return null;
+    return { title: series.name, description: series.description || `Cartas de Gundam Card Game da série ${series.name}.`, image: series.coverImage };
+  },
+  article: async (key) => {
+    const post = await prisma.post.findFirst({ where: { slug: key, status: PostStatus.PUBLISHED }, select: { title: true, excerpt: true, coverImage: true, publishedAt: true, updatedAt: true } });
+    if (!post) return null;
+    return {
+      title: post.title,
+      description: post.excerpt || undefined,
+      image: post.coverImage,
+      jsonLd: [{
+        "@context": "https://schema.org", "@type": "Article", headline: post.title.slice(0, 110),
+        ...(post.publishedAt ? { datePublished: post.publishedAt.toISOString() } : {}), dateModified: post.updatedAt.toISOString(),
+        publisher: { "@type": "Organization", name: "Anaheim Hub", url: "https://anaheimhub.com" },
+      }],
+    };
+  },
+  tournament: async (key) => {
+    const t = await prisma.tournament.findFirst({ where: { id: key, isActive: true }, select: { name: true, organizer: true, city: true, country: true, dateStart: true, participantCount: true } });
+    if (!t) return null;
+    return {
+      title: t.name,
+      description: `Resultados de ${t.name}${t.city ? `, em ${t.city}` : ""}${t.dateStart ? ` (${dayPt(t.dateStart)})` : ""}: classificação, pódio e decks${t.participantCount ? ` de ${t.participantCount} jogadores` : ""}.`,
+      jsonLd: [{
+        "@context": "https://schema.org", "@type": "Event", name: t.name,
+        ...(t.dateStart ? { startDate: t.dateStart.toISOString() } : {}),
+        ...(t.city ? { location: { "@type": "Place", name: t.organizer || t.city, address: { "@type": "PostalAddress", addressLocality: t.city, ...(t.country ? { addressCountry: t.country } : {}) } } } : {}),
+        ...(t.organizer ? { organizer: { "@type": "Organization", name: t.organizer } } : {}),
+      }],
+    };
+  },
+};
+const htmlPageCache = createPageCache();
+
+app.get(/^\/(?!api(?:\/|$)|socket\.io|social\.io|uploads\/|assets\/).*/, async (req, res, next) => {
+  const template = readIndexHtml();
+  if (!template) return next();
+  res.setHeader("Cache-Control", "no-cache");
+  res.type("html");
+  try {
+    const page = await htmlPageCache(req.path, () => resolveHtmlPage(req.path, htmlDetailLoaders));
+    res.status(page.status).send(renderHtml(template, page));
+  } catch (error) {
+    // banco fora do ar: entrega o index.html do build como antes (o React monta a página do mesmo jeito)
+    console.error("[html] metadados indisponíveis para", req.path, error instanceof Error ? error.message : error);
+    res.status(200).send(template);
+  }
+});
+
 app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
   console.error(error);
   captureServerError(error, `${req.method} ${req.path}`);
@@ -5869,9 +6043,11 @@ async function boot() {
     prisma,
     resolveDeck: resolveOnlineSimulatorDeck,
   });
-  httpServer.listen(PORT, () => {
-    console.log(`API pronta em http://localhost:${PORT} (HTTP + WebSocket)`);
-  });
+  // em produção só aceita conexão de dentro da VPS (o nginx fala com a API por 127.0.0.1); API_HOST sobrescreve
+  const host = process.env.API_HOST || (IS_PRODUCTION ? "127.0.0.1" : undefined);
+  const onListening = () => console.log(`API pronta em http://${host ?? "localhost"}:${PORT} (HTTP + WebSocket)`);
+  if (host) httpServer.listen(PORT, host, onListening);
+  else httpServer.listen(PORT, onListening);
   // linhas de `SimulatorMatch` que ninguém mais vai abrir (terminadas / abandonadas) — no boot e a cada 6 h
   const purgeMatches = async () => {
     const count = await purgeStaleSimulatorMatches(prisma.simulatorMatch);
