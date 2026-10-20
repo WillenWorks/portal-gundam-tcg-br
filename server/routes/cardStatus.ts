@@ -386,11 +386,10 @@ export function handleGetCardStatusByCode(req: Request, res: Response): void {
 
 export const cardStatusRouter = Router();
 
-// Registra em ambos os formatos para garantir compatibilidade
-// se montado como app.use(cardStatusRouter) ou app.use("/api/simulator/card-status", cardStatusRouter)
+// Montado na raiz (`app.use(cardStatusRouter)` em server/index.ts), então só os caminhos completos.
+// Antes também registrava "/" e "/:code" "para compatibilidade" — montado na raiz, isso respondia a
+// QUALQUER endereço de um nível (/cards, /decks, /torneios…) com o status de uma carta inexistente.
 cardStatusRouter.get("/api/simulator/card-status", handleGetCardStatus);
 cardStatusRouter.get("/api/simulator/card-status/:code", handleGetCardStatusByCode);
-cardStatusRouter.get("/", handleGetCardStatus);
-cardStatusRouter.get("/:code", handleGetCardStatusByCode);
 
 export default cardStatusRouter;
