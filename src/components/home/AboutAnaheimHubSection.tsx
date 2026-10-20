@@ -33,7 +33,7 @@ export function AboutAnaheimHubSection() {
             <div className="space-y-3">
               <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3.5 py-1 text-xs font-semibold uppercase tracking-[0.24em] dark:text-cyan-300 light:text-cyan-700">
                 <Sparkles className="size-3.5 text-cyan-400" />
-                Diretriz Operacional
+                Sobre o site
               </div>
               <h2 className="font-heading text-3xl sm:text-4xl md:text-5xl uppercase tracking-wider dark:text-white light:text-slate-950 heading-portal">
                 O que é a Anaheim HUB?
@@ -52,19 +52,19 @@ export function AboutAnaheimHubSection() {
               <div className="flex flex-col items-center p-4 rounded-xl border dark:border-white/5 dark:bg-white/[0.02] light:border-slate-200 light:bg-slate-50">
                 <Users className="size-6 text-cyan-400 mb-2" />
                 <h4 className="font-heading text-base uppercase dark:text-white light:text-slate-950">Comunidade & Trocas</h4>
-                <p className="text-xs dark:text-slate-400 light:text-slate-600 mt-1">Conectando pilotos e fomentando o cenário em todo o país.</p>
+                <p className="text-xs dark:text-slate-400 light:text-slate-600 mt-1">Conectando jogadores e fortalecendo a cena em todo o país.</p>
               </div>
 
               <div className="flex flex-col items-center p-4 rounded-xl border dark:border-white/5 dark:bg-white/[0.02] light:border-slate-200 light:bg-slate-50">
                 <Terminal className="size-6 text-cyan-400 mb-2" />
                 <h4 className="font-heading text-base uppercase dark:text-white light:text-slate-950">Simulador & Metagame</h4>
-                <p className="text-xs dark:text-slate-400 light:text-slate-600 mt-1">Treino solo inteligente, partidas online e telemetria.</p>
+                <p className="text-xs dark:text-slate-400 light:text-slate-600 mt-1">Treino contra o bot, partidas online e estatísticas.</p>
               </div>
 
               <div className="flex flex-col items-center p-4 rounded-xl border dark:border-white/5 dark:bg-white/[0.02] light:border-slate-200 light:bg-slate-50">
                 <Globe className="size-6 text-cyan-400 mb-2" />
                 <h4 className="font-heading text-base uppercase dark:text-white light:text-slate-950">Acolhimento em PT-BR</h4>
-                <p className="text-xs dark:text-slate-400 light:text-slate-600 mt-1">Regras traduzidas, glossário tático e suporte a novatos.</p>
+                <p className="text-xs dark:text-slate-400 light:text-slate-600 mt-1">Regras traduzidas, glossário e apoio a quem está começando.</p>
               </div>
             </div>
 

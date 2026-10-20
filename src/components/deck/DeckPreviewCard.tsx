@@ -150,7 +150,7 @@ export function DeckPreviewCard({ deck, isOwner }: DeckPreviewCardProps) {
             ) : (
               <FeaturedCoverImage
                 cards={resolvedFeaturedCards}
-                fallbackLabel="Arsenal da OZ"
+                fallbackLabel="Deck"
                 className="transition-transform duration-300 group-hover:scale-105"
               />
             )}
@@ -170,7 +170,7 @@ export function DeckPreviewCard({ deck, isOwner }: DeckPreviewCardProps) {
                   {/* Autor com ícone */}
                   <div className="flex items-center gap-1.5 text-[0.7rem] uppercase tracking-[0.18em] text-slate-400">
                     <User className="size-3 text-primary/80 shrink-0" />
-                    <span className="truncate">{deck.user?.displayName || deck.user?.username || "Piloto da OZ"}</span>
+                    <span className="truncate">{deck.user?.displayName || deck.user?.username || "Jogador"}</span>
                   </div>
 
                   {/* Nome do Deck */}
@@ -278,7 +278,7 @@ export function DeckPreviewCard({ deck, isOwner }: DeckPreviewCardProps) {
                 size="icon"
                 className="rounded-none border-white/15 bg-white/5 size-8 text-white hover:text-primary"
                 onClick={handleExportImage}
-                title="Visualizar e baixar imagem do deck (PNG com selo OZ)"
+                title="Ver e baixar a imagem do deck (PNG)"
               >
                 <Download className="size-3.5" />
               </Button>

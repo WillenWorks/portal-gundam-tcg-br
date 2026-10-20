@@ -39,7 +39,7 @@ export function AppFooter({ className }: { className?: string }) {
                 </p>
               </div>
               <p className="max-w-xl text-xs leading-6 text-slate-400 dark:text-slate-400 light:text-slate-600">
-                Laboratório Tático & Engenharia de Combate para Gundam Card Game no Brasil. Base de conhecimento aberta, Hangar OZ, Sistema VEDA e Arena Asticassia para a comunidade de pilotos.
+                Cartas, decks, torneios, estatísticas e simulador de Gundam Card Game, feito pela comunidade no Brasil. Aberto e gratuito, com deckbuilder, estatísticas do meta e simulador Asticassia para a comunidade de pilotos.
               </p>
               <p className="text-[11px] leading-5 text-slate-500 dark:text-slate-500 light:text-slate-500">
                 Cartas, artes e marcas registradas pertencem à Bandai Co., Ltd. e Sunrise/Sotsu. Anaheim Hub é um projeto comunitário independente sem fins lucrativos.
@@ -59,7 +59,7 @@ export function AppFooter({ className }: { className?: string }) {
                 </li>
                 <li>
                   <Link href="/decks" className="transition-colors hover:text-primary">
-                    Hangar de Decks
+                    Decks
                   </Link>
                 </li>
                 <li>
@@ -74,7 +74,7 @@ export function AppFooter({ className }: { className?: string }) {
                 </li>
                 <li>
                   <Link href="/stats" className="transition-colors hover:text-primary">
-                    Sistema VEDA (Stats)
+                    Estatísticas
                   </Link>
                 </li>
                 <li>
@@ -141,7 +141,7 @@ export function AppFooter({ className }: { className?: string }) {
 
           <div className="flex flex-col items-center justify-between gap-4 text-xs text-slate-500 sm:flex-row">
             <p>© {new Date().getFullYear()} Anaheim Hub. Todos os direitos reservados à comunidade.</p>
-            <p className="font-mono text-[11px]">SISTEMA VEDA // PROTOCOLO ASTICASSIA OPERACIONAL</p>
+            <p className="font-mono text-[11px]">FEITO PELA COMUNIDADE · GUNDAM CARD GAME BR</p>
           </div>
         </div>
       </footer>

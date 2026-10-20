@@ -198,7 +198,7 @@ export default function StatsPage() {
 
 
   return (
-    <PublicShell breadcrumbs={[{ label: "Sistema VEDA" }]}>
+    <PublicShell breadcrumbs={[{ label: "Estatísticas" }]}>
       <div className="space-y-6">
         {/* HERO TÁTICO VEDA */}
         <Card className="panel-cut rounded-none border-primary/30 hero-surface">
@@ -206,10 +206,10 @@ export default function StatsPage() {
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.24em] text-primary font-semibold font-mono">
-                  Terminal Quântico VEDA · Metagame & Previsão Tática
+                  Estatísticas do meta
                 </p>
                 <h2 className="mt-2 font-heading text-4xl sm:text-5xl uppercase tracking-wider dark:text-white light:text-slate-900">
-                  Sistema VEDA · Metagame & Estatísticas
+                  Meta e estatísticas
                 </h2>
                 <p className="mt-3 max-w-3xl text-sm leading-relaxed dark:text-slate-300 light:text-slate-600">
                   Processamento em tempo real do metagame competitivo oficial: presença de arquétipos, núcleos de cartas
@@ -219,7 +219,7 @@ export default function StatsPage() {
 
               <div className="flex flex-wrap items-center gap-2">
                 <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent font-mono text-xs">
-                  Link VEDA Online
+                  Dados atualizados
                 </Badge>
                 <Button
                   size="sm"
@@ -366,7 +366,7 @@ export default function StatsPage() {
               className="panel-cut rounded-none border border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/20 dark:data-[state=active]:text-white light:data-[state=active]:text-primary data-[state=active]:font-bold dark:text-slate-400 dark:hover:text-white light:text-slate-600 light:hover:text-slate-900 px-4 py-2.5 text-xs uppercase font-mono tracking-wider transition-all flex items-center gap-2"
             >
               <Database className="size-4 text-emerald-400" />
-              3. Estatísticas Gerais & Acervo
+              3. Estatísticas gerais
             </TabsTrigger>
 
             <TabsTrigger
@@ -374,7 +374,7 @@ export default function StatsPage() {
               className="panel-cut rounded-none border border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/20 dark:data-[state=active]:text-white light:data-[state=active]:text-primary data-[state=active]:font-bold dark:text-slate-400 dark:hover:text-white light:text-slate-600 light:hover:text-slate-900 px-4 py-2.5 text-xs uppercase font-mono tracking-wider transition-all flex items-center gap-2"
             >
               <Cpu className="size-4 text-sky-400" />
-              4. Telemetria Avançada & Confrontos (VEDA)
+              4. Confrontos e análise avançada
             </TabsTrigger>
           </TabsList>
 

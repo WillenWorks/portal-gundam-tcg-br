@@ -126,6 +126,7 @@ import { registerArticleSocialRoutes } from "./routes/articleSocialRoutes.ts";
 import { attachSocialSocket } from "./socialSocket.ts";
 import { createMailer, registerAuthEmailRoutes, sendVerificationEmail, validatePasswordRequirements } from "./authEmailService.ts";
 import { recaptchaVerifier } from "./recaptchaService.ts";
+import { captureServerError, initServerErrorMonitoring } from "./errorMonitoring.ts";
 
 const prisma = new PrismaClient();
 
@@ -5793,8 +5794,9 @@ app.post("/api/simulator/matches/:id/join", authRequired, hosterRequired, (req: 
   }
 });
 
-app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
   console.error(error);
+  captureServerError(error, `${req.method} ${req.path}`);
   res.status(500).json({ error: "Erro interno da API." });
 });
 
@@ -5813,6 +5815,7 @@ async function boot() {
       process.env.ENGINE_SHA = "dev";
     }
   }
+  await initServerErrorMonitoring();
   try {
     await ensureAdminSeed();
   } catch (error: any) {
