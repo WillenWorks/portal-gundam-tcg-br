@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import type { CardInstance } from "@/modules/simulator/engine/types";
 import { effectivePilotDef, satisfiesLinkCondition } from "@/modules/simulator/engine/types";
 import { artSrc, type ArtLookup } from "./cardArt";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 interface DockedPilotProps {
   pilot: CardInstance;
@@ -15,11 +16,12 @@ interface DockedPilotProps {
 }
 
 export function DockedPilot({ pilot, unit, art, onInspect }: DockedPilotProps) {
+  const { tr } = useSiteLanguage();
   // card Command/Pilot no modo Piloto responde pelo nome do bloco 【Pilot】
   const pilotDef = effectivePilotDef(pilot);
   const linked = satisfiesLinkCondition(pilotDef, unit.def);
   const src = artSrc(art, pilot.def.code, "sm") || artSrc(art, pilot.def.code, "xs");
-  const title = `Piloto: ${pilotDef.nameEn}${linked ? " · Link ativo" : " · pareado"}`;
+  const title = `${tr("Piloto", "Pilot")}: ${pilotDef.nameEn}${linked ? tr(" · Link ativo", " · Link active") : tr(" · pareado", " · paired")}`;
 
   return (
     <button

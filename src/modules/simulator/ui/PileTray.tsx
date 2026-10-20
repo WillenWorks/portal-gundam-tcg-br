@@ -18,6 +18,7 @@ import type { CardInstance } from "@/modules/simulator/engine/types";
 import { isGenericArtCard, type ArtLookup } from "./cardArt";
 import { CardFace } from "./CardFace";
 import { CounterChip } from "./CounterChip";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 // ── Registro global: no máximo 1 bandeja de pilha aberta por vez ──────────────
 let openPileId: string | null = null;
@@ -53,6 +54,7 @@ interface PileTrayProps {
 }
 
 export function PileTray({ label, count, icon, tone, cards, art, onInspect }: PileTrayProps) {
+  const { tr } = useSiteLanguage();
   const id = useId();
   const [open, setOpen] = usePileOpen(id);
   const topCard = cards.length > 0 ? cards[cards.length - 1] : null;
@@ -112,14 +114,14 @@ export function PileTray({ label, count, icon, tone, cards, art, onInspect }: Pi
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                aria-label="Fechar"
+                aria-label={tr("Fechar", "Close")}
                 className="flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-arena border border-white/10 px-2 text-[10px] uppercase text-slate-200 transition-colors duration-100 hover:border-primary/70 motion-reduce:transition-none"
               >
-                <X className="size-3.5" aria-hidden /> Fechar
+                <X className="size-3.5" aria-hidden /> {tr("Fechar", "Close")}
               </button>
             </div>
             {cards.length === 0 ? (
-              <p className="px-3 py-6 text-center text-xs text-muted-portal">Pilha vazia.</p>
+              <p className="px-3 py-6 text-center text-xs text-muted-portal">{tr("Pilha vazia.", "Empty pile.")}</p>
             ) : (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(3.5rem,1fr))] gap-1.5 overflow-y-auto p-3">
                 {cards.map((card) => (

@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import type { GameEvent, PlayerId } from "@/modules/simulator/engine/types";
 import { getScaledDuration } from "./animationSettings";
 import { playerShieldKey, playerAreaKey } from "./useBoardElements";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export interface EffectResolutionCue {
   id: string;
@@ -88,6 +89,7 @@ export function EffectResolutionOverlay({
   viewerSeat,
   className,
 }: EffectResolutionOverlayProps) {
+  const { tr } = useSiteLanguage();
   const [cues, setCues] = useState<EffectResolutionCue[]>([]);
   const processedLogRef = useRef<GameEvent[]>(eventLog);
   const activeTimersRef = useRef<Set<NodeJS.Timeout>>(new Set());
@@ -122,7 +124,7 @@ export function EffectResolutionOverlay({
           targetKey = ev.instanceId;
           type = "damage";
           label = `-${ev.amount}`;
-          sublabel = "DANO";
+          sublabel = tr("DANO", "DAMAGE");
           break;
 
         case "DAMAGE_BASE":
@@ -135,7 +137,7 @@ export function EffectResolutionOverlay({
         case "DAMAGE_SHIELD":
           targetKey = `shieldRail:${ev.player}`;
           type = "shield";
-          label = `-${ev.count} Escudo`;
+          label = tr(`-${ev.count} Escudo`, `-${ev.count} Shield`);
           sublabel = "SHIELD";
           break;
 
@@ -143,71 +145,71 @@ export function EffectResolutionOverlay({
           targetKey = ev.instanceId;
           type = "heal";
           label = `+${ev.amount} HP`;
-          sublabel = "REPARO";
+          sublabel = tr("REPARO", "REPAIR");
           break;
 
         case "DESTROY_CARD":
           targetKey = ev.instanceId;
           type = "destroy";
-          label = "Destruída";
+          label = tr("Destruída", "Destroyed");
           sublabel = "K.O.";
           break;
 
         case "REMOVE_CARD_FROM_GAME":
           targetKey = ev.instanceId;
           type = "exile";
-          label = "Exilada";
-          sublabel = "EXÍLIO";
+          label = tr("Exilada", "Exiled");
+          sublabel = tr("EXÍLIO", "EXILE");
           break;
 
         case "REST_CARD":
           targetKey = ev.instanceId;
           type = "rest";
-          label = "Descansada";
+          label = tr("Descansada", "Rested");
           sublabel = "REST";
           break;
 
         case "SET_ACTIVE":
           targetKey = ev.instanceId;
           type = "active";
-          label = "Ativa";
+          label = tr("Ativa", "Active");
           sublabel = "READY";
           break;
 
         case "PAIR_CARDS":
           targetKey = ev.unitId;
           type = "pair";
-          label = "Piloto Pareado";
+          label = tr("Piloto Pareado", "Pilot Paired");
           sublabel = ev.asPilotMode ? "PILOT" : "PAIR";
           break;
 
         case "BLOCK_DECLARED":
           targetKey = ev.blockerId;
           type = "block";
-          label = "Bloqueio!";
+          label = tr("Bloqueio!", "Block!");
           sublabel = "BLOCK";
           break;
 
         case "SET_CANNOT_ATTACK":
           targetKey = ev.instanceId;
           type = "lock";
-          label = "Não Pode Atacar";
-          sublabel = "NESTE TURNO";
+          label = tr("Não Pode Atacar", "Can't Attack");
+          sublabel = tr("NESTE TURNO", "THIS TURN");
           break;
 
         case "SET_CANNOT_ACTIVATE":
           targetKey = ev.instanceId;
           type = "freeze";
           // ST08-009: "won't be set as active during the start phase" — não volta a ficar ativa (não é "não ativa habilidade").
-          label = "Fica em Rest";
-          sublabel = "PRÓX. START";
+          label = tr("Fica em Rest", "Stays Rested");
+          sublabel = tr("PRÓX. START", "NEXT START");
           break;
 
         case "MARK_COMMAND_PAYMENT":
           if (ev.withEx) {
             targetKey = ev.instanceId || playerAreaKey(viewerSeat);
             type = "ex_pay";
-            label = "Pago c/ EX";
+            label = tr("Pago c/ EX", "Paid w/ EX");
             sublabel = "EX RESOURCE";
           }
           break;
@@ -216,8 +218,8 @@ export function EffectResolutionOverlay({
           targetKey = playerAreaKey(ev.player);
           type = "draw";
           // Compra do resource deck é o recurso normal da Fase de Recurso, não EX Resource.
-          label = ev.from === "resourceDeck" ? "+1 Recurso" : "+1 Carta";
-          sublabel = ev.from === "resourceDeck" ? "RECURSO" : "COMPRA";
+          label = ev.from === "resourceDeck" ? tr("+1 Recurso", "+1 Resource") : tr("+1 Carta", "+1 Card");
+          sublabel = ev.from === "resourceDeck" ? tr("RECURSO", "RESOURCE") : tr("COMPRA", "DRAW");
           break;
 
         case "MODIFY_STAT": {
@@ -227,11 +229,11 @@ export function EffectResolutionOverlay({
           if (amt >= 0) {
             type = "buff";
             label = `+${amt} ${statName}`;
-            sublabel = ev.modifier.duration === "thisBattle" ? "Batalha" : "Turno";
+            sublabel = ev.modifier.duration === "thisBattle" ? tr("Batalha", "Battle") : tr("Turno", "Turn");
           } else {
             type = "debuff";
             label = `${amt} ${statName}`;
-            sublabel = ev.modifier.duration === "thisBattle" ? "Batalha" : "Turno";
+            sublabel = ev.modifier.duration === "thisBattle" ? tr("Batalha", "Battle") : tr("Turno", "Turn");
           }
           break;
         }

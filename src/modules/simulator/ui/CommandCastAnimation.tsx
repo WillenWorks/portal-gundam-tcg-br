@@ -11,6 +11,7 @@ import type { CardDef } from "@/modules/simulator/engine/types";
 import { getScaledDuration } from "./animationSettings";
 import { artSrc, cardBackUrl, isGenericArtCard, type ArtLookup } from "./cardArt";
 import { sfx } from "../audio/soundEffects";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export interface CommandCastPoint {
   x: number;
@@ -34,6 +35,7 @@ const FLY_BASE_MS = 360;
 const HOLD_SETTLE_BASE_MS = 160;
 
 export function CommandCastAnimation({ cardDef, art, origin, dest, cardW, onDone }: CommandCastAnimationProps) {
+  const { tr } = useSiteLanguage();
   const [phase, setPhase] = useState<"rise" | "hold" | "fly">("rise");
   const riseMs = useMemo(() => getScaledDuration(RISE_BASE_MS), []);
   const holdMs = useMemo(() => getScaledDuration(HOLD_BASE_MS), []);
@@ -117,7 +119,7 @@ export function CommandCastAnimation({ cardDef, art, origin, dest, cardW, onDone
           style={{ left: centerX, top: centerY }}
           className="pointer-events-none absolute -translate-x-1/2 translate-y-[calc(50%+2.6rem)] whitespace-nowrap rounded-arena bg-gradient-to-r from-cyan-500 to-fuchsia-500 px-3 py-1 text-xs font-black uppercase tracking-[0.2em] text-black shadow-[0_0_18px_rgba(217,70,239,0.8)]"
         >
-          Ativando Comando
+          {tr("Ativando Comando", "Activating Command")}
         </p>
       ) : null}
     </div>

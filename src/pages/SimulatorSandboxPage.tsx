@@ -35,6 +35,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { SIMULATOR_DECK_PRESETS } from "@/modules/simulator/content/simulatorDeckPresets";
 import { useMySimulatorDecks } from "@/modules/simulator/ui/useMySimulatorDecks";
 import { SimulatorDeckCoverageNotice } from "@/modules/simulator/ui/SimulatorDeckCoverageNotice";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 /**
  * docs/debates 2026-09-13/14 — os 4 decks de teste GD01
@@ -67,13 +68,14 @@ function buildInviteLink(code: string): string {
 type Screen = "checking" | "lobby" | "queued" | "challenge-host" | "challenge-guest";
 
 function ArenaBackgroundWrapper({ children }: { children: React.ReactNode }) {
+  const { tr } = useSiteLanguage();
   return (
     <div className="relative mx-auto w-full container-ultrawide overflow-hidden rounded-2xl border border-primary/30 bg-slate-950 shadow-[0_0_60px_rgba(6,182,212,0.25)]">
       {/* Imagem de Fundo Shining vs Destiny Arena em tamanho total e alta visibilidade */}
       <div className="pointer-events-none absolute inset-0">
         <img loading="lazy" decoding="async"
           src="/images/shining_vs_destiny_space_arena.webp"
-          alt="Shining Gundam vs Destiny Gundam Arena de Combate Espacial"
+          alt={tr("Shining Gundam vs Destiny Gundam Arena de Combate Espacial", "Shining Gundam vs Destiny Gundam in a space battle arena")}
           className="h-full w-full object-cover object-center opacity-95 brightness-105 contrast-105 transition-opacity duration-500"
         />
         {/* Gradientes sutis apenas no topo e base para harmonização perfeita com a página */}
@@ -91,6 +93,7 @@ function ArenaBackgroundWrapper({ children }: { children: React.ReactNode }) {
 }
 
 export default function SimulatorSandboxPage() {
+  const { tr } = useSiteLanguage();
   const [, navigate] = useLocation();
   const [screen, setScreen] = useState<Screen>("checking");
   const [deckKey, setDeckKey] = useState<string>("ST01");
@@ -162,7 +165,7 @@ export default function SimulatorSandboxPage() {
 
   const enterQueue = async () => {
     if (deckBlocked) {
-      toast.error(`"${selectedOwnDeck!.name}" tem carta sem cobertura no simulador — veja o aviso abaixo e troque de deck.`);
+      toast.error(tr(`"${selectedOwnDeck!.name}" tem carta sem cobertura no simulador — veja o aviso abaixo e troque de deck.`, `"${selectedOwnDeck!.name}" has a card the simulator doesn't support — see the notice below and pick another deck.`));
       return;
     }
     setJoining(true);
@@ -173,7 +176,7 @@ export default function SimulatorSandboxPage() {
       if (status.matched && status.matchId) enterMatch(status.matchId);
       else setScreen("queued");
     } catch (err) {
-      toast.error(errorMessage(err, "Erro ao entrar na fila."));
+      toast.error(errorMessage(err, tr("Erro ao entrar na fila.", "Couldn't join the queue.")));
     } finally {
       setJoining(false);
     }
@@ -184,7 +187,7 @@ export default function SimulatorSandboxPage() {
     try {
       await api.leaveSimulatorQueue();
     } catch (err) {
-      toast.error(errorMessage(err, "Erro ao sair da fila."));
+      toast.error(errorMessage(err, tr("Erro ao sair da fila.", "Couldn't leave the queue.")));
     } finally {
       setLeavingQueue(false);
       setScreen("lobby");
@@ -193,7 +196,7 @@ export default function SimulatorSandboxPage() {
 
   const createInvite = async () => {
     if (deckBlocked) {
-      toast.error(`"${selectedOwnDeck!.name}" tem carta sem cobertura no simulador — veja o aviso abaixo e troque de deck.`);
+      toast.error(tr(`"${selectedOwnDeck!.name}" tem carta sem cobertura no simulador — veja o aviso abaixo e troque de deck.`, `"${selectedOwnDeck!.name}" has a card the simulator doesn't support — see the notice below and pick another deck.`));
       return;
     }
     setChallengeBusy(true);
@@ -202,7 +205,7 @@ export default function SimulatorSandboxPage() {
       setInviteCode(code);
       setScreen("challenge-host");
     } catch (err) {
-      toast.error(errorMessage(err, "Não deu pra criar o convite."));
+      toast.error(errorMessage(err, tr("Não deu pra criar o convite.", "Couldn't create the invite.")));
     } finally {
       setChallengeBusy(false);
     }
@@ -211,7 +214,7 @@ export default function SimulatorSandboxPage() {
   const acceptInvite = async () => {
     if (!challengeCode) return;
     if (deckBlocked) {
-      toast.error(`"${selectedOwnDeck!.name}" tem carta sem cobertura no simulador — veja o aviso abaixo e troque de deck.`);
+      toast.error(tr(`"${selectedOwnDeck!.name}" tem carta sem cobertura no simulador — veja o aviso abaixo e troque de deck.`, `"${selectedOwnDeck!.name}" has a card the simulator doesn't support — see the notice below and pick another deck.`));
       return;
     }
     setChallengeBusy(true);
@@ -219,7 +222,7 @@ export default function SimulatorSandboxPage() {
       const matchId = await simulatorSocket.acceptChallenge(challengeCode, deckKey);
       enterMatch(matchId);
     } catch (err) {
-      toast.error(errorMessage(err, "Não deu pra aceitar o convite."));
+      toast.error(errorMessage(err, tr("Não deu pra aceitar o convite.", "Couldn't accept the invite.")));
       setChallengeBusy(false);
     }
   };
@@ -231,14 +234,14 @@ export default function SimulatorSandboxPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error("Não deu pra copiar — selecione o link manualmente.");
+      toast.error(tr("Não deu pra copiar — selecione o link manualmente.", "Couldn't copy — select the link manually."));
     }
   };
 
   const deckPicker = (
     <div className="space-y-3">
       <div className="space-y-1.5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Seu deck</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">{tr("Seu deck", "Your deck")}</p>
         <div className="grid grid-cols-2 gap-2">
           {DECK_OPTIONS.map((option) => (
             <button
@@ -255,14 +258,14 @@ export default function SimulatorSandboxPage() {
             </button>
           ))}
         </div>
-        <p className="text-xs text-muted-portal">Qualquer combinação é válida — inclusive os dois lados com o mesmo deck.</p>
+        <p className="text-xs text-muted-portal">{tr("Qualquer combinação é válida — inclusive os dois lados com o mesmo deck.", "Any combination works — even both sides with the same deck.")}</p>
       </div>
 
       {myDecksLoading || myDecks.length > 0 ? (
         <div className="space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Ou um deck do seu Hangar</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">{tr("Ou um deck do seu Hangar", "Or one of your saved decks")}</p>
           {myDecksLoading ? (
-            <p className="text-xs text-muted-portal">Carregando seus decks…</p>
+            <p className="text-xs text-muted-portal">{tr("Carregando seus decks…", "Loading your decks…")}</p>
           ) : (
             <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
               {myDecks.map((deck) => (
@@ -312,15 +315,15 @@ export default function SimulatorSandboxPage() {
             <CardContent className="flex flex-col items-center gap-4 p-10 text-center">
               <Loader2 className="size-8 animate-spin text-primary" />
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Duelo Oficial Asticassia · Fila Online</p>
-                <h1 className="mt-2 font-heading text-3xl uppercase heading-portal">Aguardando oponente</h1>
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">{tr("Duelo Oficial Asticassia · Fila Online", "Asticassia Official Duel · Online Queue")}</p>
+                <h1 className="mt-2 font-heading text-3xl uppercase heading-portal">{tr("Aguardando oponente", "Waiting for an opponent")}</h1>
                 <p className="mt-3 text-sm leading-7 text-soft">
-                  Deck de combate: <strong>{deckLabel}</strong>. Assim que outro piloto conectar à Arena, o duelo terá início.
+                  {tr("Deck de combate:", "Your deck:")} <strong>{deckLabel}</strong>. {tr("Assim que outro piloto conectar à Arena, o duelo terá início.", "The duel starts as soon as another player joins.")}
                 </p>
               </div>
               <Button variant="outline" className="rounded-arena" disabled={leavingQueue} onClick={cancelQueue}>
                 {leavingQueue ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-                Cancelar busca
+                {tr("Cancelar busca", "Cancel search")}
               </Button>
             </CardContent>
           </Card>
@@ -337,10 +340,10 @@ export default function SimulatorSandboxPage() {
             <CardContent className="flex flex-col items-center gap-4 p-10 text-center">
               <Loader2 className="size-8 animate-spin text-primary" />
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Arena Asticassia · Convite Direto</p>
-                <h1 className="mt-2 font-heading text-3xl uppercase heading-portal">Aguardando desafiante</h1>
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">{tr("Arena Asticassia · Convite Direto", "Asticassia Arena · Direct Invite")}</p>
+                <h1 className="mt-2 font-heading text-3xl uppercase heading-portal">{tr("Aguardando desafiante", "Waiting for a challenger")}</h1>
                 <p className="mt-3 text-sm leading-7 text-soft">
-                  Código do duelo: <strong className="tracking-[0.2em] text-primary">{inviteCode}</strong>. Transmita o link abaixo para outro piloto. Seu deck: <strong>{deckLabel}</strong>.
+                  {tr("Código do duelo:", "Duel code:")} <strong className="tracking-[0.2em] text-primary">{inviteCode}</strong>. {tr("Transmita o link abaixo para outro piloto. Seu deck:", "Send the link below to another player. Your deck:")} <strong>{deckLabel}</strong>.
                 </p>
               </div>
               <div className="w-full break-all rounded-arena border border-white/10 bg-black/30 p-3 text-xs text-soft">
@@ -349,10 +352,10 @@ export default function SimulatorSandboxPage() {
               <div className="flex gap-2">
                 <Button variant="outline" className="rounded-arena" onClick={copyInvite}>
                   <Copy className="mr-2 size-4" />
-                  {copied ? "Link copiado" : "Copiar link"}
+                  {copied ? tr("Link copiado", "Link copied") : tr("Copiar link", "Copy link")}
                 </Button>
                 <Button variant="ghost" className="rounded-arena" onClick={() => setScreen("lobby")}>
-                  Cancelar
+                  {tr("Cancelar", "Cancel")}
                 </Button>
               </div>
             </CardContent>
@@ -369,10 +372,10 @@ export default function SimulatorSandboxPage() {
           <Card className="rounded-xl border-primary/40 bg-slate-950/85 backdrop-blur-md shadow-2xl">
             <CardContent className="space-y-6 p-8">
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Arena Asticassia · Duelo Privado</p>
-                <h1 className="mt-2 font-heading text-4xl uppercase heading-portal">Você foi desafiado</h1>
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">{tr("Arena Asticassia · Duelo Privado", "Asticassia Arena · Private Duel")}</p>
+                <h1 className="mt-2 font-heading text-4xl uppercase heading-portal">{tr("Você foi desafiado", "You've been challenged")}</h1>
                 <p className="mt-3 text-sm leading-7 text-soft">
-                  Código de duelo: <strong className="tracking-[0.2em] text-primary">{challengeCode}</strong>. Selecione sua formação e aceite o combate na Arena.
+                  {tr("Código de duelo:", "Duel code:")} <strong className="tracking-[0.2em] text-primary">{challengeCode}</strong>. {tr("Selecione sua formação e aceite o combate na Arena.", "Pick your deck and accept the duel.")}
                 </p>
               </div>
               {deckPicker}
@@ -383,10 +386,10 @@ export default function SimulatorSandboxPage() {
                   onClick={acceptInvite}
                 >
                   {challengeBusy ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Swords className="mr-2 size-4" />}
-                  Aceitar duelo
+                  {tr("Aceitar duelo", "Accept duel")}
                 </Button>
                 <Button variant="ghost" className="rounded-arena" onClick={() => navigate("/simulador")} disabled={challengeBusy}>
-                  Voltar
+                  {tr("Voltar", "Back")}
                 </Button>
               </div>
             </CardContent>
@@ -402,10 +405,10 @@ export default function SimulatorSandboxPage() {
         <Card className="rounded-xl border-primary/40 bg-slate-950/85 backdrop-blur-md shadow-2xl">
           <CardContent className="space-y-6 p-8">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-primary font-semibold">Arena Asticassia · Centro de Duelos</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-primary font-semibold">{tr("Arena Asticassia · Centro de Duelos", "Asticassia Arena · Duel Center")}</p>
               <h1 className="mt-2 font-heading text-4xl uppercase heading-portal">Arena Asticassia</h1>
               <p className="mt-3 text-sm leading-7 text-soft">
-                Ambiente de jogo contra outro piloto. Dispute contra um oponente na fila de espera ou convide um amigo para entrar numa partida.
+                {tr("Ambiente de jogo contra outro piloto. Dispute contra um oponente na fila de espera ou convide um amigo para entrar numa partida.", "Play against another player. Join the queue for an opponent or invite a friend to a match.")}
               </p>
             </div>
 
@@ -413,7 +416,7 @@ export default function SimulatorSandboxPage() {
 
             <Button className="w-full rounded-arena bg-primary text-primary-foreground hover:bg-primary/90" disabled={joining || deckBlocked} onClick={enterQueue}>
               {joining ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Swords className="mr-2 size-4" />}
-              Duelo Oficial Asticassia (Fila Online)
+              {tr("Duelo Oficial Asticassia (Fila Online)", "Asticassia Official Duel (Online Queue)")}
             </Button>
 
             <Button
@@ -423,7 +426,7 @@ export default function SimulatorSandboxPage() {
               onClick={createInvite}
             >
               {challengeBusy ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Users className="mr-2 size-4" />}
-              Duelo com Amigo (Convite Direto)
+              {tr("Duelo com Amigo (Convite Direto)", "Duel a Friend (Direct Invite)")}
             </Button>
 
             <Button
@@ -439,12 +442,12 @@ export default function SimulatorSandboxPage() {
               <div className="relative flex items-center">
                 <div className="flex-grow border-t border-white/10" />
                 <span className="mx-3 flex-shrink text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-portal">
-                  Treinamento de Piloto
+                  {tr("Treinamento de Piloto", "Practice")}
                 </span>
                 <div className="flex-grow border-t border-white/10" />
               </div>
               <p className="mt-1 text-center text-xs text-muted-portal">
-                Teste seus decks montados ou selados contra um robô autômato
+                {tr("Teste seus decks montados ou selados contra um robô autômato", "Test your decks against the bot")}
               </p>
             </div>
 
@@ -454,7 +457,7 @@ export default function SimulatorSandboxPage() {
               onClick={() => navigate("/simulador/treino")}
             >
               <Bot className="mr-2 size-4 text-cyan-400" />
-              Simulação de Treinamento Asticassia (Contra Bot)
+              {tr("Simulação de Treinamento Asticassia (Contra Bot)", "Asticassia Practice (Against the Bot)")}
             </Button>
           </CardContent>
         </Card>

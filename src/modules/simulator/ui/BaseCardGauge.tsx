@@ -11,6 +11,7 @@ import { effectiveHp } from "@/modules/simulator/engine/types";
 import { isGenericArtCard, type ArtLookup } from "./cardArt";
 import { CardCornerActions, type CornerAction } from "./CardCornerActions";
 import { CardFace } from "./CardFace";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 interface BaseCardGaugeProps {
   base: CardInstance | null;
@@ -60,12 +61,13 @@ export function BaseCardGauge({
   isAbilitySource,
   registerRef,
 }: BaseCardGaugeProps) {
+  const { tr } = useSiteLanguage();
   if (!base) {
     return (
       <div
         ref={registerRef}
-        title={legalTarget ? "Atacar jogador (Base)" : "Base: nenhuma em jogo"}
-        aria-label={legalTarget ? "Atacar jogador (Base)" : "Base: nenhuma em jogo"}
+        title={legalTarget ? tr("Atacar jogador (Base)", "Attack player (Base)") : tr("Base: nenhuma em jogo", "Base: none in play")}
+        aria-label={legalTarget ? tr("Atacar jogador (Base)", "Attack player (Base)") : tr("Base: nenhuma em jogo", "Base: none in play")}
         onClick={legalTarget && onSelect ? () => onSelect(null as any) : undefined}
         className={cn(
           "aspect-[63/88] overflow-hidden rounded-arena border border-dashed transition-all duration-150",
@@ -82,7 +84,7 @@ export function BaseCardGauge({
   const remaining = Math.max(0, maxHp - base.damage);
   const pct = maxHp > 0 ? Math.round((remaining / maxHp) * 100) : 0;
   const isEx = Boolean(base.def.isToken);
-  const title = `Base${isEx ? " EX" : ""} · ${remaining}/${maxHp} HP${base.rested ? " · Rested" : ""}${base.damage > 0 ? ` · ${base.damage} de dano` : ""}`;
+  const title = `Base${isEx ? " EX" : ""} · ${remaining}/${maxHp} HP${base.rested ? " · Rested" : ""}${base.damage > 0 ? tr(` · ${base.damage} de dano`, ` · ${base.damage} damage`) : ""}`;
 
   const isInvalidTarget = Boolean(targetingActive && !legalTarget);
   const isAbilityTarget = Boolean(abilityTargetPool);
@@ -161,7 +163,7 @@ export function BaseCardGauge({
           isAbilityTarget
             ? `${abilitySelected ? "Desfazer alvo" : "Selecionar como alvo"}: ${base.def.nameEn}`
             : bodyInspects
-              ? `Ver ${base.def.nameEn}`
+              ? tr(`Ver ${base.def.nameEn}`, `View ${base.def.nameEn}`)
               : undefined
         }
         aria-pressed={isAbilityTarget ? abilitySelected : undefined}
@@ -212,7 +214,7 @@ export function BaseCardGauge({
           {legalTarget ? (
             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
               <span
-                aria-label="Alvo Válido"
+                aria-label={tr("Alvo Válido", "Valid Target")}
                 className="flex size-[clamp(1.5rem,calc(var(--card-w-std,2.17rem)*0.55),2.6rem)] items-center justify-center rounded-full border border-emerald-400 bg-emerald-950/70 text-emerald-300 shadow-[0_0_14px_rgba(52,211,153,0.75)] animate-pulse"
               >
                 <Crosshair className="size-3/4" />

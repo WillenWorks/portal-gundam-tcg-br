@@ -13,6 +13,7 @@ import type { CardDef } from "@/modules/simulator/engine/types";
 import { getScaledDuration } from "./animationSettings";
 import { artSrc, cardBackUrl, isGenericArtCard, type ArtLookup } from "./cardArt";
 import { sfx } from "../audio/soundEffects";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export interface BurstRevealOrigin {
   x: number;
@@ -34,6 +35,7 @@ const FLIP_BASE_MS = 500;
 const HOLD_BASE_MS = 550;
 
 export function BurstRevealStage({ cardDef, art, origin, cardW, onDone }: BurstRevealStageProps) {
+  const { tr } = useSiteLanguage();
   const [phase, setPhase] = useState<"fly" | "flip" | "hold">("fly");
   const flyMs = useMemo(() => getScaledDuration(FLY_BASE_MS), []);
   const flipMs = useMemo(() => getScaledDuration(FLIP_BASE_MS), []);
@@ -100,7 +102,7 @@ export function BurstRevealStage({ cardDef, art, origin, cardW, onDone }: BurstR
             style={{ transform: "rotateY(0deg)", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
             className="absolute inset-0 sim-backface-hidden overflow-hidden rounded-arena border-2 border-amber-400/90 bg-slate-950 shadow-[0_10px_30px_rgba(0,0,0,0.9),0_0_24px_rgba(251,191,36,0.6)]"
           >
-            <img src={cardBackUrl} alt="Verso da carta" className="h-full w-full object-cover object-center" />
+            <img src={cardBackUrl} alt={tr("Verso da carta", "Card back")} className="h-full w-full object-cover object-center" />
           </div>
           {/* Frente — revelada pelo giro 3D */}
           <div

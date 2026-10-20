@@ -14,6 +14,7 @@
 import { useEffect } from "react";
 import { Check, Info, Swords, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 interface MatchPromptProps {
   /** mensagem atual (ou `null` pra esconder). */
@@ -44,6 +45,7 @@ export function MatchPrompt({
   onSkipBlock,
   onPassAction,
 }: MatchPromptProps) {
+  const { tr } = useSiteLanguage();
   useEffect(() => {
     if (!onCancel && !onPassAction && !onSkipBlock) return;
     function handleKeyDown(e: KeyboardEvent) {
@@ -116,7 +118,7 @@ export function MatchPrompt({
                 onClick={onCancel}
                 className="flex items-center gap-1 rounded-arena border border-current/50 bg-black/20 px-2 py-1 text-[10px] font-bold uppercase tracking-wide hover:bg-current/10 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <X className="size-3" aria-hidden /> Cancelar Jogada <span className="opacity-60">(Esc)</span>
+                <X className="size-3" aria-hidden /> {tr("Cancelar Jogada", "Cancel Play")} <span className="opacity-60">(Esc)</span>
               </button>
             ) : null}
           </div>

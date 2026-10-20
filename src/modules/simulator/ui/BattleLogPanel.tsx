@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { ScrollText, Minimize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BattleLogEntry, BattleLogKind } from "./battleLog";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 const KIND_CLASS: Record<BattleLogKind, string> = {
   turn: "text-primary font-bold border-t border-primary/20 pt-1 mt-1",
@@ -20,6 +21,7 @@ interface BattleLogPanelProps {
 }
 
 export function BattleLogPanel({ entries, onCollapse, className }: BattleLogPanelProps) {
+  const { tr } = useSiteLanguage();
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -28,7 +30,7 @@ export function BattleLogPanel({ entries, onCollapse, className }: BattleLogPane
 
   return (
     <aside
-      aria-label="Histórico de batalha"
+      aria-label={tr("Histórico de batalha", "Battle history")}
       className={cn(
         "panel-cut surface-panel flex w-full flex-col border border-primary/20 p-3",
         className,
@@ -42,7 +44,7 @@ export function BattleLogPanel({ entries, onCollapse, className }: BattleLogPane
           <button
             type="button"
             onClick={onCollapse}
-            title="Recolher painel de log"
+            title={tr("Recolher painel de log", "Collapse log panel")}
             className="rounded p-1 text-slate-400 hover:bg-white/5 hover:text-slate-200"
           >
             <Minimize2 className="size-3" />
@@ -53,7 +55,7 @@ export function BattleLogPanel({ entries, onCollapse, className }: BattleLogPane
       <div className="scrollbar-ghost min-h-0 flex-1 space-y-1 overflow-y-auto pr-1 text-[11px] leading-snug">
         {entries.length === 0 ? (
           <div className="flex h-full items-center justify-center py-8 text-center text-slate-600">
-            <p>Nenhum evento registrado ainda.</p>
+            <p>{tr("Nenhum evento registrado ainda.", "No events yet.")}</p>
           </div>
         ) : (
           entries.map((e, i) => (

@@ -16,6 +16,8 @@ import { CardEffectText, inspectorStats, staticAbilityKeywordLabels } from "./Ca
 import { CardFace } from "./CardFace";
 import { KeywordTooltip } from "@/i18n/KeywordTooltip";
 import { CardInspectorPlayabilityBadge } from "./CardInspectorPlayabilityBadge";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
+import { useCardLanguage } from "@/i18n/useCardLanguage";
 
 interface CardInspectorPanelProps {
   card: CardInstance | null;
@@ -46,12 +48,13 @@ export function CardInspectorPanel({
   effectEn,
   className,
 }: CardInspectorPanelProps) {
+  const { tr } = useSiteLanguage();
   return (
     <aside
-      aria-label="Detalhes da carta"
+      aria-label={tr("Detalhes da carta", "Card details")}
       className={cn("panel-cut surface-panel flex w-full flex-col border border-primary/20 p-3", className)}
     >
-      <p className="mb-2 text-[10px] font-semibold tracking-wide text-slate-400">Detalhes da carta</p>
+      <p className="mb-2 text-[10px] font-semibold tracking-wide text-slate-400">{tr("Detalhes da carta", "Card details")}</p>
       {card ? (
         <PanelBody
           card={card}
@@ -71,12 +74,13 @@ export function CardInspectorPanel({
 }
 
 function PanelIdle() {
+  const { tr } = useSiteLanguage();
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
       <Crosshair className="size-8 text-slate-600 motion-safe:animate-pulse" aria-hidden />
-      <p className="text-xs font-semibold text-slate-400">Nenhuma carta selecionada</p>
+      <p className="text-xs font-semibold text-slate-400">{tr("Nenhuma carta selecionada", "No card selected")}</p>
       <p className="max-w-[16rem] text-[11px] leading-relaxed text-slate-500">
-        Passe o cursor sobre uma carta do campo ou da mão para ver os detalhes.
+        {tr("Passe o cursor sobre uma carta do campo ou da mão para ver os detalhes.", "Hover a card on the board or in your hand to see its details.")}
       </p>
     </div>
   );
@@ -101,6 +105,8 @@ function PanelBody({
   effectPt?: string;
   effectEn?: string;
 }) {
+  const { tr } = useSiteLanguage();
+  const { isPt: cardsInPt } = useCardLanguage();
   const { def } = card;
   // Feedback Willen 3ª rodada: Command não tem AP/HP (não mostrar "0");
   // Pilot mostra o modificador impresso (+X/+Y).
@@ -164,8 +170,8 @@ function PanelBody({
       </div>
 
       <div className="grid grid-cols-2 gap-1.5 text-xs">
-        {def.level !== undefined ? <Stat label="Nível" value={def.level} /> : null}
-        {def.cost !== undefined ? <Stat label="Custo" value={def.cost} /> : null}
+        {def.level !== undefined ? <Stat label={tr("Nível", "Level")} value={def.level} /> : null}
+        {def.cost !== undefined ? <Stat label={tr("Custo", "Cost")} value={def.cost} /> : null}
         {ap !== undefined ? <Stat label={apLabel} value={fmtStat(ap)} tone={apBuffed ? "buff" : undefined} /> : null}
         {hp !== undefined ? <Stat label={hpLabel} value={fmtStat(hp)} tone={hpDamaged ? "damage" : undefined} /> : null}
       </div>
@@ -219,9 +225,9 @@ function PanelBody({
         <div className="border-t border-white/10 pt-2">
           <p className="mb-1 text-[10px] uppercase tracking-wide text-amber-500/90">Restrições</p>
           <div className="flex flex-wrap gap-1">
-            {(card as any).cannotAttack ? <span className="border border-amber-400/40 bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-300">Não pode atacar neste turno</span> : null}
-            {(card as any).preventActivationNextTurn ? <span className="border border-amber-400/40 bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-300">Não desvira no próximo turno</span> : null}
-            {(card as any).cannotTargetPlayer ? <span className="border border-amber-400/40 bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-300">Não pode atacar jogador</span> : null}
+            {(card as any).cannotAttack ? <span className="border border-amber-400/40 bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-300">{cardsInPt ? "Não pode atacar neste turno" : "Can't attack this turn"}</span> : null}
+            {(card as any).preventActivationNextTurn ? <span className="border border-amber-400/40 bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-300">{cardsInPt ? "Não desvira no próximo turno" : "Doesn't set active next turn"}</span> : null}
+            {(card as any).cannotTargetPlayer ? <span className="border border-amber-400/40 bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-300">{cardsInPt ? "Não pode atacar jogador" : "Can't attack the player"}</span> : null}
             {(card as any).grantAttackTargetRelax ? <span className="border border-cyan-400/40 bg-cyan-500/10 px-1.5 py-0.5 text-[11px] font-medium text-cyan-300">Pode mirar Unidade ativa</span> : null}
           </div>
         </div>

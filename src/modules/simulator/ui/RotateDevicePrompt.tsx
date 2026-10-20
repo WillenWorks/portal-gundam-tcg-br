@@ -6,16 +6,18 @@
  * mora na página (`SimulatorMatchPage`). */
 import { RotateCw, Smartphone } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 interface RotateDevicePromptProps {
   className?: string;
 }
 
 export function RotateDevicePrompt({ className }: RotateDevicePromptProps) {
+  const { tr } = useSiteLanguage();
   return (
     <div
       role="alertdialog"
-      aria-label="Gire o dispositivo para o modo paisagem"
+      aria-label={tr("Gire o dispositivo para o modo paisagem", "Rotate your device to landscape")}
       className={cn(
         "fixed inset-0 z-[70] flex flex-col items-center justify-center gap-6 bg-slate-950/95 px-8 text-center",
         className,
@@ -31,15 +33,15 @@ export function RotateDevicePrompt({ className }: RotateDevicePromptProps) {
 
       <div className="max-w-xs space-y-2">
         <p className="font-heading text-xl font-black uppercase tracking-[0.14em] text-soft">
-          Gire para o modo paisagem
+          {tr("Gire para o modo paisagem", "Rotate to landscape")}
         </p>
         <p className="text-xs leading-relaxed text-muted-portal">
-          O tabuleiro precisa da tela na horizontal. Gire o aparelho para continuar.
+          {tr("O tabuleiro precisa da tela na horizontal. Gire o aparelho para continuar.", "The board needs a landscape screen. Rotate your device to continue.")}
         </p>
       </div>
 
       <span className="border border-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-        Aguardando o giro da tela
+        {tr("Aguardando o giro da tela", "Waiting for rotation")}
       </span>
     </div>
   );

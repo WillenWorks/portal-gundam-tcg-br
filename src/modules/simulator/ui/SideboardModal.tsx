@@ -25,6 +25,7 @@ import {
 import type { ArtLookup } from "./cardArt";
 import { CardFace } from "./CardFace";
 import { sfx } from "@/modules/simulator/audio/soundEffects";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export interface SideboardModalProps {
   matchId: string;
@@ -53,6 +54,7 @@ export function SideboardModal({
   onConfirmSwaps,
   onInspectCard,
 }: SideboardModalProps) {
+  const { tr } = useSiteLanguage();
   // Lista de códigos retirados do Main e inseridos do Sideboard
   const [mainOut, setMainOut] = useState<string[]>([]);
   const [sideIn, setSideIn] = useState<string[]>([]);
@@ -243,14 +245,14 @@ export function SideboardModal({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-mono font-bold tracking-widest text-cyan-400 uppercase">
-                  HANGAR TÁTICO ANAHEIM
+                  {tr("HANGAR TÁTICO ANAHEIM", "ANAHEIM HANGAR")}
                 </span>
                 <Badge variant="outline" className="border-amber-400/60 bg-amber-950/30 text-amber-300 font-mono text-[10px] uppercase">
-                  Bo3 // Jogo {currentGameIndex}
+                  Bo3 // {tr("Jogo", "Game")} {currentGameIndex}
                 </Badge>
               </div>
               <h2 className="text-lg font-black tracking-wider uppercase text-white drop-shadow">
-                Fase de Sideboard Tático
+                {tr("Fase de Sideboard Tático", "Sideboard Phase")}
               </h2>
             </div>
           </div>
@@ -259,7 +261,7 @@ export function SideboardModal({
           <div className="flex items-center gap-4">
             {/* Placar */}
             <div className="flex flex-col items-end">
-              <span className="text-[10px] font-mono tracking-widest text-slate-400 uppercase">Placar da Série</span>
+              <span className="text-[10px] font-mono tracking-widest text-slate-400 uppercase">{tr("Placar da Série", "Series Score")}</span>
               <div className="flex items-center gap-1.5 font-mono text-sm font-bold text-white bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700">
                 <span className={cn(bo3Score.A > bo3Score.B ? "text-cyan-400" : "text-slate-300")}>
                   P1: {bo3Score.A}
@@ -282,7 +284,7 @@ export function SideboardModal({
             >
               <Clock className={cn("size-4", isTimerCritical ? "text-red-400" : "text-cyan-400")} />
               <div className="flex flex-col">
-                <span className="text-[9px] uppercase tracking-tighter opacity-70 leading-none">Tempo Restante</span>
+                <span className="text-[9px] uppercase tracking-tighter opacity-70 leading-none">{tr("Tempo Restante", "Time Left")}</span>
                 <span className="text-base font-black leading-none mt-0.5">{formatTimer(timeLeft)}</span>
               </div>
             </div>
@@ -324,7 +326,7 @@ export function SideboardModal({
 
             {/* Cores Ativas */}
             <div className="flex items-center gap-1 font-mono">
-              <span className="text-slate-400 uppercase tracking-wider text-[11px]">Cores:</span>
+              <span className="text-slate-400 uppercase tracking-wider text-[11px]">{tr("Cores:", "Colors:")}</span>
               <div className="flex gap-1">
                 {validation.colors.map((color) => (
                   <Badge
@@ -341,7 +343,7 @@ export function SideboardModal({
             {/* Balanço de Trocas */}
             <div className="flex items-center gap-1.5 font-mono text-[11px]">
               <ArrowLeftRight className="size-3.5 text-amber-400" />
-              <span className="text-slate-400">Trocas:</span>
+              <span className="text-slate-400">{tr("Trocas:", "Swaps:")}</span>
               <span className={cn("font-bold", isSwapBalanced ? "text-cyan-300" : "text-amber-400")}>
                 {mainOut.length} fora ⇄ {sideIn.length} dentro
               </span>
@@ -353,12 +355,12 @@ export function SideboardModal({
             {validation.valid ? (
               <div className="flex items-center gap-1.5 text-emerald-400 font-mono text-[11px] font-bold">
                 <ShieldCheck className="size-4" />
-                <span>DECK LEGALIZADO</span>
+                <span>{tr("DECK LEGALIZADO", "DECK LEGAL")}</span>
               </div>
             ) : (
               <div className="flex items-center gap-1.5 text-amber-400 font-mono text-[11px] font-bold">
                 <ShieldAlert className="size-4" />
-                <span>{validation.errors[0]?.message ?? "DECK INVÁLIDO"}</span>
+                <span>{validation.errors[0]?.message ?? tr("DECK INVÁLIDO", "DECK INVALID")}</span>
               </div>
             )}
           </div>
@@ -373,17 +375,17 @@ export function SideboardModal({
               </div>
               <div>
                 <p className="text-sm font-bold text-cyan-200 tracking-wide uppercase">
-                  Suas trocas foram transmitidas com sucesso!
+                  {tr("Suas trocas foram transmitidas com sucesso!", "Your swaps were sent!")}
                 </p>
                 <p className="text-xs text-cyan-400/80 font-mono">
                   {oppConfirmed
-                    ? "Ambos os jogadores confirmaram. Iniciando próximo jogo..."
-                    : "Aguardando confirmação tática do oponente ou fim dos 180s..."}
+                    ? tr("Ambos os jogadores confirmaram. Iniciando próximo jogo...", "Both players confirmed. Starting the next game...")
+                    : tr("Aguardando confirmação tática do oponente ou fim dos 180s...", "Waiting for the opponent to confirm or for the 180s to run out...")}
                 </p>
               </div>
             </div>
             <Badge variant="outline" className="border-cyan-400/50 bg-cyan-900/40 text-cyan-300 font-mono text-xs uppercase px-3 py-1">
-              Pronto para a Batalha
+              {tr("Pronto para a Batalha", "Ready for Battle")}
             </Badge>
           </div>
         )}
@@ -395,14 +397,14 @@ export function SideboardModal({
             <div className="flex items-center justify-between pb-2 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-mono font-bold tracking-widest uppercase text-cyan-400">
-                  Main Deck Atual
+                  {tr("Main Deck Atual", "Current Main Deck")}
                 </span>
                 <span className="text-[11px] text-slate-400 font-mono">
                   ({baseMain.length} cartas base)
                 </span>
               </div>
               <span className="text-[10px] text-slate-500 font-mono">
-                Clique na carta para retirar pro Sideboard
+                {tr("Clique na carta para retirar pro Sideboard", "Click a card to move it to the Sideboard")}
               </span>
             </div>
 
@@ -427,7 +429,7 @@ export function SideboardModal({
                       <div
                         className="cursor-pointer shrink-0"
                         onClick={() => onInspectCard?.(card.code)}
-                        title="Inspecionar carta"
+                        title={tr("Inspecionar carta", "Inspect card")}
                       >
                         <CardFace
                           code={card.code}
@@ -462,7 +464,7 @@ export function SideboardModal({
                     {/* Controles de Swap */}
                     <div className="mt-2 pt-1.5 border-t border-slate-800/80 flex items-center justify-between">
                       <div className="flex items-center gap-1 font-mono text-[10px]">
-                        <span className="text-slate-400">Qtd:</span>
+                        <span className="text-slate-400">{tr("Qtd:", "Qty:")}</span>
                         <span className="font-bold text-white">{remainingCount}x</span>
                         {outCount > 0 && (
                           <span className="text-amber-400 font-bold">(-{outCount})</span>
@@ -476,7 +478,7 @@ export function SideboardModal({
                               type="button"
                               onClick={() => handleUnmarkMainOut(card.code)}
                               className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white"
-                              title="Desfazer retirada"
+                              title={tr("Desfazer retirada", "Undo removal")}
                             >
                               <Plus className="size-3" />
                             </button>
@@ -486,7 +488,7 @@ export function SideboardModal({
                               type="button"
                               onClick={() => handleMarkMainOut(card.code)}
                               className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-[10px] font-mono font-bold"
-                              title="Retirar para o Sideboard"
+                              title={tr("Retirar para o Sideboard", "Move to Sideboard")}
                             >
                               <Minus className="size-3" />
                               <span>SIDE</span>
@@ -506,23 +508,23 @@ export function SideboardModal({
             <div className="flex items-center justify-between pb-2 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-mono font-bold tracking-widest uppercase text-cyan-400">
-                  Sideboard Disponível
+                  {tr("Sideboard Disponível", "Available Sideboard")}
                 </span>
                 <span className="text-[11px] text-slate-400 font-mono">
                   ({baseSide.length} cartas)
                 </span>
               </div>
               <span className="text-[10px] text-slate-500 font-mono">
-                Clique na carta para subir ao Main Deck
+                {tr("Clique na carta para subir ao Main Deck", "Click a card to move it to the Main Deck")}
               </span>
             </div>
 
             {groupedSide.length === 0 ? (
               <div className="flex flex-col items-center justify-center p-8 text-center border border-dashed border-slate-800 rounded bg-slate-900/40">
                 <AlertTriangle className="size-8 text-amber-400/60 mb-2" />
-                <p className="text-sm font-bold text-slate-300">Nenhum Sideboard Registrado</p>
+                <p className="text-sm font-bold text-slate-300">{tr("Nenhum Sideboard Registrado", "No Sideboard Registered")}</p>
                 <p className="text-xs text-slate-500 max-w-xs mt-1">
-                  Este deck não possui cartas de sideboard reservadas. O formato Bo3 seguirá com a lista principal inalterada.
+                  {tr("Este deck não possui cartas de sideboard reservadas. O formato Bo3 seguirá com a lista principal inalterada.", "This deck has no sideboard cards. The Bo3 continues with the main list unchanged.")}
                 </p>
               </div>
             ) : (
@@ -547,7 +549,7 @@ export function SideboardModal({
                         <div
                           className="cursor-pointer shrink-0"
                           onClick={() => onInspectCard?.(card.code)}
-                          title="Inspecionar carta"
+                          title={tr("Inspecionar carta", "Inspect card")}
                         >
                           <CardFace
                             code={card.code}
@@ -596,7 +598,7 @@ export function SideboardModal({
                                 type="button"
                                 onClick={() => handleUnmarkSideIn(card.code)}
                                 className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white"
-                                title="Desfazer adição ao main"
+                                title={tr("Desfazer adição ao main", "Undo adding to main")}
                               >
                                 <Minus className="size-3" />
                               </button>
@@ -606,7 +608,7 @@ export function SideboardModal({
                                 type="button"
                                 onClick={() => handleMarkSideIn(card.code)}
                                 className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 text-[10px] font-mono font-bold"
-                                title="Mover para o Main Deck"
+                                title={tr("Mover para o Main Deck", "Move to the Main Deck")}
                               >
                                 <Plus className="size-3" />
                                 <span>MAIN</span>
@@ -635,14 +637,14 @@ export function SideboardModal({
                 className="border-slate-700 bg-slate-800/80 text-slate-300 hover:text-white font-mono text-xs"
               >
                 <RotateCcw className="size-3.5 mr-1.5" />
-                Resetar Trocas
+                {tr("Resetar Trocas", "Reset Swaps")}
               </Button>
             )}
 
             {!isSwapBalanced && !isConfirmed && (
               <span className="text-xs font-mono text-amber-400 flex items-center gap-1">
                 <AlertTriangle className="size-3.5" />
-                Trocas devem ser 1:1 ({mainOut.length} fora vs {sideIn.length} dentro).
+                {tr(`Trocas devem ser 1:1 (${mainOut.length} fora vs ${sideIn.length} dentro).`, `Swaps must be 1:1 (${mainOut.length} out vs ${sideIn.length} in).`)}
               </span>
             )}
           </div>
@@ -662,17 +664,17 @@ export function SideboardModal({
               {isConfirmed ? (
                 <>
                   <CheckCircle2 className="size-4 mr-2" />
-                  Trocas Confirmadas
+                  {tr("Trocas Confirmadas", "Swaps Confirmed")}
                 </>
               ) : mainOut.length === 0 && sideIn.length === 0 ? (
                 <>
                   <Sparkles className="size-4 mr-2" />
-                  Manter Deck Sem Trocas
+                  {tr("Manter Deck Sem Trocas", "Keep Deck Without Swaps")}
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="size-4 mr-2" />
-                  Confirmar Trocas de Sideboard
+                  {tr("Confirmar Trocas de Sideboard", "Confirm Sideboard Swaps")}
                 </>
               )}
             </Button>

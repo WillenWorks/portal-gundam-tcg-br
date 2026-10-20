@@ -10,6 +10,7 @@ import { Swords, ArrowRight } from "lucide-react";
 import type { CombatState, CardInstance, GameState, PlayerId } from "@/modules/simulator/engine/types";
 import { effectiveAp } from "@/modules/simulator/engine/types";
 import { playerAreaKey, playerShieldKey } from "./useBoardElements";
+import { useSiteLanguage, type Localized } from "@/i18n/siteLanguage";
 
 interface CombatLaneProps {
   combat: CombatState;
@@ -23,12 +24,12 @@ interface CombatLaneProps {
   rectOf: (key: string) => DOMRect | null;
 }
 
-const STEP_LABEL: Record<CombatState["step"], string> = {
-  attack: "Declaração",
-  block: "Bloqueio",
-  action: "Ação",
-  damage: "Dano",
-  battleEnd: "Fim da batalha",
+const STEP_LABEL: Record<CombatState["step"], Localized> = {
+  attack: { pt: "Declaração", en: "Attack" },
+  block: { pt: "Bloqueio", en: "Block" },
+  action: { pt: "Ação", en: "Action" },
+  damage: { pt: "Dano", en: "Damage" },
+  battleEnd: { pt: "Fim da batalha", en: "Battle end" },
 };
 
 function center(r: DOMRect): { x: number; y: number } {
@@ -36,6 +37,7 @@ function center(r: DOMRect): { x: number; y: number } {
 }
 
 export function CombatLane({ combat, attacker, targetUnit, viewerSeat, state, rectOf }: CombatLaneProps) {
+  const { tr } = useSiteLanguage();
   const [, remeasure] = useReducer((n: number) => n + 1, 0);
 
   const iAttack = combat.attackingPlayer === viewerSeat;
@@ -76,8 +78,8 @@ export function CombatLane({ combat, attacker, targetUnit, viewerSeat, state, re
   const targetLabel =
     combat.currentTarget === "player"
       ? iAttack
-        ? "Jogador oponente"
-        : "Você (jogador)"
+        ? tr("Jogador oponente", "Opponent player")
+        : tr("Você (jogador)", "You (player)")
       : (targetUnit?.def.nameEn ?? "Unit");
 
   return (
@@ -148,13 +150,13 @@ export function CombatLane({ combat, attacker, targetUnit, viewerSeat, state, re
       <div className="pointer-events-none fixed inset-x-0 top-16 z-[46] flex justify-center px-2">
         <div className="flex w-fit max-w-[calc(100vw-1rem)] items-center gap-2 whitespace-nowrap rounded-arena border border-red-500/50 bg-slate-950/92 px-3.5 py-1.5 text-xs shadow-[0_0_18px_rgba(239,68,68,0.35)]">
           <Swords className="size-4 shrink-0 text-red-400" />
-          <span className="font-semibold text-soft">{attacker?.def.nameEn ?? "Atacante"}</span>
+          <span className="font-semibold text-soft">{attacker?.def.nameEn ?? tr("Atacante", "Attacker")}</span>
           {attacker ? <span className="shrink-0 font-black text-cyan-300">AP{effectiveAp(attacker, state)}</span> : null}
           <ArrowRight className="size-4 shrink-0 animate-pulse text-red-400" />
           <span className="font-semibold text-soft">{targetLabel}</span>
           {targetUnit ? <span className="shrink-0 font-black text-cyan-300">AP{effectiveAp(targetUnit, state)}</span> : null}
           <span className="ml-1 shrink-0 border-l border-white/10 pl-2 text-[9px] uppercase tracking-wide text-red-300/80">
-            {STEP_LABEL[combat.step]}
+            {tr(STEP_LABEL[combat.step])}
           </span>
         </div>
       </div>

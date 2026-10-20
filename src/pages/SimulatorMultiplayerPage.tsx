@@ -38,17 +38,23 @@ import {
   type ArenaWinner,
 } from "@/modules/simulator/network/socketClient4p";
 import SimulatorMatchPage from "@/pages/SimulatorMatchPage";
+import { useSiteLanguage, type Localized } from "@/i18n/siteLanguage";
 
 const SESSION_KEY = "portal-gundam-tcg-br:arena4p-session";
 
-const EMOTES: Array<{ id: string; label: string; icon: string }> = [
-  { id: "attack", label: "Ataque!", icon: "⚔️" },
-  { id: "defend", label: "Defenda!", icon: "🛡️" },
-  { id: "nice", label: "Boa!", icon: "👍" },
-  { id: "gg", label: "GG!", icon: "🤝" },
+const EMOTES: Array<{ id: string; label: Localized; icon: string }> = [
+  { id: "attack", label: { pt: "Ataque!", en: "Attack!" }, icon: "⚔️" },
+  { id: "defend", label: { pt: "Defenda!", en: "Defend!" }, icon: "🛡️" },
+  { id: "nice", label: { pt: "Boa!", en: "Nice!" }, icon: "👍" },
+  { id: "gg", label: { pt: "GG!", en: "GG!" }, icon: "🤝" },
 ];
 
-const SEAT_LABEL: Record<ArenaSeatId, string> = { seatA: "Assento A", seatB: "Assento B", seatC: "Assento C", seatD: "Assento D" };
+const SEAT_LABEL: Record<ArenaSeatId, Localized> = {
+  seatA: { pt: "Assento A", en: "Seat A" },
+  seatB: { pt: "Assento B", en: "Seat B" },
+  seatC: { pt: "Assento C", en: "Seat C" },
+  seatD: { pt: "Assento D", en: "Seat D" },
+};
 
 interface SessionState {
   mode: ArenaMode;
@@ -83,6 +89,7 @@ function clearSession(): void {
 }
 
 export default function SimulatorMultiplayerPage() {
+  const { tr } = useSiteLanguage();
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const [initialSession] = useState(() => loadSession());
@@ -184,7 +191,7 @@ export default function SimulatorMultiplayerPage() {
       saveSession({ mode, deckId, lobbyId });
       arena4pSocket.joinLobbyRoom(lobbyId);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : "Não deu pra criar o esquadrão.");
+      setErrorMsg(err instanceof Error ? err.message : tr("Não deu pra criar o esquadrão.", "Couldn't create the squad."));
     } finally {
       setBusyAction(null);
     }
@@ -199,7 +206,7 @@ export default function SimulatorMultiplayerPage() {
       saveSession({ deckId, lobbyId });
       arena4pSocket.joinLobbyRoom(lobbyId);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : "Não deu pra entrar no esquadrão.");
+      setErrorMsg(err instanceof Error ? err.message : tr("Não deu pra entrar no esquadrão.", "Couldn't join the squad."));
     } finally {
       setBusyAction(null);
     }
@@ -248,28 +255,28 @@ export default function SimulatorMultiplayerPage() {
                   <div className="flex items-center gap-2">
                     <Radar className="size-5 text-violet-400" />
                     <h1 className="font-heading text-2xl uppercase tracking-wide text-white">
-                      {mode === "2v2" ? "Radar Tático · 2v2 Tag Team" : "Radar Tático · Battle Royale"}
+                      {mode === "2v2" ? tr("Radar Tático · 2v2 Tag Team", "Tactical Radar · 2v2 Tag Team") : tr("Radar Tático · Battle Royale", "Tactical Radar · Battle Royale")}
                     </h1>
                   </div>
                   <div className="flex items-center gap-2">
                     {myLane ? (
                       <Button size="sm" className="rounded-arena bg-violet-600 hover:bg-violet-700" onClick={() => setOverviewOpen(false)}>
-                        <Swords className="mr-1.5 size-3.5" /> Voltar ao duelo
+                        <Swords className="mr-1.5 size-3.5" /> {tr("Voltar ao duelo", "Back to the duel")}
                       </Button>
                     ) : null}
                     <Button size="sm" variant="outline" className="rounded-arena border-white/20" onClick={handleExitArena}>
-                      <ArrowLeft className="mr-1.5 size-3.5" /> Sair da Arena
+                      <ArrowLeft className="mr-1.5 size-3.5" /> {tr("Sair da Arena", "Leave the Arena")}
                     </Button>
                   </div>
                 </div>
 
                 {winner ? <ArenaResultBanner winner={winner} mySeat={mySeat} /> : null}
 
-                {radar ? <RadarGrid radar={radar} mySeat={mySeat} /> : <p className="text-sm text-slate-400">Sincronizando radar...</p>}
+                {radar ? <RadarGrid radar={radar} mySeat={mySeat} /> : <p className="text-sm text-slate-400">{tr("Sincronizando radar...", "Syncing radar...")}</p>}
 
                 {!myLane && !winner ? (
                   <div className="rounded-none border border-violet-500/30 bg-violet-950/20 p-4 text-sm text-violet-200">
-                    Seu duelo desta rodada terminou — aguardando o resultado da outra lane para decidir a próxima etapa.
+                    {tr("Seu duelo desta rodada terminou — aguardando o resultado da outra lane para decidir a próxima etapa.", "Your duel for this round is over — waiting for the other lane's result to decide what's next.")}
                   </div>
                 ) : null}
 
@@ -289,7 +296,7 @@ export default function SimulatorMultiplayerPage() {
               className="group relative flex flex-col gap-1 rounded-none border border-violet-500/50 bg-slate-950/90 p-3 text-left shadow-[0_0_30px_rgba(139,92,246,0.25)] backdrop-blur-md"
             >
               <span className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.2em] text-violet-300">
-                <Radar className="size-3.5" /> Visão tática
+                <Radar className="size-3.5" /> {tr("Visão tática", "Tactical view")}
               </span>
               {radar ? <MiniRadarBars radar={radar} mySeat={mySeat} /> : null}
               {lastEmote ? (
@@ -315,12 +322,12 @@ export default function SimulatorMultiplayerPage() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-violet-400 font-semibold flex items-center gap-1.5">
-                <Users className="size-3.5" /> Sala de Esquadrão · {lobby.mode === "2v2" ? "2v2 Tag Team" : "Battle Royale"}
+                <Users className="size-3.5" /> {tr("Sala de Esquadrão", "Squad Room")} · {lobby.mode === "2v2" ? "2v2 Tag Team" : "Battle Royale"}
               </p>
-              <h1 className="mt-1.5 font-heading text-3xl uppercase text-white heading-portal">Sala de Espera</h1>
+              <h1 className="mt-1.5 font-heading text-3xl uppercase text-white heading-portal">{tr("Sala de Espera", "Waiting Room")}</h1>
             </div>
             <Button type="button" variant="outline" size="sm" className="rounded-arena border-white/20" onClick={handleLeaveLobby}>
-              <ArrowLeft className="mr-1.5 size-3.5" /> Sair
+              <ArrowLeft className="mr-1.5 size-3.5" /> {tr("Sair", "Leave")}
             </Button>
           </div>
 
@@ -329,7 +336,7 @@ export default function SimulatorMultiplayerPage() {
           {squadCode ? (
             <div className="flex items-center justify-between gap-3 rounded-none border border-violet-500/30 bg-violet-950/20 p-3">
               <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-violet-300">Código de convite</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-violet-300">{tr("Código de convite", "Invite code")}</p>
                 <p className="font-mono text-xl text-white">{squadCode}</p>
               </div>
               <Button
@@ -339,7 +346,7 @@ export default function SimulatorMultiplayerPage() {
                 className="rounded-arena border-white/20"
                 onClick={() => navigator.clipboard?.writeText(squadCode).catch(() => undefined)}
               >
-                <Copy className="mr-1.5 size-3.5" /> Copiar
+                <Copy className="mr-1.5 size-3.5" /> {tr("Copiar", "Copy")}
               </Button>
             </div>
           ) : null}
@@ -353,9 +360,9 @@ export default function SimulatorMultiplayerPage() {
                   key={seat}
                   className={`rounded-none border p-3 ${occupant ? (occupant.ready ? "border-emerald-500/40 bg-emerald-950/20" : "border-white/15 bg-black/30") : "border-dashed border-white/10 bg-black/10"}`}
                 >
-                  <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-portal">{SEAT_LABEL[seat]}</p>
+                  <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-portal">{tr(SEAT_LABEL[seat])}</p>
                   <p className="mt-1 truncate text-sm font-semibold text-white">
-                    {occupant ? `${occupant.displayName}${isMe ? " (Você)" : ""}` : "Vaga aberta..."}
+                    {occupant ? `${occupant.displayName}${isMe ? tr(" (Você)", " (You)") : ""}` : tr("Vaga aberta...", "Open seat...")}
                   </p>
                   {occupant ? (
                     <span className={`mt-1 inline-block text-[10px] uppercase tracking-wide ${occupant.ready ? "text-emerald-400" : "text-slate-500"}`}>
@@ -375,7 +382,7 @@ export default function SimulatorMultiplayerPage() {
               className={`w-full rounded-arena ${lobby.seats[mySeat]?.ready ? "bg-slate-700 hover:bg-slate-600" : "bg-violet-600 hover:bg-violet-700"}`}
               onClick={() => handleReady(!lobby.seats[mySeat]?.ready)}
             >
-              <Shield className="mr-2 size-4" /> {lobby.seats[mySeat]?.ready ? "Cancelar pronto" : "Estou pronto"}
+              <Shield className="mr-2 size-4" /> {lobby.seats[mySeat]?.ready ? tr("Cancelar pronto", "Not ready") : tr("Estou pronto", "I'm ready")}
             </Button>
           ) : null}
         </div>
@@ -392,7 +399,7 @@ export default function SimulatorMultiplayerPage() {
         <div className="pointer-events-none absolute inset-0">
           <img loading="lazy" decoding="async"
             src="/images/multiplayer_total_war_arena.webp"
-            alt="Guerra Total no Espaço"
+            alt={tr("Guerra Total no Espaço", "All-out war in space")}
             className="h-full w-full object-cover object-center opacity-95 brightness-105 contrast-105"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0b0f19] via-transparent to-[#0b0f19]/70" />
@@ -405,27 +412,27 @@ export default function SimulatorMultiplayerPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.24em] text-violet-400 font-semibold flex items-center gap-1.5">
-                  <Users className="size-3.5" /> Simulador · Partida para 4 jogadores
+                  <Users className="size-3.5" /> {tr("Simulador · Partida para 4 jogadores", "Simulator · 4-player match")}
                 </p>
                 <h1 className="mt-1.5 font-heading text-3xl sm:text-4xl uppercase text-white heading-portal">Arena Multiplayer</h1>
                 <p className="mt-2 text-xs sm:text-sm leading-relaxed text-soft">
-                  Confrontos táticos reais para 4 pilotos, via Socket.io — 2v2 Tag Team cooperativo ou Battle Royale free-for-all.
+                  {tr("Confrontos táticos reais para 4 pilotos, via Socket.io — 2v2 Tag Team cooperativo ou Battle Royale free-for-all.", "Real-time matches for 4 players — cooperative 2v2 Tag Team or free-for-all Battle Royale.")}
                 </p>
               </div>
               <Button type="button" variant="outline" size="sm" className="shrink-0 rounded-arena border-white/20 hover:bg-white/10" onClick={() => navigate("/simulador")}>
-                <ArrowLeft className="mr-1.5 size-3.5" /> Voltar
+                <ArrowLeft className="mr-1.5 size-3.5" /> {tr("Voltar", "Back")}
               </Button>
             </div>
 
             {errorMsg ? <p className="rounded-none border border-red-500/30 bg-red-950/20 p-3 text-sm text-red-300">{errorMsg}</p> : null}
             {connStatus !== "connected" ? (
               <p className="rounded-none border border-amber-500/30 bg-amber-950/20 p-2 text-xs text-amber-300">
-                Conectando ao servidor da Arena... ({connStatus})
+                {tr("Conectando ao servidor da Arena...", "Connecting to the Arena server...")} ({connStatus})
               </p>
             ) : null}
 
             <div className="space-y-2">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">Modalidade de Combate (4 Pilotos)</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">{tr("Modalidade de Combate (4 Pilotos)", "Mode (4 players)")}</p>
               <div className="grid grid-cols-2 gap-2.5">
                 <button
                   type="button"
@@ -433,9 +440,9 @@ export default function SimulatorMultiplayerPage() {
                   className={`flex flex-col items-start rounded-lg border p-3 text-left transition-all ${mode === "2v2" ? "border-violet-500 bg-violet-950/40 text-violet-300 shadow-[0_0_15px_rgba(139,92,246,0.2)]" : "border-white/10 bg-black/30 text-soft"}`}
                 >
                   <div className="flex items-center gap-1.5 font-semibold text-xs sm:text-sm uppercase tracking-wider">
-                    <Layers className="size-3.5 text-violet-400" /> 2x2 Duplas
+                    <Layers className="size-3.5 text-violet-400" /> {tr("2x2 Duplas", "2v2 Teams")}
                   </div>
-                  <span className="text-[10px] text-muted-portal mt-0.5">Time A+C vs Time B+D — cooperação de esquadrão</span>
+                  <span className="text-[10px] text-muted-portal mt-0.5">{tr("Time A+C vs Time B+D — cooperação de esquadrão", "Team A+C vs Team B+D — squad play")}</span>
                 </button>
                 <button
                   type="button"
@@ -445,13 +452,13 @@ export default function SimulatorMultiplayerPage() {
                   <div className="flex items-center gap-1.5 font-semibold text-xs sm:text-sm uppercase tracking-wider">
                     <Flame className="size-3.5 text-amber-400" /> Battle Royale
                   </div>
-                  <span className="text-[10px] text-muted-portal mt-0.5">Todos contra todos — só um piloto sobra</span>
+                  <span className="text-[10px] text-muted-portal mt-0.5">{tr("Todos contra todos — só um piloto sobra", "Free-for-all — only one player survives")}</span>
                 </button>
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">Seu Deck de Combate</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">{tr("Seu Deck de Combate", "Your Deck")}</p>
               <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
                 {SIMULATOR_DECK_PRESETS.map((d) => (
                   <button
@@ -472,7 +479,7 @@ export default function SimulatorMultiplayerPage() {
                 disabled={busyAction !== null || connStatus !== "connected"}
                 onClick={handleQueue}
               >
-                <Swords className="mr-2 size-4" /> {queueStatus.inQueue ? `Na fila... (${queueStatus.position}/4)` : "Entrar na Fila Oficial 4P (FIFO Online)"}
+                <Swords className="mr-2 size-4" /> {queueStatus.inQueue ? tr(`Na fila... (${queueStatus.position}/4)`, `In queue... (${queueStatus.position}/4)`) : tr("Entrar na Fila Oficial 4P (FIFO Online)", "Join the official 4P queue (online)")}
               </Button>
 
               <Button
@@ -481,18 +488,18 @@ export default function SimulatorMultiplayerPage() {
                 disabled={busyAction !== null || connStatus !== "connected"}
                 onClick={handleCreateSquad}
               >
-                <Users className="mr-2 size-4" /> Criar Esquadrão (Convite Direto 4P)
+                <Users className="mr-2 size-4" /> {tr("Criar Esquadrão (Convite Direto 4P)", "Create Squad (4P direct invite)")}
               </Button>
 
               <div className="flex gap-2">
                 <input
                   value={squadCodeInput}
                   onChange={(e) => setSquadCodeInput(e.target.value.toUpperCase())}
-                  placeholder="Código (ex: AR-4821)"
+                  placeholder={tr("Código (ex: AR-4821)", "Code (e.g. AR-4821)")}
                   className="flex-1 rounded-md border border-white/15 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-violet-500 focus:outline-none"
                 />
                 <Button variant="outline" className="rounded-arena border-white/20" disabled={busyAction !== null || !squadCodeInput.trim()} onClick={handleJoinSquad}>
-                  Entrar
+                  {tr("Entrar", "Join")}
                 </Button>
               </div>
             </div>
@@ -504,6 +511,7 @@ export default function SimulatorMultiplayerPage() {
 }
 
 function RadarGrid({ radar, mySeat }: { radar: Record<ArenaSeatId, ArenaRadarEntry>; mySeat?: ArenaSeatId }) {
+  const { tr } = useSiteLanguage();
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {ARENA_SEAT_IDS.map((seat) => {
@@ -516,13 +524,13 @@ function RadarGrid({ radar, mySeat }: { radar: Record<ArenaSeatId, ArenaRadarEnt
           >
             <div className="flex items-center justify-between gap-2">
               <p className="truncate text-sm font-semibold text-white">
-                {entry.displayName} {seat === mySeat ? <span className="text-violet-400">(Você)</span> : null}
+                {entry.displayName} {seat === mySeat ? <span className="text-violet-400">{tr("(Você)", "(You)")}</span> : null}
               </p>
               {entry.eliminated ? (
-                <Badge variant="outline" className="rounded-none border-red-500/40 text-[10px] text-red-300">Eliminado</Badge>
+                <Badge variant="outline" className="rounded-none border-red-500/40 text-[10px] text-red-300">{tr("Eliminado", "Eliminated")}</Badge>
               ) : (
                 <Badge variant="outline" className="rounded-none border-white/15 text-[10px] text-slate-300">
-                  {entry.laneStatus === "active" ? "Em combate" : "Aguardando"}
+                  {entry.laneStatus === "active" ? tr("Em combate", "In combat") : tr("Aguardando", "Waiting")}
                 </Badge>
               )}
             </div>
@@ -557,20 +565,21 @@ function MiniRadarBars({ radar, mySeat }: { radar: Record<ArenaSeatId, ArenaRada
 }
 
 function ArenaResultBanner({ winner, mySeat }: { winner: ArenaWinner; mySeat?: ArenaSeatId }) {
+  const { tr } = useSiteLanguage();
   const iWon = winner.kind === "seat" ? winner.seat === mySeat : undefined;
   return (
     <div className={`flex items-center gap-3 rounded-none border p-4 ${iWon === false ? "border-slate-500/30 bg-slate-900/40" : "border-amber-500/40 bg-amber-950/20"}`}>
       <Crown className="size-6 shrink-0 text-amber-400" />
       <div>
         <p className="font-heading text-xl uppercase text-white">
-          {winner.kind === "team" ? `Time ${winner.team} venceu a Arena!` : "Battle Royale encerrada!"}
+          {winner.kind === "team" ? tr(`Time ${winner.team} venceu a Arena!`, `Team ${winner.team} won the Arena!`) : tr("Battle Royale encerrada!", "Battle Royale over!")}
         </p>
         <p className="text-xs text-slate-300">
           {winner.kind === "team"
             ? winner.team === 1
-              ? "Assentos A + C são os campeões do 2v2."
-              : "Assentos B + D são os campeões do 2v2."
-            : `Campeão: ${SEAT_LABEL[winner.seat!]}.`}
+              ? tr("Assentos A + C são os campeões do 2v2.", "Seats A + C are the 2v2 champions.")
+              : tr("Assentos B + D são os campeões do 2v2.", "Seats B + D are the 2v2 champions.")
+            : tr(`Campeão: ${tr(SEAT_LABEL[winner.seat!])}.`, `Champion: ${tr(SEAT_LABEL[winner.seat!])}.`)}
         </p>
       </div>
     </div>
@@ -588,13 +597,14 @@ function ArenaChatPanel({
   setChatInput: (v: string) => void;
   onSend: () => void;
 }) {
+  const { tr } = useSiteLanguage();
   return (
     <div className="flex flex-1 min-h-[220px] flex-col rounded-none border border-white/10 bg-black/30">
       <div className="flex items-center gap-1.5 border-b border-white/10 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.2em] text-slate-400">
-        <MessageSquare className="size-3.5" /> Chat & Log de Combate
+        <MessageSquare className="size-3.5" /> {tr("Chat & Log de Combate", "Chat & Battle Log")}
       </div>
       <div className="flex-1 space-y-1.5 overflow-y-auto p-3">
-        {chat.length === 0 ? <p className="text-xs text-slate-500">Sem mensagens ainda.</p> : null}
+        {chat.length === 0 ? <p className="text-xs text-slate-500">{tr("Sem mensagens ainda.", "No messages yet.")}</p> : null}
         {chat.map((entry) => (
           <p
             key={entry.id}
@@ -610,7 +620,7 @@ function ArenaChatPanel({
           value={chatInput}
           onChange={(e) => setChatInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && onSend()}
-          placeholder="Mensagem para o esquadrão..."
+          placeholder={tr("Mensagem para o esquadrão...", "Message your squad...")}
           maxLength={280}
           className="flex-1 rounded-md border border-white/10 bg-black/40 px-3 py-1.5 text-xs text-white placeholder:text-slate-500 focus:border-violet-500 focus:outline-none"
         />
@@ -623,6 +633,7 @@ function ArenaChatPanel({
 }
 
 function EmoteBar({ onEmote }: { onEmote: (emoteId: string) => void }) {
+  const { tr } = useSiteLanguage();
   return (
     <div className="flex flex-wrap gap-2">
       {EMOTES.map((emote) => (
@@ -632,11 +643,11 @@ function EmoteBar({ onEmote }: { onEmote: (emoteId: string) => void }) {
           onClick={() => onEmote(emote.id)}
           className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-white transition hover:bg-white/10"
         >
-          <span className="text-base">{emote.icon}</span> {emote.label}
+          <span className="text-base">{emote.icon}</span> {tr(emote.label)}
         </button>
       ))}
       <span className="flex items-center gap-1 self-center text-[10px] uppercase tracking-wide text-slate-500">
-        <ShieldAlert className="size-3" /> Radial de emotes
+        <ShieldAlert className="size-3" /> {tr("Radial de emotes", "Emotes")}
       </span>
     </div>
   );
