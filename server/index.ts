@@ -127,6 +127,7 @@ import { attachSocialSocket } from "./socialSocket.ts";
 import { createMailer, registerAuthEmailRoutes, sendVerificationEmail, validatePasswordRequirements } from "./authEmailService.ts";
 import { recaptchaVerifier } from "./recaptchaService.ts";
 import { captureServerError, initServerErrorMonitoring } from "./errorMonitoring.ts";
+import { checkSession, createSessionStateCache } from "./sessionState.ts";
 
 const prisma = new PrismaClient();
 
@@ -356,6 +357,24 @@ const app = express();
 // site inteiro.
 app.set("trust proxy", "loopback");
 app.disable("x-powered-by");
+
+// Log das requisições da API que valem olhar: erro 5xx ou mais de 1,5 s. Uma linha JSON por requisição,
+// com um id que também vai no cabeçalho X-Request-Id (dá para casar a reclamação de alguém com o log).
+// Sem query string, IP, usuário ou corpo.
+const SLOW_REQUEST_MS = 1500;
+app.use((req, res, next) => {
+  if (!req.path.startsWith("/api/")) return next();
+  const started = process.hrtime.bigint();
+  const id = crypto.randomUUID().slice(0, 8);
+  res.setHeader("X-Request-Id", id);
+  res.on("finish", () => {
+    const ms = Number(process.hrtime.bigint() - started) / 1e6;
+    if (res.statusCode >= 500 || ms >= SLOW_REQUEST_MS) {
+      console.log(JSON.stringify({ t: new Date().toISOString(), tipo: res.statusCode >= 500 ? "erro" : "lenta", id, metodo: req.method, rota: req.path, status: res.statusCode, ms: Math.round(ms) }));
+    }
+  });
+  next();
+});
 const PORT = Number(process.env.API_PORT ?? 8787);
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 const INSECURE_JWT_SECRET_PLACEHOLDER = "change-this-secret";
@@ -427,6 +446,8 @@ type AuthPayload = {
   email: string;
   username: string;
   isHoster: boolean;
+  /** versão da senha quando o token foi emitido (ver server/sessionState.ts); tokens antigos não têm */
+  tv?: number;
 };
 
 type RequestWithUser = Request & { user?: AuthPayload };
@@ -545,24 +566,51 @@ function signToken(payload: AuthPayload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
 }
 
-function authRequired(req: RequestWithUser, res: Response, next: NextFunction) {
+const sessions = createSessionStateCache((userId) =>
+  prisma.user.findUnique({ where: { id: userId }, select: { isActive: true, role: true, isHoster: true, tokenVersion: true } }),
+);
+
+/** Confere no banco (cache de 60 s) se a conta segue ativa e se o token é de depois da última troca de senha;
+ *  papel e flag de organizador passam a vir do banco. Banco fora do ar → segue com o que o token diz. */
+async function resolveSession(payload: AuthPayload): Promise<AuthPayload | "inactive" | "revoked"> {
+  let state;
+  try {
+    state = await sessions.get(payload.userId);
+  } catch (error) {
+    console.warn("[auth] estado da sessão indisponível — usando o token", error instanceof Error ? error.message : error);
+    return payload;
+  }
+  const verdict = checkSession(payload.tv, state);
+  if (verdict !== "ok") return verdict;
+  return { ...payload, role: state!.role as UserRole, isHoster: state!.isHoster };
+}
+
+async function authRequired(req: RequestWithUser, res: Response, next: NextFunction) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Token ausente." });
+  let payload: AuthPayload;
   try {
-    req.user = jwt.verify(auth.slice(7), JWT_SECRET) as AuthPayload;
-    next();
+    payload = jwt.verify(auth.slice(7), JWT_SECRET) as AuthPayload;
   } catch {
     return res.status(401).json({ error: "Token inválido." });
   }
+  const session = await resolveSession(payload);
+  if (session === "inactive") return res.status(401).json({ error: "Conta sem acesso ativo." });
+  if (session === "revoked") return res.status(401).json({ error: "Sessão encerrada. Entre de novo." });
+  req.user = session;
+  next();
 }
 
 /** Como authRequired, mas não bloqueia se não tiver token — só preenche req.user
  *  quando o token existe e é válido. Usado em rotas públicas onde o dono logado
  *  deve enxergar mais do que um visitante anônimo (ex: pasta privada só pro dono). */
-function authOptional(req: RequestWithUser, _res: Response, next: NextFunction) {
+async function authOptional(req: RequestWithUser, _res: Response, next: NextFunction) {
   const auth = req.headers.authorization;
   if (auth?.startsWith("Bearer ")) {
-    try { req.user = jwt.verify(auth.slice(7), JWT_SECRET) as AuthPayload; } catch { /* token invalido, segue como anonimo */ }
+    try {
+      const session = await resolveSession(jwt.verify(auth.slice(7), JWT_SECRET) as AuthPayload);
+      if (typeof session !== "string") req.user = session;
+    } catch { /* token invalido, segue como anonimo */ }
   }
   next();
 }
@@ -1327,7 +1375,7 @@ app.post("/api/auth/register", async (req, res) => {
   });
   // o link de confirmação vai em segundo plano: o cadastro não espera o SMTP
   void sendVerificationEmail(authEmailDeps, user, req).catch((err) => console.error("[email] confirmação no cadastro:", err));
-  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username, isHoster: user.isHoster });
+  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username, isHoster: user.isHoster, tv: user.tokenVersion });
   res.status(201).json({ token, user: serializeUser(user) });
 });
 
@@ -1409,7 +1457,7 @@ app.post("/api/auth/login", async (req, res) => {
   if (!user || !user.isActive) return res.status(401).json({ error: "Credenciais inválidas ou usuário inativo." });
   if (!user.passwordHash) return res.status(401).json({ error: "Essa conta usa login com Google — entre pelo botão \"Continuar com Google\"." });
   if (!(await bcrypt.compare(normalizedPassword, user.passwordHash))) return res.status(401).json({ error: "Credenciais inválidas ou usuário inativo." });
-  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username, isHoster: user.isHoster });
+  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username, isHoster: user.isHoster, tv: user.tokenVersion });
   res.json({ token, user: serializeUser(user) });
 });
 
@@ -1476,7 +1524,7 @@ app.post("/api/auth/google", async (req, res) => {
   }
 
   if (!user.isActive) return res.status(401).json({ error: "Usuário inativo." });
-  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username, isHoster: user.isHoster });
+  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username, isHoster: user.isHoster, tv: user.tokenVersion });
   res.json({ token, user: serializeUser(user) });
 });
 
@@ -1523,8 +1571,11 @@ app.put("/api/auth/password", authRequired, async (req: RequestWithUser, res) =>
   // definir uma agora (isso NAO desativa o login por Google, so adiciona um segundo
   // caminho de acesso pra essa conta).
   const passwordHash = await bcrypt.hash(newPassword, 10);
-  await prisma.user.update({ where: { id: current.id }, data: { passwordHash } });
-  res.json({ ok: true });
+  // nova versão: tokens emitidos antes (outros aparelhos, token vazado) deixam de valer; este aparelho recebe um novo
+  const updated = await prisma.user.update({ where: { id: current.id }, data: { passwordHash, tokenVersion: { increment: 1 } } });
+  sessions.invalidate(current.id);
+  const token = signToken({ userId: updated.id, role: updated.role, email: updated.email, username: updated.username, isHoster: updated.isHoster, tv: updated.tokenVersion });
+  res.json({ ok: true, token });
 });
 
 // Upload de avatar -- aberto a qualquer usuario autenticado (diferente do upload
@@ -1564,6 +1615,8 @@ app.put("/api/users/admin/:id", authRequired, roleRequired([UserRole.ADMIN]), as
       supporterSince: payload.isSupporter ? new Date() : (payload.isSupporter === false ? null : undefined),
     },
   });
+  // papel, organizador ou desativação valem na próxima requisição da pessoa, sem esperar o cache
+  sessions.invalidate(id);
   res.json(serializeUser(user));
 });
 
@@ -5869,9 +5922,11 @@ async function boot() {
     prisma,
     resolveDeck: resolveOnlineSimulatorDeck,
   });
-  httpServer.listen(PORT, () => {
-    console.log(`API pronta em http://localhost:${PORT} (HTTP + WebSocket)`);
-  });
+  // em produção só aceita conexão de dentro da VPS (o nginx fala com a API por 127.0.0.1); API_HOST sobrescreve
+  const host = process.env.API_HOST || (IS_PRODUCTION ? "127.0.0.1" : undefined);
+  const onListening = () => console.log(`API pronta em http://${host ?? "localhost"}:${PORT} (HTTP + WebSocket)`);
+  if (host) httpServer.listen(PORT, host, onListening);
+  else httpServer.listen(PORT, onListening);
   // linhas de `SimulatorMatch` que ninguém mais vai abrir (terminadas / abandonadas) — no boot e a cada 6 h
   const purgeMatches = async () => {
     const count = await purgeStaleSimulatorMatches(prisma.simulatorMatch);
