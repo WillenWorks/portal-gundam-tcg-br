@@ -334,7 +334,25 @@ jobs:
               rclone version | head -1
               umask 077
               mkdir -p /root/.config/rclone /root/.config/backup-externo
-              printf '[gdrive]\ntype = drive\nscope = drive.file\ntoken = %s\n' "$RCLONE_DRIVE_TOKEN" > /root/.config/rclone/rclone.conf
+              # o `rclone authorize` novo entrega o token em base64 (às vezes dentro de {"token": "..."}); o antigo, em JSON
+              TOKEN_JSON=$(printf '%s' "$RCLONE_DRIVE_TOKEN" | python3 -c '
+            import base64, json, sys
+            raw = sys.stdin.read().strip()
+            def as_json(s):
+                try:
+                    return json.loads(s)
+                except Exception:
+                    return None
+            obj = as_json(raw)
+            if obj is None:
+                obj = as_json(base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4)).decode())
+            if isinstance(obj, dict) and "access_token" not in obj and isinstance(obj.get("token"), str):
+                obj = json.loads(obj["token"])
+            if not (isinstance(obj, dict) and obj.get("refresh_token")):
+                sys.exit("token do Drive em formato inesperado (sem refresh_token)")
+            print(json.dumps(obj, separators=(",", ":")))
+            ')
+              printf '[gdrive]\ntype = drive\nscope = drive.file\ntoken = %s\n' "$TOKEN_JSON" > /root/.config/rclone/rclone.conf
               printf '%s' "$BACKUP_PASSPHRASE" > /root/.config/backup-externo/senha
               cat > /usr/local/sbin/backup-externo.sh <<'SCRIPT'
             #!/bin/bash
@@ -355,7 +373,8 @@ jobs:
               echo '30 6 * * * root /usr/local/sbin/backup-externo.sh >> /var/log/backup-externo.log 2>&1' > /etc/cron.d/backup-externo
               chmod 644 /etc/cron.d/backup-externo
               secao "primeiro backup"
-              /usr/local/sbin/backup-externo.sh | tee -a /var/log/backup-externo.log
+              /usr/local/sbin/backup-externo.sh >> /var/log/backup-externo.log 2>&1 || { tail -n 5 /var/log/backup-externo.log | cut -c1-200; echo "PRIMEIRO BACKUP FALHOU"; exit 1; }
+              tail -n 1 /var/log/backup-externo.log
               secao "no Drive (pasta anaheimhub-backups)"
               rclone lsl gdrive:anaheimhub-backups | tail -n 6
               echo "agendado: todo dia às 06:30 do relógio da VPS ($(date +%Z))"
