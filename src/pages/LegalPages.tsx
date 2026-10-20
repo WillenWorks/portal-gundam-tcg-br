@@ -6,7 +6,7 @@ import privacyPolicyHtml from "@/legal/privacy-policy.html?raw";
 const CONTACT_ADMIN = "admin@anaheimhub.com";
 const CONTACT_SUPPORT = "contato@anaheimhub.com";
 const UPDATED = "11 de outubro de 2026";
-export const PRIVACY_UPDATED = "18 de outubro de 2026";
+export const PRIVACY_UPDATED = "19 de outubro de 2026";
 
 function LegalLayout({ title, updated = UPDATED, children }: { title: string; updated?: string; children: ReactNode }) {
   return (

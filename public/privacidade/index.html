@@ -124,7 +124,7 @@
       <header>
         <p class="brand">AnaheimHub Portal</p>
         <h1>Política de Privacidade</h1>
-        <p class="updated">Última atualização: 18 de outubro de 2026</p>
+        <p class="updated">Última atualização: 19 de outubro de 2026</p>
         <a href="/" class="btn">Acessar o Portal</a>
       </header>
 
@@ -150,6 +150,7 @@
           <li><strong>Dados do simulador:</strong> registros técnicos das partidas contra o bot ou na arena e relatórios de erro enviados voluntariamente, usados para melhorar as regras e a inteligência do simulador.</li>
           <li><strong>Dados técnicos e de segurança:</strong> endereço IP, data e hora de acesso e cabeçalhos das requisições, usados para segurança, limitação de tentativas de login e proteção contra robôs (Google reCAPTCHA).</li>
           <li><strong>Estatísticas de audiência:</strong> páginas visitadas, origem do acesso, tipo de navegador/dispositivo e país, coletados de forma agregada e sem cookies pelo Cloudflare Web Analytics (ver seção 7).</li>
+          <li><strong>Relatórios de erro técnico:</strong> quando uma página ou a API falha, registramos a mensagem do erro, o trecho do código onde ocorreu, a página ou rota, o navegador e o sistema operacional, pelo Sentry. Esses relatórios <em>não</em> incluem nome, e-mail, endereço IP, cookies, senhas nem o conteúdo do que você digitou; e-mails e códigos de acesso que apareçam em mensagens ou endereços são apagados antes do envio.</li>
         </ul>
 
         <h2>3. Dados da Conta Google (Google API Services User Data Policy)</h2>
@@ -174,6 +175,7 @@
           <li><strong>Criar e manter sua conta, salvar decks e coleções, enviar e-mails de confirmação e de recuperação de senha:</strong> execução do contrato de uso da plataforma (art. 7º, V).</li>
           <li><strong>Login com Google:</strong> execução do contrato, a seu pedido, quando você escolhe essa forma de acesso (art. 7º, V).</li>
           <li><strong>Segurança, prevenção de fraude e de abuso, registros de acesso e reCAPTCHA:</strong> legítimo interesse em proteger a plataforma e seus usuários (art. 7º, IX).</li>
+          <li><strong>Relatórios de erro técnico:</strong> legítimo interesse em encontrar e corrigir falhas do portal (art. 7º, IX).</li>
           <li><strong>Estatísticas agregadas de audiência e de metagame:</strong> legítimo interesse em entender o uso do portal e melhorar o serviço, sem identificar pessoas (art. 7º, IX).</li>
           <li><strong>Resultados públicos de torneios:</strong> legítimo interesse, com dados tornados manifestamente públicos pelas organizações dos eventos (art. 7º, IX e § 4º).</li>
         </ul>
@@ -183,7 +185,7 @@
           O banco de dados (PostgreSQL) e a aplicação rodam em um servidor virtual (VPS) contratado da <strong>Hostinger</strong>, localizado em <strong>São Paulo, Brasil</strong>. Os e-mails transacionais são enviados pelo serviço de e-mail da própria Hostinger.
         </p>
         <p>
-          Alguns serviços de terceiros processam dados fora do Brasil: o <strong>Google</strong> (login e reCAPTCHA) e a <strong>Cloudflare</strong> (estatísticas de audiência), ambos com sede nos Estados Unidos. Essas transferências ocorrem com base nas garantias contratuais e de proteção de dados oferecidas por esses provedores, nos termos do art. 33 da LGPD.
+          Alguns serviços de terceiros processam dados fora do Brasil: o <strong>Google</strong> (login e reCAPTCHA), a <strong>Cloudflare</strong> (estatísticas de audiência) e o <strong>Sentry</strong> (relatórios de erro técnico), todos com sede nos Estados Unidos. Essas transferências ocorrem com base nas garantias contratuais e de proteção de dados oferecidas por esses provedores, nos termos do art. 33 da LGPD.
         </p>
 
         <h2>7. Cookies, Armazenamento Local e Estatísticas</h2>
@@ -200,6 +202,7 @@
           <li><strong>Hostinger:</strong> hospedagem do servidor (VPS), banco de dados e envio de e-mails transacionais.</li>
           <li><strong>Google LLC:</strong> login com Conta Google (OAuth 2.0) e proteção contra robôs (reCAPTCHA).</li>
           <li><strong>Cloudflare, Inc.:</strong> estatísticas agregadas de audiência, sem cookies.</li>
+          <li><strong>Functional Software, Inc. (Sentry):</strong> relatórios de erro técnico, sem dados de identificação.</li>
         </ul>
         <p>Dados também podem ser fornecidos a autoridades mediante ordem judicial ou obrigação legal.</p>
 
@@ -209,6 +212,7 @@
           <li><strong>Cópias de segurança (backups):</strong> substituídas periodicamente; dados excluídos deixam de existir nelas em até 60 dias.</li>
           <li><strong>Registros técnicos de acesso:</strong> mantidos por período limitado, com rotação periódica, apenas para segurança e diagnóstico.</li>
           <li><strong>Estatísticas de audiência:</strong> apenas agregadas, retidas pela Cloudflare por até 6 meses.</li>
+          <li><strong>Relatórios de erro técnico:</strong> apagados pelo Sentry após 30 dias.</li>
         </ul>
 
         <h2>10. Seus Direitos</h2>
