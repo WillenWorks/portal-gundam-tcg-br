@@ -106,3 +106,7 @@ docs/bot/pool-db-*.json
 # Relatos de bug do simulador gravados pelo servidor (gameState e reporterId): só locais, apagados após a correção
 /bug-reports/
 /bug report/
+
+# Playwright
+test-results/
+playwright-report/
