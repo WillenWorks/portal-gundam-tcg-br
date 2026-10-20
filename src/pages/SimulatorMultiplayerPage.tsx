@@ -374,7 +374,7 @@ export default function SimulatorMultiplayerPage() {
             })}
           </div>
 
-          <p className="text-xs text-slate-400">{seatsFilled}/4 pilotos na sala. A partida começa automaticamente quando os 4 estiverem prontos.</p>
+          <p className="text-xs text-slate-400">{tr(`${seatsFilled}/4 pilotos na sala. A partida começa automaticamente quando os 4 estiverem prontos.`, `${seatsFilled}/4 players in the room. The match starts automatically when all 4 are ready.`)}</p>
 
           {mySeat ? (
             <Button

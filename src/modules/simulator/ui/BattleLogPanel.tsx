@@ -38,7 +38,7 @@ export function BattleLogPanel({ entries, onCollapse, className }: BattleLogPane
     >
       <div className="mb-2 flex shrink-0 items-center justify-between border-b border-white/10 pb-1.5">
         <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-primary">
-          <ScrollText className="size-3.5" /> Log de combate ({entries.length})
+          <ScrollText className="size-3.5" /> {tr("Log de combate", "Battle log")} ({entries.length})
         </p>
         {onCollapse ? (
           <button

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export interface StatDetailRow {
   id: string;
@@ -22,6 +23,7 @@ interface StatDetailModalProps {
 }
 
 export function StatDetailModal({ title, rows, onClose, onPreviewCard }: StatDetailModalProps) {
+  const { tr } = useSiteLanguage();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   if (!title) return null;
   const total = rows.reduce((sum, r) => sum + r.quantity, 0);
@@ -34,7 +36,7 @@ export function StatDetailModal({ title, rows, onClose, onPreviewCard }: StatDet
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{title.label}</p>
             <DialogTitle className="font-heading text-2xl uppercase heading-portal">{title.value}</DialogTitle>
             <p className="mt-1 text-xs text-slate-400 font-mono">
-              {rows.length} carta(s) única(s) · {total} cópia(s) no total
+              {tr(`${rows.length} carta(s) única(s) · ${total} cópia(s) no total`, `${rows.length} unique card(s) · ${total} cop${total === 1 ? "y" : "ies"} in total`)}
             </p>
           </div>
           <div className="flex border border-white/15">
@@ -45,7 +47,7 @@ export function StatDetailModal({ title, rows, onClose, onPreviewCard }: StatDet
                 viewMode === "grid" ? "bg-primary text-primary-foreground font-semibold" : "bg-white/5 text-slate-300 hover:bg-white/10"
               }`}
             >
-              Imagens
+              {tr("Imagens", "Images")}
             </button>
             <button
               type="button"
@@ -54,13 +56,13 @@ export function StatDetailModal({ title, rows, onClose, onPreviewCard }: StatDet
                 viewMode === "list" ? "bg-primary text-primary-foreground font-semibold" : "bg-white/5 text-slate-300 hover:bg-white/10"
               }`}
             >
-              Lista
+              {tr("Lista", "List")}
             </button>
           </div>
         </div>
 
         {!rows.length ? (
-          <p className="py-8 text-center text-sm text-muted-portal">Nenhuma carta encontrada para este filtro.</p>
+          <p className="py-8 text-center text-sm text-muted-portal">{tr("Nenhuma carta encontrada para este filtro.", "No cards found for this filter.")}</p>
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 pt-2">
             {rows.map((row) => {

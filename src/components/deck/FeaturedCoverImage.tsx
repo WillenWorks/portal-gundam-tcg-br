@@ -1,6 +1,7 @@
 /* Capa do deck vertical v9.0 — orientada para proporções de carta de TCG (portrait),
  * exibindo a arte dos Mobile Suits e Pilotos com dignidade e foco nas ilustrações. */
 import React from "react";
+import { tr as trNow } from "@/i18n/siteLanguageCore";
 
 const ART_PORTRAIT_STYLE: React.CSSProperties = {
   backgroundSize: "cover",
@@ -10,7 +11,7 @@ const ART_PORTRAIT_STYLE: React.CSSProperties = {
 
 export function FeaturedCoverImage({
   cards,
-  fallbackLabel = "Sem capa",
+  fallbackLabel = trNow("Sem capa", "No cover"),
   className = "",
 }: {
   cards?: Array<{ id: string; name: string; imageUrl: string | null }>;

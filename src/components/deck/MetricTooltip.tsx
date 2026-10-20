@@ -3,6 +3,7 @@
  * em touch. Acessível: o botão referencia o texto por aria-describedby e a dica tem
  * role="tooltip"; o marcador data-metric permite auditar a cobertura na tela. */
 import { useEffect, useId, useRef, useState } from "react";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export type MetricTooltipProps = {
   /** Identificador estável da métrica — vira o atributo data-metric, usado pelo
@@ -16,6 +17,7 @@ export type MetricTooltipProps = {
 };
 
 export function MetricTooltip({ metric, what, howToRead, className }: MetricTooltipProps) {
+  const { tr } = useSiteLanguage();
   const [open, setOpen] = useState(false);
   const tooltipId = useId();
   const ref = useRef<HTMLSpanElement>(null);
@@ -47,7 +49,7 @@ export function MetricTooltip({ metric, what, howToRead, className }: MetricTool
         onClick={() => setOpen((o) => !o)}
         aria-describedby={tooltipId}
         aria-expanded={open}
-        aria-label={`O que é esta métrica: ${what}`}
+        aria-label={tr(`O que é esta métrica: ${what}`, `What this metric is: ${what}`)}
         className="ml-2 inline-flex size-4 items-center justify-center rounded-full border border-white/25 text-[10px] leading-none text-slate-400 transition hover:border-primary hover:text-primary light:border-slate-400 light:text-slate-500"
       >
         ?
@@ -58,9 +60,9 @@ export function MetricTooltip({ metric, what, howToRead, className }: MetricTool
         hidden={!open}
         className="absolute left-0 top-6 z-20 w-64 border border-border bg-popover p-2.5 text-[11px] font-normal normal-case leading-4 tracking-normal text-popover-foreground shadow-xl [font-family:var(--font-body)]"
       >
-        <span className="block font-semibold text-foreground">O que é</span>
+        <span className="block font-semibold text-foreground">{tr("O que é", "What it is")}</span>
         <span className="mt-0.5 block">{what}</span>
-        <span className="mt-2 block font-semibold text-foreground">Como ler</span>
+        <span className="mt-2 block font-semibold text-foreground">{tr("Como ler", "How to read it")}</span>
         <span className="mt-0.5 block">{howToRead}</span>
       </span>
     </span>

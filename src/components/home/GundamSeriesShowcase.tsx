@@ -459,7 +459,7 @@ export function GundamSeriesShowcase() {
                 {tr("Universo & Lore", "Universe & Lore")}
               </Badge>
               <span className="text-xs dark:text-slate-400 light:text-slate-600 font-mono">
-                {GUNDAM_SERIES_CATALOG.length} Linhas Temporais Oficiais no Card Game
+                {GUNDAM_SERIES_CATALOG.length} {tr("Linhas Temporais Oficiais no Card Game", "Official Timelines in the Card Game")}
               </span>
             </div>
             <h2 className="heading-portal font-heading text-3xl sm:text-4xl uppercase mt-2 dark:text-white light:text-slate-950">
@@ -628,7 +628,7 @@ export function GundamSeriesShowcase() {
                     <Link
                       href={`/cards?series=${encodeURIComponent(series.dbName)}&sort=code_asc`}
                       className="font-semibold uppercase tracking-wider dark:text-cyan-400 dark:hover:text-cyan-300 light:text-cyan-600 light:hover:text-cyan-800 transition-colors flex items-center gap-1 text-[11px]"
-                      title={`Ver as ${series.cardCount} cartas de ${series.name} no banco de dados`}
+                      title={tr(`Ver as ${series.cardCount} cartas de ${series.name} no banco de dados`, `See the ${series.cardCount} ${series.name} cards in the database`)}
                     >
                       {tr("Ver Cartas", "See Cards")} ({series.cardCount}) <ArrowRight className="size-3" />
                     </Link>

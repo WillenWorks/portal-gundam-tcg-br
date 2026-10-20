@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { GAME_COLOR_HEX } from "@/lib/gundam-catalog";
 import gundamCardBack from "@/assets/gundam-card-back.png";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 interface VedaTelemetryAssistantProps {
   entries: DeckEntry[];
@@ -36,6 +37,7 @@ export function VedaTelemetryAssistant({
   onAddCard,
   availableCards,
 }: VedaTelemetryAssistantProps) {
+  const { tr } = useSiteLanguage();
   const [recommendations, setRecommendations] = useState<MetaRecommendationsResponse | null>(null);
   const [loadingRecs, setLoadingRecs] = useState(false);
   const [activeTab, setActiveTab] = useState<"SYNERGIES" | "STAPLES" | "TECHS">("SYNERGIES");
@@ -188,14 +190,14 @@ export function VedaTelemetryAssistant({
             <div className="flex items-center gap-2">
               <Cpu className="size-4 text-cyan-400 animate-pulse" />
               <p className="text-xs uppercase tracking-[0.24em] text-primary font-mono font-semibold">
-                Assistente Tático VEDA · Telemetria Hipergeométrica & Lift
+                {tr("Assistente Tático VEDA · Telemetria Hipergeométrica & Lift", "VEDA Assistant · Hypergeometric Stats & Lift")}
               </p>
               <Badge className="rounded-none border border-cyan-500/30 bg-cyan-950/40 text-cyan-300 text-[10px] uppercase font-mono">
-                Análise Preditiva
+                {tr("Análise Preditiva", "Predictive Analysis")}
               </Badge>
             </div>
             <h3 className="mt-1 font-heading text-2xl uppercase tracking-wider text-white">
-              Diagnóstico de Consistência & Sinergia Algorítmica
+              {tr("Diagnóstico de Consistência & Sinergia Algorítmica", "Consistency & Synergy Check")}
             </h3>
           </div>
 
@@ -207,7 +209,7 @@ export function VedaTelemetryAssistant({
             className="rounded-none border-white/20 bg-white/5 text-xs uppercase tracking-wider font-mono hover:bg-primary/20 hover:border-primary text-slate-200"
           >
             <RefreshCw className={`mr-2 size-3.5 ${loadingRecs ? "animate-spin text-primary" : ""}`} />
-            Recalcular Sinergias
+            {tr("Recalcular Sinergias", "Recalculate Synergies")}
           </Button>
         </div>
 
@@ -217,7 +219,7 @@ export function VedaTelemetryAssistant({
           <div className="panel-cut border border-emerald-500/30 bg-emerald-950/20 p-4 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-400 font-mono">Presença Inicial T1/T2</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-400 font-mono">{tr("Presença Inicial T1/T2", "Early Presence T1/T2")}</p>
                 <Target className="size-3.5 text-emerald-400" />
               </div>
               <p className="mt-2 font-heading text-3xl text-white">
@@ -228,7 +230,7 @@ export function VedaTelemetryAssistant({
               </p>
             </div>
             <p className="text-[11px] text-slate-400 mt-2 border-t border-white/10 pt-2">
-              Probabilidade de abrir com pelo menos 1 Unidade Lv.1–3 ({lowLevelUnitsCount} na lista).
+              {tr(`Probabilidade de abrir com pelo menos 1 Unidade Lv.1–3 (${lowLevelUnitsCount} na lista).`, `Chance of opening with at least 1 Lv.1–3 Unit (${lowLevelUnitsCount} in the list).`)}
             </p>
           </div>
 
@@ -236,7 +238,7 @@ export function VedaTelemetryAssistant({
           <div className="panel-cut border border-cyan-500/30 bg-cyan-950/20 p-4 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-400 font-mono">Defesa de Escudo (Burst)</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-400 font-mono">{tr("Defesa de Escudo (Burst)", "Shield Defense (Burst)")}</p>
                 <ShieldCheck className="size-3.5 text-cyan-400" />
               </div>
               <p className="mt-2 font-heading text-3xl text-white">
@@ -247,7 +249,7 @@ export function VedaTelemetryAssistant({
               </p>
             </div>
             <p className="text-[11px] text-slate-400 mt-2 border-t border-white/10 pt-2">
-              Chance de pelo menos 1 ativação de Burst nos 6 escudos colocados no setup da partida.
+              {tr("Chance de pelo menos 1 ativação de Burst nos 6 escudos colocados no setup da partida.", "Chance of at least 1 Burst among the 6 shields set at the start of the match.")}
             </p>
           </div>
 
@@ -255,7 +257,7 @@ export function VedaTelemetryAssistant({
           <div className="panel-cut border border-amber-500/30 bg-amber-950/20 p-4 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-amber-400 font-mono">Curva Tática Composta</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-amber-400 font-mono">{tr("Curva Tática Composta", "Composite Curve")}</p>
                 <SlidersHorizontal className="size-3.5 text-amber-400" />
               </div>
               <p className="mt-2 font-heading text-3xl text-accent">
@@ -266,7 +268,7 @@ export function VedaTelemetryAssistant({
               </p>
             </div>
             <p className="text-[11px] text-slate-400 mt-2 border-t border-white/10 pt-2">
-              Custo Médio {curveStats.avgCost.toFixed(1)} × Nível Médio {curveStats.avgLevel.toFixed(1)}.
+              {tr("Custo Médio", "Avg Cost")} {curveStats.avgCost.toFixed(1)} × {tr("Nível Médio", "Avg Level")} {curveStats.avgLevel.toFixed(1)}.
             </p>
           </div>
 
@@ -274,7 +276,7 @@ export function VedaTelemetryAssistant({
           <div className="panel-cut border border-purple-500/30 bg-purple-950/20 p-4 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-purple-400 font-mono">Identidade de Cor</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-purple-400 font-mono">{tr("Identidade de Cor", "Color Identity")}</p>
                 <Flame className="size-3.5 text-purple-400" />
               </div>
               <div className="flex items-center gap-2 mt-2">
@@ -291,7 +293,7 @@ export function VedaTelemetryAssistant({
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5 font-mono">
-                {totalMainCards} cartas no deck principal
+                {totalMainCards} {tr("cartas no deck principal", "cards in the main deck")}
               </p>
             </div>
             <p className="text-[11px] text-slate-400 mt-2 border-t border-white/10 pt-2">
@@ -307,11 +309,11 @@ export function VedaTelemetryAssistant({
               <div className="flex items-center gap-1.5">
                 <Sparkles className="size-4 text-primary" />
                 <h4 className="font-heading text-xl uppercase tracking-wider text-white">
-                  Sugestões Preditivas por Coocorrência & Lift
+                  {tr("Sugestões Preditivas por Coocorrência & Lift", "Suggestions by Co-occurrence & Lift")}
                 </h4>
               </div>
               <p className="text-xs text-slate-400 mt-1">
-                Baseado em correlações estatísticas entre as cartas da sua lista e o metagame consolidado.
+                {tr("Baseado em correlações estatísticas entre as cartas da sua lista e o metagame consolidado.", "Based on statistical correlations between the cards in your list and the metagame.")}
               </p>
             </div>
 
@@ -326,7 +328,7 @@ export function VedaTelemetryAssistant({
                     : "text-slate-400 hover:text-white"
                 }`}
               >
-                Sinergias de Lift ({recommendations?.synergies?.length ?? 0})
+                {tr("Sinergias de Lift", "Lift Synergies")} ({recommendations?.synergies?.length ?? 0})
               </button>
               <button
                 type="button"
@@ -363,7 +365,7 @@ export function VedaTelemetryAssistant({
               </div>
             ) : totalMainCards === 0 ? (
               <p className="text-xs text-slate-500 italic p-4 text-center border border-white/5 bg-slate-950/40 panel-cut">
-                Adicione cartas ao deck para que o motor VEDA calcule correlações de Lift e afinidade de metagame.
+                {tr("Adicione cartas ao deck para que o motor VEDA calcule correlações de Lift e afinidade de metagame.", "Add cards to the deck so VEDA can calculate Lift correlations and metagame fit.")}
               </p>
             ) : (
               <div>
@@ -406,10 +408,11 @@ function RecommendationList({
   type: "SYNERGY" | "STAPLE" | "TECH";
   onAdd: (item: ClassifiedMetaCard) => void;
 }) {
+  const { tr } = useSiteLanguage();
   if (items.length === 0) {
     return (
       <p className="text-xs text-slate-500 italic p-4 text-center border border-white/5 bg-slate-950/40 panel-cut">
-        Nenhuma recomendação adicional para esta categoria com a lista atual.
+        {tr("Nenhuma recomendação adicional para esta categoria com a lista atual.", "No more recommendations in this category for the current list.")}
       </p>
     );
   }
@@ -431,6 +434,7 @@ function RecommendationCardItem({
   type: "SYNERGY" | "STAPLE" | "TECH";
   onAdd: () => void;
 }) {
+  const { tr } = useSiteLanguage();
   const [imgSrc, setImgSrc] = useState(card.imageUrl || card.imageMediumUrl || gundamCardBack);
 
   return (
@@ -464,7 +468,7 @@ function RecommendationCardItem({
               </Badge>
             )}
             <span className="text-[10px] font-mono text-slate-400">
-              Moda: {card.modeCopies}x
+              {tr("Moda", "Mode")}: {card.modeCopies}x
             </span>
           </div>
         </div>
@@ -474,7 +478,7 @@ function RecommendationCardItem({
         size="sm"
         onClick={onAdd}
         className="shrink-0 size-8 p-0 rounded-none bg-primary/20 border border-primary/40 text-primary hover:bg-primary hover:text-slate-950 transition"
-        title="Adicionar ao deck principal"
+        title={tr("Adicionar ao deck principal", "Add to main deck")}
       >
         <Plus className="size-4" />
       </Button>

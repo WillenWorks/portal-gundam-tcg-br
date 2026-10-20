@@ -14,6 +14,7 @@ import {
   type ExportDeckOptions,
   type ExportStatsData,
 } from "@/utils/deckImageExport";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 interface ExportDeckImageModalProps {
   open: boolean;
@@ -40,6 +41,7 @@ export function ExportDeckImageModal({
   colors = [],
   statsSummary,
 }: ExportDeckImageModalProps) {
+  const { tr } = useSiteLanguage();
   // Configurações e Toggles (Por padrão: apenas deck principal!)
   const [includeResourcesAndEx, setIncludeResourcesAndEx] = useState(false);
   const [includeStats, setIncludeStats] = useState(false);
@@ -109,7 +111,7 @@ export function ExportDeckImageModal({
       })
       .catch((err) => {
         console.error("Erro ao sintetizar imagens:", err);
-        toast.error("Erro ao sintetizar imagem.");
+        toast.error(tr("Erro ao sintetizar imagem.", "Couldn't generate the image."));
       })
       .finally(() => {
         if (isMounted) setGenerating(false);
@@ -153,13 +155,13 @@ export function ExportDeckImageModal({
   const handleDownloadDeck = () => {
     if (!deckBlob) return;
     downloadBlob(deckBlob, "decklist");
-    toast.success("Decklist PNG baixada com sucesso!");
+    toast.success(tr("Decklist PNG baixada com sucesso!", "Decklist PNG downloaded!"));
   };
 
   const handleDownloadStats = () => {
     if (!statsBlob) return;
     downloadBlob(statsBlob, "telemetria-stats");
-    toast.success("Infográfico de Estatísticas PNG baixado com sucesso!");
+    toast.success(tr("Infográfico de Estatísticas PNG baixado com sucesso!", "Stats PNG downloaded!"));
   };
 
   const handleDownloadBoth = () => {
@@ -167,7 +169,7 @@ export function ExportDeckImageModal({
     if (statsBlob) {
       setTimeout(() => downloadBlob(statsBlob, "telemetria-stats"), 600);
     }
-    toast.success("Ambas as imagens foram baixadas!");
+    toast.success(tr("Ambas as imagens foram baixadas!", "Both images downloaded!"));
   };
 
   const currentPreviewUrl = activePreviewTab === "stats" && statsUrl ? statsUrl : deckUrl;
@@ -179,13 +181,13 @@ export function ExportDeckImageModal({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-sky-400">
-                AnaheimHub · Imagem do deck
+                {tr("AnaheimHub · Imagem do deck", "AnaheimHub · Deck image")}
               </p>
               <DialogTitle className="font-heading text-2xl uppercase tracking-wider text-white flex items-center gap-2">
-                <Eye className="size-5 text-sky-400" /> Exportação de Imagem em Alta Resolução
+                <Eye className="size-5 text-sky-400" /> {tr("Exportação de Imagem em Alta Resolução", "High-Resolution Image Export")}
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-400 mt-1">
-                Ajuste os parâmetros antes de salvar. Por padrão, a imagem exporta apenas o deck principal com selo oficial.
+                {tr("Ajuste os parâmetros antes de salvar. Por padrão, a imagem exporta apenas o deck principal com selo oficial.", "Adjust the options before saving. By default the image includes only the main deck with the official seal.")}
               </DialogDescription>
             </div>
           </div>
@@ -194,7 +196,7 @@ export function ExportDeckImageModal({
         {/* BARRA DE TOGGLES / OPÇÕES */}
         <div className="py-3 border-b border-white/10">
           <p className="text-[10px] uppercase font-mono tracking-wider text-slate-400 mb-2">
-            Parâmetros de Renderização:
+            {tr("Parâmetros de Renderização:", "Render options:")}
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {/* Toggle Recursos & EX */}
@@ -208,9 +210,9 @@ export function ExportDeckImageModal({
               }`}
             >
               <div>
-                <p className="text-xs font-heading uppercase">Recursos & EX</p>
+                <p className="text-xs font-heading uppercase">{tr("Recursos & EX", "Resources & EX")}</p>
                 <p className="text-[9px] text-slate-400">
-                  {includeResourcesAndEx ? "Incluídos na grade" : "Apenas deck principal"}
+                  {includeResourcesAndEx ? tr("Incluídos na grade", "Included in the grid") : tr("Apenas deck principal", "Main deck only")}
                 </p>
               </div>
               <div
@@ -238,9 +240,9 @@ export function ExportDeckImageModal({
               }`}
             >
               <div>
-                <p className="text-xs font-heading uppercase text-amber-300">Exportar Estatísticas</p>
+                <p className="text-xs font-heading uppercase text-amber-300">{tr("Exportar Estatísticas", "Export Stats")}</p>
                 <p className="text-[9px] text-slate-400">
-                  {includeStats ? "Gera 2ª imagem dedicada" : "Desativado"}
+                  {includeStats ? tr("Gera 2ª imagem dedicada", "Creates a 2nd image") : tr("Desativado", "Off")}
                 </p>
               </div>
               <div
@@ -263,9 +265,9 @@ export function ExportDeckImageModal({
               }`}
             >
               <div>
-                <p className="text-xs font-heading uppercase">Dados do Piloto</p>
+                <p className="text-xs font-heading uppercase">{tr("Dados do Piloto", "Player Info")}</p>
                 <p className="text-[9px] text-slate-400">
-                  {includeMetaInfo ? "Autor e data visíveis" : "Ocultos"}
+                  {includeMetaInfo ? tr("Autor e data visíveis", "Author and date shown") : tr("Ocultos", "Hidden")}
                 </p>
               </div>
               <div
@@ -288,9 +290,9 @@ export function ExportDeckImageModal({
               }`}
             >
               <div>
-                <p className="text-xs font-heading uppercase">Selo AnaheimHub</p>
+                <p className="text-xs font-heading uppercase">{tr("Selo AnaheimHub", "AnaheimHub Seal")}</p>
                 <p className="text-[9px] text-slate-400">
-                  {includeOzSeal ? "Carimbo oficial ativo" : "Sem carimbo"}
+                  {includeOzSeal ? tr("Carimbo oficial ativo", "Official seal on") : tr("Sem carimbo", "No seal")}
                 </p>
               </div>
               <div
@@ -317,7 +319,7 @@ export function ExportDeckImageModal({
               }`}
             >
               <ImageIcon className="size-3.5" />
-              <span>Imagem 1: Decklist Tática</span>
+              <span>{tr("Imagem 1: Decklist Tática", "Image 1: Decklist")}</span>
             </button>
             <button
               type="button"
@@ -329,7 +331,7 @@ export function ExportDeckImageModal({
               }`}
             >
               <BarChart3 className="size-3.5" />
-              <span>Imagem 2: Estatísticas</span>
+              <span>{tr("Imagem 2: Estatísticas", "Image 2: Stats")}</span>
             </button>
           </div>
         )}
@@ -340,17 +342,17 @@ export function ExportDeckImageModal({
             <div className="flex flex-col items-center gap-3 py-20">
               <div className="size-10 animate-spin rounded-full border-2 border-sky-400 border-t-transparent" />
               <p className="text-xs font-mono text-slate-400 uppercase tracking-wider">
-                Sintetizando alta resolução na rede Anaheim HUB...
+                {tr("Sintetizando alta resolução na rede Anaheim HUB...", "Generating high-resolution image...")}
               </p>
             </div>
           ) : currentPreviewUrl ? (
             <img loading="lazy" decoding="async"
               src={currentPreviewUrl}
-              alt="Pré-visualização"
+              alt={tr("Pré-visualização", "Preview")}
               className="max-w-full h-auto object-contain border border-white/10 shadow-2xl"
             />
           ) : (
-            <p className="text-xs text-slate-500 font-mono">Nenhuma prévia disponível.</p>
+            <p className="text-xs text-slate-500 font-mono">{tr("Nenhuma prévia disponível.", "No preview available.")}</p>
           )}
         </div>
 
@@ -361,7 +363,7 @@ export function ExportDeckImageModal({
             onClick={onClose}
             className="rounded-none border-white/20 text-xs hover:bg-white/10 text-slate-300"
           >
-            Fechar
+            {tr("Fechar", "Close")}
           </Button>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -371,7 +373,7 @@ export function ExportDeckImageModal({
               variant="outline"
               className="rounded-none border-sky-500/50 bg-sky-950/30 text-sky-300 text-xs uppercase tracking-wider hover:bg-sky-900/40"
             >
-              <Download className="mr-1.5 size-3.5" /> Baixar Decklist (PNG)
+              <Download className="mr-1.5 size-3.5" /> {tr("Baixar Decklist (PNG)", "Download Decklist (PNG)")}
             </Button>
 
             {includeStats && statsBlob && (
@@ -381,7 +383,7 @@ export function ExportDeckImageModal({
                 variant="outline"
                 className="rounded-none border-amber-500/50 bg-amber-950/30 text-amber-300 text-xs uppercase tracking-wider hover:bg-amber-900/40"
               >
-                <Download className="mr-1.5 size-3.5" /> Baixar Estatísticas (PNG)
+                <Download className="mr-1.5 size-3.5" /> {tr("Baixar Estatísticas (PNG)", "Download Stats (PNG)")}
               </Button>
             )}
 
@@ -391,7 +393,7 @@ export function ExportDeckImageModal({
                 onClick={handleDownloadBoth}
                 className="rounded-none bg-sky-500 text-slate-950 font-heading uppercase tracking-wider hover:bg-sky-400 shadow-lg shadow-sky-500/20 text-xs"
               >
-                <Download className="mr-1.5 size-3.5" /> Baixar Ambas as Imagens
+                <Download className="mr-1.5 size-3.5" /> {tr("Baixar Ambas as Imagens", "Download Both Images")}
               </Button>
             )}
           </div>

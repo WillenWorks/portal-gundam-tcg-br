@@ -14,6 +14,7 @@ import { VedaPlayerLink } from "@/components/veda/VedaPlayerLink";
 import { VedaSampleNote } from "@/components/veda/VedaSampleNote";
 import { vedaApi } from "@/lib/veda/api";
 import type { VedaCardUsage } from "@/lib/veda/types";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 function formatDatePtBr(raw?: string | null): string {
   if (!raw) return "";
@@ -37,6 +38,7 @@ export function CardTournamentUsageSection({
   cardCode,
   className = "",
 }: CardTournamentUsageSectionProps) {
+  const { tr } = useSiteLanguage();
   const [usage, setUsage] = useState<VedaCardUsage | null>(null);
   const [loading, setLoading] = useState(false);
   const [checked, setChecked] = useState(false);
@@ -75,7 +77,7 @@ export function CardTournamentUsageSection({
   if (loading) {
     return (
       <div className={`panel-cut border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/60 p-4 text-xs font-mono text-slate-500 dark:text-slate-400 text-center ${className}`}>
-        Consultando telemetria de torneios no Veda System...
+        {tr("Consultando telemetria de torneios no Veda System...", "Loading tournament data...")}
       </div>
     );
   }
@@ -86,10 +88,10 @@ export function CardTournamentUsageSection({
       <div className={`panel-cut border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/60 p-4 text-xs font-mono text-slate-500 dark:text-slate-400 space-y-1 ${className}`}>
         <p className="uppercase text-slate-800 dark:text-slate-300 font-semibold flex items-center gap-1.5">
           <Trophy className="size-3.5 text-primary" />
-          Em Torneios Competitivos
+          {tr("Em Torneios Competitivos", "In Competitive Tournaments")}
         </p>
         <p className="text-slate-600 dark:text-slate-400">
-          Esta carta ainda não possui registros de uso nas decklists congeladas de torneios oficiais do Veda System.
+          {tr("Esta carta ainda não possui registros de uso nas decklists congeladas de torneios oficiais do Veda System.", "This card has no recorded use yet in official tournament decklists.")}
         </p>
       </div>
     );
@@ -106,10 +108,10 @@ export function CardTournamentUsageSection({
         <div>
           <h3 className="font-heading text-lg uppercase text-slate-900 dark:text-white flex items-center gap-2">
             <Trophy className="size-4 text-primary" />
-            Em Torneios Competitivos (Veda System)
+            {tr("Em Torneios Competitivos (Veda System)", "In Competitive Tournaments")}
           </h3>
           <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
-            Presença consolidada da carta nas decklists de eventos competitivos.
+            {tr("Presença consolidada da carta nas decklists de eventos competitivos.", "How often this card appears in competitive event decklists.")}
           </p>
         </div>
 
@@ -120,21 +122,21 @@ export function CardTournamentUsageSection({
       {/* Grid de Métricas Principais */}
       <div className="grid grid-cols-3 gap-3">
         <div className="panel-cut border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-950/60 p-3 text-center sm:text-left">
-          <p className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 tracking-wider">Inclusão Geral</p>
+          <p className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 tracking-wider">{tr("Inclusão Geral", "Overall Inclusion")}</p>
           <p className="mt-1 font-heading text-xl sm:text-2xl text-primary">{inclusionPercent}%</p>
-          <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400">das listas do período</p>
+          <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400">{tr("das listas do período", "of lists in the period")}</p>
         </div>
 
         <div className="panel-cut border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-950/60 p-3 text-center sm:text-left">
-          <p className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 tracking-wider">Média por Deck</p>
+          <p className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 tracking-wider">{tr("Média por Deck", "Average per Deck")}</p>
           <p className="mt-1 font-heading text-xl sm:text-2xl text-slate-900 dark:text-white">~{usage.avgCopies.toFixed(1)}x</p>
-          <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400">cópias por lista</p>
+          <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400">{tr("cópias por lista", "copies per list")}</p>
         </div>
 
         <div className="panel-cut border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-950/60 p-3 text-center sm:text-left">
-          <p className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 tracking-wider">Volume de Listas</p>
+          <p className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 tracking-wider">{tr("Volume de Listas", "List Volume")}</p>
           <p className="mt-1 font-heading text-xl sm:text-2xl text-slate-800 dark:text-slate-200">{usage.lists}</p>
-          <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400">decks utilizando</p>
+          <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400">{tr("decks utilizando", "decks using it")}</p>
         </div>
       </div>
 
@@ -143,7 +145,7 @@ export function CardTournamentUsageSection({
         <div className="space-y-2 pt-1">
           <p className="text-xs font-mono uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
             <Layers className="size-3.5 text-primary" />
-            Arquétipos que utilizam esta carta
+            {tr("Arquétipos que utilizam esta carta", "Archetypes using this card")}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
             {usage.archetypes.map(({ archetype, lists, inclusion }) => {
@@ -170,7 +172,7 @@ export function CardTournamentUsageSection({
         <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-white/10">
           <p className="text-xs font-mono uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
             <BarChart2 className="size-3.5 text-primary" />
-            Decklists Recentes em Torneios
+            {tr("Decklists Recentes em Torneios", "Recent Tournament Decklists")}
           </p>
           <div className="space-y-2">
             {usage.recentDecklists.slice(0, 5).map((deck) => (
@@ -184,7 +186,7 @@ export function CardTournamentUsageSection({
                     <VedaPlayerLink player={deck.player} />
                   </span>
                   <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary text-[10px] font-mono">
-                    {deck.quantity}x na lista
+                    {deck.quantity}x {tr("na lista", "in the list")}
                   </Badge>
                   <Link
                     href={`/torneios/${deck.tournamentId}`}
@@ -206,7 +208,7 @@ export function CardTournamentUsageSection({
                   className="h-6 rounded-none border-primary/30 bg-primary/10 text-[10px] font-mono uppercase text-primary hover:bg-primary/20 hover:text-slate-900 dark:hover:text-white"
                 >
                   <Link href={`/torneios/${deck.tournamentId}/lista/${deck.entryId}`}>
-                    Ver Decklist
+                    {tr("Ver Decklist", "View Decklist")}
                   </Link>
                 </Button>
               </div>

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Sparkles, ArrowRight, ShieldCheck, Wrench, Layers } from "lucide-react";
 import { getCardMetagameTier, type MetagameTier } from "@/lib/deck-analytics-engine";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export interface CoreCardItem {
   id: string;
@@ -37,6 +38,7 @@ export function BuildCoreDeckModal({
   coreCards,
   suggestedCards = [],
 }: BuildCoreDeckModalProps) {
+  const { tr } = useSiteLanguage();
   const [, navigate] = useLocation();
 
   const totalCoreCopies = useMemo(
@@ -55,7 +57,7 @@ export function BuildCoreDeckModal({
     }));
 
     const draft = {
-      deckName: `Núcleo: ${archetypeName || "Arquétipo Base"}`,
+      deckName: tr(`Núcleo: ${archetypeName || "Arquétipo Base"}`, `Core: ${archetypeName || "Base Archetype"}`),
       visibility: "PRIVATE",
       entries,
     };
@@ -74,10 +76,10 @@ export function BuildCoreDeckModal({
         <div className="border-b border-slate-200 dark:border-white/10 pb-4">
           <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-primary">
             <Sparkles className="size-4 text-primary animate-pulse" />
-            <span>Engenharia Reversa de Metagame · VEDA</span>
+            <span>{tr("Engenharia Reversa de Metagame · VEDA", "Metagame Reverse Engineering · VEDA")}</span>
           </div>
           <DialogTitle className="mt-1 font-heading text-2xl sm:text-3xl uppercase heading-portal text-slate-900 dark:text-white">
-            Estrutura do Núcleo: {archetypeName || "Arquétipo"}
+            {tr("Estrutura do Núcleo", "Core Structure")}: {archetypeName || tr("Arquétipo", "Archetype")}
           </DialogTitle>
           <p className="mt-1 text-xs text-slate-600 dark:text-muted-portal leading-relaxed">
             Com base em decks competitivos cadastrados, calculamos as cartas com taxa de inclusão indispensável (≥50%) para iniciar a montagem da lista com consistência máxima.
@@ -90,18 +92,18 @@ export function BuildCoreDeckModal({
             <div className="flex items-center gap-2">
               <Layers className="size-4 text-primary" />
               <span className="text-xs uppercase tracking-[0.18em] font-heading text-slate-900 dark:text-white">
-                Slots do Deck Principal Mapeados
+                {tr("Slots do Deck Principal Mapeados", "Main Deck Slots Mapped")}
               </span>
             </div>
             <span className="font-heading text-lg text-primary font-mono">
-              {totalCoreCopies} <span className="text-xs text-slate-500 dark:text-slate-400 font-sans">/ 50 cartas</span> ({progressPct}%)
+              {totalCoreCopies} <span className="text-xs text-slate-500 dark:text-slate-400 font-sans">/ 50 {tr("cartas", "cards")}</span> ({progressPct}%)
             </span>
           </div>
           <Progress value={progressPct} className="h-2.5 rounded-none bg-slate-200 dark:bg-slate-900" />
           <p className="mt-2 text-[11px] text-slate-600 dark:text-slate-400">
             {50 - totalCoreCopies > 0
-              ? `Faltam ${50 - totalCoreCopies} slots flexíveis para completar os 50 slots obrigatórios do deck principal. Veja sugestões táticas abaixo.`
-              : "Núcleo completo com 50 cartas definidas."}
+              ? tr(`Faltam ${50 - totalCoreCopies} slots flexíveis para completar os 50 slots obrigatórios do deck principal. Veja sugestões táticas abaixo.`, `${50 - totalCoreCopies} flex slots left to reach the 50 required main deck slots. See suggestions below.`)
+              : tr("Núcleo completo com 50 cartas definidas.", "Core complete with 50 cards set.")}
           </p>
         </div>
 
@@ -109,7 +111,7 @@ export function BuildCoreDeckModal({
         <div className="space-y-3 mt-4">
           <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-white/5 pb-1">
             <ShieldCheck className="size-4 text-emerald-500 dark:text-emerald-400" />
-            <span>Cartas do Núcleo Essencial ({coreCards.length} cartas · {totalCoreCopies} cópias)</span>
+            <span>{tr(`Cartas do Núcleo Essencial (${coreCards.length} cartas · ${totalCoreCopies} cópias)`, `Core Cards (${coreCards.length} cards · ${totalCoreCopies} copies)`)}</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -134,7 +136,7 @@ export function BuildCoreDeckModal({
                     <div className="flex items-center gap-2 text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
                       <span>{c.code}</span>
                       <span>·</span>
-                      <span className="text-primary font-semibold">{c.presenceRate.toFixed(1)}% presença</span>
+                      <span className="text-primary font-semibold">{c.presenceRate.toFixed(1)}% {tr("presença", "presence")}</span>
                     </div>
                   </div>
                   <div className="text-right shrink-0">
@@ -154,7 +156,7 @@ export function BuildCoreDeckModal({
           <div className="space-y-3 mt-6">
             <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-white/5 pb-1">
               <Wrench className="size-4 text-sky-500 dark:text-sky-400" />
-              <span>Opções Táticas Recomendadas para Preencher os Slots ({suggestedCards.length} sugestões)</span>
+              <span>{tr(`Opções Táticas Recomendadas para Preencher os Slots (${suggestedCards.length} sugestões)`, `Recommended picks for the remaining slots (${suggestedCards.length} suggestions)`)}</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -175,7 +177,7 @@ export function BuildCoreDeckModal({
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-medium text-slate-800 dark:text-slate-300">{c.namePt || c.name}</p>
                       <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
-                        {c.code} · <span className="text-sky-600 dark:text-sky-400 font-semibold">{c.presenceRate.toFixed(1)}% presença</span> (média {c.recommendedCopies}x)
+                        {c.code} · <span className="text-sky-600 dark:text-sky-400 font-semibold">{c.presenceRate.toFixed(1)}% {tr("presença", "presence")}</span> ({tr("média", "avg")} {c.recommendedCopies}x)
                       </p>
                     </div>
                     <span className={`text-[10px] px-2 py-0.5 border uppercase font-mono ${tier.badgeClass}`}>
@@ -196,7 +198,7 @@ export function BuildCoreDeckModal({
             className="w-full sm:w-auto rounded-none border-slate-300 dark:border-white/15 bg-white dark:bg-white/5 text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10"
             onClick={onClose}
           >
-            Fechar
+            {tr("Fechar", "Close")}
           </Button>
 
           <Button
@@ -204,7 +206,7 @@ export function BuildCoreDeckModal({
             className="w-full sm:w-auto rounded-none bg-primary text-primary-foreground font-heading uppercase tracking-wider text-sm px-6 hover:bg-primary/90 shadow-lg shadow-primary/20 flex items-center gap-2"
             onClick={handleBuildInDeckbuilder}
           >
-            <span>Montar Núcleo no Hangar OZ</span>
+            <span>{tr("Montar Núcleo no Hangar OZ", "Build Core in the Deckbuilder")}</span>
             <ArrowRight className="size-4" />
           </Button>
         </div>

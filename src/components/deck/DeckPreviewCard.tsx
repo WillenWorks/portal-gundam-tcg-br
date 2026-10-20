@@ -14,6 +14,7 @@ import { mapApiCard, type ApiDeck } from "@/lib/api";
 import { GAME_COLOR_HEX } from "@/lib/gundam-catalog";
 import { calculateDeckCostLevelCurve } from "@/lib/deck-level-stats";
 import { ExportDeckImageModal } from "@/components/deck/ExportDeckImageModal";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 interface DeckPreviewCardProps {
   deck: ApiDeck;
@@ -22,6 +23,7 @@ interface DeckPreviewCardProps {
 }
 
 export function DeckPreviewCard({ deck, isOwner }: DeckPreviewCardProps) {
+  const { tr, locale } = useSiteLanguage();
   const [, navigate] = useLocation();
   const [imageModalOpen, setImageModalOpen] = useState(false);
 
@@ -116,12 +118,12 @@ export function DeckPreviewCard({ deck, isOwner }: DeckPreviewCardProps) {
       .filter(Boolean) as Array<ReturnType<typeof mapApiCard> & { quantity: number }>;
 
     if (!rows.length) {
-      toast.error("Deck sem cartas para exportar.");
+      toast.error(tr("Deck sem cartas para exportar.", "Deck has no cards to export."));
       return;
     }
     const text = rows.map((row) => `${row.quantity}x ${row.code}`).join("\n");
     await navigator.clipboard.writeText(text);
-    toast.success("Decklist copiada no formato MSA/Exburst.");
+    toast.success(tr("Decklist copiada no formato MSA/Exburst.", "Decklist copied in MSA/Exburst format."));
   };
 
   const handleExportImage = (e: React.MouseEvent) => {
@@ -183,9 +185,9 @@ export function DeckPreviewCard({ deck, isOwner }: DeckPreviewCardProps) {
 
                   {/* Métricas de Data, Views e Curtidas */}
                   <div className="mt-1.5 flex items-center gap-3 text-xs text-slate-400">
-                    <span>{deck.createdAt ? new Date(deck.createdAt).toLocaleDateString("pt-BR") : "Data indisponível"}</span>
+                    <span>{deck.createdAt ? new Date(deck.createdAt).toLocaleDateString(locale) : tr("Data indisponível", "Date unavailable")}</span>
                     {typeof deck.viewCount === "number" ? (
-                      <span className="flex items-center gap-1 text-[0.7rem] text-slate-400 font-mono" title="Visualizações">
+                      <span className="flex items-center gap-1 text-[0.7rem] text-slate-400 font-mono" title={tr("Visualizações", "Views")}>
                         <Eye className="size-3 text-slate-400" />
                         {deck.viewCount}
                       </span>
@@ -236,8 +238,8 @@ export function DeckPreviewCard({ deck, isOwner }: DeckPreviewCardProps) {
               {/* Mini Curva de Custo & Custo Médio */}
               <div className="mt-3 border-t border-white/10 pt-2.5">
                 <div className="flex items-center justify-between text-[0.68rem] text-slate-400 mb-1">
-                  <span className="truncate pr-1">Curva (1-7+)</span>
-                  <span className="font-mono text-primary font-semibold shrink-0">Méd: {stats.avgCost}</span>
+                  <span className="truncate pr-1">{tr("Curva (1-7+)", "Curve (1-7+)")}</span>
+                  <span className="font-mono text-primary font-semibold shrink-0">{tr("Méd", "Avg")}: {stats.avgCost}</span>
                 </div>
                 <div className="flex items-end gap-1 h-7 pt-1">
                   {[1, 2, 3, 4, 5, 6, 7].map((cost) => {
@@ -269,7 +271,7 @@ export function DeckPreviewCard({ deck, isOwner }: DeckPreviewCardProps) {
               >
                 <Link href={deckLink}>
                   <Eye className="mr-1.5 size-3.5" />
-                  Inspecionar
+                  {tr("Inspecionar", "Inspect")}
                 </Link>
               </Button>
               <Button
@@ -278,7 +280,7 @@ export function DeckPreviewCard({ deck, isOwner }: DeckPreviewCardProps) {
                 size="icon"
                 className="rounded-none border-white/15 bg-white/5 size-8 text-white hover:text-primary"
                 onClick={handleExportImage}
-                title="Ver e baixar a imagem do deck (PNG)"
+                title={tr("Ver e baixar a imagem do deck (PNG)", "View and download the deck image (PNG)")}
               >
                 <Download className="size-3.5" />
               </Button>
@@ -288,7 +290,7 @@ export function DeckPreviewCard({ deck, isOwner }: DeckPreviewCardProps) {
                 size="icon"
                 className="rounded-none border-white/15 bg-white/5 size-8 text-white hover:text-primary"
                 onClick={exportDeck}
-                title="Copiar decklist (formato MSA/Exburst)"
+                title={tr("Copiar decklist (formato MSA/Exburst)", "Copy decklist (MSA/Exburst format)")}
               >
                 <Copy className="size-3.5" />
               </Button>

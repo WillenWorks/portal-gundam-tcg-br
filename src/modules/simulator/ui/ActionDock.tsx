@@ -128,7 +128,7 @@ export function ActionDock({
             </span>
           ) : null}
         </div>
-        {turnNumber !== undefined ? <p className="text-[10px] text-muted-portal">Turno {turnNumber}</p> : null}
+        {turnNumber !== undefined ? <p className="text-[10px] text-muted-portal">{tr("Turno", "Turn")} {turnNumber}</p> : null}
         {inActionStep && onPassAction ? (
           <Button
             size="sm"

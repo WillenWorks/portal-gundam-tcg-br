@@ -6,6 +6,7 @@ import { useCardPlayability } from "./useCardPlayability";
 import { CardPlayabilityBadge } from "./CardPlayabilityBadge";
 import type { CardStatusEntry } from "@/lib/api";
 import { isNonStatsCard } from "@/lib/deck-legality";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export interface CardPlayabilityDetailBoxProps {
   code?: string;
@@ -18,6 +19,7 @@ export function CardPlayabilityDetailBox({
   entry: propEntry,
   className,
 }: CardPlayabilityDetailBoxProps) {
+  const { tr } = useSiteLanguage();
   // o hook vem antes do retorno: hooks não podem ser condicionais
   const nonStats = isNonStatsCard({ code, name: propEntry?.name });
   const query = useCardPlayability(nonStats || propEntry ? undefined : code);
@@ -52,7 +54,7 @@ export function CardPlayabilityDetailBox({
               />
             </div>
             <h2 className="mt-1 font-heading text-2xl uppercase tracking-wide">
-              Status de Jogabilidade
+              {tr("Status de Jogabilidade", "Playability Status")}
             </h2>
           </div>
 
@@ -60,7 +62,7 @@ export function CardPlayabilityDetailBox({
             href="/rules"
             className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline self-start sm:self-auto"
           >
-            <span>Ver regras e rulings</span>
+            <span>{tr("Ver regras e rulings", "See rules and rulings")}</span>
             <ExternalLink className="size-3.5" />
           </Link>
         </div>
@@ -69,10 +71,10 @@ export function CardPlayabilityDetailBox({
           <div className="border border-emerald-500/30 bg-emerald-500/10 p-4 space-y-2">
             <div className="flex items-center gap-2 text-emerald-300 font-semibold text-sm">
               <CheckCircle2 className="size-4 shrink-0 text-emerald-400" />
-              <span>Carta 100% pronta para jogar</span>
+              <span>{tr("Carta 100% pronta para jogar", "Card fully ready to play")}</span>
             </div>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Todas as regras, gatilhos e efeitos desta carta foram implementados e auditados no motor do simulador. Decks que contenham esta carta são aceitos no <strong>Treino Solo (Bot)</strong>, na <strong>Fila Casual</strong> e em <strong>Convites Diretos</strong>.
+              {tr("Todas as regras, gatilhos e efeitos desta carta foram implementados e auditados no motor do simulador. Decks que contenham esta carta são aceitos no treino contra o bot, na fila casual e em convites diretos.", "Every rule, trigger and effect of this card is implemented and audited in the simulator engine. Decks with this card are accepted in bot practice, the casual queue and direct invites.")}
             </p>
           </div>
         ) : null}
@@ -83,9 +85,9 @@ export function CardPlayabilityDetailBox({
               <div className="flex items-start gap-2.5 text-amber-300 font-semibold text-sm">
                 <AlertTriangle className="size-4 shrink-0 text-amber-400 mt-0.5" />
                 <div>
-                  <p>Carta em revisão no motor do simulador</p>
+                  <p>{tr("Carta em revisão no motor do simulador", "Card under review in the simulator engine")}</p>
                   <p className="text-xs font-normal text-amber-200/80 mt-0.5">
-                    Decks com esta carta não podem entrar em partidas no simulador até que todas as cláusulas sejam concluídas.
+                    {tr("Decks com esta carta não podem entrar em partidas no simulador até que todas as cláusulas sejam concluídas.", "Decks with this card can't be used in simulator matches until every clause is done.")}
                   </p>
                 </div>
               </div>
@@ -93,9 +95,9 @@ export function CardPlayabilityDetailBox({
               {hasClauseRatio ? (
                 <div className="space-y-1.5 border-t border-amber-500/20 pt-3">
                   <div className="flex items-center justify-between text-xs font-mono text-slate-300">
-                    <span>Progresso de implementação</span>
+                    <span>{tr("Progresso de implementação", "Implementation progress")}</span>
                     <span className="font-bold text-amber-300">
-                      {implementedClauses} de {totalClauses} cláusulas ({progressPercent}%)
+                      {tr(`${implementedClauses} de ${totalClauses} cláusulas (${progressPercent}%)`, `${implementedClauses} of ${totalClauses} clauses (${progressPercent}%)`)}
                     </span>
                   </div>
                   <div className="h-1.5 w-full bg-slate-900 border border-white/10 overflow-hidden">
@@ -113,10 +115,10 @@ export function CardPlayabilityDetailBox({
                 <div className="flex items-center gap-2">
                   <ShieldAlert className="size-4 text-amber-400" />
                   <h3 className="text-xs font-mono uppercase tracking-[0.16em] text-slate-300">
-                    O que falta implementar no simulador:
+                    {tr("O que falta implementar no simulador:", "Still to implement in the simulator:")}
                   </h3>
                   <Badge variant="outline" className="border-amber-400/40 text-amber-300 text-[10px]">
-                    {missingClauses.length} cláusula{missingClauses.length === 1 ? "" : "s"}
+                    {missingClauses.length} {tr(missingClauses.length === 1 ? "cláusula" : "cláusulas", missingClauses.length === 1 ? "clause" : "clauses")}
                   </Badge>
                 </div>
 
@@ -142,10 +144,10 @@ export function CardPlayabilityDetailBox({
           <div className="border border-slate-600/40 bg-slate-800/40 p-4 space-y-2">
             <div className="flex items-center gap-2 text-slate-300 font-semibold text-sm">
               <HelpCircle className="size-4 shrink-0 text-slate-400" />
-              <span>Fora do catálogo ativo do simulador</span>
+              <span>{tr("Fora do catálogo ativo do simulador", "Not in the simulator's active catalog")}</span>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Esta carta pertence a um conjunto ou produto que ainda não foi adicionado ao ciclo ativo de implementação do simulador (ex.: coleções futuras). Assim que for programada no motor, o status passará a refletir sua disponibilidade automaticamente.
+              {tr("Esta carta pertence a um conjunto ou produto que ainda não foi adicionado ao ciclo ativo de implementação do simulador (ex.: coleções futuras). Assim que for programada no motor, o status passará a refletir sua disponibilidade automaticamente.", "This card belongs to a set or product not yet in the simulator's active implementation cycle (e.g. upcoming sets). Once it's added to the engine, this status will update automatically.")}
             </p>
           </div>
         ) : null}
