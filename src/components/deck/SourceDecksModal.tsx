@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Database, Trophy } from "lucide-react";
 import type { SourceDeckEntry } from "@/lib/api";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 interface SourceDecksModalProps {
   open: boolean;
@@ -16,6 +17,7 @@ export function SourceDecksModal({
   archetypeName,
   sourceDecks,
 }: SourceDecksModalProps) {
+  const { tr } = useSiteLanguage();
   return (
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
       <DialogContent
@@ -25,20 +27,20 @@ export function SourceDecksModal({
         <div className="border-b border-slate-200 dark:border-white/10 pb-4">
           <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-primary">
             <Database className="size-4 text-primary" />
-            <span>Amostra de Decks do Metagame</span>
+            <span>{tr("Amostra de Decks do Metagame", "Metagame Deck Sample")}</span>
           </div>
           <DialogTitle className="mt-1 font-heading text-2xl uppercase heading-portal text-slate-900 dark:text-white">
-            Base Analítica: {archetypeName || "Decks Registrados"}
+            {tr("Base Analítica", "Data Source")}: {archetypeName || tr("Decks Registrados", "Recorded Decks")}
           </DialogTitle>
           <p className="mt-1 text-xs text-slate-600 dark:text-muted-portal">
-            Total de {sourceDecks.length} deck(s) cadastrados utilizados como base estatística para as taxas de inclusão, staples e média de cópias.
+            {tr(`Total de ${sourceDecks.length} deck(s) cadastrados utilizados como base estatística para as taxas de inclusão, staples e média de cópias.`, `${sourceDecks.length} recorded deck(s) used as the basis for inclusion rates, staples and average copies.`)}
           </p>
         </div>
 
         <div className="space-y-2 mt-3">
           {sourceDecks.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-500 dark:text-muted-portal">
-              Nenhum deck específico listado na amostra atual.
+              {tr("Nenhum deck específico listado na amostra atual.", "No specific deck listed in the current sample.")}
             </p>
           ) : (
             sourceDecks.map((deck, idx) => (
@@ -98,7 +100,7 @@ export function SourceDecksModal({
                     >
                       <a href={deck.sourceUrl} target="_blank" rel="noreferrer">
                         <ExternalLink className="size-3.5 mr-1" />
-                        Fonte Oficial
+                        {tr("Fonte Oficial", "Official Source")}
                       </a>
                     </Button>
                   )}
@@ -111,7 +113,7 @@ export function SourceDecksModal({
                     >
                       <a href={`/deck/${deck.shareId}`} target="_blank" rel="noreferrer">
                         <ExternalLink className="size-3.5 mr-1" />
-                        Ver Deck
+                        {tr("Ver Deck", "View Deck")}
                       </a>
                     </Button>
                   )}
@@ -128,7 +130,7 @@ export function SourceDecksModal({
             className="rounded-none border-slate-300 dark:border-white/15 bg-white dark:bg-white/5 text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10"
             onClick={onClose}
           >
-            Fechar
+            {tr("Fechar", "Close")}
           </Button>
         </div>
       </DialogContent>

@@ -28,6 +28,7 @@
 import { Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { cardBackUrl } from "./cardArt";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 interface ShieldRailProps {
   count: number;
@@ -64,17 +65,18 @@ export function ShieldRail({
   orientation = "horizontal",
   compact,
 }: ShieldRailProps) {
+  const { tr } = useSiteLanguage();
   const total = Math.max(max, count);
   const low = count <= 2;
   const vertical = orientation === "vertical";
   const isAreaClickable = Boolean(legalTarget || onSelectArea);
-  const label = `${count} de ${total} shields${count <= 1 ? " — lethal a 1 golpe" : ""}`;
+  const label = tr(`${count} de ${total} shields${count <= 1 ? " — lethal a 1 golpe" : ""}`, `${count} of ${total} shields${count <= 1 ? " — one hit from lethal" : ""}`);
 
   return (
     <div
       role="list"
       aria-label={label}
-      title={isAreaClickable ? "Atacar jogador (Área de Escudos)" : label}
+      title={isAreaClickable ? tr("Atacar jogador (Área de Escudos)", "Attack player (Shield Area)") : label}
       onClick={
         isAreaClickable
           ? (e) => {

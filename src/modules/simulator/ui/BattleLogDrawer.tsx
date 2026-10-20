@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import { ScrollText, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BattleLogEntry, BattleLogKind } from "./battleLog";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 const KIND_CLASS: Record<BattleLogKind, string> = {
   turn: "text-primary font-bold border-t border-primary/20 pt-1 mt-1",
@@ -23,6 +24,7 @@ interface BattleLogDrawerProps {
 }
 
 export function BattleLogDrawer({ entries, open, onToggle }: BattleLogDrawerProps) {
+  const { tr } = useSiteLanguage();
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -54,7 +56,7 @@ export function BattleLogDrawer({ entries, open, onToggle }: BattleLogDrawerProp
       </div>
       <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3 py-2 text-[11px] leading-snug">
         {entries.length === 0 ? (
-          <p className="text-slate-600">Sem eventos ainda.</p>
+          <p className="text-slate-600">{tr("Sem eventos ainda.", "No events yet.")}</p>
         ) : (
           entries.map((e, i) => (
             // key por posição: a janela de eventLog desliza no servidor, então `seq` não é estável entre atualizações.

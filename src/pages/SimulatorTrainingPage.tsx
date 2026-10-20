@@ -27,11 +27,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useSiteLanguage, type Localized } from "@/i18n/siteLanguage";
 
-const LEVELS: { value: SimulatorTrainingLevel; label: string; hint: string }[] = [
-  { value: "facil", label: "Fácil", hint: "Joga o básico: deploy simples, ataca só o jogador, sem efeitos nem bloqueio." },
-  { value: "normal", label: "Normal", hint: "Heurística cheia: forma Link, troca favorável, bloqueia, usa remoção na maior ameaça." },
-  { value: "dificil", label: "Difícil (MCTS)", hint: "Busca em profundidade com MCTS: simula árvores de cenários futuros para maximizar vitórias." },
+const LEVELS: { value: SimulatorTrainingLevel; label: Localized; hint: Localized }[] = [
+  { value: "facil", label: { pt: "Fácil", en: "Easy" }, hint: { pt: "Joga o básico: deploy simples, ataca só o jogador, sem efeitos nem bloqueio.", en: "Plays the basics: simple deploys, only attacks the player, no effects or blocks." } },
+  { value: "normal", label: { pt: "Normal", en: "Normal" }, hint: { pt: "Heurística cheia: forma Link, troca favorável, bloqueia, usa remoção na maior ameaça.", en: "Full heuristics: makes Links, takes good trades, blocks, removes the biggest threat." } },
+  { value: "dificil", label: { pt: "Difícil (MCTS)", en: "Hard (MCTS)" }, hint: { pt: "Busca em profundidade com MCTS: simula árvores de cenários futuros para maximizar vitórias.", en: "Deep MCTS search: simulates future game trees to maximize wins." } },
 ];
 
 function errorMessage(err: unknown, fallback: string): string {
@@ -39,6 +40,7 @@ function errorMessage(err: unknown, fallback: string): string {
 }
 
 export default function SimulatorTrainingPage() {
+  const { tr } = useSiteLanguage();
   const [, navigate] = useLocation();
   const starters = SIMULATOR_DECK_PRESETS;
   const { decks: myDecks } = useMySimulatorDecks();
@@ -74,7 +76,7 @@ export default function SimulatorTrainingPage() {
 
   const startTraining = async () => {
     if (blockedDeck) {
-      toast.error(`"${blockedDeck.name}" tem carta sem cobertura no simulador — veja o aviso abaixo e troque de deck.`);
+      toast.error(tr(`"${blockedDeck.name}" tem carta sem cobertura no simulador — veja o aviso abaixo e troque de deck.`, `"${blockedDeck.name}" has a card the simulator doesn't support — see the notice below and pick another deck.`));
       return;
     }
     setStarting(true);
@@ -86,19 +88,19 @@ export default function SimulatorTrainingPage() {
       });
       navigate(`/simulador/partida/${matchId}`);
     } catch (err) {
-      toast.error(errorMessage(err, "Não deu pra começar o treino."));
+      toast.error(errorMessage(err, tr("Não deu pra começar o treino.", "Couldn't start the practice match.")));
       setStarting(false);
     }
   };
 
   return (
-    <PublicShell breadcrumbs={[{ label: "Simulador", href: "/simulador" }, { label: "Simulação de Treinamento" }]}>
+    <PublicShell breadcrumbs={[{ label: tr("Simulador", "Simulator"), href: "/simulador" }, { label: tr("Simulação de Treinamento", "Practice Simulation") }]}>
       <div className="relative mx-auto w-full container-ultrawide overflow-hidden rounded-2xl border border-primary/30 bg-slate-950 shadow-[0_0_60px_rgba(6,182,212,0.25)]">
         {/* Imagem de Fundo Cockpit de Treino com Instrumentos de Medição em alta visibilidade */}
         <div className="pointer-events-none absolute inset-0">
           <img loading="lazy" decoding="async"
             src="/images/gundam_training_cockpit.webp"
-            alt="Cockpit de Treinamento Gundam com Instrumentos de Medição"
+            alt={tr("Cockpit de Treinamento Gundam com Instrumentos de Medição", "Gundam training cockpit with instruments")}
             className="h-full w-full object-cover object-center opacity-95 brightness-105 contrast-105 transition-opacity duration-500"
           />
           {/* Gradientes sutis apenas no topo e base para harmonização perfeita com a página */}
@@ -114,10 +116,10 @@ export default function SimulatorTrainingPage() {
               <CardContent className="space-y-6 p-8">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.24em] text-primary font-semibold">Simulador · Treino</p>
-                    <h1 className="mt-2 font-heading text-4xl uppercase heading-portal">Simulação de Treinamento</h1>
+                    <p className="text-xs uppercase tracking-[0.24em] text-primary font-semibold">{tr("Simulador · Treino", "Simulator · Practice")}</p>
+                    <h1 className="mt-2 font-heading text-4xl uppercase heading-portal">{tr("Simulação de Treinamento", "Practice Simulation")}</h1>
                     <p className="mt-3 text-sm leading-7 text-soft">
-                      Treine contra o bot com qualquer Starter Deck oficial ou com os seus próprios decks.
+                      {tr("Treine contra o bot com qualquer Starter Deck oficial ou com os seus próprios decks.", "Practice against the bot with any official Starter Deck or your own decks.")}
                     </p>
                   </div>
                   <Button
@@ -128,7 +130,7 @@ export default function SimulatorTrainingPage() {
                     onClick={() => navigate("/simulador")}
                   >
                     <ArrowLeft className="mr-1.5 size-3.5" />
-                    Voltar
+                    {tr("Voltar", "Back")}
                   </Button>
                 </div>
 
@@ -137,19 +139,19 @@ export default function SimulatorTrainingPage() {
                   <div className="space-y-1.5">
                     <label htmlFor="training-player-deck" className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400 dark:text-slate-400 light:text-slate-600 flex items-center gap-1.5">
                       <User className="size-3 text-primary" />
-                      Seu Deck
+                      {tr("Seu Deck", "Your Deck")}
                     </label>
                     <Select value={playerDeckId} onValueChange={setPlayerDeckId}>
                       <SelectTrigger
                         id="training-player-deck"
                         className="w-full h-12 border border-white/15 bg-black/40 px-4 py-2.5 text-xs sm:text-sm font-semibold uppercase tracking-[0.12em] text-white dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary rounded-md"
                       >
-                        <SelectValue placeholder="Selecione seu deck" />
+                        <SelectValue placeholder={tr("Selecione seu deck", "Select your deck")} />
                       </SelectTrigger>
                       <SelectContent className="border border-white/15 bg-slate-950/98 text-white dark:bg-slate-950 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 shadow-2xl z-50">
                         <SelectGroup>
                           <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
-                            Starter Decks Oficiais
+                            {tr("Starter Decks Oficiais", "Official Starter Decks")}
                           </SelectLabel>
                           {starters.map((deck) => (
                             <SelectItem key={deck.key} value={deck.key} className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
@@ -160,7 +162,7 @@ export default function SimulatorTrainingPage() {
                         {myDecks.length > 0 && (
                           <SelectGroup>
                             <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
-                              Meus Decks Salvos
+                              {tr("Meus Decks Salvos", "My Saved Decks")}
                             </SelectLabel>
                             {myDecks.map((deck) => (
                               <SelectItem key={deck.id} value={deck.id} className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
@@ -184,22 +186,22 @@ export default function SimulatorTrainingPage() {
                   <div className="space-y-1.5">
                     <label htmlFor="training-bot-deck" className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400 dark:text-slate-400 light:text-slate-600 flex items-center gap-1.5">
                       <Bot className="size-3 text-secondary-portal" />
-                      Deck do Bot
+                      {tr("Deck do Bot", "Bot Deck")}
                     </label>
                     <Select value={botDeckId} onValueChange={setBotDeckId}>
                       <SelectTrigger
                         id="training-bot-deck"
                         className="w-full h-12 border border-white/15 bg-black/40 px-4 py-2.5 text-xs sm:text-sm font-semibold uppercase tracking-[0.12em] text-white dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary rounded-md"
                       >
-                        <SelectValue placeholder="Selecione o deck do bot" />
+                        <SelectValue placeholder={tr("Selecione o deck do bot", "Select the bot's deck")} />
                       </SelectTrigger>
                       <SelectContent className="border border-white/15 bg-slate-950/98 text-white dark:bg-slate-950 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 shadow-2xl z-50">
                         <SelectItem value="SAME" className="cursor-pointer py-2 px-3 text-xs font-semibold uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
-                          Mesmo deck que o seu (Espelho)
+                          {tr("Mesmo deck que o seu (Espelho)", "Same deck as yours (Mirror)")}
                         </SelectItem>
                         <SelectGroup>
                           <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
-                            Starter Decks Oficiais
+                            {tr("Starter Decks Oficiais", "Official Starter Decks")}
                           </SelectLabel>
                           {starters.map((deck) => (
                             <SelectItem key={deck.key} value={deck.key} className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
@@ -210,7 +212,7 @@ export default function SimulatorTrainingPage() {
                         {myDecks.length > 0 && (
                           <SelectGroup>
                             <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
-                              Meus Decks Salvos
+                              {tr("Meus Decks Salvos", "My Saved Decks")}
                             </SelectLabel>
                             {myDecks.map((deck) => (
                               <SelectItem key={deck.id} value={deck.id} className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
@@ -234,7 +236,7 @@ export default function SimulatorTrainingPage() {
                 {blockedDeck ? <SimulatorDeckCoverageNotice deck={blockedDeck} /> : null}
 
                 <div className="space-y-1.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400 dark:text-slate-400 light:text-slate-600">Dificuldade da IA</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400 dark:text-slate-400 light:text-slate-600">{tr("Dificuldade da IA", "AI difficulty")}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     {LEVELS.map((option) => (
                       <button
@@ -248,11 +250,11 @@ export default function SimulatorTrainingPage() {
                             : "border-white/10 bg-black/20 text-soft hover:border-primary/40 light:border-slate-300 light:bg-slate-100"
                         }`}
                       >
-                        {option.label}
+                        {tr(option.label)}
                       </button>
                     ))}
                   </div>
-                  <p className="text-xs text-muted-portal">{LEVELS.find((option) => option.value === level)?.hint}</p>
+                  <p className="text-xs text-muted-portal">{tr(LEVELS.find((option) => option.value === level)?.hint ?? { pt: "", en: "" })}</p>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3">
@@ -263,7 +265,7 @@ export default function SimulatorTrainingPage() {
                     onClick={() => navigate("/simulador")}
                   >
                     <ArrowLeft className="mr-2 size-4" />
-                    Voltar ao Simulador
+                    {tr("Voltar ao Simulador", "Back to Simulator")}
                   </Button>
                   <Button
                     className="flex-1 rounded-arena bg-primary text-primary-foreground hover:bg-primary/90"
@@ -271,18 +273,18 @@ export default function SimulatorTrainingPage() {
                     onClick={startTraining}
                   >
                     {starting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Swords className="mr-2 size-4" />}
-                    Começar a partida
+                    {tr("Começar a partida", "Start match")}
                   </Button>
                 </div>
 
                 <div className="flex items-center justify-between text-xs text-muted-portal pt-1 border-t border-white/5">
                   <span className="flex items-center gap-1.5">
                     <Bot className="size-3.5 text-primary" />
-                    Motor server-authoritative
+                    {tr("Motor server-authoritative", "Server-authoritative engine")}
                   </span>
                   <span className="flex items-center gap-1.5">
                     <ShieldCheck className="size-3.5 text-emerald-400" />
-                    Suporte ST01 + GD01 + Decks do Perfil
+                    {tr("Suporte ST01 + GD01 + Decks do Perfil", "Supports ST01 + GD01 + your decks")}
                   </span>
                 </div>
               </CardContent>

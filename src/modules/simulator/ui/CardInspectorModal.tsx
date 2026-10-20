@@ -14,6 +14,7 @@ import { artSrc, type ArtLookup, type CardArt } from "./cardArt";
 import { KeywordTooltip } from "@/i18n/KeywordTooltip";
 import { useCardLanguage } from "@/i18n/useCardLanguage";
 import { CardInspectorPlayabilityBadge } from "./CardInspectorPlayabilityBadge";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 /** AP/HP a exibir por tipo de carta (feedback Willen 3ª rodada — Command não
  *  tem AP/HP, não mostrar "0"). Unit: AP+HP efetivos/base. Base: só HP.
@@ -112,6 +113,8 @@ export function CardInspectorModal({
   effectEn,
   linkedPilots,
 }: CardInspectorModalProps) {
+  const { tr } = useSiteLanguage();
+  const { isPt } = useCardLanguage();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { def } = card;
   const src = artSrc(art, def.code, "xl");
@@ -185,7 +188,7 @@ export function CardInspectorModal({
           <button
             type="button"
             onClick={() => setDrawerOpen((o) => !o)}
-            aria-label={drawerOpen ? "Fechar detalhes" : "Abrir detalhes"}
+            aria-label={drawerOpen ? tr("Fechar detalhes", "Close details") : tr("Abrir detalhes", "Open details")}
             aria-expanded={drawerOpen}
             className="absolute right-0 top-1/2 z-20 flex h-16 w-6 -translate-y-1/2 translate-x-full items-center justify-center border border-l-0 border-primary/40 bg-slate-950/95 text-primary transition-colors hover:bg-slate-900 motion-reduce:transition-none"
           >
@@ -253,9 +256,9 @@ export function CardInspectorModal({
               <div className="mt-2 border-t border-white/10 pt-2">
                 <p className="mb-1 text-[9px] uppercase tracking-wide text-amber-500/90">Restrições</p>
                 <div className="flex flex-wrap gap-1">
-                  {(card as any).cannotAttack ? <span className="border border-amber-400/40 bg-amber-500/10 px-1 text-[9px] font-medium text-amber-300">Não pode atacar neste turno</span> : null}
-                  {(card as any).preventActivationNextTurn ? <span className="border border-amber-400/40 bg-amber-500/10 px-1 text-[9px] font-medium text-amber-300">Não desvira no próximo turno</span> : null}
-                  {(card as any).cannotTargetPlayer ? <span className="border border-amber-400/40 bg-amber-500/10 px-1 text-[9px] font-medium text-amber-300">Não pode atacar jogador</span> : null}
+                  {(card as any).cannotAttack ? <span className="border border-amber-400/40 bg-amber-500/10 px-1 text-[9px] font-medium text-amber-300">{isPt ? "Não pode atacar neste turno" : "Can't attack this turn"}</span> : null}
+                  {(card as any).preventActivationNextTurn ? <span className="border border-amber-400/40 bg-amber-500/10 px-1 text-[9px] font-medium text-amber-300">{isPt ? "Não desvira no próximo turno" : "Doesn't set active next turn"}</span> : null}
+                  {(card as any).cannotTargetPlayer ? <span className="border border-amber-400/40 bg-amber-500/10 px-1 text-[9px] font-medium text-amber-300">{isPt ? "Não pode atacar jogador" : "Can't attack the player"}</span> : null}
                   {(card as any).grantAttackTargetRelax ? <span className="border border-cyan-400/40 bg-cyan-500/10 px-1 text-[9px] font-medium text-cyan-300">Pode mirar Unidade ativa</span> : null}
                 </div>
               </div>
@@ -292,6 +295,7 @@ export function CardEffectText({
   effectText?: string;
   className?: string;
 }) {
+  const { tr } = useSiteLanguage();
   const { isPt } = useCardLanguage();
   const pt = effectPt?.trim() || undefined;
   const en = effectEn?.trim() || undefined;
@@ -314,7 +318,7 @@ export function CardEffectText({
           <p className="text-[9px] uppercase tracking-wide text-slate-500">Efeito</p>
           {isPending ? (
             <span className="border border-amber-400/40 bg-amber-400/10 px-1 text-[8px] font-semibold uppercase tracking-wider text-amber-300">
-              Tradução pendente
+              {tr("Tradução pendente", "Translation pending")}
             </span>
           ) : null}
         </div>

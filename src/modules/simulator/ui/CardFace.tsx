@@ -9,6 +9,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { artSrc, cardBackUrl, CARD_FACE_WIDTH, type ArtLookup, type CardFaceSize } from "./cardArt";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 interface CardFaceProps {
   nameEn: string;
@@ -48,9 +49,10 @@ export function CardFace({ nameEn, code, art, size = "md", className, style, chi
 }
 
 export function CardBack({ size = "sm", className, label }: { size?: CardFaceSize; className?: string; label?: string }) {
+  const { tr } = useSiteLanguage();
   return (
     <div className={cn("relative shrink-0 overflow-hidden rounded-arena", CARD_FACE_WIDTH[size], className)}>
-      <img src={cardBackUrl} alt="Verso da carta" loading="lazy" className="aspect-[63/88] w-full object-cover" />
+      <img src={cardBackUrl} alt={tr("Verso da carta", "Card back")} loading="lazy" className="aspect-[63/88] w-full object-cover" />
       {label ? (
         <span className="absolute inset-x-0 bottom-0 bg-black/70 py-0.5 text-center text-[8px] font-bold text-slate-300">{label}</span>
       ) : null}

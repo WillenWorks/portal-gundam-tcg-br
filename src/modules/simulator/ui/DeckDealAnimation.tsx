@@ -16,6 +16,7 @@ import { getScaledDuration } from "./animationSettings";
 import { cardBackUrl, isGenericArtCard, type ArtLookup } from "./cardArt";
 import { CardFace } from "./CardFace";
 import { sfx } from "../audio/soundEffects";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export type DeckDealMode = "shuffle" | "deal-hand" | "mulligan" | "deal-shields" | "single-draw";
 
@@ -129,6 +130,7 @@ export function DeckDealAnimation({
   cards,
   art,
 }: DeckDealAnimationProps) {
+  const { tr } = useSiteLanguage();
   // lido no corpo (não em const de módulo) pra cada montagem pegar a
   // velocidade atual — a página remonta este componente (`key={setupAnim}`)
   // a cada troca de modo, então isso já é "fresco o bastante" sem precisar
@@ -426,7 +428,7 @@ export function DeckDealAnimation({
                     >
                       <img
                         src={cardBackUrl}
-                        alt="Verso da carta"
+                        alt={tr("Verso da carta", "Card back")}
                         className="h-full w-full object-cover object-center"
                       />
                     </div>
@@ -463,7 +465,7 @@ export function DeckDealAnimation({
                       ) : (
                         <img
                           src={cardBackUrl}
-                          alt="Carta revelada"
+                          alt={tr("Carta revelada", "Revealed card")}
                           className="h-full w-full object-cover object-center"
                         />
                       )}
@@ -472,7 +474,7 @@ export function DeckDealAnimation({
                 ) : (
                   <img
                     src={cardBackUrl}
-                    alt="Carta em trânsito"
+                    alt={tr("Carta em trânsito", "Card in motion")}
                     className="h-full w-full object-cover object-center"
                   />
                 )}

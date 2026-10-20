@@ -106,3 +106,13 @@ test("trocar o idioma do site para inglês muda os menus e fica salvo no navegad
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(page.getByRole("button", { name: /site and card language/i }).filter({ visible: true }).first()).toBeVisible();
 });
+
+test("com o site em inglês, catálogo e deckbuilder aparecem em inglês", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("portal_gundam_site_lang", "en"));
+  await page.goto("/cards");
+  await expect(page.getByText("2 cards").first()).toBeVisible();
+  await expect(page.getByPlaceholder("Name, code, trait, effect or series")).toBeVisible();
+  await page.goto("/deckbuilder");
+  await expect(page.getByRole("heading", { name: /pick your cards/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /main deck/i })).toBeVisible();
+});

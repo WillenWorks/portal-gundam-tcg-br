@@ -13,6 +13,7 @@
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Clock, ScrollText, Wifi } from "lucide-react";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export type ActionDockState =
   | { kind: "idle"; yourTurn: boolean; phaseLabel: string; timerSeconds: number | null; turnNumber?: number }
@@ -75,6 +76,7 @@ export function ActionDock({
   onToggleLog,
   onToggleAutoPass,
 }: ActionDockProps) {
+  const { tr } = useSiteLanguage();
   return (
     // Mesma posição responsiva que o dock antigo já validou (mobile: coluna
     // fixa na esquerda, abaixo do cluster ⚙/🐞/expandir; lg:+ ancora no canto
@@ -82,7 +84,7 @@ export function ActionDock({
     // "z-stack do rodapé": não mexer nesses offsets sem checar colisão com
     // HandFan/BattleLogDrawer.
     <aside
-      aria-label="Painel de turno"
+      aria-label={tr("Painel de turno", "Turn panel")}
       className={cn(
         "fixed left-2 top-12 z-40 w-40 lg:left-auto lg:top-auto lg:bottom-14 lg:w-fit lg:min-w-[12rem] lg:max-w-[20rem]",
         logOpen ? "lg:right-[16.5rem]" : "lg:right-2",
@@ -105,7 +107,7 @@ export function ActionDock({
             {hasPendingDecision ? (
               <>
                 <span className="size-2 rounded-full bg-amber-400 animate-pulse" />
-                Sua vez · Decisão
+                {tr("Sua vez · Decisão", "Your turn · Decision")}
               </>
             ) : oppDecisionLabel ? (
               <>
@@ -113,11 +115,11 @@ export function ActionDock({
                 {oppDecisionLabel}
               </>
             ) : inActionStep ? (
-              `Sua vez · ${phaseLabel}`
+              tr(`Sua vez · ${phaseLabel}`, `Your turn · ${phaseLabel}`)
             ) : yourTurn ? (
-              `Sua vez · ${phaseLabel}`
+              tr(`Sua vez · ${phaseLabel}`, `Your turn · ${phaseLabel}`)
             ) : (
-              "Vez do oponente"
+              tr("Vez do oponente", "Opponent's turn")
             )}
           </p>
           {timerSeconds !== null ? (
@@ -126,7 +128,7 @@ export function ActionDock({
             </span>
           ) : null}
         </div>
-        {turnNumber !== undefined ? <p className="text-[10px] text-muted-portal">Turno {turnNumber}</p> : null}
+        {turnNumber !== undefined ? <p className="text-[10px] text-muted-portal">{tr("Turno", "Turn")} {turnNumber}</p> : null}
         {inActionStep && onPassAction ? (
           <Button
             size="sm"
@@ -135,7 +137,7 @@ export function ActionDock({
             disabled={busy}
             onClick={onPassAction}
           >
-            Passar ação
+            {tr("Passar ação", "Pass action")}
           </Button>
         ) : yourTurn ? (
           <Button
@@ -144,7 +146,7 @@ export function ActionDock({
             disabled={busy}
             onClick={onEndTurn}
           >
-            Passar turno
+            {tr("Passar turno", "End turn")}
           </Button>
         ) : null}
         <div className="flex items-center justify-between gap-2 border-t border-white/10 pt-1.5 text-[10px] text-muted-portal">
@@ -156,7 +158,7 @@ export function ActionDock({
             type="button"
             className="flex items-center gap-1 hover:text-slate-200"
             onClick={() => onToggleAutoPass?.(!autoPass)}
-            title="Alternar auto-pass no Passo de Ação"
+            title={tr("Alternar auto-pass no Passo de Ação", "Toggle auto-pass in the Action Step")}
           >
             <Wifi className="size-3" aria-hidden />
             {pingMs !== null && pingMs !== undefined ? `${pingMs}ms · ` : ""}

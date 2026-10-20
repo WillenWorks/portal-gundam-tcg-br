@@ -28,6 +28,7 @@ import {
 import { Button } from "@/components/ui/button";
 import type { PlayerId } from "@/modules/simulator/engine/types";
 import type { ViewGameState } from "@/modules/simulator/engine/viewState";
+import { useSiteLanguage, type Localized } from "@/i18n/siteLanguage";
 
 export interface ZeroCoachHudProps {
   open: boolean;
@@ -43,11 +44,11 @@ export interface ZeroCoachHudProps {
 
 const PERSONA_CONFIGS: Record<
   PilotPersonaId,
-  { name: string; subtitle: string; callsign: string; faction: string; accentColor: string; avatarBorder: string }
+  { name: string | Localized; subtitle: Localized; callsign: string; faction: string; accentColor: string; avatarBorder: string }
 > = {
   adaptive: {
     name: "Zero Core Adaptativo",
-    subtitle: "Seleção Heurística Dinâmica",
+    subtitle: { pt: "Seleção Heurística Dinâmica", en: "Dynamic Heuristic Selection" },
     callsign: "SYSTEM-ZERO",
     faction: "ANAHEIM CORP",
     accentColor: "text-cyan-400",
@@ -55,7 +56,7 @@ const PERSONA_CONFIGS: Record<
   },
   amuro: {
     name: "Amuro Ray",
-    subtitle: "Preservação & Controle Reativo",
+    subtitle: { pt: "Preservação & Controle Reativo", en: "Preservation & Reactive Control" },
     callsign: "WHITE-DEVIL",
     faction: "E.F.S.F.",
     accentColor: "text-blue-400",
@@ -63,7 +64,7 @@ const PERSONA_CONFIGS: Record<
   },
   char: {
     name: "Char Aznable",
-    subtitle: "Velocidade & Ataque Total",
+    subtitle: { pt: "Velocidade & Ataque Total", en: "Speed & All-Out Attack" },
     callsign: "RED-COMET",
     faction: "ZEON FORCES",
     accentColor: "text-red-400",
@@ -71,15 +72,15 @@ const PERSONA_CONFIGS: Record<
   },
   heero: {
     name: "Heero Yuy",
-    subtitle: "Cálculo Frio de Letal & Trocas",
+    subtitle: { pt: "Cálculo Frio de Letal & Trocas", en: "Cold Lethal Math & Trades" },
     callsign: "WING-ZERO-01",
     faction: "COLONIES",
     accentColor: "text-emerald-400",
     avatarBorder: "border-emerald-500/60",
   },
   analyst: {
-    name: "Analista Tático OZ",
-    subtitle: "Rulings Oficiais & Metagame",
+    name: { pt: "Analista Tático OZ", en: "OZ Tactical Analyst" },
+    subtitle: { pt: "Rulings Oficiais & Metagame", en: "Official Rulings & Metagame" },
     callsign: "OZ-INTEL",
     faction: "ORGANIZATION OF ZODIAC",
     accentColor: "text-amber-400",
@@ -135,12 +136,13 @@ function CircularGauge({ value, size = 80, strokeWidth = 7 }: { value: number; s
 }
 
 function ThreatLevelBadge({ level }: { level: ZeroThreatLevel }) {
+  const { tr } = useSiteLanguage();
   const configs = {
-    LOW: { label: "AMEAÇA BAIXA", bg: "bg-emerald-950/40 border-emerald-500/40 text-emerald-400", pulse: false },
-    MEDIUM: { label: "ALERTA MÉDIO", bg: "bg-cyan-950/40 border-cyan-500/40 text-cyan-400", pulse: false },
-    HIGH: { label: "PERIGO ELEVADO", bg: "bg-amber-950/40 border-amber-500/50 text-amber-400", pulse: false },
+    LOW: { label: tr("AMEAÇA BAIXA", "LOW THREAT"), bg: "bg-emerald-950/40 border-emerald-500/40 text-emerald-400", pulse: false },
+    MEDIUM: { label: tr("ALERTA MÉDIO", "MEDIUM ALERT"), bg: "bg-cyan-950/40 border-cyan-500/40 text-cyan-400", pulse: false },
+    HIGH: { label: tr("PERIGO ELEVADO", "HIGH DANGER"), bg: "bg-amber-950/40 border-amber-500/50 text-amber-400", pulse: false },
     CRITICAL: {
-      label: "AMEAÇA CRÍTICA",
+      label: tr("AMEAÇA CRÍTICA", "CRITICAL THREAT"),
       bg: "bg-red-950/70 border-red-500 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.5)]",
       pulse: true,
     },
@@ -171,11 +173,12 @@ function ThreatLevelBadge({ level }: { level: ZeroThreatLevel }) {
 }
 
 function StrategyTag({ strategy }: { strategy: ZeroTacticalLine["strategy"] }) {
+  const { tr } = useSiteLanguage();
   const labels = {
-    aggressive: { text: "AGRESSÃO", cls: "bg-red-950/50 text-red-400 border-red-500/40" },
-    control: { text: "CONTROLE", cls: "bg-blue-950/50 text-blue-400 border-blue-500/40" },
+    aggressive: { text: tr("AGRESSÃO", "AGGRESSION"), cls: "bg-red-950/50 text-red-400 border-red-500/40" },
+    control: { text: tr("CONTROLE", "CONTROL"), cls: "bg-blue-950/50 text-blue-400 border-blue-500/40" },
     tempo: { text: "TEMPO", cls: "bg-cyan-950/50 text-cyan-400 border-cyan-500/40" },
-    defensive: { text: "DEFESA", cls: "bg-emerald-950/50 text-emerald-400 border-emerald-500/40" },
+    defensive: { text: tr("DEFESA", "DEFENSE"), cls: "bg-emerald-950/50 text-emerald-400 border-emerald-500/40" },
   };
   const cfg = labels[strategy] || labels.control;
   return (
@@ -194,6 +197,7 @@ export function ZeroCoachHud({
   initialAnalysis,
   className = "",
 }: ZeroCoachHudProps) {
+  const { tr } = useSiteLanguage();
   const [selectedPersona, setSelectedPersona] = useState<PilotPersonaId>("adaptive");
   const [analysis, setAnalysis] = useState<ZeroTerminalAnalysis | null>(initialAnalysis ?? null);
   const [loading, setLoading] = useState(false);
@@ -264,8 +268,8 @@ export function ZeroCoachHud({
               className="size-6 text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10"
               onClick={() => fetchTelemetry(selectedPersona)}
               disabled={loading}
-              title="Recalcular telemetria agora"
-              aria-label="Atualizar telemetria"
+              title={tr("Recalcular telemetria agora", "Recalculate now")}
+              aria-label={tr("Atualizar telemetria", "Refresh analysis")}
             >
               <RefreshCw className={`size-3 ${loading ? "animate-spin text-cyan-400" : ""}`} />
             </Button>
@@ -286,8 +290,8 @@ export function ZeroCoachHud({
               data-testid="zero-hud-close"
               className="size-6 text-slate-400 hover:text-red-400 hover:bg-red-500/10"
               onClick={onToggle}
-              title="Fechar Zero Coach (Z)"
-              aria-label="Fechar painel"
+              title={tr("Fechar Zero Coach (Z)", "Close Zero Coach (Z)")}
+              aria-label={tr("Fechar painel", "Close panel")}
             >
               <X className="size-3.5" />
             </Button>
@@ -317,7 +321,7 @@ export function ZeroCoachHud({
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-400 flex items-center gap-1">
                   <Radio className="size-2.5 text-cyan-400" />
-                  Link de Comunicação Piloto
+                  {tr("Link de Comunicação Piloto", "Pilot Comm Link")}
                 </span>
                 <span className="text-[9px] font-mono text-cyan-400/70">{personaMeta.callsign}</span>
               </div>
@@ -380,8 +384,8 @@ export function ZeroCoachHud({
                     }`}
                   >
                     {(analysis?.lethalClockTurns ?? 99) >= 90
-                      ? "Seguro (>10 T)"
-                      : `${analysis?.lethalClockTurns} turno${(analysis?.lethalClockTurns ?? 1) > 1 ? "s" : ""}`}
+                      ? tr("Seguro (>10 T)", "Safe (>10 T)")
+                      : `${analysis?.lethalClockTurns} ${tr("turno", "turn")}${(analysis?.lethalClockTurns ?? 1) > 1 ? "s" : ""}`}
                   </span>
                 </div>
 
@@ -420,9 +424,9 @@ export function ZeroCoachHud({
                   </div>
                   <div>
                     <p className={`font-heading text-xs font-bold uppercase leading-none ${personaMeta.accentColor}`}>
-                      {personaMeta.name}
+                      {tr(personaMeta.name)}
                     </p>
-                    <p className="text-[8px] uppercase tracking-widest text-slate-400">{personaMeta.subtitle}</p>
+                    <p className="text-[8px] uppercase tracking-widest text-slate-400">{tr(personaMeta.subtitle)}</p>
                   </div>
                 </div>
                 <span className="text-[8px] font-mono uppercase tracking-widest text-slate-500">
@@ -433,7 +437,7 @@ export function ZeroCoachHud({
                 data-testid="zero-tactical-quote"
                 className="text-[11px] leading-relaxed text-slate-300 italic border-l-2 border-cyan-400/40 pl-2 bg-white/[0.02] py-1"
               >
-                &ldquo;{analysis?.tacticalAdvice || "Calculando opções táticas de vitória para esta rodada..."}&rdquo;
+                &ldquo;{analysis?.tacticalAdvice || tr("Calculando opções táticas de vitória para esta rodada...", "Calculating winning lines for this round...")}&rdquo;
               </p>
             </div>
 
@@ -442,7 +446,7 @@ export function ZeroCoachHud({
               <div className="space-y-1">
                 <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-red-400 flex items-center gap-1">
                   <ShieldAlert className="size-2.5" />
-                  Ameaças Prioritárias do Oponente
+                  {tr("Ameaças Prioritárias do Oponente", "Opponent's Priority Threats")}
                 </span>
                 <div className="space-y-1">
                   {analysis.keyThreats.slice(0, 3).map((threat, idx) => (
@@ -462,7 +466,7 @@ export function ZeroCoachHud({
             <div className="space-y-1.5">
               <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-cyan-400 flex items-center gap-1">
                 <Target className="size-2.5" />
-                Linhas Táticas Recomendadas
+                {tr("Linhas Táticas Recomendadas", "Recommended Lines")}
               </span>
 
               <div className="space-y-1.5">

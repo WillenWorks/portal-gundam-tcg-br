@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { api, type PopularLrCard } from "@/lib/api";
 import { GAME_COLOR_HEX } from "@/lib/gundam-catalog";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export interface DeckFiltersState {
   q: string;
@@ -53,6 +54,7 @@ export function DeckFiltersModal({
   onApply,
   onClear,
 }: DeckFiltersModalProps) {
+  const { tr } = useSiteLanguage();
   // Estado local do modal para edição prévia antes de aplicar
   const [draftFilters, setDraftFilters] = useState<DeckFiltersState>(filters);
   const [lrCards, setLrCards] = useState<PopularLrCard[]>([]);
@@ -148,7 +150,7 @@ export function DeckFiltersModal({
             <span className="w-1.5 h-5 bg-sky-400 inline-block" />
             <div>
               <DialogTitle className="font-heading text-xl uppercase tracking-wider text-white">
-                Filtros Avançados
+                {tr("Filtros Avançados", "Advanced Filters")}
               </DialogTitle>
               <DialogDescription className="sr-only">
                 Painel de filtragem avançada de decks do Hangar da OZ
@@ -159,7 +161,7 @@ export function DeckFiltersModal({
             type="button"
             onClick={onClose}
             className="text-slate-400 hover:text-white transition-colors p-1.5 hover:bg-white/5 border border-white/10"
-            title="Fechar filtros"
+            title={tr("Fechar filtros", "Close filters")}
           >
             <X className="size-5" />
           </button>
@@ -181,7 +183,7 @@ export function DeckFiltersModal({
                   onClick={() => setDraftFilters((prev) => ({ ...prev, unit: "" }))}
                   className="text-xs text-rose-400 hover:text-rose-300 font-mono"
                 >
-                  Remover seleção ({draftFilters.unit}) ✕
+                  {tr("Remover seleção", "Remove selection")} ({draftFilters.unit}) ✕
                 </button>
               )}
             </div>
@@ -192,7 +194,7 @@ export function DeckFiltersModal({
               <Input
                 value={cardSearchQuery}
                 onChange={(e) => setCardSearchQuery(e.target.value)}
-                placeholder="Buscar carta principal por nome ou código..."
+                placeholder={tr("Buscar carta principal por nome ou código...", "Search a main card by name or code...")}
                 className="bg-[#181f28] border-white/10 pl-9 text-sm text-white placeholder:text-slate-500 rounded-none h-10"
               />
               {cardSearchQuery && (
@@ -213,11 +215,11 @@ export function DeckFiltersModal({
               >
                 {loadingLr ? (
                   <div className="py-8 text-center w-full text-xs text-slate-400 font-mono">
-                    Carregando cartas principais...
+                    {tr("Carregando cartas principais...", "Loading main cards...")}
                   </div>
                 ) : !filteredCards.length ? (
                   <div className="py-8 text-center w-full text-xs text-slate-500 font-mono">
-                    Nenhuma carta encontrada para "{cardSearchQuery}".
+                    {tr(`Nenhuma carta encontrada para "${cardSearchQuery}".`, `No cards found for "${cardSearchQuery}".`)}
                   </div>
                 ) : (
                   filteredCards.map((card) => {
@@ -301,7 +303,7 @@ export function DeckFiltersModal({
                     type="button"
                     onClick={() => scrollCarousel("left")}
                     className="absolute left-0 top-1/2 -translate-y-1/2 size-8 bg-slate-950/80 hover:bg-slate-900 border border-white/20 text-white flex items-center justify-center shadow-lg transition-opacity opacity-70 group-hover/carousel:opacity-100"
-                    title="Rolar para a esquerda"
+                    title={tr("Rolar para a esquerda", "Scroll left")}
                   >
                     <ChevronLeft className="size-4" />
                   </button>
@@ -309,7 +311,7 @@ export function DeckFiltersModal({
                     type="button"
                     onClick={() => scrollCarousel("right")}
                     className="absolute right-0 top-1/2 -translate-y-1/2 size-8 bg-slate-950/80 hover:bg-slate-900 border border-white/20 text-white flex items-center justify-center shadow-lg transition-opacity opacity-70 group-hover/carousel:opacity-100"
-                    title="Rolar para a direita"
+                    title={tr("Rolar para a direita", "Scroll right")}
                   >
                     <ChevronRight className="size-4" />
                   </button>
@@ -366,7 +368,7 @@ export function DeckFiltersModal({
                   }
                   className="size-4 rounded border-white/20 bg-slate-900 text-sky-500 focus:ring-sky-500"
                 />
-                <span>Apenas correspondência exata de cor</span>
+                <span>{tr("Apenas correspondência exata de cor", "Exact color match only")}</span>
               </label>
             </div>
 
@@ -401,7 +403,7 @@ export function DeckFiltersModal({
                 >
                   {draftFilters.starterDecksOnly && <Check className="size-3 stroke-[3]" />}
                 </div>
-                <span className="text-xs font-medium">Apenas Decks Iniciais (Starter Decks)</span>
+                <span className="text-xs font-medium">{tr("Apenas Decks Iniciais (Starter Decks)", "Starter Decks only")}</span>
               </div>
             </div>
 
@@ -417,7 +419,7 @@ export function DeckFiltersModal({
               <div className="space-y-2.5">
                 <div>
                   <label className="block text-[10px] font-mono uppercase text-slate-400 mb-1">
-                    Data Início
+                    {tr("Data Início", "Start Date")}
                   </label>
                   <input
                     type="date"
@@ -434,7 +436,7 @@ export function DeckFiltersModal({
 
                 <div>
                   <label className="block text-[10px] font-mono uppercase text-slate-400 mb-1">
-                    Data Fim
+                    {tr("Data Fim", "End Date")}
                   </label>
                   <input
                     type="date"
@@ -461,7 +463,7 @@ export function DeckFiltersModal({
                     }
                     className="text-[11px] font-mono text-sky-400 hover:text-sky-300 underline pt-0.5 block cursor-pointer"
                   >
-                    Limpar recorte temporal
+                    {tr("Limpar recorte temporal", "Clear date range")}
                   </button>
                 )}
               </div>
@@ -482,7 +484,7 @@ export function DeckFiltersModal({
                   onChange={(e) =>
                     setDraftFilters((prev) => ({ ...prev, q: e.target.value }))
                   }
-                  placeholder="Buscar decks ou pilotos..."
+                  placeholder={tr("Buscar decks ou pilotos...", "Search decks or players...")}
                   className="bg-[#181f28] border-white/10 text-xs text-white placeholder:text-slate-500 rounded-none h-10"
                 />
               </div>
@@ -521,7 +523,7 @@ export function DeckFiltersModal({
             onClick={handleReset}
             className="text-xs text-slate-400 hover:text-white rounded-none"
           >
-            <RotateCcw className="mr-1.5 size-3.5" /> Limpar Filtros
+            <RotateCcw className="mr-1.5 size-3.5" /> {tr("Limpar Filtros", "Clear Filters")}
           </Button>
 
           <div className="flex items-center gap-2">
@@ -531,14 +533,14 @@ export function DeckFiltersModal({
               onClick={onClose}
               className="rounded-none border-white/15 text-xs text-slate-300 hover:text-white"
             >
-              Cancelar
+              {tr("Cancelar", "Cancel")}
             </Button>
             <Button
               type="button"
               onClick={handleApply}
               className="rounded-none bg-sky-600 hover:bg-sky-500 text-white font-heading uppercase tracking-wider text-xs px-6 py-2 shadow-lg shadow-sky-600/30"
             >
-              Aplicar Filtros
+              {tr("Aplicar Filtros", "Apply Filters")}
             </Button>
           </div>
         </div>

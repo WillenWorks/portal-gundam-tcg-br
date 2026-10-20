@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { Bug, Check, Camera, RefreshCw, AlertCircle, Bot, User, Shield } from "lucide-react";
 import type { BugReportSnapshot } from "./captureSnapshot";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export interface BugReportModalProps {
   busy?: boolean;
@@ -22,6 +23,7 @@ export function BugReportModal({
   onSubmit,
   onClose,
 }: BugReportModalProps) {
+  const { tr } = useSiteLanguage();
   const [note, setNote] = useState("");
   const [showScreenshotPreview, setShowScreenshotPreview] = useState(false);
 
@@ -34,14 +36,14 @@ export function BugReportModal({
               <Check className="size-5" />
             </div>
             <p className="text-sm font-black uppercase tracking-[0.2em] text-emerald-400">
-              Relatório Arquivado
+              {tr("Relatório Arquivado", "Report Filed")}
             </p>
             <div className="rounded border border-amber-500/30 bg-black/50 p-2.5">
               <span className="select-all font-mono text-base font-extrabold tracking-wider text-amber-300">
                 {shortCode}
               </span>
               <p className="mt-1 text-[11px] text-slate-400">
-                O print da tela, o log de combate e o estado de jogo foram salvos no servidor para análise dos agentes.
+                {tr("O print da tela, o log de combate e o estado de jogo foram salvos no servidor para análise dos agentes.", "The screenshot, battle log and game state were saved on the server for review.")}
               </p>
             </div>
             <button
@@ -49,7 +51,7 @@ export function BugReportModal({
               onClick={onClose}
               className="mt-2 w-full border border-white/20 bg-slate-900 px-3 py-2 text-xs font-semibold text-soft transition hover:border-primary/60 hover:bg-primary/10"
             >
-              Fechar
+              {tr("Fechar", "Close")}
             </button>
           </div>
         ) : capturing ? (
@@ -59,7 +61,7 @@ export function BugReportModal({
               Capturando snapshot e print da tela…
             </p>
             <p className="text-[10px] text-muted-portal">
-              Congelando a cena visual e os dados táticos do simulador.
+              {tr("Congelando a cena visual e os dados táticos do simulador.", "Capturing the board and the simulator state.")}
             </p>
           </div>
         ) : (
@@ -84,7 +86,7 @@ export function BugReportModal({
               <div className="mt-2.5 rounded border border-white/10 bg-black/40 p-2 text-[11px] space-y-1.5">
                 <div className="flex items-center justify-between text-slate-300">
                   <span>
-                    <strong>Turno {snapshot.turnNumber}</strong> · Fase <code className="text-amber-300">{snapshot.phase}</code>
+                    <strong>{tr("Turno", "Turn")} {snapshot.turnNumber}</strong> · {tr("Fase", "Phase")} <code className="text-amber-300">{snapshot.phase}</code>
                   </span>
                   <span className="flex items-center gap-1 text-[10px] text-slate-400">
                     <Shield className="size-3 text-cyan-400" /> {snapshot.myShieldCount} vs {snapshot.oppShieldCount}
@@ -99,13 +101,13 @@ export function BugReportModal({
                       className="flex items-center gap-1.5 text-[10px] font-semibold text-cyan-400 hover:text-cyan-300 transition"
                     >
                       <Camera className="size-3" />
-                      {showScreenshotPreview ? "Ocultar print anexado" : "Ver print anexado da tela"}
+                      {showScreenshotPreview ? tr("Ocultar print anexado", "Hide attached screenshot") : tr("Ver print anexado da tela", "View attached screenshot")}
                     </button>
                     {showScreenshotPreview ? (
                       <div className="mt-1.5 max-h-40 overflow-hidden rounded border border-cyan-500/30 bg-black">
                         <img
                           src={snapshot.screenshotBase64}
-                          alt="Screenshot da Partida"
+                          alt={tr("Screenshot da Partida", "Match screenshot")}
                           className="w-full object-contain"
                         />
                       </div>
@@ -120,11 +122,11 @@ export function BugReportModal({
             ) : null}
 
             <p className="mt-2 text-[10px] text-muted-portal leading-relaxed">
-              O log completo e as cartas em jogo serão anexados automaticamente. Descreva abaixo o que aconteceu de incorreto:
+              {tr("O log completo e as cartas em jogo serão anexados automaticamente. Descreva abaixo o que aconteceu de incorreto:", "The full log and the cards in play are attached automatically. Describe what went wrong below:")}
             </p>
 
             <label htmlFor="bug-report-note" className="sr-only">
-              Descrição do bug
+              {tr("Descrição do bug", "Bug description")}
             </label>
             <textarea
               id="bug-report-note"
@@ -134,7 +136,7 @@ export function BugReportModal({
               autoFocus
               rows={3}
               maxLength={2000}
-              placeholder="Ex: O bot não passou a prioridade; ou o dano da unidade não considerou o Link..."
+              placeholder={tr("Ex: O bot não passou a prioridade; ou o dano da unidade não considerou o Link...", "e.g. The bot didn't pass priority; or the unit's damage ignored the Link...")}
               className="mt-2 w-full resize-none rounded border border-white/10 bg-black/60 px-2.5 py-1.5 text-xs text-soft outline-none transition focus:border-amber-500/60 disabled:opacity-40"
             />
 
@@ -145,7 +147,7 @@ export function BugReportModal({
                 disabled={busy}
                 className="flex-1 rounded border border-white/15 bg-black/40 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-white/30 hover:bg-white/5 disabled:opacity-40"
               >
-                Cancelar (Descartar)
+                {tr("Cancelar (Descartar)", "Cancel (Discard)")}
               </button>
               <button
                 type="button"
@@ -153,7 +155,7 @@ export function BugReportModal({
                 disabled={busy}
                 className="flex-1 rounded border border-amber-500/60 bg-amber-500/20 px-3 py-1.5 text-xs font-bold text-amber-200 transition hover:bg-amber-500/30 disabled:opacity-40"
               >
-                {busy ? "Enviando…" : "Enviar Relatório"}
+                {busy ? tr("Enviando…", "Sending…") : tr("Enviar Relatório", "Send Report")}
               </button>
             </div>
           </>

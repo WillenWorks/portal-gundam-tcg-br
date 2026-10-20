@@ -20,6 +20,7 @@ import {
 
 import { api, type ZeroDeckConsistencyResult } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { tr as trNow, useSiteLanguage } from "@/i18n/siteLanguage";
 
 export interface DeckCardInput {
   cardCode: string;
@@ -48,10 +49,11 @@ export function ZeroCopilotDrawer({
   open,
   onClose,
   deckCards,
-  deckName = "Deck em Edição",
+  deckName = trNow("Deck em Edição", "Deck in progress"),
   onAddCard,
   onInspectCard,
 }: ZeroCopilotDrawerProps) {
+  const { tr } = useSiteLanguage();
   const [result, setResult] = useState<ZeroDeckConsistencyResult | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -80,7 +82,7 @@ export function ZeroCopilotDrawer({
   const scoreColor =
     score >= 80 ? "text-emerald-400 border-emerald-500" : score >= 65 ? "text-cyan-400 border-cyan-500" : score >= 45 ? "text-amber-400 border-amber-500" : "text-red-400 border-red-500";
   const scoreLabel =
-    score >= 80 ? "EXCELENTE" : score >= 65 ? "CONSISTENTE" : score >= 45 ? "REGULAR / MODERADO" : "INSTÁVEL / ALTO RISCO";
+    score >= 80 ? tr("EXCELENTE", "EXCELLENT") : score >= 65 ? tr("CONSISTENTE", "CONSISTENT") : score >= 45 ? tr("REGULAR / MODERADO", "FAIR / MODERATE") : tr("INSTÁVEL / ALTO RISCO", "UNSTABLE / HIGH RISK");
 
   return (
     <AnimatePresence>
@@ -120,7 +122,7 @@ export function ZeroCopilotDrawer({
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-400 uppercase tracking-widest">
-                  Hangar Tático · {deckName} ({totalCards} cartas)
+                  {tr("Análise", "Analysis")} · {deckName} ({totalCards} {tr("cartas", "cards")})
                 </p>
               </div>
             </div>
@@ -132,8 +134,8 @@ export function ZeroCopilotDrawer({
                 className="size-7 text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10"
                 onClick={runAnalysis}
                 disabled={loading}
-                title="Recalcular análise"
-                aria-label="Recalcular análise"
+                title={tr("Recalcular análise", "Recalculate analysis")}
+                aria-label={tr("Recalcular análise", "Recalculate analysis")}
               >
                 <RefreshCw className={`size-3.5 ${loading ? "animate-spin text-cyan-400" : ""}`} />
               </Button>
@@ -142,8 +144,8 @@ export function ZeroCopilotDrawer({
                 size="icon"
                 className="size-7 text-slate-400 hover:text-red-400 hover:bg-red-500/10"
                 onClick={onClose}
-                title="Fechar drawer"
-                aria-label="Fechar drawer"
+                title={tr("Fechar drawer", "Close panel")}
+                aria-label={tr("Fechar drawer", "Close panel")}
               >
                 <X className="size-4" />
               </Button>
@@ -157,7 +159,7 @@ export function ZeroCopilotDrawer({
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 flex items-center gap-1">
                   <Sparkles className="size-3 text-cyan-400" />
-                  Score de Consistência
+                  {tr("Score de Consistência", "Consistency Score")}
                 </span>
                 <p className={`mt-1 font-heading text-3xl font-black ${scoreColor}`}>
                   {score}<span className="text-sm font-sans font-normal text-slate-400">/100</span>
@@ -170,9 +172,9 @@ export function ZeroCopilotDrawer({
               <div className="text-right">
                 <div className="inline-flex items-center gap-1 border border-cyan-500/30 bg-cyan-950/40 px-2 py-1 text-[10px] font-mono text-cyan-300">
                   <Layers className="size-3" />
-                  <span>50 cartas alvo</span>
+                  <span>{tr("50 cartas alvo", "50-card target")}</span>
                 </div>
-                <p className="text-[10px] text-slate-400 mt-1">Cálculo Hipergeométrico</p>
+                <p className="text-[10px] text-slate-400 mt-1">{tr("Cálculo Hipergeométrico", "Hypergeometric Math")}</p>
               </div>
             </div>
 
@@ -183,14 +185,14 @@ export function ZeroCopilotDrawer({
                   <Target className="size-3" />
                   Consistência de Abertura (Turnos 1 a 3)
                 </span>
-                <span className="text-[10px] font-mono text-slate-400">Mão de 5 cartas</span>
+                <span className="text-[10px] font-mono text-slate-400">{tr("Mão de 5 cartas", "5-card hand")}</span>
               </div>
 
               {/* Turno 1 */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-300 flex items-center gap-1">
-                    <span className="font-heading font-bold text-cyan-400">T1:</span> Unidade Lv.1 jogável
+                    <span className="font-heading font-bold text-cyan-400">T1:</span> {tr("Unidade Lv.1 jogável", "Playable Lv.1 Unit")}
                   </span>
                   <span className="font-mono font-bold text-white">
                     {Math.round((result?.turn1UnitChance ?? 0.6) * 100)}%
@@ -203,7 +205,7 @@ export function ZeroCopilotDrawer({
                   />
                 </div>
                 <p className="text-[10px] text-slate-400">
-                  Garante presença imediata no Turno 1 sem perder tempo de ação.
+                  {tr("Garante presença imediata no Turno 1 sem perder tempo de ação.", "Ensures an immediate Turn 1 board without wasting actions.")}
                 </p>
               </div>
 
@@ -211,7 +213,7 @@ export function ZeroCopilotDrawer({
               <div className="space-y-1 pt-1">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-300 flex items-center gap-1">
-                    <span className="font-heading font-bold text-cyan-400">T2:</span> Unidade Lv.1–2 jogável
+                    <span className="font-heading font-bold text-cyan-400">T2:</span> {tr("Unidade Lv.1–2 jogável", "Playable Lv.1–2 Unit")}
                   </span>
                   <span className="font-mono font-bold text-white">
                     {Math.round((result?.turn2UnitChance ?? 0.82) * 100)}%
@@ -224,7 +226,7 @@ export function ZeroCopilotDrawer({
                   />
                 </div>
                 <p className="text-[10px] text-slate-400">
-                  Transição suave para o segundo turno e desdobramento da linha de frente.
+                  {tr("Transição suave para o segundo turno e desdobramento da linha de frente.", "Smooth move into turn 2 and building the front line.")}
                 </p>
               </div>
 
@@ -232,7 +234,7 @@ export function ZeroCopilotDrawer({
               <div className="space-y-1 pt-1">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-300 flex items-center gap-1">
-                    <span className="font-heading font-bold text-cyan-400">T3:</span> Unidade Lv.1–3 + Piloto
+                    <span className="font-heading font-bold text-cyan-400">T3:</span> {tr("Unidade Lv.1–3 + Piloto", "Lv.1–3 Unit + Pilot")}
                   </span>
                   <span className="font-mono font-bold text-white">
                     {Math.round((result?.turn3UnitChance ?? 0.72) * 100)}%
@@ -245,7 +247,7 @@ export function ZeroCopilotDrawer({
                   />
                 </div>
                 <p className="text-[10px] text-slate-400">
-                  Ativação consistente de habilidades Link e superioridade de AP em combate.
+                  {tr("Ativação consistente de habilidades Link e superioridade de AP em combate.", "Consistent Link abilities and an AP edge in combat.")}
                 </p>
               </div>
             </div>
@@ -255,7 +257,7 @@ export function ZeroCopilotDrawer({
               <div className="space-y-1.5">
                 <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 flex items-center gap-1">
                   <Info className="size-3 text-cyan-400" />
-                  Diagnóstico da Curva & Alertas
+                  {tr("Diagnóstico da Curva & Alertas", "Curve Check & Alerts")}
                 </span>
                 <div className="space-y-1">
                   {result.diagnostics.map((diag, idx) => (
@@ -276,7 +278,7 @@ export function ZeroCopilotDrawer({
               <div className="space-y-1.5">
                 <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-400 flex items-center gap-1">
                   <Zap className="size-3" />
-                  Sinergias & Arquétipos Detectados
+                  {tr("Sinergias & Arquétipos Detectados", "Synergies & Archetypes Found")}
                 </span>
                 <div className="space-y-1.5">
                   {result.archetypeSynergies.map((syn, idx) => (
@@ -325,7 +327,7 @@ export function ZeroCopilotDrawer({
                             className="h-6 text-[10px] text-slate-400 hover:text-white"
                             onClick={() => onInspectCard(tech.cardCode)}
                           >
-                            Ver Carta
+                            {tr("Ver Carta", "View Card")}
                           </Button>
                         )}
                         {onAddCard && (
@@ -335,7 +337,7 @@ export function ZeroCopilotDrawer({
                             onClick={() => onAddCard(tech.cardCode)}
                           >
                             <Plus className="size-3 mr-1" />
-                            Adicionar ao Deck
+                            {tr("Adicionar ao Deck", "Add to Deck")}
                           </Button>
                         )}
                       </div>

@@ -191,8 +191,16 @@ import {
   captureSimulatorSnapshot,
   type BugReportSnapshot,
 } from "@/modules/simulator/ui";
+import { useSiteLanguage, type Localized } from "@/i18n/siteLanguage";
+import { LanguageSwitcher } from "@/components/layout/shared/LanguageSwitcher";
 
-const PHASE_LABEL: Record<string, string> = { start: "Manutenção", draw: "Compra", resource: "Recurso", main: "Principal", end: "Final" };
+const PHASE_LABEL: Record<string, Localized> = {
+  start: { pt: "Manutenção", en: "Start" },
+  draw: { pt: "Compra", en: "Draw" },
+  resource: { pt: "Recurso", en: "Resource" },
+  main: { pt: "Principal", en: "Main" },
+  end: { pt: "Final", en: "End" },
+};
 /** Espelha `ABANDON_THRESHOLD_MS` do servidor (matchStore.ts) -- só usado aqui pra habilitar o botão na hora certa; quem decide de verdade é sempre o servidor. */
 const ABANDON_THRESHOLD_MS = 180_000;
 /** Retrato + tela pequena: em vez de girar o board via CSS (bugava toque/overflow),
@@ -222,12 +230,12 @@ function isHidden(card: ViewCardInstance): card is HiddenCard {
 
 /** Frente 4 (feedback Willen 4ª rodada) — rótulos da `DeckDealAnimation` ligada
  *  ao fluxo real (compra inicial / mulligan / montagem de escudos). */
-const SETUP_ANIM_LABEL: Record<DeckDealMode, string> = {
-  shuffle: "Embaralhando…",
-  "deal-hand": "Comprando a mão inicial…",
-  mulligan: "Refazendo a mão (Mulligan)…",
-  "deal-shields": "Montando os escudos…",
-  "single-draw": "Comprando…",
+const SETUP_ANIM_LABEL: Record<DeckDealMode, Localized> = {
+  shuffle: { pt: "Embaralhando…", en: "Shuffling…" },
+  "deal-hand": { pt: "Comprando a mão inicial…", en: "Drawing the opening hand…" },
+  mulligan: { pt: "Refazendo a mão (Mulligan)…", en: "Redrawing the hand (Mulligan)…" },
+  "deal-shields": { pt: "Montando os escudos…", en: "Setting up shields…" },
+  "single-draw": { pt: "Comprando…", en: "Drawing…" },
 };
 
 /** centro (viewport px) de um `DOMRect`, ou `null`. */
@@ -473,6 +481,7 @@ type HandPlayMode = { label: string; run: () => void };
 type HandPreview = { card: CardInstance; blockedReason?: string; modes: HandPlayMode[] };
 
 export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
+  const { tr } = useSiteLanguage();
   const [, setLocation] = useLocation();
   const [matchView, setMatchView] = useState<SimulatorMatchView | null>(null);
   const [loadTimedOut, setLoadTimedOut] = useState(false);
@@ -1184,7 +1193,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       } catch (err) {
         // jogada recusada pelo motor (ex.: atacar com Unit rested) — faixa
         // própria no topo, não `toast` no canto (que tapava o log — Feedback.pdf §5).
-        showActionError(errorMessage(err, "Ação inválida."));
+        showActionError(errorMessage(err, tr("Ação inválida.", "Invalid action.")));
         // recusada: a mesma decisão continua pendente e pode ser respondida de novo
         if (resolvesDecision) decisionSentForVersionRef.current = null;
       } finally {
@@ -1200,9 +1209,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       try {
         const updated = await api.submitSimulatorSideboard(matchId, swaps);
         applyIncomingView(updated);
-        toast.success("Trocas táticas de Sideboard confirmadas!");
+        toast.success(tr("Trocas táticas de Sideboard confirmadas!", "Sideboard swaps confirmed!"));
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Erro ao submeter sideboard.");
+        toast.error(err instanceof Error ? err.message : tr("Erro ao submeter sideboard.", "Couldn't submit the sideboard."));
       } finally {
         setBusy(false);
       }
@@ -1215,7 +1224,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       const res = await api.setSimulatorAutoPass(matchId, value);
       setMatchView(res);
     } catch (err) {
-      toast.error(errorMessage(err, "Não deu pra mudar o auto-pass."));
+      toast.error(errorMessage(err, tr("Não deu pra mudar o auto-pass.", "Couldn't change auto-pass.")));
     }
   };
 
@@ -1249,7 +1258,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       setBugReport((s) => ({ ...s, busy: false, code: shortCode }));
     } catch (err) {
       setBugReport((s) => ({ ...s, busy: false }));
-      toast.error(errorMessage(err, "Não deu pra registrar o problema."));
+      toast.error(errorMessage(err, tr("Não deu pra registrar o problema.", "Couldn't file the report.")));
     }
   };
 
@@ -1258,9 +1267,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     try {
       const res = await api.claimSimulatorAbandonWin(matchId);
       setMatchView(res);
-      toast.success("W.O. declarado — vitória por abandono.");
+      toast.success(tr("W.O. declarado — vitória por abandono.", "Forfeit claimed — you win by abandonment."));
     } catch (err) {
-      toast.error(errorMessage(err, "Ainda não dá pra declarar W.O."));
+      toast.error(errorMessage(err, tr("Ainda não dá pra declarar W.O.", "You can't claim a forfeit yet.")));
     } finally {
       setBusy(false);
     }
@@ -1276,7 +1285,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     // ficou. Se a partida já acabou (ou nunca teve oponente), só navega embora.
     if (!matchView?.view.gameOver) {
       const ok = window.confirm(
-        "Sair agora encerra o duelo e concede a vitória ao oponente (abandono). Sair mesmo assim?",
+        tr("Sair agora encerra o duelo e concede a vitória ao oponente (abandono). Sair mesmo assim?", "Leaving now ends the duel and gives the win to your opponent. Leave anyway?"),
       );
       if (!ok) return;
       try {
@@ -1340,9 +1349,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       track.fired = new Set();
     }
     const thresholds: Array<{ at: number; fire: () => void }> = [
-      { at: 150, fire: () => toast.warning("Metade do tempo do seu turno já passou.") },
-      { at: 50, fire: () => toast.warning("Faltam 50s pro seu turno acabar.") },
-      { at: 10, fire: () => toast.error("10s! O turno vai encerrar sozinho e entrar no Action Step.") },
+      { at: 150, fire: () => toast.warning(tr("Metade do tempo do seu turno já passou.", "Half of your turn time has passed.")) },
+      { at: 50, fire: () => toast.warning(tr("Faltam 50s pro seu turno acabar.", "50s left in your turn.")) },
+      { at: 10, fire: () => toast.error(tr("10s! O turno vai encerrar sozinho e entrar no Action Step.", "10s! Your turn will end on its own and move to the Action Step.")) },
     ];
     for (const t of thresholds) {
       if (secondsLeft <= t.at && !track.fired.has(t.at)) {
@@ -1648,10 +1657,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           <div className="panel-cut flex max-w-md flex-col items-center gap-4 rounded-xl border border-destructive/40 bg-slate-900/90 p-8 text-center shadow-2xl backdrop-blur-md">
             <AlertTriangle className="size-10 text-amber-400" />
             <h2 className="font-heading text-lg uppercase tracking-wider text-slate-100">
-              Conexão com a partida demorando mais que o esperado
+              {tr("Conexão com a partida demorando mais que o esperado", "Connecting to the match is taking longer than expected")}
             </h2>
             <p className="text-xs leading-5 text-slate-400">
-              O simulador ainda não recebeu os dados do tabuleiro. Isso pode ocorrer por instabilidade de rede ou durante o handshake com o servidor.
+              {tr("O simulador ainda não recebeu os dados do tabuleiro. Isso pode ocorrer por instabilidade de rede ou durante o handshake com o servidor.", "The simulator hasn't received the board data yet. This can happen with an unstable connection or during the handshake with the server.")}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
               <Button
@@ -1661,7 +1670,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 className="rounded-none border-primary/50 text-xs uppercase tracking-wider"
               >
                 <RefreshCw className="mr-2 size-3.5" />
-                Tentar Novamente
+                {tr("Tentar Novamente", "Try Again")}
               </Button>
               <Button
                 variant="secondary"
@@ -1669,7 +1678,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 onClick={() => setLocation("/simulador")}
                 className="rounded-none text-xs uppercase tracking-wider"
               >
-                Voltar ao Simulador
+                {tr("Voltar ao Simulador", "Back to Simulator")}
               </Button>
             </div>
           </div>
@@ -1680,7 +1689,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-slate-950 text-sm text-muted-portal">
         <RefreshCw className="size-5 animate-spin text-primary" />
-        <p>{!matchView ? "Conectando à partida…" : "Carregando as cartas…"}</p>
+        <p>{!matchView ? tr("Conectando à partida…", "Connecting to the match…") : tr("Carregando as cartas…", "Loading cards…")}</p>
       </div>
     );
   }
@@ -1708,13 +1717,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   // sem explicar nada, e foi exatamente essa falta de explicação que gerou o relato de "botão
   // bloqueado" quando na verdade era Action Step de fim de turno, ver docs/18).
   const notMainPhaseReason: string | undefined = combat
-    ? "Combate em andamento — só dá pra jogar Comando 【Action】 agora."
+    ? tr("Combate em andamento — só dá pra jogar Comando 【Action】 agora.", "Combat in progress — you can only play 【Action】 Commands now.")
     : endPhaseAction
-      ? "Passo de Ação do fim de turno — só dá pra jogar Comando 【Action】 agora."
+      ? tr("Passo de Ação do fim de turno — só dá pra jogar Comando 【Action】 agora.", "End-of-turn Action Step — you can only play 【Action】 Commands now.")
       : view.activePlayer !== seat
-        ? "Não é sua vez."
+        ? tr("Não é sua vez.", "It's not your turn.")
         : view.phase !== "main"
-          ? "Fora da sua Fase Principal."
+          ? tr("Fora da sua Fase Principal.", "Not in your Main Phase.")
           : undefined;
 
   // Decisão interativa pendente (docs/19, Sessão 2) — Burst de shield quebrada, sobretudo.
@@ -2032,7 +2041,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     // pra restar. Sem isso o motor pegava os N primeiros do array — e o EX Resource,
     // que fica sempre no índice 0, era gasto (e SAI DO JOGO) sem o jogador querer.
     if (pendingCost > 0 && selectedResources.length !== pendingCost) {
-      showActionError(`Selecione exatamente ${pendingCost} recurso(s) ativo(s) para pagar o custo (clique na sua bandeja de Recursos).`);
+      showActionError(tr(`Selecione exatamente ${pendingCost} recurso(s) ativo(s) para pagar o custo (clique na sua bandeja de Recursos).`, `Select exactly ${pendingCost} active resource(s) to pay the cost (click your Resource tray).`));
       return;
     }
     const resourceInstanceIds = pendingCost > 0 ? selectedResources : undefined;
@@ -2049,11 +2058,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       executeDeploy(pending.cardInstanceId, sel.pairWithUnitId, pending.sacrificeInstanceId, resourceInstanceIds);
     } else if (pending.kind === "activateAbility") {
       if (pending.abilityNeedsTarget && selected.length === 0) {
-        showActionError("Esta habilidade precisa de um alvo — clique numa carta do tabuleiro.");
+        showActionError(tr("Esta habilidade precisa de um alvo — clique numa carta do tabuleiro.", "This ability needs a target — click a card on the board."));
         return;
       }
       if (pending.abilityNeedsTarget && primaryLegalTargetIds.size > 0 && selected.length < requiredTargetCount) {
-        showActionError(`Escolha pelo menos ${requiredTargetCount} alvo(s) no tabuleiro.`);
+        showActionError(tr(`Escolha pelo menos ${requiredTargetCount} alvo(s) no tabuleiro.`, `Choose at least ${requiredTargetCount} target(s) on the board.`));
         return;
       }
       // Só `target`. O `addShieldToHand` do motor escolhe o shield sozinho
@@ -2071,11 +2080,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       });
     } else {
       if (primaryLegalTargetIds.size > 0 && selected.length < requiredTargetCount) {
-        showActionError(`Escolha pelo menos ${requiredTargetCount} alvo(s) no tabuleiro.`);
+        showActionError(tr(`Escolha pelo menos ${requiredTargetCount} alvo(s) no tabuleiro.`, `Choose at least ${requiredTargetCount} target(s) on the board.`));
         return;
       }
       if (missingSecondaryTarget(secondaryTargeting, primaryLegalTargetIds.size, secondarySelected)) {
-        showActionError(inSecondaryStage ? "Escolha também o 2º alvo do efeito." : "Escolha o alvo do efeito e depois o 2º alvo.");
+        showActionError(inSecondaryStage ? tr("Escolha também o 2º alvo do efeito.", "Also choose the effect's 2nd target.") : tr("Escolha o alvo do efeito e depois o 2º alvo.", "Choose the effect's target, then the 2nd target."));
         return;
       }
       const targets = commandTargets(selected, secondaryTargeting, secondarySelected);
@@ -2118,8 +2127,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const handPlayModes = (c: CardInstance): HandPlayMode[] => {
     const ctx = playabilityCtx();
     const modes = playableModes(c.def, ctx);
-    const asCommand: HandPlayMode = { label: `Jogar como Comando (${commandTrigger ?? "Main"})`, run: () => { setPreview(null); startCommand(c); } };
-    const asPilot: HandPlayMode = { label: "Jogar como Piloto", run: () => { setPreview(null); startDeploy(c); } };
+    const asCommand: HandPlayMode = { label: tr(`Jogar como Comando (${commandTrigger ?? "Main"})`, `Play as Command (${commandTrigger ?? "Main"})`), run: () => { setPreview(null); startCommand(c); } };
+    const asPilot: HandPlayMode = { label: tr("Jogar como Piloto", "Play as Pilot"), run: () => { setPreview(null); startDeploy(c); } };
     const plain = (label: string, fn: (card: CardInstance, sacId?: string) => void, sacId?: string): HandPlayMode => ({
       label,
       run: () => {
@@ -2143,7 +2152,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       const out: HandPlayMode[] = [];
       const normalCost = effectiveCost(c.def, ctx.state, ctx.controller);
       if (ctx.activeResources >= normalCost && ctx.totalResources >= effectiveLevel(c.def, ctx.state, ctx.controller)) {
-        out.push(plain(`Jogar Normal (Custo ${normalCost})`, startCommand));
+        out.push(plain(tr(`Jogar Normal (Custo ${normalCost})`, `Play Normally (Cost ${normalCost})`), startCommand));
       }
       for (const d of altCandidates) {
         out.push({
@@ -2164,7 +2173,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
     const out: HandPlayMode[] = [];
     if (normalAffordable && modes.includes("deploy")) {
-      out.push(plain(eligibleSacrifices.length > 0 ? `Jogar Normal (Custo ${normalCost})` : "Jogar", startDeploy));
+      out.push(plain(eligibleSacrifices.length > 0 ? tr(`Jogar Normal (Custo ${normalCost})`, `Play Normally (Cost ${normalCost})`) : tr("Jogar", "Play"), startDeploy));
     }
     if (ctx.myTurnMain && eligibleSacrifices.length > 0) {
       for (const sac of eligibleSacrifices) {
@@ -2219,10 +2228,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     if (def.link?.kind !== "pilotName") return [];
     const mine = view.players[seat];
     const ownVisible: Array<{ zone: string; label: string }> = [
-      { zone: "hand", label: "na sua mão" },
-      { zone: "battleArea", label: "no seu campo" },
-      { zone: "trash", label: "no seu descarte" },
-      { zone: "exile", label: "no seu exílio" },
+      { zone: "hand", label: tr("na sua mão", "in your hand") },
+      { zone: "battleArea", label: tr("no seu campo", "on your field") },
+      { zone: "trash", label: tr("no seu descarte", "in your trash") },
+      { zone: "exile", label: tr("no seu exílio", "in your exile") },
     ];
     return def.link.values.map((raw) => {
       const name = raw.trim();
@@ -2235,7 +2244,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           (c) => !isHidden(c) && (c as CardInstance).def.nameEn.toLowerCase().includes(key),
         ),
       );
-      return { name, art: hit?.art, note: where?.label ? `Disponível ${where.label}` : undefined };
+      return { name, art: hit?.art, note: where?.label ? tr(`Disponível ${where.label}`, `Available ${where.label}`) : undefined };
     });
   }
 
@@ -2442,7 +2451,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             isDeployingUnit
               ? () => {
                   if (pendingCost > 0 && selectedResources.length !== pendingCost) {
-                    showActionError(`Selecione ${pendingCost} recurso(s) ativo(s) para pagar o custo antes de invocar.`);
+                    showActionError(tr(`Selecione ${pendingCost} recurso(s) ativo(s) para pagar o custo antes de invocar.`, `Select ${pendingCost} active resource(s) to pay the cost before deploying.`));
                     return;
                   }
                   executeDeploy(
@@ -2474,15 +2483,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     const blockedReason = playable
       ? undefined
       : shortOnLevel
-        ? `Nível insuficiente — precisa de ${effLevel} recursos em campo.`
+        ? tr(`Nível insuficiente — precisa de ${effLevel} recursos em campo.`, `Level too low — needs ${effLevel} resources in play.`)
         : shortOnResources
-          ? `Recursos insuficientes — custo ${effCost}, você tem ${ctx.activeResources} ativos.`
+          ? tr(`Recursos insuficientes — custo ${effCost}, você tem ${ctx.activeResources} ativos.`, `Not enough resources — cost ${effCost}, you have ${ctx.activeResources} active.`)
           : isDual
-            ? "Nem o modo Comando nem o modo Piloto estão disponíveis agora."
+            ? tr("Nem o modo Comando nem o modo Piloto estão disponíveis agora.", "Neither Command nor Pilot mode is available now.")
             : isCommand
-              ? "Este Comando não tem gatilho disponível agora."
+              ? tr("Este Comando não tem gatilho disponível agora.", "This Command has no trigger available now.")
               : c.def?.cardType === "PILOT" || c.def?.pilotMode
-                ? (ctx.myTurnMain ? "Nenhuma Unit amiga sem Piloto pra parear." : notMainPhaseReason)
+                ? (ctx.myTurnMain ? tr("Nenhuma Unit amiga sem Piloto pra parear.", "No friendly Unit without a Pilot to pair with.") : notMainPhaseReason)
                 : notMainPhaseReason;
     return { modes, playable, blockedReason, effectiveCost: effCost };
   }
@@ -2509,7 +2518,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         }}
         className="flex items-center gap-1.5"
       >
-        <p className="shrink-0 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Mão ({count})</p>
+        <p className="shrink-0 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{tr("Mão", "Hand")} ({count})</p>
         <div className="flex">
           {Array.from({ length: Math.min(count, 10) }).map((_, i) => (
             <img
@@ -2601,7 +2610,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         <div className="flex items-end justify-start gap-2">
           {/* deck de recursos / deck: contagem visível dos 2 lados (decisão do
               Willen 2026-09-03 — sim de teste, não PvP com info oculta). */}
-          <CounterChip variant="stack" label="Deck de Recursos" count={player.counts.resourceDeck} />
+          <CounterChip variant="stack" label={tr("Deck de Recursos", "Resource Deck")} count={player.counts.resourceDeck} />
           <ResourceMeter
             resources={resources}
             level={player.counts.resourceArea}
@@ -2639,7 +2648,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       exile: (
         <div ref={board.register(`exileStation:${pid}`)}>
           <PileTray
-            label="Exílio"
+            label={tr("Exílio", "Exile")}
             count={player.exile.length}
             cards={player.exile.filter((c) => !isHidden(c)) as CardInstance[]}
             art={art}
@@ -2687,7 +2696,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       pairingNeedsExtraTarget(pendingCard.def.code) ||
       selectedOwnUnitCodes.some((code) => pairingNeedsExtraTarget(undefined, code));
     return needs
-      ? "Escolha a Unit pra parear e confirme — o 【When Paired】 (alvo) é resolvido logo depois do vínculo."
+      ? tr("Escolha a Unit pra parear e confirme — o 【When Paired】 (alvo) é resolvido logo depois do vínculo.", "Pick the Unit to pair and confirm — the 【When Paired】 (target) resolves right after pairing.")
       : undefined;
   })();
 
@@ -2696,12 +2705,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   // pendência" (a arena fala por si).
   const matchPrompt: string | null = (() => {
     if (gameOverResult) return null; // o GameOverOverlay assume
-    if (myPendingDecision?.kind === "mulligan") return "Decida sua mão inicial (Mulligan)";
-    if (oppPendingDecision?.kind === "mulligan") return "Oponente decidindo a mão inicial (Mulligan)…";
-    if (myBurstDecision) return "Shield quebrada — resolva o 【Burst】";
-    if (oppPendingDecision?.kind === "burst") return "Aguardando o oponente resolver o 【Burst】…";
-    if (myPendingDecision?.kind === "triggerOrder") return "Ordene os gatilhos que vão resolver";
-    if (oppPendingDecision?.kind === "triggerOrder") return "Aguardando o oponente ordenar os gatilhos…";
+    if (myPendingDecision?.kind === "mulligan") return tr("Decida sua mão inicial (Mulligan)", "Decide your opening hand (Mulligan)");
+    if (oppPendingDecision?.kind === "mulligan") return tr("Oponente decidindo a mão inicial (Mulligan)…", "Opponent is deciding their opening hand (Mulligan)…");
+    if (myBurstDecision) return tr("Shield quebrada — resolva o 【Burst】", "Shield broken — resolve the 【Burst】");
+    if (oppPendingDecision?.kind === "burst") return tr("Aguardando o oponente resolver o 【Burst】…", "Waiting for the opponent to resolve the 【Burst】…");
+    if (myPendingDecision?.kind === "triggerOrder") return tr("Ordene os gatilhos que vão resolver", "Order the triggers that will resolve");
+    if (oppPendingDecision?.kind === "triggerOrder") return tr("Aguardando o oponente ordenar os gatilhos…", "Waiting for the opponent to order the triggers…");
     if (myPendingDecision?.kind === "abilityResolution") {
       const isContinuation = Boolean(
         myPendingDecision.parentTrigger ||
@@ -2710,51 +2719,51 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       );
       if (view.phase === "end") {
         return isContinuation
-          ? "Fim de Turno — Passo 2: resolva a continuação do efeito"
-          : "Fim de Turno — resolva o efeito ativado";
+          ? tr("Fim de Turno — Passo 2: resolva a continuação do efeito", "End of Turn — Step 2: resolve the rest of the effect")
+          : tr("Fim de Turno — resolva o efeito ativado", "End of Turn — resolve the activated effect");
       }
       return isContinuation
-        ? "Passo 2: resolva a continuação do efeito"
-        : "Resolva o efeito ativado";
+        ? tr("Passo 2: resolva a continuação do efeito", "Step 2: resolve the rest of the effect")
+        : tr("Resolva o efeito ativado", "Resolve the activated effect");
     }
     if (oppPendingDecision?.kind === "abilityResolution") {
       return view.phase === "end"
-        ? "Fim de Turno — aguardando o oponente resolver a habilidade…"
-        : "Aguardando o oponente resolver a habilidade…";
+        ? tr("Fim de Turno — aguardando o oponente resolver a habilidade…", "End of Turn — waiting for the opponent to resolve the ability…")
+        : tr("Aguardando o oponente resolver a habilidade…", "Waiting for the opponent to resolve the ability…");
     }
-    if (myPendingDecision?.kind === "zoneOverflow") return "Battle Area cheia — escolha 1 Unit pra descartar";
-    if (oppPendingDecision?.kind === "zoneOverflow") return "Oponente escolhendo qual Unit descartar (Battle Area cheia)…";
+    if (myPendingDecision?.kind === "zoneOverflow") return tr("Battle Area cheia — escolha 1 Unit pra descartar", "Battle Area full — choose 1 Unit to discard");
+    if (oppPendingDecision?.kind === "zoneOverflow") return tr("Oponente escolhendo qual Unit descartar (Battle Area cheia)…", "Opponent is choosing which Unit to discard (Battle Area full)…");
     if (pending?.kind === "activateAbility") {
-      return pending.abilityNeedsTarget ? "Escolha o alvo e os recursos pra pagar o custo" : "Escolha os recursos pra pagar o custo";
+      return pending.abilityNeedsTarget ? tr("Escolha o alvo e os recursos pra pagar o custo", "Choose the target and the resources to pay the cost") : tr("Escolha os recursos pra pagar o custo", "Choose the resources to pay the cost");
     }
     if (pending) {
       const isUnit = pendingCard?.def?.cardType === "UNIT" && !pendingCard?.def?.pilotMode;
       const isPilot = pendingCard?.def?.cardType === "PILOT" || !!pendingCard?.def?.pilotMode;
       if (isPilot) {
         if (pendingCost > 0 && !resourcesReady) {
-          return `Pague o custo: ${selectedResources.length}/${pendingCost} recurso(s) e escolha a Unit para parear`;
+          return tr(`Pague o custo: ${selectedResources.length}/${pendingCost} recurso(s) e escolha a Unit para parear`, `Pay the cost: ${selectedResources.length}/${pendingCost} resource(s) and pick the Unit to pair`);
         }
-        return pendingDeployHint ?? "Escolha a Unit para parear no tabuleiro e confirme";
+        return pendingDeployHint ?? tr("Escolha a Unit para parear no tabuleiro e confirme", "Pick the Unit to pair on the board and confirm");
       }
       if (isUnit) {
         if (pendingCost > 0 && !resourcesReady) {
           return `Pague o custo: ${selectedResources.length}/${pendingCost} recurso(s) (clique nos seus recursos)`;
         }
-        return "Recurso pago! Posicionando Unit no campo…";
+        return tr("Recurso pago! Posicionando Unit no campo…", "Resource paid! Placing the Unit…");
       }
-      if (pendingDeployHint) return "Escolha a Unit pra parear e confirme";
+      if (pendingDeployHint) return tr("Escolha a Unit pra parear e confirme", "Pick the Unit to pair and confirm");
       if (pendingCost > 0 && !resourcesReady) return `Pague o custo: ${selectedResources.length}/${pendingCost} recursos`;
-      return "Escolha o alvo no tabuleiro e confirme";
+      return tr("Escolha o alvo no tabuleiro e confirme", "Choose the target on the board and confirm");
     }
-    if (attackerId) return "Escolha o alvo do ataque (Unit ou jogador)";
-    if (iAmDefending) return "Defenda: ative um <Blocker> ou não bloqueie";
+    if (attackerId) return tr("Escolha o alvo do ataque (Unit ou jogador)", "Choose the attack target (Unit or player)");
+    if (iAmDefending) return tr("Defenda: ative um <Blocker> ou não bloqueie", "Defend: activate a <Blocker> or don't block");
     if (inActionStep && !playerHasActionStepPlay(view, seat, ALL_EFFECT_SPECS)) {
-      return "Sem jogada de 【Action】 — passando…";
+      return tr("Sem jogada de 【Action】 — passando…", "No 【Action】 play — passing…");
     }
     if (inActionStep) {
       return iHaveEndPhasePriority
-        ? "Fim de Turno — jogue um Comando 【Action】 ou passe"
-        : "Passo de Ação — jogue um Comando 【Action】 ou passe";
+        ? tr("Fim de Turno — jogue um Comando 【Action】 ou passe", "End of Turn — play an 【Action】 Command or pass")
+        : tr("Passo de Ação — jogue um Comando 【Action】 ou passe", "Action Step — play an 【Action】 Command or pass");
     }
     return null;
   })();
@@ -2780,22 +2789,22 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     if (pending) {
       const verb =
         pending.kind === "deploy"
-          ? "Jogando"
+          ? tr("Jogando", "Playing")
           : pending.kind === "activateAbility"
-            ? "Ativando habilidade"
-            : `Jogando Comando (${pending.trigger === "Main" ? "Principal" : "Action"})`;
+            ? tr("Ativando habilidade", "Activating ability")
+            : tr(`Jogando Comando (${pending.trigger === "Main" ? "Principal" : "Action"})`, `Playing Command (${pending.trigger === "Main" ? "Main" : "Action"})`);
       const hint =
         pending.kind === "activateAbility"
           ? pending.abilityNeedsTarget
-            ? (pendingCost > 0 ? "Escolha o alvo da habilidade e os recursos pra pagar o custo." : "Escolha o alvo da habilidade e confirme.")
-            : (pendingCost > 0 ? "Escolha os recursos pra pagar o custo e confirme." : "Confirme para ativar a habilidade.")
+            ? (pendingCost > 0 ? tr("Escolha o alvo da habilidade e os recursos pra pagar o custo.", "Choose the ability's target and the resources to pay the cost.") : tr("Escolha o alvo da habilidade e confirme.", "Choose the ability's target and confirm."))
+            : (pendingCost > 0 ? tr("Escolha os recursos pra pagar o custo e confirme.", "Choose the resources to pay the cost and confirm.") : tr("Confirme para ativar a habilidade.", "Confirm to activate the ability."))
           : inSecondaryStage && secondarySelected.length === 0
-            ? "Agora escolha o 2º alvo do efeito."
+            ? tr("Agora escolha o 2º alvo do efeito.", "Now choose the effect's 2nd target.")
           : pending.kind === "command" && maxTargetCount > requiredTargetCount
-            ? `Escolha de ${requiredTargetCount} a ${maxTargetCount} alvos e confirme.`
+            ? tr(`Escolha de ${requiredTargetCount} a ${maxTargetCount} alvos e confirme.`, `Choose ${requiredTargetCount} to ${maxTargetCount} targets and confirm.`)
           : pending.sacrificeInstanceId
-            ? "Invocação por sacrifício pronta. Confirme para invocar."
-            : (pendingDeployHint ?? "Se pedir alvo/pareamento, clique nas cartas do tabuleiro.");
+            ? tr("Invocação por sacrifício pronta. Confirme para invocar.", "Sacrifice deploy ready. Confirm to deploy.")
+            : (pendingDeployHint ?? tr("Se pedir alvo/pareamento, clique nas cartas do tabuleiro.", "If it asks for a target/pairing, click the cards on the board."));
       return {
         kind: "pending",
         verb,
@@ -2819,25 +2828,25 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     if (oppPendingDecision) {
       const what =
         oppPendingDecision.kind === "burst"
-          ? "um 【Burst】"
+          ? tr("um 【Burst】", "a 【Burst】")
           : oppPendingDecision.kind === "mulligan"
-            ? "a mão inicial (Mulligan)"
+            ? tr("a mão inicial (Mulligan)", "the opening hand (Mulligan)")
             : oppPendingDecision.kind === "zoneOverflow"
-              ? "qual Unit descartar (Battle Area cheia)"
+              ? tr("qual Unit descartar (Battle Area cheia)", "which Unit to discard (Battle Area full)")
               : oppPendingDecision.kind === "triggerOrder"
-                ? "a ordem dos gatilhos"
+                ? tr("a ordem dos gatilhos", "the trigger order")
                 : oppPendingDecision.kind === "abilityResolution"
-                  ? "o efeito da habilidade"
-                  : "uma decisão";
+                  ? tr("o efeito da habilidade", "the ability's effect")
+                  : tr("uma decisão", "a decision");
       return {
         kind: "oppDecision",
-        label: `Aguardando o oponente resolver ${what}…`,
+        label: tr(`Aguardando o oponente resolver ${what}…`, `Waiting for the opponent to resolve ${what}…`),
       };
     }
     return {
       kind: "idle",
       yourTurn: myTurnMain,
-      phaseLabel: PHASE_LABEL[view.phase] ?? view.phase,
+      phaseLabel: PHASE_LABEL[view.phase] ? tr(PHASE_LABEL[view.phase]) : view.phase,
       timerSeconds: turnSecondsLeft,
       turnNumber: view.turnNumber,
     };
@@ -2857,6 +2866,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             busy={busy}
           />
         </div>
+        {/* idioma do site e do texto das cartas, sem sair da partida */}
+        <div className="pointer-events-auto">
+          <LanguageSwitcher compact className="size-8 min-w-8 rounded-arena border-primary/40 bg-slate-950/80 px-0" />
+        </div>
         {/* ZERO SYSTEM — Zero Coach HUD (Atalho 'Z') */}
         <Button
           variant="outline"
@@ -2866,8 +2879,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             zeroCoachOpen ? "bg-cyan-500/30 border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.4)]" : ""
           }`}
           onClick={() => setZeroCoachOpen((v) => !v)}
-          title="Abrir Zero Coach HUD (Atalho: Z)"
-          aria-label="Abrir Zero Coach HUD"
+          title={tr("Abrir Zero Coach HUD (Atalho: Z)", "Open Zero Coach HUD (Shortcut: Z)")}
+          aria-label={tr("Abrir Zero Coach HUD", "Open Zero Coach HUD")}
           aria-pressed={zeroCoachOpen}
         >
           <BrainCircuit className="size-4" />
@@ -2880,8 +2893,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             size="icon"
             className="pointer-events-auto size-8 rounded-arena border-amber-500/40 bg-slate-950/70 text-amber-400 hover:bg-amber-500/10"
             onClick={openBugReport}
-            title="Relatar um problema com esta partida (captura print e dados da partida)"
-            aria-label="Relatar um problema com esta partida"
+            title={tr("Relatar um problema com esta partida (captura print e dados da partida)", "Report a problem with this match (captures a screenshot and match data)")}
+            aria-label={tr("Relatar um problema com esta partida", "Report a problem with this match")}
           >
             <Bug className="size-4" />
           </Button>
@@ -2893,8 +2906,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             size="icon"
             className="pointer-events-auto size-8 rounded-arena border-primary/40 bg-slate-950/70 text-primary hover:bg-primary/10"
             onClick={() => setBoardExpanded((v) => !v)}
-            title={boardExpanded ? "Restaurar Detalhes da Carta" : "Expandir tabuleiro (esconde Detalhes da Carta)"}
-            aria-label={boardExpanded ? "Restaurar Detalhes da Carta" : "Expandir tabuleiro"}
+            title={boardExpanded ? tr("Restaurar Detalhes da Carta", "Restore Card Details") : tr("Expandir tabuleiro (esconde Detalhes da Carta)", "Expand board (hides Card Details)")}
+            aria-label={boardExpanded ? tr("Restaurar Detalhes da Carta", "Restore Card Details") : tr("Expandir tabuleiro", "Expand board")}
             aria-pressed={boardExpanded}
           >
             {boardExpanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
@@ -2918,7 +2931,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             ? "desconectado"
             : "conectando…"}
         {connected && transportKind === "socket" && opponentOnline === false ? (
-          <span className="text-amber-500/70">· oponente ausente</span>
+          <span className="text-amber-500/70">{tr("· oponente ausente", "· opponent away")}</span>
         ) : null}
       </p>
 
@@ -2928,7 +2941,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           <div className="panel-cut flex items-center gap-2 border border-amber-400/60 bg-slate-950/95 px-3.5 py-2 text-xs font-bold uppercase tracking-[0.06em] text-amber-200 shadow-2xl">
             <RefreshCw className={connState === "dead" ? "size-4" : "size-4 animate-spin"} />
             {connState === "dead"
-              ? (deadReason ?? "Conexão perdida — recarregue a página")
+              ? (deadReason ?? tr("Conexão perdida — recarregue a página", "Connection lost — reload the page"))
               : `Reconectando…${reconnectAttempt > 1 ? ` (tentativa ${reconnectAttempt})` : ""}`}
           </div>
         </div>
@@ -3024,7 +3037,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                   }
                   // Injogável: só avisa o motivo (use "Ver" pra abrir a arte).
                   if (modes.length === 0) {
-                    toast(blockedReason ?? "Carta indisponível agora.");
+                    toast(blockedReason ?? tr("Carta indisponível agora.", "Card unavailable right now."));
                     return;
                   }
                   // docs/54 tarefa 5 — carta híbrida (Piloto vs Comando): seletor
@@ -3149,7 +3162,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         <div className="fixed inset-x-0 top-20 z-[48] flex justify-center pointer-events-none">
           <div className="flex items-center gap-2 rounded-arena border border-cyan-400/40 bg-slate-950/90 px-4 py-2 text-xs font-mono font-bold uppercase tracking-wider text-cyan-300 shadow-[0_0_20px_rgba(6,182,212,0.3)] backdrop-blur-md animate-pulse">
             <span className="size-2 rounded-full bg-cyan-400 animate-ping" />
-            Aguardando decisão de Mulligan do oponente...
+            {tr("Aguardando decisão de Mulligan do oponente...", "Waiting for the opponent's Mulligan decision...")}
           </div>
         </div>
       ) : null}
@@ -3421,7 +3434,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               <DeckDealAnimation
                 key="self-single-draw"
                 mode="single-draw"
-                label={SETUP_ANIM_LABEL["single-draw"]}
+                label={tr(SETUP_ANIM_LABEL["single-draw"])}
                 origin={deckCenter(board.rectOf(`deckStation:${seat}`), false)}
                 cardW={board.rectOf(`deckStation:${seat}`)?.width}
                 dest={handCenter(board.rectOf("hand:self"), board.rectOf(`deckStation:${seat}`)?.width)}
@@ -3437,7 +3450,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               <DeckDealAnimation
                 key="opp-single-draw"
                 mode="single-draw"
-                label="Oponente comprando…"
+                label={tr("Oponente comprando…", "Opponent drawing…")}
                 origin={deckCenter(board.rectOf(`deckStation:${opponentSeat}`), true)}
                 cardW={board.rectOf(`deckStation:${opponentSeat}`)?.width}
                 dest={handCenter(
@@ -3452,7 +3465,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               <DeckDealAnimation
                 key={`self-${setupAnim}`}
                 mode={setupAnim}
-                label={SETUP_ANIM_LABEL[setupAnim]}
+                label={tr(SETUP_ANIM_LABEL[setupAnim])}
                 origin={deckCenter(board.rectOf(`deckStation:${seat}`), false)}
                 cardW={board.rectOf(`deckStation:${seat}`)?.width}
                 dest={
@@ -3528,9 +3541,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           phaseLabel={
             inActionStep
               ? iHaveEndPhasePriority
-                ? "Fim de Turno"
-                : "Passo de Ação"
-              : (PHASE_LABEL[view.phase] ?? view.phase)
+                ? tr("Fim de Turno", "End of Turn")
+                : tr("Passo de Ação", "Action Step")
+              : (PHASE_LABEL[view.phase] ? tr(PHASE_LABEL[view.phase]) : view.phase)
           }
           timerSeconds={turnSecondsLeft}
           turnNumber={view.turnNumber}
@@ -3543,14 +3556,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           oppDecisionLabel={
             oppPendingDecision
               ? oppPendingDecision.kind === "burst"
-                ? "Oponente: Burst"
+                ? tr("Oponente: Burst", "Opponent: Burst")
                 : oppPendingDecision.kind === "mulligan"
-                  ? "Oponente: Mulligan"
+                  ? tr("Oponente: Mulligan", "Opponent: Mulligan")
                   : oppPendingDecision.kind === "zoneOverflow"
-                    ? "Oponente: Área cheia"
+                    ? tr("Oponente: Área cheia", "Opponent: Area full")
                     : oppPendingDecision.kind === "triggerOrder"
-                      ? "Oponente: Gatilhos"
-                      : "Oponente: Decidindo"
+                      ? tr("Oponente: Gatilhos", "Opponent: Triggers")
+                      : tr("Oponente: Decidindo", "Opponent: Deciding")
               : undefined
           }
           onEndTurn={() => setShowEndTurnConfirm(true)}

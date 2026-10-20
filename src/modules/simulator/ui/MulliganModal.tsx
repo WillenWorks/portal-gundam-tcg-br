@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import type { CardInstance } from "@/modules/simulator/engine/types";
 import type { ArtLookup } from "./cardArt";
 import { CardFace } from "./CardFace";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 interface MulliganModalProps {
   /** as 5 cartas da mão comprada (do próprio jogador — sempre visível a ele). */
@@ -21,14 +22,15 @@ interface MulliganModalProps {
 }
 
 export function MulliganModal({ hand, art, busy, cardW, onResolve }: MulliganModalProps) {
+  const { tr } = useSiteLanguage();
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4">
       <div className="panel-cut hero-surface w-full max-w-md border border-primary/45 p-4">
         <p className="flex items-center justify-center gap-1.5 text-center text-sm font-black uppercase tracking-[0.18em] text-primary">
-          <RefreshCw className="size-4" /> Mão inicial
+          <RefreshCw className="size-4" /> {tr("Mão inicial", "Opening hand")}
         </p>
         <p className="mt-1 text-center text-[11px] text-muted-portal">
-          Você comprou 5 cartas. Quer ficar com esta mão ou trocá-la por 5 novas? Só uma vez.
+          {tr("Você comprou 5 cartas. Quer ficar com esta mão ou trocá-la por 5 novas? Só uma vez.", "You drew 5 cards. Keep this hand or swap it for 5 new ones? Only once.")}
         </p>
 
         <div className="my-3 flex items-end justify-center gap-1">
@@ -55,7 +57,7 @@ export function MulliganModal({ hand, art, busy, cardW, onResolve }: MulliganMod
             disabled={busy}
             onClick={() => onResolve(true)}
           >
-            Ficar com esta mão
+            {tr("Ficar com esta mão", "Keep this hand")}
           </Button>
           <Button
             variant="outline"
@@ -63,7 +65,7 @@ export function MulliganModal({ hand, art, busy, cardW, onResolve }: MulliganMod
             disabled={busy}
             onClick={() => onResolve(false)}
           >
-            Trocar a mão (Mulligan)
+            {tr("Trocar a mão (Mulligan)", "Swap hand (Mulligan)")}
           </Button>
         </div>
       </div>

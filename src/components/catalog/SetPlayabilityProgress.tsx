@@ -5,6 +5,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Badge } from "@/components/ui/badge";
 import { isNonStatsSetCode } from "@/lib/deck-legality";
 import { useAllCardsPlayability } from "./useCardPlayability";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export interface SetPlayabilityProgressProps {
   defaultOpen?: boolean;
@@ -15,6 +16,7 @@ export function SetPlayabilityProgress({
   defaultOpen = false,
   className,
 }: SetPlayabilityProgressProps) {
+  const { tr } = useSiteLanguage();
   const [open, setOpen] = useState(defaultOpen);
   const { sets, summary, isLoading } = useAllCardsPlayability();
 
@@ -45,16 +47,16 @@ export function SetPlayabilityProgress({
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="text-[11px] font-mono uppercase tracking-[0.22em] text-primary">
-                      Motor do Simulador
+                      {tr("Motor do Simulador", "Simulator Engine")}
                     </p>
                     {summary ? (
                       <Badge className="rounded-none border border-emerald-400/40 bg-emerald-500/10 text-emerald-300 text-[10px] font-mono">
-                        {summary.percentAptas}% das cartas prontas
+                        {summary.percentAptas}% {tr("das cartas prontas", "of cards ready")}
                       </Badge>
                     ) : null}
                   </div>
                   <h3 className="font-heading text-xl uppercase tracking-wide text-white">
-                    Progresso de Implementação por Coleção
+                    {tr("Progresso de Implementação por Coleção", "Implementation Progress by Set")}
                   </h3>
                 </div>
               </div>
@@ -63,10 +65,10 @@ export function SetPlayabilityProgress({
                 {summary ? (
                   <div className="hidden text-right sm:block">
                     <p className="font-mono text-sm font-bold text-emerald-300">
-                      {summary.aptas} / {summary.total} cartas
+                      {summary.aptas} / {summary.total} {tr("cartas", "cards")}
                     </p>
                     <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400">
-                      {summary.revisao} em revisão
+                      {summary.revisao} {tr("em revisão", "under review")}
                     </p>
                   </div>
                 ) : null}
@@ -81,7 +83,7 @@ export function SetPlayabilityProgress({
 
           <CollapsibleContent className="mt-5 space-y-4 border-t border-white/10 pt-4">
             <p className="text-xs text-slate-400 leading-relaxed">
-              O simulador valida cada carta cláusula por cláusula no motor. Acompanhe abaixo o status de cada conjunto comercial:
+              {tr("O simulador valida cada carta cláusula por cláusula no motor. Acompanhe abaixo o status de cada conjunto comercial:", "The simulator checks each card clause by clause in the engine. Follow each set's status below:")}
             </p>
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -136,7 +138,7 @@ export function SetPlayabilityProgress({
                       </span>
                       {setInfo.revisao > 0 ? (
                         <span className="text-amber-300/80">
-                          {setInfo.revisao} em revisão
+                          {setInfo.revisao} {tr("em revisão", "under review")}
                         </span>
                       ) : null}
                     </div>

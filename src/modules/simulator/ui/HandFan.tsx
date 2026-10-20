@@ -17,6 +17,7 @@ import type { CardInstance } from "@/modules/simulator/engine/types";
 import { CardCornerActions, type CornerAction } from "./CardCornerActions";
 import { CardFace } from "./CardFace";
 import { isGenericArtCard, type ArtLookup } from "./cardArt";
+import { tr as trNow, useSiteLanguage } from "@/i18n/siteLanguage";
 
 export interface HandFanCard {
   card: CardInstance;
@@ -71,10 +72,11 @@ export function HandFan({
   onInspect,
   onHoverCard,
   overlap,
-  emptyLabel = "Mão vazia.",
+  emptyLabel = trNow("Mão vazia.", "Empty hand."),
   anchored,
   skipMountAnim,
 }: HandFanProps) {
+  const { tr } = useSiteLanguage();
   if (cards.length === 0) {
     if (!emptyLabel) return null;
     return (
@@ -106,7 +108,7 @@ export function HandFan({
           const cost = card.def.cost;
           const displayCost = effectiveCost ?? cost;
           const hasDiscount = effectiveCost !== undefined && cost !== undefined && effectiveCost < cost;
-          const state = playable ? "jogável" : (blockedReason ?? "indisponível");
+          const state = playable ? tr("jogável", "playable") : (blockedReason ?? tr("indisponível", "unavailable"));
           const style: CSSProperties = index === 0 ? {} : { marginLeft: overlapMargin };
 
           // Frente 4 (docs/38 §3.1) — sem botão de "olho": só "Jogar" no canto
@@ -116,7 +118,7 @@ export function HandFan({
             cornerActions.push({
               key: "play",
               icon: Play,
-              label: `Jogar ${card.def.nameEn}${displayCost !== undefined ? ` · custo ${displayCost}` : ""}`,
+              label: tr(`Jogar ${card.def.nameEn}${displayCost !== undefined ? ` · custo ${displayCost}` : ""}`, `Play ${card.def.nameEn}${displayCost !== undefined ? ` · cost ${displayCost}` : ""}`),
               tone: actionStepPlayable ? "accent" : "primary",
               onClick: () => onPeek(card),
             });
@@ -151,7 +153,7 @@ export function HandFan({
               <div
                 role={onInspect ? "button" : undefined}
                 tabIndex={onInspect ? 0 : undefined}
-                aria-label={onInspect ? `Ver ${card.def.nameEn} · ${state}` : undefined}
+                aria-label={onInspect ? tr(`Ver ${card.def.nameEn} · ${state}`, `View ${card.def.nameEn} · ${state}`) : undefined}
                 onClick={onInspect ? () => onInspect(card) : undefined}
                 onKeyDown={
                   onInspect
@@ -186,7 +188,7 @@ export function HandFan({
                           ? "bg-emerald-400 text-black ring-1 ring-emerald-200 shadow-[0_0_6px_rgba(52,211,153,0.85)] animate-pulse"
                           : "bg-amber-500 text-black",
                       )}
-                      title={hasDiscount ? `Custo reduzido de ${cost} para ${displayCost}` : `Custo ${cost}`}
+                      title={hasDiscount ? tr(`Custo reduzido de ${cost} para ${displayCost}`, `Cost reduced from ${cost} to ${displayCost}`) : tr(`Custo ${cost}`, `Cost ${cost}`)}
                     >
                       {displayCost}
                     </span>
