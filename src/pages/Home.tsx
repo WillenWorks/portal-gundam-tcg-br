@@ -41,47 +41,47 @@ interface HomeProps {
 const CAROUSEL_SLIDES = [
   {
     id: 1,
-    category: "ANÁLISE DE COMBATE",
+    category: "GUIA",
     date: "09 Set 2026",
-    title: "ANÁLISE TÁTICA DOS STARTERS ST01 A ST04: GUIA DE PILOTAGEM",
+    title: "STARTERS ST01 A ST04: GUIA PARA COMEÇAR",
     summary:
-      "Entenda os arquétipos e mecânicas das 4 cores fundamentais: a agressão militar de Zeon, a flexibilidade da Federação, o controle tático de SEED e a tecnologia de Asticassia.",
+      "Entenda o estilo de cada um dos quatro starters: a agressividade de Zeon, a flexibilidade da Federação, o controle de SEED e a tecnologia de The Witch from Mercury.",
     image: newsStartersClash,
     link: "/sets",
-    actionLabel: "Explorar Coleção",
+    actionLabel: "Ver coleções",
   },
   {
     id: 2,
-    category: "TERMINAL QUÂNTICO VEDA",
+    category: "ESTATÍSTICAS",
     date: "08 Set 2026",
-    title: "RELATÓRIO DO SISTEMA VEDA: METAGAME & EFICIÊNCIA DE COMBATE",
+    title: "META DA TEMPORADA: DECKS E CARTAS QUE MAIS VENCEM",
     summary:
-      "O supercomputador quântico consolida telemetria tática de vitórias, cartas mais utilizadas em campeonatos e as sinergias dominantes da temporada.",
+      "Taxas de vitória, cartas mais usadas em campeonatos e os arquétipos que dominam a temporada, a partir dos torneios registrados.",
     image: newsVedaTerminal,
     link: "/stats",
-    actionLabel: "Acessar Telemetria",
+    actionLabel: "Ver estatísticas",
   },
   {
     id: 3,
-    category: "ARENA DE DUELOS",
+    category: "SIMULADOR",
     date: "06 Set 2026",
-    title: "ARENA ASTICASSIA: DUELOS ONLINE EM TEMPO REAL E MODO SOLO",
+    title: "SIMULADOR: PARTIDAS ONLINE E TREINO CONTRA O BOT",
     summary:
-      "Conheça o simulador de partidas táticas com regras oficiais, matchmaking online ou modo de treino solo contra inteligência artificial (login opcional para registrar telemetria).",
+      "Jogue com as regras oficiais contra outras pessoas online ou treine sozinho contra o bot. Entrar na conta é opcional.",
     image: newsStartersClash,
     link: "/simulador",
-    actionLabel: "Conhecer a Arena",
+    actionLabel: "Abrir o simulador",
   },
   {
     id: 4,
-    category: "HANGAR TÁTICO",
+    category: "DECKBUILDER",
     date: "04 Set 2026",
-    title: "HANGAR TÁTICO: CALIBRAÇÃO DE DECKS E CURVA DE RECURSOS",
+    title: "MONTE SEU DECK: CURVA DE CUSTO E RECURSOS",
     summary:
-      "Aprenda a balancear Unidades, Pilotos acoplados e cartas de Comando para garantir consistência operacional e máxima eficiência em combate.",
+      "Aprenda a equilibrar Unidades, Pilotos e Comandos para ter um deck consistente do primeiro ao último turno.",
     image: newsVedaTerminal,
     link: "/deckbuilder",
-    actionLabel: "Abrir Construtor",
+    actionLabel: "Montar um deck",
   },
 ];
 
@@ -142,6 +142,7 @@ export default function Home({ targetSection }: HomeProps) {
       */}
 
       <main id="topo">
+        <h1 className="sr-only">AnaheimHub: cartas, decks, torneios, estatísticas e simulador de Gundam Card Game no Brasil</h1>
         {/* ── HERO SECTION: PORTAL RESUMO (CARROSSEL + LINKS RÁPIDOS) ───── */}
         <section className="relative isolate overflow-hidden border-b border-white/10 py-6 sm:py-8 lg:py-10">
           <div className="container-ultrawide">
@@ -187,7 +188,7 @@ export default function Home({ targetSection }: HomeProps) {
                           </div>
                           <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-black/40 border border-white/10 px-3 py-0.5 text-[10px] text-slate-300 backdrop-blur-md">
                             <span className="size-1.5 rounded-full bg-primary animate-pulse" />
-                            Destaque do Portal
+                            Destaque
                           </span>
                         </div>
 
@@ -259,8 +260,8 @@ export default function Home({ targetSection }: HomeProps) {
                       <Activity className="size-4 animate-pulse" />
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-primary">Acesso Operacional</p>
-                      <h3 className="font-heading text-xl uppercase tracking-wider text-white heading-portal">Centrais do Anaheim Hub</h3>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-primary">Comece por aqui</p>
+                      <h3 className="font-heading text-xl uppercase tracking-wider text-white heading-portal">O que dá para fazer</h3>
                     </div>
                   </div>
                   <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-400">
@@ -274,7 +275,7 @@ export default function Home({ targetSection }: HomeProps) {
                   {/* Linha 1: Simulador (Arena Asticassia) */}
                   <Link
                     href="/simulador"
-                    title="Acessar o Simulador de Duelos (Arena Asticassia) — Partidas online e modo solo"
+                    title="Abrir o simulador — partidas online e treino contra o bot"
                     className={cn(
                       "group relative flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4 transition-all duration-300 hover:bg-white/[0.07] hover:border-white/20 light:border-slate-300 light:bg-slate-50 light:hover:bg-slate-100",
                       isZeon ? "hover:border-red-500/40" : "hover:border-primary/40"
@@ -320,10 +321,10 @@ export default function Home({ targetSection }: HomeProps) {
                         "font-heading text-lg sm:text-xl uppercase text-white transition-colors duration-200 heading-portal truncate",
                         isZeon ? "group-hover:text-red-400" : "group-hover:text-primary"
                       )}>
-                        Arena Asticassia
+                        Simulador
                       </h4>
                       <p className="text-xs text-muted-portal line-clamp-2 mt-0.5 leading-relaxed">
-                        Duelos oficiais online contra outros pilotos ou treinos contra a IA heurística.
+                        Jogue online contra outras pessoas ou treine contra o bot.
                       </p>
                     </div>
 
@@ -336,19 +337,19 @@ export default function Home({ targetSection }: HomeProps) {
                   {/* Linha 2: Deckbuilder (Hangar Tático) */}
                   <Link
                     href="/deckbuilder"
-                    title="Acessar o Construtor de Decks (Hangar Tático) — Montagem, validação e telemetria"
+                    title="Abrir o deckbuilder — montar e validar decks"
                     className="group relative flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4 transition-all duration-300 hover:bg-white/[0.07] hover:border-amber-400/40 light:border-slate-300 light:bg-slate-50 light:hover:bg-slate-100"
                   >
                     {/* Ícone com Efeito Hangar On/Off no Hover */}
                     <div className="relative size-16 sm:size-20 shrink-0 overflow-hidden rounded-xl border border-white/15 bg-slate-950 transition-all duration-300 group-hover:scale-105 group-hover:shadow-[0_0_24px_rgba(234,179,8,0.5)] group-hover:border-amber-400/60">
                       <img loading="lazy" decoding="async"
                         src={ozHangarOff}
-                        alt="Hangar Tático Standby"
+                        alt=""
                         className="absolute inset-0 size-full object-cover transition-opacity duration-300 group-hover:opacity-0"
                       />
                       <img loading="lazy" decoding="async"
                         src={ozHangarOn}
-                        alt="Hangar Tático Ativo"
+                        alt=""
                         className="absolute inset-0 size-full object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                       />
                     </div>
@@ -362,10 +363,10 @@ export default function Home({ targetSection }: HomeProps) {
                         </span>
                       </div>
                       <h4 className="font-heading text-lg sm:text-xl uppercase text-white transition-colors duration-200 heading-portal truncate group-hover:text-amber-400">
-                        Hangar Tático
+                        Deckbuilder
                       </h4>
                       <p className="text-xs text-muted-portal line-clamp-2 mt-0.5 leading-relaxed">
-                        Linha de montagem e calibração de decks com telemetria tática em tempo real.
+                        Monte, valide e compartilhe decks, com estatísticas do deck enquanto você monta.
                       </p>
                     </div>
 
@@ -378,19 +379,19 @@ export default function Home({ targetSection }: HomeProps) {
                   {/* Linha 3: Estatísticas (Sistema VEDA) */}
                   <Link
                     href="/stats"
-                    title="Acessar o Terminal de Metagame (Sistema VEDA) — Estatísticas de vitórias e sinergias"
+                    title="Abrir as estatísticas — taxas de vitória e meta"
                     className="group relative flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4 transition-all duration-300 hover:bg-white/[0.07] hover:border-emerald-400/40 light:border-slate-300 light:bg-slate-50 light:hover:bg-slate-100"
                   >
                     {/* Ícone com Efeito VEDA On/Off no Hover */}
                     <div className="relative size-16 sm:size-20 shrink-0 overflow-hidden rounded-xl border border-white/15 bg-slate-950 transition-all duration-300 group-hover:scale-105 group-hover:shadow-[0_0_24px_rgba(16,185,129,0.55)] group-hover:border-emerald-400/60">
                       <img loading="lazy" decoding="async"
                         src={exiaVedaOff}
-                        alt="Sistema VEDA Exia Standby"
+                        alt=""
                         className="absolute inset-0 size-full object-cover transition-opacity duration-300 group-hover:opacity-0"
                       />
                       <img loading="lazy" decoding="async"
                         src={exiaVedaOn}
-                        alt="Sistema VEDA Exia Ativo"
+                        alt=""
                         className="absolute inset-0 size-full object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                       />
                     </div>
@@ -404,10 +405,10 @@ export default function Home({ targetSection }: HomeProps) {
                         </span>
                       </div>
                       <h4 className="font-heading text-lg sm:text-xl uppercase text-white transition-colors duration-200 heading-portal truncate group-hover:text-emerald-400">
-                        Sistema VEDA
+                        Estatísticas
                       </h4>
                       <p className="text-xs text-muted-portal line-clamp-2 mt-0.5 leading-relaxed">
-                        Terminal quântico de inteligência com taxas de vitória, cores dominantes e metagame.
+                        Taxas de vitória, cores mais jogadas e o meta de cada temporada.
                       </p>
                     </div>
 
@@ -422,10 +423,10 @@ export default function Home({ targetSection }: HomeProps) {
                 <div className="mt-4 pt-3.5 border-t border-white/10 flex items-center justify-between text-xs text-muted-portal light:border-slate-200">
                   <span className="flex items-center gap-1.5">
                     <Radio className="size-3 text-primary animate-pulse" />
-                    Telemetria Operacional
+                    Atualizado com os torneios registrados
                   </span>
                   <Link href="/novidades" className="hover:text-primary transition-colors flex items-center gap-1 font-medium">
-                    Ver Novidades do Portal <ArrowRight className="size-3" />
+                    Ver novidades do site <ArrowRight className="size-3" />
                   </Link>
                 </div>
               </div>

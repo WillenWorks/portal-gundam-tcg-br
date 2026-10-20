@@ -244,7 +244,7 @@ export function RecentPopularDecksCarousel() {
                       <div className="size-10 sm:size-12 overflow-hidden rounded-lg border dark:border-white/20 dark:bg-slate-800 light:border-slate-300 light:bg-slate-100 shadow-md">
                         <img loading="lazy" decoding="async"
                           src={currentDeck.user?.avatarUrl || FALLBACK_PILOT_AVATAR}
-                          alt={currentDeck.user?.displayName || "Piloto"}
+                          alt={currentDeck.user?.displayName || "Jogador"}
                           className="h-full w-full object-cover"
                         />
                       </div>
@@ -255,10 +255,10 @@ export function RecentPopularDecksCarousel() {
                     {/* Nome do Piloto */}
                     <div className="min-w-0 pl-1">
                       <p className="truncate text-xs sm:text-sm font-bold dark:text-white light:text-slate-900 border-b-2 border-rose-500/80 pb-0.5 max-w-[110px] sm:max-w-[150px]">
-                        {currentDeck.user?.displayName || "Piloto"}
+                        {currentDeck.user?.displayName || "Jogador"}
                       </p>
                       <p className="text-[10px] uppercase font-mono dark:text-slate-400 light:text-slate-600">
-                        @{currentDeck.user?.username || "piloto"}
+                        @{currentDeck.user?.username || "jogador"}
                       </p>
                     </div>
                   </div>

@@ -25,11 +25,11 @@ export type NavItem = {
 };
 
 export const publicTopNav: readonly NavItem[] = [
-  { href: "/", label: "Home" },
+  { href: "/", label: "Início" },
   { href: "/decks", label: "Decks" },
   {
     href: "/database",
-    label: "Database",
+    label: "Catálogo",
     children: [
       { href: "/database", label: "Cartas" },
       { href: "/sets", label: "Produtos" },
@@ -328,7 +328,7 @@ export function AppTopNav() {
                 isActiveRoute(currentPath, "/") ? "text-primary font-semibold" : "text-slate-300 hover:text-white",
               )}
             >
-              Home
+              Início
             </Link>
 
             {/* 2. Decks */}

@@ -12,7 +12,7 @@ import source from "./DeckbuilderPage.tsx?raw";
 
 // A aba "Montar" não tem métricas — recorta só da "Leitura rápida do deck" (início
 // da aba Estatísticas) até os modais globais no fim do componente.
-const start = source.indexOf("Diagnóstico operacional");
+const start = source.indexOf("Diagnóstico do deck");
 const end = source.indexOf("<AltArtModal");
 const region = source.slice(start, end);
 

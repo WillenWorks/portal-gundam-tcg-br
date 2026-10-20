@@ -114,10 +114,10 @@ export default function SimulatorTrainingPage() {
               <CardContent className="space-y-6 p-8">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.24em] text-primary font-semibold">Arena Asticassia · Treinamento Tático</p>
+                    <p className="text-xs uppercase tracking-[0.24em] text-primary font-semibold">Simulador · Treino</p>
                     <h1 className="mt-2 font-heading text-4xl uppercase heading-portal">Simulação de Treinamento</h1>
                     <p className="mt-3 text-sm leading-7 text-soft">
-                      Treine manobras e estratégias mobile suit contra a inteligência artificial com qualquer Starter Deck oficial ou projetos do seu próprio Hangar.
+                      Treine contra o bot com qualquer Starter Deck oficial ou com os seus próprios decks.
                     </p>
                   </div>
                   <Button
@@ -271,7 +271,7 @@ export default function SimulatorTrainingPage() {
                     onClick={startTraining}
                   >
                     {starting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Swords className="mr-2 size-4" />}
-                    Iniciar Simulação Asticassia
+                    Começar a partida
                   </Button>
                 </div>
 

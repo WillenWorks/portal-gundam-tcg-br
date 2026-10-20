@@ -37,12 +37,12 @@ const hosterNav = [
 
 const titles: Record<string, string> = {
   "/portal": "Minha área",
-  "/deckbuilder": "Hangar da OZ",
+  "/deckbuilder": "Deckbuilder",
   "/profile": "Configurações",
   "/binders": "Pastas",
   "/organizador": "Meus eventos",
-  "/simulador": "Arena Asticassia",
-  "/simulador/treino": "Treino Solo Asticassia",
+  "/simulador": "Simulador",
+  "/simulador/treino": "Treino contra o bot",
 };
 
 function SidebarLinks({ location, isAdmin, isHoster, onNavigate, collapsed = false }: { location: string; isAdmin: boolean; isHoster: boolean; onNavigate?: () => void; collapsed?: boolean }) {
@@ -192,7 +192,7 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
               <BreadcrumbList>
                 <BreadcrumbItem>
                   <BreadcrumbLink asChild>
-                    <Link href="/">Home</Link>
+                    <Link href="/">Início</Link>
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 {trail.map((crumb, index) => (

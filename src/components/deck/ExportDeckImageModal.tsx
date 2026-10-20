@@ -32,7 +32,7 @@ export function ExportDeckImageModal({
   open,
   onClose,
   deckName,
-  authorName = "Piloto da OZ",
+  authorName = "Jogador",
   shareId = "OZ-SPEC",
   mainCards,
   resourceCards = [],
@@ -179,7 +179,7 @@ export function ExportDeckImageModal({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-sky-400">
-                Anaheim HUB · Arsenal Operacional OZ
+                AnaheimHub · Imagem do deck
               </p>
               <DialogTitle className="font-heading text-2xl uppercase tracking-wider text-white flex items-center gap-2">
                 <Eye className="size-5 text-sky-400" /> Exportação de Imagem em Alta Resolução
@@ -288,7 +288,7 @@ export function ExportDeckImageModal({
               }`}
             >
               <div>
-                <p className="text-xs font-heading uppercase">Selo Militar OZ</p>
+                <p className="text-xs font-heading uppercase">Selo AnaheimHub</p>
                 <p className="text-[9px] text-slate-400">
                   {includeOzSeal ? "Carimbo oficial ativo" : "Sem carimbo"}
                 </p>
@@ -329,7 +329,7 @@ export function ExportDeckImageModal({
               }`}
             >
               <BarChart3 className="size-3.5" />
-              <span>Imagem 2: Telemetria & Estatísticas</span>
+              <span>Imagem 2: Estatísticas</span>
             </button>
           </div>
         )}

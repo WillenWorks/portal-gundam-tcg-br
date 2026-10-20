@@ -29,7 +29,7 @@ const SUBSEQUENT_ARTICLES = [
   },
   {
     id: 6,
-    tag: "Guia Tático",
+    tag: "Guia",
     date: "31 Ago 2026",
     title: "Sinergia de Traits: Earth Alliance vs Zeon",
     summary:
@@ -51,7 +51,7 @@ const SUBSEQUENT_ARTICLES = [
     date: "25 Ago 2026",
     title: "Relatório de Eficiência: ST01 vs ST02",
     summary:
-      "Dados consolidados pelo Sistema VEDA demonstrando o confronto entre a agressividade de Zeon e a estabilidade da Federação.",
+      "Dados dos torneios registrados mostrando o confronto entre a agressividade de Zeon e a estabilidade da Federação.",
     link: "/stats",
   },
 ];
@@ -78,7 +78,7 @@ const OFFICIAL_LINKS = [
     tag: "APRENDA",
     tagColor: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400",
     title: "Guia Como Jogar",
-    description: "Passo a passo para novos pilotos, fluxo de turno, Unit Link e conceitos básicos.",
+    description: "Passo a passo para quem está começando: fluxo do turno, Link e conceitos básicos.",
     link: "/rules",
     isExternal: false,
   },
@@ -191,19 +191,19 @@ export function HomeDirectivesSection() {
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <span className="rounded-xs border border-primary/50 bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
-                  Anaheim HUB · Comunidade Operacional
+                  AnaheimHub · Comunidade
                 </span>
               </div>
 
               <h3 className="font-heading text-2xl sm:text-3xl uppercase text-white leading-tight heading-portal">
-                Aviso aos Pilotos
+                Obrigado por jogar com a gente
               </h3>
 
               {/* Texto Institucional Solicitado */}
               <p className="text-sm sm:text-base leading-relaxed text-slate-300 light:text-slate-700">
                 A <strong className="text-white light:text-slate-900 font-semibold">Anaheim HUB</strong> expressa
-                sua gratidão pelos seus pilotos registrados. Para o caso de não saber como manusear o deck, ou tirar
-                dúvidas sobre o sistema, acesse nossa área de regras.
+                agradece a todos os jogadores cadastrados. Se tiver dúvida sobre como jogar ou sobre alguma regra,
+                veja a área de regras.
               </p>
             </div>
 
@@ -213,7 +213,7 @@ export function HomeDirectivesSection() {
               <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:border-cyan-400/40 light:border-slate-200 light:bg-slate-50">
                 <div className="flex items-center gap-2 text-cyan-400 mb-1">
                   <Users className="size-4" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider">Pilotos</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider">Jogadores</span>
                 </div>
                 <div className="font-heading text-2xl sm:text-3xl text-white heading-portal">
                   <AnimatedCounter value={metrics.userCount} trigger={inView} />
@@ -242,7 +242,7 @@ export function HomeDirectivesSection() {
                 <div className="font-heading text-2xl sm:text-3xl text-white heading-portal">
                   <AnimatedCounter value={metrics.deckCount} trigger={inView} />
                 </div>
-                <p className="text-[11px] text-muted-portal mt-0.5">Construídos no Hangar</p>
+                <p className="text-[11px] text-muted-portal mt-0.5">Montados no site</p>
               </div>
 
               {/* 4. Produtos Cadastrados */}
@@ -373,7 +373,7 @@ export function HomeDirectivesSection() {
                     <BookOpen className="size-4" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-primary">Arquivo de Notícias</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-primary">Notícias</p>
                     <h3 className="font-heading text-xl uppercase tracking-wider text-white heading-portal">Artigos & Análises Táticas</h3>
                   </div>
                 </div>

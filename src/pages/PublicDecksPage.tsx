@@ -1,4 +1,4 @@
-/* Decks públicos v10.0 (Hangar de Criação de Decks da OZ)
+/* Decks públicos v10.0 (Decks públicos)
  * Banner imersivo com Tallgeese em escala monumental, filtros avançados de metagame,
  * seleção multi-cor, rolagem infinita de 12 em 12 e acesso imediato ao deckbuilder. */
 import { useEffect, useRef, useState } from "react";
@@ -232,7 +232,7 @@ export default function PublicDecksPage() {
         <div className="absolute inset-0 z-0">
           <img loading="lazy" decoding="async"
             src={ozDeckHangarImg}
-            alt="Hangar da OZ com o Tallgeese em montagem"
+            alt=""
             className="h-full w-full object-cover object-center opacity-70 transition-transform duration-700 hover:scale-105"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/60 to-slate-950/30" />
@@ -250,17 +250,16 @@ export default function PublicDecksPage() {
                   variant="outline"
                   className="rounded-none border-primary/50 bg-primary/15 text-primary font-mono text-[0.7rem] uppercase tracking-widest px-2.5 py-0.5"
                 >
-                  DIRETRIZ MILITAR OZ · BAIA DE MONTAGEM
+                  DECKS DA COMUNIDADE
                 </Badge>
               </div>
 
               <h1 className="font-heading text-3xl sm:text-4xl md:text-5xl uppercase tracking-tight text-white leading-tight drop-shadow-md">
-                Hangar de Criação de Decks da OZ
+                Decks públicos
               </h1>
 
               <p className="text-sm sm:text-base text-slate-200 leading-relaxed max-w-2xl font-sans drop-shadow">
-                Projetos de engenharia móvel, formações táticas de combate e arsenais compartilhados
-                pelos pilotos da comunidade para calibração, estudo e análise competitiva de metagame.
+                Decks compartilhados pela comunidade para estudar, copiar e testar.
               </p>
 
               {/* Informações táticas de status */}
@@ -322,7 +321,7 @@ export default function PublicDecksPage() {
               <Input
                 value={queryDraft}
                 onChange={(e) => setQueryDraft(e.target.value)}
-                placeholder="Buscar por nome do deck ou piloto..."
+                placeholder="Buscar por nome do deck ou jogador..."
                 className="field-shell pl-9 h-11 text-sm placeholder:text-slate-500"
               />
               {queryDraft && (
@@ -487,7 +486,7 @@ export default function PublicDecksPage() {
         <div className="py-24 text-center text-sm text-slate-400">
           <div className="mx-auto size-10 border-2 border-primary/40 border-t-primary animate-spin mb-4" />
           <p className="uppercase tracking-[0.2em] text-xs font-mono">
-            Sincronizando Arsenal com a Base Central OZ...
+            Carregando decks...
           </p>
         </div>
       ) : !decks.length ? (
@@ -495,12 +494,12 @@ export default function PublicDecksPage() {
           <CardContent className="p-16 text-center text-sm text-slate-400 space-y-4">
             <Swords className="mx-auto size-12 text-slate-600" />
             <p className="font-heading text-2xl uppercase text-slate-200">
-              Nenhum projeto encontrado no Arsenal
+              Nenhum deck encontrado
             </p>
             <p className="text-xs uppercase tracking-widest text-slate-500 max-w-md mx-auto">
               {query || unit || selectedColors.length > 0
                 ? "Nenhum deck coincide com os filtros atuais. Tente buscar com outros termos ou redefinir os parâmetros."
-                : "Seja o primeiro comandante a enviar uma lista tática para a comunidade!"}
+                : "Seja a primeira pessoa a publicar um deck!"}
             </p>
             <div className="pt-2 flex justify-center gap-3">
               {(query || unit || selectedColors.length > 0) && (
@@ -559,7 +558,7 @@ export default function PublicDecksPage() {
             </DialogTitle>
             <DialogDescription className="text-slate-400 text-xs">
               Cole sua decklist nos formatos compatíveis (MSA / Exburst, Wing Table ou lista simples
-              de códigos). O Hangar montará o rascunho instantaneamente.
+              de códigos). O deckbuilder monta o rascunho na hora.
             </DialogDescription>
           </DialogHeader>
 
@@ -586,7 +585,7 @@ export default function PublicDecksPage() {
                   onClick={handleStartImport}
                   className="rounded-none bg-primary text-primary-foreground font-heading uppercase tracking-wider"
                 >
-                  Abrir no Hangar
+                  Abrir no deckbuilder
                 </Button>
               </div>
             </div>

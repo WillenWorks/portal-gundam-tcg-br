@@ -880,7 +880,7 @@ export default function SharedDeckPage() {
         entries,
       })
     );
-    toast.success("Deck clonado! Abrindo no Hangar OZ...");
+    toast.success("Deck copiado! Abrindo no deckbuilder...");
     navigate("/deckbuilder/novo");
   };
 
@@ -929,7 +929,7 @@ export default function SharedDeckPage() {
             onClick={() => navigate("/decks")}
             className="mt-4 rounded-none bg-red-600 hover:bg-red-500 text-white"
           >
-            Voltar para o Arsenal
+            Voltar para os decks
           </Button>
         </div>
       </PublicShell>
@@ -943,7 +943,7 @@ export default function SharedDeckPage() {
         { label: deck.name || "Especificação de Deck" },
       ]}
       title={deck.name}
-      description={deck.user?.displayName || deck.user?.username || "Piloto da OZ"}
+      description={deck.user?.displayName || deck.user?.username || "Jogador"}
     >
       <div className="space-y-6">
         {/* BANNER DO HANGAR OZ COM METADADOS DO DECK */}
@@ -1055,7 +1055,7 @@ export default function SharedDeckPage() {
                   onClick={cloneToDeckbuilder}
                   className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground font-heading uppercase text-xs tracking-wider shadow-lg shadow-primary/20"
                 >
-                  <Wrench className="mr-1.5 size-3.5" /> Clonar no Hangar OZ
+                  <Wrench className="mr-1.5 size-3.5" /> Copiar para o deckbuilder
                 </Button>
               </div>
             </div>
@@ -1097,10 +1097,7 @@ export default function SharedDeckPage() {
             }`}
           >
             <BarChart3 className="size-4" />
-            <span>Estatísticas & Telemetria</span>
-            <Badge className="rounded-none border-primary/50 bg-primary/10 text-primary font-mono text-[10px] ml-1">
-              VEDA
-            </Badge>
+            <span>Estatísticas</span>
           </button>
         </div>
 
@@ -1424,7 +1421,7 @@ export default function SharedDeckPage() {
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
                     <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">
-                      Diagnóstico operacional · Telemetria do Hangar & Sistema VEDA
+                      Diagnóstico do deck
                     </p>
                     <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">
                       Calibração Técnica da Lista
@@ -1468,7 +1465,7 @@ export default function SharedDeckPage() {
             {/* IDENTIDADE TÁTICA DA LISTA */}
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
-                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Processamento VEDA</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Análise do deck</p>
                 <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">
                   Identidade Tática da Lista
                   <MetricTooltip
@@ -1498,7 +1495,7 @@ export default function SharedDeckPage() {
               entries={deckEntries}
               cardCache={cardCacheMap}
               onAddCard={(card) => {
-                toast.info(`Para adicionar ${card.namePt || card.name}, use o botão "Clonar no Hangar OZ".`);
+                toast.info(`Para adicionar ${card.namePt || card.name}, use o botão "Copiar para o deckbuilder".`);
               }}
               availableCards={allRows}
             />
@@ -2172,7 +2169,7 @@ export default function SharedDeckPage() {
                   <div className="flex items-center gap-2">
                     <Shield className="size-5 text-primary" />
                     <h3 className="font-heading text-xl uppercase tracking-wider text-slate-900 dark:text-white">
-                      Base de Metagame do Arsenal
+                      Base do meta
                     </h3>
                   </div>
                   <span className="text-xs font-mono text-slate-600 dark:text-slate-400">
@@ -2374,7 +2371,7 @@ export default function SharedDeckPage() {
           open={imageModalOpen}
           onClose={() => setImageModalOpen(false)}
           deckName={deck.name}
-          authorName={deck.user?.displayName || deck.user?.username || "Piloto da OZ"}
+          authorName={deck.user?.displayName || deck.user?.username || "Jogador"}
           shareId={deck.shareId || params?.shareId}
           mainCards={mainRows.map((r) => ({
             code: r.code,

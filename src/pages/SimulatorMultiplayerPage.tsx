@@ -405,7 +405,7 @@ export default function SimulatorMultiplayerPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.24em] text-violet-400 font-semibold flex items-center gap-1.5">
-                  <Users className="size-3.5" /> Arena Asticassia · Protocolo Multiplayer 4P
+                  <Users className="size-3.5" /> Simulador · Partida para 4 jogadores
                 </p>
                 <h1 className="mt-1.5 font-heading text-3xl sm:text-4xl uppercase text-white heading-portal">Arena Multiplayer</h1>
                 <p className="mt-2 text-xs sm:text-sm leading-relaxed text-soft">

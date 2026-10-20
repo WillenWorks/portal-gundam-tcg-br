@@ -146,10 +146,10 @@ export function LatestCardsCarousel({ limit = 30, className }: LatestCardsCarous
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-400">Database Oficial</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-400">Catálogo oficial</span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-white/5 border border-white/10 px-2 py-0.5 text-[9px] text-slate-400">
                   <span className="size-1.5 rounded-full bg-cyan-400 animate-ping" />
-                  {cards.length > 0 ? `${cards.length} cartas recentes` : "Carregando acervo"}
+                  {cards.length > 0 ? `${cards.length} cartas recentes` : "Carregando"}
                 </span>
               </div>
               <h3 className="font-heading text-xl sm:text-2xl lg:text-3xl uppercase tracking-wider text-white heading-portal">

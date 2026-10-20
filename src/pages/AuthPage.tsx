@@ -50,7 +50,7 @@ export default function AuthPage() {
   const [emailStatus, setEmailStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
   const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
 
-  const eyebrow = useMemo(() => (mode === "login" ? "Acesso ao Hangar" : "Alistamento de Piloto"), [mode]);
+  const eyebrow = useMemo(() => (mode === "login" ? "Entrar" : "Criar conta"), [mode]);
   const title = useMemo(() => (mode === "login" ? "Entrar" : "Criar conta"), [mode]);
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
 
@@ -232,12 +232,12 @@ export default function AuthPage() {
     <PublicShell
       breadcrumbs={[{ label: mode === "login" ? "Login" : "Cadastro" }]}
       title={title}
-      description="Acesse o hangar do Asticassia Hub para gerenciar seus decks, coleções e disputar partidas."
+      description="Entre no AnaheimHub para gerenciar seus decks e coleções e jogar no simulador."
     >
       <RequestLoadingOverlay
         visible={loading}
-        label={mode === "login" ? "Autenticando piloto..." : "Criando credenciais de piloto..."}
-        sublabel="Conectando à base Asticassia"
+        label={mode === "login" ? "Entrando..." : "Criando conta..."}
+        sublabel="Só um instante"
       />
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
