@@ -48,15 +48,15 @@ jobs:
       decks: ${{ steps.decks.outputs.decks }}
       shards: ${{ steps.decks.outputs.shards }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.HEAD_REF }}
           path: head
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.BASE_REF }}
           path: base
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - run: corepack enable
@@ -85,16 +85,16 @@ jobs:
         side: [base, head]
         shard: ${{ fromJSON(needs.plan.outputs.shards) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.HEAD_REF }}
           path: head
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: matrix.side == 'base'
         with:
           ref: ${{ env.BASE_REF }}
           path: base
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - run: corepack enable
@@ -112,7 +112,7 @@ jobs:
           node scripts/gundam-bot-matchups.mjs --games="$GAMES" --seed=1 \
             --decks="${{ needs.plan.outputs.decks }}" ${FOCUS:+--focus="$FOCUS"} \
             --shard="${{ matrix.shard }}/$SHARDS" --out="$RUNNER_TEMP/${{ matrix.side }}-${{ matrix.shard }}.json"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bench-${{ matrix.side }}-${{ matrix.shard }}
           path: ${{ runner.temp }}/${{ matrix.side }}-${{ matrix.shard }}.json
@@ -123,15 +123,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.HEAD_REF }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - run: corepack enable
       - run: corepack pnpm install --frozen-lockfile
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: bench-*
           path: parts
@@ -145,7 +145,7 @@ jobs:
           node scripts/gundam-bot-compare.mjs bench/base.json bench/head.json --maxDrop=3 --md=bench/comparacao.md
           echo "status=$?" >> "$GITHUB_OUTPUT"
           cat bench/comparacao.md >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bench-relatorio
           path: bench/

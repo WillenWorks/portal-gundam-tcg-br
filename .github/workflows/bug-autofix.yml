@@ -52,12 +52,12 @@ jobs:
           fi
           echo "shortCode=$SHORT_CODE"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: dev
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
 

@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # Deploy atômico:
       # - o site é compilado numa pasta nova (/root/anaheimhub-releases/<versão>) e só entra no ar com a troca
@@ -31,7 +31,7 @@ jobs:
       # - build que falha não mexe no banco nem no site; API que não volta saudável → volta a versão anterior;
       # - guarda as 5 versões mais recentes.
       - name: Deploy to VPS via SSH
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}

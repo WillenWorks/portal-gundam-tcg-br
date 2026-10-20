@@ -41,8 +41,8 @@ jobs:
     outputs:
       include: ${{ steps.plan.outputs.include }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - run: corepack enable
@@ -66,7 +66,7 @@ jobs:
           include=$(node scripts/gundam-bot-matrix-plan.mjs --dir=pools --formats="${{ inputs.formats }}" --games="${{ inputs.games }}" --max-shards="${{ inputs.max_shards }}")
           echo "include=$include" >> "$GITHUB_OUTPUT"
           echo "fatias: $(echo "$include" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>console.log(JSON.parse(d).length))')"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bot-matrix-pools
           path: pools/
@@ -82,13 +82,13 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.plan.outputs.include) }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - run: corepack enable
       - run: corepack pnpm install --frozen-lockfile
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: bot-matrix-pools
           path: pools
@@ -98,7 +98,7 @@ jobs:
           node scripts/gundam-bot-matchups.mjs --pool="pools/pool-${{ matrix.format }}.json" --level="${{ inputs.level }}" \
             --games="${{ inputs.games }}" --shard="${{ matrix.shard }}/${{ matrix.of }}" --workers=4 \
             --out="parts/${{ matrix.format }}-${{ matrix.shard }}.json"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bot-matrix-part-${{ matrix.format }}-${{ matrix.shard }}
           path: parts/
@@ -110,17 +110,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - run: corepack enable
       - run: corepack pnpm install --frozen-lockfile
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: bot-matrix-pools
           path: out
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: bot-matrix-part-*
           path: parts
@@ -135,7 +135,7 @@ jobs:
           node scripts/gundam-bot-season-report.mjs --dir=out --formats="${{ inputs.formats }}" --out=out/relatorio-bot-matriz.md
           cat out/fatias.txt >> "$GITHUB_STEP_SUMMARY"
           cat out/relatorio-bot-matriz.md >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bot-matrix-relatorio
           path: out/
