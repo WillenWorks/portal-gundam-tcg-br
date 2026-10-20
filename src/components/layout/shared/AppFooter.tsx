@@ -11,9 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { CommunitySupportModal } from "@/components/support/CommunitySupportModal";
 import anaheimLogo from "@/assets/anaheim-logo-transparent.webp";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export function AppFooter({ className }: { className?: string }) {
   const [supportModalOpen, setSupportModalOpen] = useState(false);
+  const { tr } = useSiteLanguage();
 
   return (
     <>
@@ -39,22 +41,28 @@ export function AppFooter({ className }: { className?: string }) {
                 </p>
               </div>
               <p className="max-w-xl text-xs leading-6 text-slate-400 dark:text-slate-400 light:text-slate-600">
-                Cartas, decks, torneios, estatísticas e simulador de Gundam Card Game, feito pela comunidade no Brasil. Aberto e gratuito, com deckbuilder, estatísticas do meta e simulador Asticassia para a comunidade de pilotos.
+                {tr(
+                  "Cartas, decks, torneios, estatísticas e simulador de Gundam Card Game, feito pela comunidade no Brasil. Aberto e gratuito, com deckbuilder, estatísticas do meta e simulador Asticassia para a comunidade de pilotos.",
+                  "Gundam Card Game cards, decks, tournaments, stats and simulator, made by the community in Brazil. Open and free, with a deckbuilder, meta stats and the Asticassia simulator.",
+                )}
               </p>
               <p className="text-[11px] leading-5 text-slate-500 dark:text-slate-500 light:text-slate-500">
-                Cartas, artes e marcas registradas pertencem à Bandai Co., Ltd. e Sunrise/Sotsu. Anaheim Hub é um projeto comunitário independente sem fins lucrativos.
+                {tr(
+                  "Cartas, artes e marcas registradas pertencem à Bandai Co., Ltd. e Sunrise/Sotsu. Anaheim Hub é um projeto comunitário independente sem fins lucrativos.",
+                  "Cards, artwork and trademarks belong to Bandai Co., Ltd. and Sunrise/Sotsu. Anaheim Hub is an independent, non-profit community project.",
+                )}
               </p>
             </div>
 
             {/* Bloco 2: Navegação Rápida */}
             <div className="space-y-3 lg:col-span-2">
               <p className="text-xs uppercase tracking-[0.22em] text-white dark:text-white light:text-slate-900 font-semibold">
-                Navegação
+                {tr("Navegação", "Navigation")}
               </p>
               <ul className="space-y-2 text-xs">
                 <li>
                   <Link href="/database" className="transition-colors hover:text-primary">
-                    Banco de Cartas
+                    {tr("Banco de Cartas", "Card Database")}
                   </Link>
                 </li>
                 <li>
@@ -64,22 +72,22 @@ export function AppFooter({ className }: { className?: string }) {
                 </li>
                 <li>
                   <Link href="/rules" className="transition-colors hover:text-primary">
-                    Regras Oficiais pt-BR
+                    {tr("Regras Oficiais pt-BR", "Official Rules (pt-BR)")}
                   </Link>
                 </li>
                 <li>
                   <Link href="/torneios" className="transition-colors hover:text-primary">
-                    Torneios & Eventos
+                    {tr("Torneios & Eventos", "Tournaments & Events")}
                   </Link>
                 </li>
                 <li>
                   <Link href="/stats" className="transition-colors hover:text-primary">
-                    Estatísticas
+                    {tr("Estatísticas", "Stats")}
                   </Link>
                 </li>
                 <li>
                   <Link href="/novidades" className="transition-colors hover:text-primary">
-                    Novidades & Changelog
+                    {tr("Novidades & Changelog", "News & Changelog")}
                   </Link>
                 </li>
               </ul>
@@ -88,17 +96,17 @@ export function AppFooter({ className }: { className?: string }) {
             {/* Bloco 3: Diretrizes & Legal */}
             <div className="space-y-3 lg:col-span-2">
               <p className="text-xs uppercase tracking-[0.22em] text-white dark:text-white light:text-slate-900 font-semibold">
-                Políticas & Contato
+                {tr("Políticas & Contato", "Policies & Contact")}
               </p>
               <ul className="space-y-2 text-xs">
                 <li>
                   <Link href="/privacidade" className="transition-colors hover:text-primary">
-                    Privacidade de Dados
+                    {tr("Privacidade de Dados", "Data Privacy")}
                   </Link>
                 </li>
                 <li>
                   <Link href="/termos" className="transition-colors hover:text-primary">
-                    Termos de Uso
+                    {tr("Termos de Uso", "Terms of Use")}
                   </Link>
                 </li>
                 <li>
@@ -107,7 +115,7 @@ export function AppFooter({ className }: { className?: string }) {
                   </a>
                 </li>
                 <li>
-                  <span className="text-slate-500">Versão 2.2.0 (Produção)</span>
+                  <span className="text-slate-500">{tr("Versão 2.2.0 (Produção)", "Version 2.2.0 (Production)")}</span>
                 </li>
               </ul>
             </div>
@@ -115,10 +123,10 @@ export function AppFooter({ className }: { className?: string }) {
             {/* Bloco 4: Apoio Comunitário (Acesso Rápido) */}
             <div className="space-y-3 lg:col-span-3">
               <p className="text-xs uppercase tracking-[0.22em] text-amber-400 font-semibold">
-                Apoio Comunitário
+                {tr("Apoio Comunitário", "Community Support")}
               </p>
               <p className="text-xs leading-5 text-slate-400 dark:text-slate-400 light:text-slate-600">
-                Ajude a manter a infraestrutura de servidores, banco de dados e o simulador online com doações via Pix Nubank.
+                {tr("Ajude a manter a infraestrutura de servidores, banco de dados e o simulador online com doações via Pix Nubank.", "Help keep the servers, database and simulator online with donations via Pix (Brazil).")}
               </p>
               <div className="pt-1">
                 <Button
@@ -127,12 +135,12 @@ export function AppFooter({ className }: { className?: string }) {
                   className="w-full rounded-none border border-amber-400/40 bg-gradient-to-r from-amber-500/20 to-amber-600/10 text-xs font-semibold uppercase tracking-wider text-amber-300 hover:border-amber-400 hover:bg-amber-500/25 hover:text-amber-200 transition-all shadow-sm"
                 >
                   <HeartHandshake className="mr-2 size-4 text-amber-400" />
-                  Apoie o Anaheim Hub
+                  {tr("Apoie o Anaheim Hub", "Support Anaheim Hub")}
                 </Button>
               </div>
               <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
                 <ShieldCheck className="size-3.5 text-amber-400" />
-                Doações liberam a Insígnia de Apoiador no perfil
+                {tr("Doações liberam a Insígnia de Apoiador no perfil", "Donations unlock the Supporter badge on your profile")}
               </p>
             </div>
           </div>
@@ -140,8 +148,8 @@ export function AppFooter({ className }: { className?: string }) {
           <Separator className="my-6 bg-white/10 dark:bg-white/10 light:bg-slate-300/70" />
 
           <div className="flex flex-col items-center justify-between gap-4 text-xs text-slate-500 sm:flex-row">
-            <p>© {new Date().getFullYear()} Anaheim Hub. Todos os direitos reservados à comunidade.</p>
-            <p className="font-mono text-[11px]">FEITO PELA COMUNIDADE · GUNDAM CARD GAME BR</p>
+            <p>© {new Date().getFullYear()} Anaheim Hub. {tr("Todos os direitos reservados à comunidade.", "All rights reserved to the community.")}</p>
+            <p className="font-mono text-[11px]">{tr("FEITO PELA COMUNIDADE · GUNDAM CARD GAME BR", "MADE BY THE COMMUNITY · GUNDAM CARD GAME BR")}</p>
           </div>
         </div>
       </footer>

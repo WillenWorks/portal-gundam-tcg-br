@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 
 import defaultDeckCover from "@/assets/home/default_deck_cover.webp";
 import defaultPilotAvatar from "@/assets/home/default_pilot_avatar.webp";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 // Bordas neon temáticas para as 4 miniaturas de cartas chave (ref: imagem 1)
 const KEY_CARD_BORDER_CLASSES = [
@@ -27,6 +28,7 @@ const FALLBACK_DECK_BANNER = defaultDeckCover;
 const FALLBACK_PILOT_AVATAR = defaultPilotAvatar;
 
 export function RecentPopularDecksCarousel() {
+  const { tr, locale } = useSiteLanguage();
   const [days, setDays] = useState<7 | 15>(15);
   const [decks, setDecks] = useState<PopularRecentDeck[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -83,9 +85,9 @@ export function RecentPopularDecksCarousel() {
       toast.success(res.liked ? "Deck curtido!" : "Curtida removida.");
     } catch (err: any) {
       if (err?.message?.includes("Token") || err?.status === 401) {
-        toast.error("Faça login para curtir este deck.");
+        toast.error(tr("Faça login para curtir este deck.", "Sign in to like this deck."));
       } else {
-        toast.error("Não foi possível registrar a curtida.");
+        toast.error(tr("Não foi possível registrar a curtida.", "Couldn't save your like."));
       }
     }
   };
@@ -115,7 +117,7 @@ export function RecentPopularDecksCarousel() {
                 <TrendingUp className="size-5" />
               </div>
               <h2 className="font-heading text-xl sm:text-2xl font-bold tracking-wide dark:text-white light:text-slate-950">
-                Decks Recentes Populares
+                {tr("Decks Recentes Populares", "Popular Recent Decks")}
               </h2>
             </div>
             {/* Linha com acento ciano à esquerda */}
@@ -137,7 +139,7 @@ export function RecentPopularDecksCarousel() {
                     : "dark:text-slate-400 dark:hover:text-white light:text-slate-600 light:hover:text-slate-900"
                 )}
               >
-                Últimos 7 dias
+                {tr("Últimos 7 dias", "Last 7 days")}
               </button>
               <button
                 type="button"
@@ -149,7 +151,7 @@ export function RecentPopularDecksCarousel() {
                     : "dark:text-slate-400 dark:hover:text-white light:text-slate-600 light:hover:text-slate-900"
                 )}
               >
-                Últimos 15 dias
+                {tr("Últimos 15 dias", "Last 15 days")}
               </button>
             </div>
           </div>
@@ -173,7 +175,7 @@ export function RecentPopularDecksCarousel() {
             </div>
           ) : !currentDeck ? (
             <div className="h-64 flex items-center justify-center rounded-xl border border-white/10 bg-slate-950/60 text-slate-400 text-sm">
-              Nenhum deck público encontrado para o período selecionado.
+              {tr("Nenhum deck público encontrado para o período selecionado.", "No public decks found for the selected period.")}
             </div>
           ) : (
             <div className="relative">
@@ -272,7 +274,7 @@ export function RecentPopularDecksCarousel() {
                       type="button"
                       onClick={handleToggleLike}
                       className="flex items-center gap-1.5 transition-colors hover:text-rose-400"
-                      title="Curtir deck"
+                      title={tr("Curtir deck", "Like deck")}
                     >
                       <Heart
                         className={cn(
@@ -285,7 +287,7 @@ export function RecentPopularDecksCarousel() {
                       <span className="font-mono text-xs">{currentDeck.likeCount}</span>
                     </button>
 
-                    <span className="flex items-center gap-1.5 dark:text-slate-400 light:text-slate-500" title="Comentários">
+                    <span className="flex items-center gap-1.5 dark:text-slate-400 light:text-slate-500" title={tr("Comentários", "Comments")}>
                       <MessageSquare className="size-4" />
                       <span className="font-mono text-xs">0</span>
                     </span>
@@ -295,7 +297,7 @@ export function RecentPopularDecksCarousel() {
                   <div className="flex items-center gap-1.5 font-mono text-xs dark:text-slate-400 light:text-slate-600">
                     <Calendar className="size-3.5" />
                     <span>
-                      {new Date(currentDeck.createdAt).toLocaleDateString("pt-BR", {
+                      {new Date(currentDeck.createdAt).toLocaleDateString(locale, {
                         day: "2-digit",
                         month: "2-digit",
                         year: "numeric",
@@ -315,7 +317,7 @@ export function RecentPopularDecksCarousel() {
                     type="button"
                     onClick={prevDeck}
                     className="absolute -left-3 sm:-left-4 top-1/2 -translate-y-1/2 z-30 flex size-9 items-center justify-center rounded-full border dark:border-white/20 dark:bg-slate-950/80 dark:text-white light:border-slate-300 light:bg-white/90 light:text-slate-800 shadow-xl backdrop-blur-md transition hover:border-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-400"
-                    aria-label="Deck anterior"
+                    aria-label={tr("Deck anterior", "Previous deck")}
                   >
                     <ChevronLeft className="size-5" />
                   </button>
@@ -323,7 +325,7 @@ export function RecentPopularDecksCarousel() {
                     type="button"
                     onClick={nextDeck}
                     className="absolute -right-3 sm:-right-4 top-1/2 -translate-y-1/2 z-30 flex size-9 items-center justify-center rounded-full border dark:border-white/20 dark:bg-slate-950/80 dark:text-white light:border-slate-300 light:bg-white/90 light:text-slate-800 shadow-xl backdrop-blur-md transition hover:border-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-400"
-                    aria-label="Próximo deck"
+                    aria-label={tr("Próximo deck", "Next deck")}
                   >
                     <ChevronRight className="size-5" />
                   </button>

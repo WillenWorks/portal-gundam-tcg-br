@@ -1100,6 +1100,7 @@ function serializeUser(user: any, stats?: { deckCount: number; publicDeckCount: 
     supporterSince: user.supporterSince ? (user.supporterSince instanceof Date ? user.supporterSince.toISOString() : user.supporterSince) : null,
     supporterMessage: user.supporterMessage ?? null,
     preferredCardLanguage: user.preferredCardLanguage,
+    preferredSiteLanguage: user.preferredSiteLanguage === "en" ? "en" : "pt-BR",
     preferredTheme: user.preferredTheme,
     hasPassword: Boolean(user.passwordHash),
     emailVerified: Boolean(user.emailVerifiedAt),
@@ -1465,14 +1466,21 @@ app.get("/api/auth/me", authRequired, async (req: RequestWithUser, res) => {
 app.put("/api/auth/me", authRequired, async (req: RequestWithUser, res) => {
   const current = await requireActiveUser(req, res);
   if (!current) return;
-  const { displayName, bio, avatarUrl, preferredCardLanguage, preferredTheme } = req.body as { displayName?: string; bio?: string; avatarUrl?: string; preferredCardLanguage?: CardLanguage; preferredTheme?: string };
+  const { displayName, bio, avatarUrl, preferredCardLanguage, preferredSiteLanguage, preferredTheme } = req.body as { displayName?: string; bio?: string; avatarUrl?: string; preferredCardLanguage?: string; preferredSiteLanguage?: string; preferredTheme?: string };
+  if (preferredCardLanguage !== undefined && preferredCardLanguage !== CardLanguage.PT_BR && preferredCardLanguage !== CardLanguage.EN) {
+    return res.status(400).json({ error: "Idioma das cartas inválido." });
+  }
+  if (preferredSiteLanguage !== undefined && preferredSiteLanguage !== "pt-BR" && preferredSiteLanguage !== "en") {
+    return res.status(400).json({ error: "Idioma do site inválido." });
+  }
   const user = await prisma.user.update({
     where: { id: req.user!.userId },
     data: {
       displayName: displayName ?? current.displayName,
       bio: bio ?? current.bio,
       avatarUrl: avatarUrl ?? current.avatarUrl,
-      preferredCardLanguage: preferredCardLanguage ?? current.preferredCardLanguage,
+      preferredCardLanguage: (preferredCardLanguage as CardLanguage | undefined) ?? current.preferredCardLanguage,
+      preferredSiteLanguage: preferredSiteLanguage ?? current.preferredSiteLanguage,
       preferredTheme: preferredTheme ?? current.preferredTheme,
     },
   });

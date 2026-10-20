@@ -2,6 +2,7 @@
  * para requisições assíncronas (login, cadastro, uploads, transições de estado).
  * Evita cliques múltiplos e a sensação de página congelada. */
 import { cn } from "@/lib/utils";
+import { tr } from "@/i18n/siteLanguageCore";
 
 interface RequestLoadingOverlayProps {
   visible: boolean;
@@ -12,8 +13,8 @@ interface RequestLoadingOverlayProps {
 
 export function RequestLoadingOverlay({
   visible,
-  label = "Autenticando piloto...",
-  sublabel = "Estabelecendo comunicação com a base",
+  label = tr("Autenticando piloto...", "Signing in..."),
+  sublabel = tr("Estabelecendo comunicação com a base", "Connecting to the server"),
   className,
 }: RequestLoadingOverlayProps) {
   if (!visible) return null;

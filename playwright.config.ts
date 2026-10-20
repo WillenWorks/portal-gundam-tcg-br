@@ -14,6 +14,8 @@ export default defineConfig({
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
     trace: "retain-on-failure",
+    // navegador em português (o site sugere inglês a navegadores de fora; os testes de idioma trocam explicitamente)
+    locale: "pt-BR",
     launchOptions: process.env.PLAYWRIGHT_CHROMIUM_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH } : {},
   },
   projects: [

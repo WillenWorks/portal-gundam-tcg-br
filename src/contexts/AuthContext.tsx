@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { toast } from "sonner";
 
 import { api, clearAuth, getStoredAuth, storeAuth, type AuthUser } from "@/lib/api";
+import { tr } from "@/i18n/siteLanguageCore";
 
 type AuthContextValue = {
   user: AuthUser | null;
@@ -45,10 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const result = await api.login(email, password, recaptchaToken);
         storeAuth(result.token, result.user);
         setUser(result.user);
-        toast.success(`Login realizado como ${result.user.displayName}.`);
+        toast.success(tr(`Login realizado como ${result.user.displayName}.`, `Signed in as ${result.user.displayName}.`));
         navigate("/profile", { replace: true });
       } catch (err: any) {
-        toast.error(err?.message || "Erro ao realizar login.");
+        toast.error(err?.message || tr("Erro ao realizar login.", "Sign-in failed."));
         throw err;
       }
     },
@@ -57,10 +58,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const result = await api.loginWithGoogle(credential);
         storeAuth(result.token, result.user);
         setUser(result.user);
-        toast.success(`Login realizado como ${result.user.displayName}.`);
+        toast.success(tr(`Login realizado como ${result.user.displayName}.`, `Signed in as ${result.user.displayName}.`));
         navigate("/profile", { replace: true });
       } catch (err: any) {
-        toast.error(err?.message || "Erro ao autenticar com Google.");
+        toast.error(err?.message || tr("Erro ao autenticar com Google.", "Google sign-in failed."));
         throw err;
       }
     },
@@ -69,10 +70,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const result = await api.register(payload);
         storeAuth(result.token, result.user);
         setUser(result.user);
-        toast.success(`Conta criada para ${result.user.displayName}.`);
+        toast.success(tr(`Conta criada para ${result.user.displayName}.`, `Account created for ${result.user.displayName}.`));
         navigate("/profile", { replace: true });
       } catch (err: any) {
-        toast.error(err?.message || "Erro ao cadastrar conta.");
+        toast.error(err?.message || tr("Erro ao cadastrar conta.", "Sign-up failed."));
         throw err;
       }
     },
@@ -87,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout() {
       clearAuth();
       setUser(null);
-      toast.success("Sessão encerrada.");
+      toast.success(tr("Sessão encerrada.", "Signed out."));
       navigate("/");
     },
   };

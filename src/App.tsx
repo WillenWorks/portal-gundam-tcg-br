@@ -9,6 +9,8 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { FactionProvider } from "@/contexts/FactionContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { SiteLanguageProvider, tr } from "@/i18n/siteLanguage";
+import { LanguageSuggestion } from "@/components/layout/shared/LanguageSuggestion";
 import { GlobalLoader } from "@/components/layout/GlobalLoader";
 import { SocialQuickMatchOverlay } from "@/components/social/SocialQuickMatchOverlay";
 import Home from "@/pages/Home";
@@ -77,7 +79,7 @@ const PrivacyPage = lazy(() => import("@/pages/LegalPages").then((m) => ({ defau
 const TermsPage = lazy(() => import("@/pages/LegalPages").then((m) => ({ default: m.TermsPage })));
 
 function RouteLoader({ label }: { label: string }) {
-  return <GlobalLoader label={`Abrindo ${label}`} />;
+  return <GlobalLoader label={tr(`Abrindo ${label}`, "Loading")} />;
 }
 
 function LazyRoute({ label, children }: { label: string; children: ReactNode }) {
@@ -98,18 +100,18 @@ function RequireAuth({ children, adminOnly = false, hosterOnly = false }: { chil
       return;
     }
     if (adminOnly && user?.role !== "ADMIN") {
-      toast.error("Acesso negado: área restrita a administradores.");
+      toast.error(tr("Acesso negado: área restrita a administradores.", "Access denied: admins only."));
       navigate("/portal", { replace: true });
       return;
     }
     if (deniedByHoster) {
-      toast.error("Acesso negado: área restrita a organizadores.");
+      toast.error(tr("Acesso negado: área restrita a organizadores.", "Access denied: organizers only."));
       navigate("/portal", { replace: true });
     }
   }, [adminOnly, deniedByHoster, isAuthenticated, navigate, user?.role, location]);
 
   if (!isAuthenticated || (adminOnly && user?.role !== "ADMIN") || deniedByHoster) {
-    return <GlobalLoader label="Validando credenciais" />;
+    return <GlobalLoader label={tr("Validando credenciais", "Checking your session")} />;
   }
 
   return <>{children}</>;
@@ -130,7 +132,7 @@ function AppRouter() {
     <Router>
       <RouteMeta />
       <SocialQuickMatchOverlay>
-        <Suspense fallback={<GlobalLoader label="Carregando portal" />}>
+        <Suspense fallback={<GlobalLoader label={tr("Carregando portal", "Loading")} />}>
           <Switch>
         <Route path="/login" component={AuthPage} />
         <Route path="/auth">{() => <Redirect to="/login" replace />}</Route>
@@ -285,10 +287,13 @@ function App() {
       <ThemeProvider defaultTheme="dark" switchable>
         <FactionProvider defaultFaction="hangar">
           <AuthProvider>
-            <TooltipProvider>
-              <Toaster />
-              <AppRouter />
-            </TooltipProvider>
+            <SiteLanguageProvider>
+              <TooltipProvider>
+                <Toaster />
+                <AppRouter />
+                <LanguageSuggestion />
+              </TooltipProvider>
+            </SiteLanguageProvider>
           </AuthProvider>
         </FactionProvider>
       </ThemeProvider>

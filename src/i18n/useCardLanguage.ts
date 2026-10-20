@@ -6,10 +6,12 @@
  * - Usuário com preferredCardLanguage === "PT_BR": tudo traduzido para português.
  * - Visitante sem login: padrão "PT_BR" (padrão do site), com persistência em localStorage para conveniência.
  * - Mudanças na preferência no perfil refletem imediatamente sem necessidade de recarregar a partida.
+ * - `setLanguage` (seletor do topo do site e do simulador) salva na conta quando logado.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { api, type AuthUser } from "@/lib/api";
 import { cardText } from "./cardText";
 import { getKeywordDefinition, getPhaseStepLabel } from "./keywords";
 import type { CardLanguage, CardTextInput, CardTextResult, KeywordDefinition } from "./types";
@@ -35,10 +37,12 @@ export interface CardLanguageHook {
 
 export function useCardLanguage(): CardLanguageHook {
   // Obtém o usuário de forma segura caso o hook seja invocado fora de AuthProvider em testes
-  let authUser: { preferredCardLanguage?: "PT_BR" | "EN" } | null = null;
+  let authUser: AuthUser | null = null;
+  let setCurrentUser: ((user: AuthUser | null) => void) | null = null;
   try {
     const auth = useAuth();
     authUser = auth?.user ?? null;
+    setCurrentUser = auth?.setCurrentUser ?? null;
   } catch {
     // Isolamento para testes unitários ou renderizações puras
     authUser = null;
@@ -80,10 +84,16 @@ export function useCardLanguage(): CardLanguageHook {
 
   const setLanguage = useCallback((nextLang: CardLanguage) => {
     setGuestLang(nextLang);
-    if (typeof window !== "undefined" && window.localStorage) {
+    try {
       window.localStorage.setItem(GUEST_STORAGE_KEY, nextLang);
+    } catch {
+      /* sem armazenamento: vale só nesta visita */
     }
-  }, []);
+    if (authUser && setCurrentUser && authUser.preferredCardLanguage !== nextLang) {
+      setCurrentUser({ ...authUser, preferredCardLanguage: nextLang });
+      api.updateMe({ preferredCardLanguage: nextLang }).catch(() => {});
+    }
+  }, [authUser, setCurrentUser]);
 
   const boundCardText = useCallback(
     (card: CardTextInput | null | undefined, trigger?: string) => cardText(card, trigger, language),

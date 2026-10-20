@@ -18,6 +18,7 @@ import { buildPixPayload } from "@/lib/pix";
 import { api, type ApiSupporter } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import supportersData from "@/data/supporters.json";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 type StaticSupporter = { name: string; sinceMonth?: string; message?: string };
 const initialSupporters = supportersData as StaticSupporter[];
@@ -29,6 +30,7 @@ const PIX_PAYLOAD = import.meta.env.VITE_PIX_PAYLOAD || "00020126920014BR.GOV.BC
 const PIX_PAYMENT_URL = import.meta.env.VITE_PIX_PAYMENT_URL || "";
 
 function PixPanel() {
+  const { tr } = useSiteLanguage();
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedPayload, setCopiedPayload] = useState(false);
@@ -56,10 +58,10 @@ function PixPanel() {
     try {
       await navigator.clipboard.writeText(PIX_KEY);
       setCopiedKey(true);
-      toast.success("Chave Pix copiada!");
+      toast.success(tr("Chave Pix copiada!", "Pix key copied!"));
       setTimeout(() => setCopiedKey(false), 2000);
     } catch {
-      toast.error("Não foi possível copiar automaticamente. Selecione a chave manualmente.");
+      toast.error(tr("Não foi possível copiar automaticamente. Selecione a chave manualmente.", "Couldn't copy automatically. Select the key manually."));
     }
   };
 
@@ -68,10 +70,10 @@ function PixPanel() {
     try {
       await navigator.clipboard.writeText(payload);
       setCopiedPayload(true);
-      toast.success("Código Pix Copia-e-Cola copiado!");
+      toast.success(tr("Código Pix Copia-e-Cola copiado!", "Pix copy-and-paste code copied!"));
       setTimeout(() => setCopiedPayload(false), 2000);
     } catch {
-      toast.error("Não foi possível copiar o código Pix.");
+      toast.error(tr("Não foi possível copiar o código Pix.", "Couldn't copy the Pix code."));
     }
   };
 
@@ -91,19 +93,19 @@ function PixPanel() {
         {qrDataUrl ? (
           <img loading="lazy" decoding="async" src={qrDataUrl} alt="QR Code Pix Nubank" className="h-full w-full object-contain" />
         ) : (
-          <p className="text-xs text-slate-500">Gerando QR Code Pix...</p>
+          <p className="text-xs text-slate-500">{tr("Gerando QR Code Pix...", "Generating Pix QR code...")}</p>
         )}
       </div>
 
       <div className="w-full space-y-3">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.22em] dark:text-slate-400 light:text-slate-500">Beneficiário Nubank</p>
+          <p className="text-[10px] uppercase tracking-[0.22em] dark:text-slate-400 light:text-slate-500">{tr("Beneficiário Nubank", "Recipient (Nubank)")}</p>
           <p className="text-xs font-semibold dark:text-white light:text-slate-900">{PIX_MERCHANT_NAME} · {PIX_MERCHANT_CITY}</p>
-          <p className="mt-0.5 text-[11px] dark:text-slate-400 light:text-slate-600">Identificação: <span className="font-medium text-primary">Anaheim Hub - Aquele cafezinho</span></p>
+          <p className="mt-0.5 text-[11px] dark:text-slate-400 light:text-slate-600">{tr("Identificação:", "ID:")} <span className="font-medium text-primary">Anaheim Hub - Aquele cafezinho</span></p>
         </div>
 
         <div className="space-y-1.5">
-          <p className="text-[10px] uppercase tracking-[0.22em] dark:text-slate-400 light:text-slate-500">Chave Pix Direta</p>
+          <p className="text-[10px] uppercase tracking-[0.22em] dark:text-slate-400 light:text-slate-500">{tr("Chave Pix Direta", "Pix key")}</p>
           <div className="flex items-center gap-2 border dark:border-white/15 dark:bg-white/5 light:border-slate-300 light:bg-white px-3 py-2">
             <code className="flex-1 truncate text-left font-mono text-xs dark:text-slate-300 light:text-slate-800">{PIX_KEY}</code>
             <Button
@@ -112,17 +114,17 @@ function PixPanel() {
               variant="outline"
               className="shrink-0 rounded-none dark:border-white/20 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 light:border-slate-300 light:bg-slate-100 light:text-slate-800 light:hover:bg-slate-200"
               onClick={copyKey}
-              title="Copiar chave Pix"
+              title={tr("Copiar chave Pix", "Copy Pix key")}
             >
               {copiedKey ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
-              <span className="ml-1.5 text-xs">{copiedKey ? "Copiado" : "Copiar Chave"}</span>
+              <span className="ml-1.5 text-xs">{copiedKey ? tr("Copiado", "Copied") : "Copiar Chave"}</span>
             </Button>
           </div>
         </div>
 
         {payload ? (
           <div className="space-y-1.5">
-            <p className="text-[10px] uppercase tracking-[0.22em] dark:text-slate-400 light:text-slate-500">Pix Copia e Cola (Payload Bancário)</p>
+            <p className="text-[10px] uppercase tracking-[0.22em] dark:text-slate-400 light:text-slate-500">{tr("Pix Copia e Cola (Payload Bancário)", "Pix copy-and-paste code")}</p>
             <div className="flex items-center gap-2 border dark:border-white/15 dark:bg-white/5 light:border-slate-300 light:bg-white px-3 py-2">
               <code className="flex-1 truncate text-left font-mono text-xs dark:text-slate-400 light:text-slate-600">{payload}</code>
               <Button
@@ -131,10 +133,10 @@ function PixPanel() {
                 variant="outline"
                 className="shrink-0 rounded-none dark:border-white/20 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 light:border-slate-300 light:bg-slate-100 light:text-slate-800 light:hover:bg-slate-200"
                 onClick={copyPayload}
-                title="Copiar código Pix Copia-e-Cola"
+                title={tr("Copiar código Pix Copia-e-Cola", "Copy Pix code")}
               >
                 {copiedPayload ? <Check className="size-3.5 text-emerald-500" /> : <QrCode className="size-3.5" />}
-                <span className="ml-1.5 text-xs">{copiedPayload ? "Copiado" : "Copiar Código"}</span>
+                <span className="ml-1.5 text-xs">{copiedPayload ? tr("Copiado", "Copied") : tr("Copiar Código", "Copy Code")}</span>
               </Button>
             </div>
           </div>
@@ -145,7 +147,7 @@ function PixPanel() {
             <Button asChild variant="outline" size="sm" className="w-full rounded-none border-primary/40 bg-primary/10 text-primary hover:bg-primary/20">
               <a href={PIX_PAYMENT_URL} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="mr-2 size-3.5" />
-                Pagar ou Doar via Link Nubank
+                {tr("Pagar ou Doar via Link Nubank", "Pay or donate via Nubank link")}
               </a>
             </Button>
           </div>
@@ -156,8 +158,9 @@ function PixPanel() {
 }
 
 function SupportersWall({ supporters }: { supporters: ApiSupporter[] }) {
+  const { tr } = useSiteLanguage();
   if (supporters.length === 0) {
-    return <p className="text-sm dark:text-slate-400 light:text-slate-500">Ainda não há apoiadores listados — seja o primeiro a aparecer aqui!</p>;
+    return <p className="text-sm dark:text-slate-400 light:text-slate-500">{tr("Ainda não há apoiadores listados — seja o primeiro a aparecer aqui!", "No supporters listed yet — be the first to show up here!")}</p>;
   }
   return (
     <div className="flex flex-wrap gap-2">
@@ -184,6 +187,7 @@ export function CommunitySupportModal({
   onOpenChange?: (open: boolean) => void;
   trigger?: React.ReactNode;
 }) {
+  const { tr, locale } = useSiteLanguage();
   const { user, isAuthenticated, setCurrentUser } = useAuth();
   const [supporters, setSupporters] = useState<ApiSupporter[]>([]);
   const [message, setMessage] = useState("");
@@ -223,10 +227,10 @@ export function CommunitySupportModal({
     try {
       const res = await api.confirmSupport(message.trim() || undefined);
       setCurrentUser(res.user);
-      toast.success(res.message || "Insígnia de Apoiador ativada com sucesso! Muito obrigado pelo apoio.");
+      toast.success(res.message || tr("Insígnia de Apoiador ativada com sucesso! Muito obrigado pelo apoio.", "Supporter badge activated! Thank you so much for your support."));
       await loadSupporters();
     } catch (err: any) {
-      toast.error(err?.message || "Erro ao registrar confirmação de apoio.");
+      toast.error(err?.message || tr("Erro ao registrar confirmação de apoio.", "Couldn't save your support confirmation."));
     } finally {
       setIsConfirming(false);
     }
@@ -243,11 +247,11 @@ export function CommunitySupportModal({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <DialogTitle className="flex items-center gap-2.5 font-heading text-2xl sm:text-3xl uppercase tracking-wide dark:text-white light:text-slate-950">
               <HeartHandshake className="size-7 text-primary" />
-              Apoie o Anaheim Hub
+              {tr("Apoie o Anaheim Hub", "Support Anaheim Hub")}
             </DialogTitle>
             <span className="inline-flex items-center gap-1.5 border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 font-mono text-[11px] uppercase tracking-wider dark:text-emerald-300 light:text-emerald-700">
               <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Pix Nubank Oficial
+              {tr("Pix Nubank Oficial", "Official Pix (Nubank)")}
             </span>
           </div>
           <p className="text-sm leading-relaxed dark:text-slate-300 light:text-slate-600">
@@ -260,7 +264,7 @@ export function CommunitySupportModal({
           {/* Coluna 1: Painel Pix Nubank (QR Code e Chaves) */}
           <div className="lg:col-span-5 border dark:border-white/10 dark:bg-white/[0.02] light:border-slate-200 light:bg-slate-50 p-5 panel-cut">
             <p className="mb-4 text-xs font-semibold uppercase tracking-[0.22em] text-primary">
-              Pagamento Imediato via Pix
+              {tr("Pagamento Imediato via Pix", "Instant payment via Pix")}
             </p>
             <PixPanel />
           </div>
@@ -270,7 +274,7 @@ export function CommunitySupportModal({
             {/* Fluxo de Ativação / Confirmação de Insígnia */}
             <div className="space-y-3">
               <p className="text-xs uppercase tracking-[0.22em] dark:text-slate-400 light:text-slate-500 font-semibold">
-                Insígnia de Apoiador & Reconhecimento
+                {tr("Insígnia de Apoiador & Reconhecimento", "Supporter Badge & Recognition")}
               </p>
 
               {!isAuthenticated ? (
@@ -279,20 +283,20 @@ export function CommunitySupportModal({
                   <div className="flex items-start gap-3">
                     <Sparkles className="mt-0.5 size-5 shrink-0 text-amber-500" />
                     <div className="space-y-2">
-                      <p className="font-semibold dark:text-white light:text-slate-900">Você está navegando como visitante (deslogado)</p>
+                      <p className="font-semibold dark:text-white light:text-slate-900">{tr("Você está navegando como visitante (deslogado)", "You're browsing as a guest (signed out)")}</p>
                       <p className="dark:text-slate-400 light:text-slate-600">
-                        Sua doação pelo QR Code ou chave Pix ao lado é recebida normalmente na conta Nubank de forma anônima.
+                        {tr("Sua doação pelo QR Code ou chave Pix ao lado é recebida normalmente na conta Nubank de forma anônima.", "Donations through the QR code or Pix key are received anonymously in the Nubank account.")}
                       </p>
                       <p className="dark:text-slate-300 light:text-slate-700">
-                        Se você possui uma conta e quer ativar a <span className="font-semibold text-primary">Insígnia de Apoiador</span> no seu perfil e no mural de honra,{" "}
+                        {tr("Se você possui uma conta e quer ativar a", "If you have an account and want to turn on the")} <span className="font-semibold text-primary">{tr("Insígnia de Apoiador", "Supporter badge")}</span> {tr("no seu perfil e no mural de honra,", "on your profile and the honor wall,")}{" "}
                         <Link href="/login" className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80">
-                          faça login
+                          {tr("faça login", "sign in")}
                         </Link>{" "}
-                        ou{" "}
+                        {tr("ou", "or")}{" "}
                         <Link href="/login" className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80">
-                          cadastre-se
+                          {tr("cadastre-se", "sign up")}
                         </Link>{" "}
-                        antes ou depois de doar!
+                        {tr("antes ou depois de doar!", "before or after donating!")}
                       </p>
                     </div>
                   </div>
@@ -304,24 +308,24 @@ export function CommunitySupportModal({
                     <ShieldCheck className="mt-0.5 size-5 shrink-0 text-amber-500" />
                     <div className="space-y-2.5 w-full">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold dark:text-white light:text-amber-950">Piloto Apoiador Oficial Ativo!</p>
+                        <p className="font-semibold dark:text-white light:text-amber-950">{tr("Piloto Apoiador Oficial Ativo!", "Official Supporter — active!")}</p>
                         <SupporterBadge size="sm" />
                       </div>
                       <p className="dark:text-slate-300 light:text-slate-700">
-                        Obrigado de coração, <span className="font-medium dark:text-white light:text-slate-950">{user.displayName}</span>! Sua insígnia está brilhando no seu perfil e no mural comunitário.
+                        {tr("Obrigado de coração,", "Heartfelt thanks,")} <span className="font-medium dark:text-white light:text-slate-950">{user.displayName}</span>! {tr("Sua insígnia está brilhando no seu perfil e no mural comunitário.", "Your badge is shining on your profile and the community wall.")}
                       </p>
                       {user.supporterSince ? (
                         <p className="text-[11px] dark:text-slate-400 light:text-slate-600">
-                          Apoiando desde: {new Date(user.supporterSince).toLocaleDateString()}
+                          {tr("Apoiando desde", "Supporting since")}: {new Date(user.supporterSince).toLocaleDateString(locale)}
                         </p>
                       ) : null}
                       <div className="pt-1">
-                        <label className="text-[10px] uppercase tracking-wider dark:text-slate-400 light:text-slate-600">Atualizar seu recado no mural:</label>
+                        <label className="text-[10px] uppercase tracking-wider dark:text-slate-400 light:text-slate-600">{tr("Atualizar seu recado no mural:", "Update your message on the wall:")}</label>
                         <div className="mt-1 flex gap-2">
                           <Input
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
-                            placeholder="Ex: Força Anaheim Hub!"
+                            placeholder={tr("Ex: Força Anaheim Hub!", "e.g. Go Anaheim Hub!")}
                             maxLength={120}
                             className="h-8 rounded-none dark:border-white/20 dark:bg-slate-900 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 text-xs"
                           />
@@ -346,19 +350,19 @@ export function CommunitySupportModal({
                     <UserCheck className="mt-0.5 size-5 shrink-0 text-primary" />
                     <div className="w-full space-y-3">
                       <div>
-                        <p className="font-semibold dark:text-white light:text-slate-950">Confirmar Doação & Habilitar Insígnia</p>
+                        <p className="font-semibold dark:text-white light:text-slate-950">{tr("Confirmar Doação & Habilitar Insígnia", "Confirm Donation & Enable Badge")}</p>
                         <p className="mt-1 dark:text-slate-400 light:text-slate-600">
-                          Após realizar o Pix pelo app do seu banco ou Nubank, confirme abaixo para ativar a{" "}
-                          <span className="font-semibold text-primary">Insígnia de Apoiador</span> no seu perfil <span className="dark:text-white light:text-slate-950">(@{user?.username})</span> e no mural.
+                          {tr("Após realizar o Pix pelo app do seu banco ou Nubank, confirme abaixo para ativar a", "After sending the Pix from your bank app, confirm below to turn on the")}{" "}
+                          <span className="font-semibold text-primary">{tr("Insígnia de Apoiador", "Supporter badge")}</span> {tr("no seu perfil", "on your profile")} <span className="dark:text-white light:text-slate-950">(@{user?.username})</span> {tr("e no mural.", "and the wall.")}
                         </p>
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase tracking-wider dark:text-slate-400 light:text-slate-600">Recado para o Mural (opcional):</label>
+                        <label className="text-[10px] uppercase tracking-wider dark:text-slate-400 light:text-slate-600">{tr("Recado para o Mural (opcional):", "Message for the wall (optional):")}</label>
                         <Input
                           value={message}
                           onChange={(e) => setMessage(e.target.value)}
-                          placeholder="Ex: Piloto de OZ apoiando a base!"
+                          placeholder={tr("Ex: Piloto de OZ apoiando a base!", "e.g. OZ pilot backing the base!")}
                           maxLength={120}
                           className="rounded-none dark:border-white/20 dark:bg-slate-900 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 text-xs"
                         />
@@ -373,12 +377,12 @@ export function CommunitySupportModal({
                         {isConfirming ? (
                           <>
                             <Loader2 className="mr-2 size-3.5 animate-spin" />
-                            Ativando Insígnia...
+                            {tr("Ativando Insígnia...", "Activating badge...")}
                           </>
                         ) : (
                           <>
                             <ShieldCheck className="mr-2 size-4" />
-                            Já realizei o Pix! Ativar minha Insígnia de Apoiador
+                            {tr("Já realizei o Pix! Ativar minha Insígnia de Apoiador", "I've sent the Pix! Activate my Supporter badge")}
                           </>
                         )}
                       </Button>
@@ -393,7 +397,7 @@ export function CommunitySupportModal({
             {/* Mural de Apoiadores */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-xs uppercase tracking-[0.22em] dark:text-slate-400 light:text-slate-500 font-semibold">Mural de Apoiadores</p>
+                <p className="text-xs uppercase tracking-[0.22em] dark:text-slate-400 light:text-slate-500 font-semibold">{tr("Mural de Apoiadores", "Supporters Wall")}</p>
                 <span className="text-[11px] dark:text-slate-500 light:text-slate-500 font-mono">{supporters.length} piloto(s) apoiador(es)</span>
               </div>
               <SupportersWall supporters={supporters} />
@@ -403,9 +407,9 @@ export function CommunitySupportModal({
 
             {/* Preview da Insígnia */}
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.22em] dark:text-slate-400 light:text-slate-500 font-semibold">Selo Oficial no Perfil</p>
+              <p className="text-xs uppercase tracking-[0.22em] dark:text-slate-400 light:text-slate-500 font-semibold">{tr("Selo Oficial no Perfil", "Official Profile Badge")}</p>
               <p className="text-xs dark:text-slate-400 light:text-slate-600">
-                Apoiadores ganham este selo exibido no perfil pessoal, no perfil público e em participações comunitárias do portal:
+                {tr("Apoiadores ganham este selo exibido no perfil pessoal, no perfil público e em participações comunitárias do portal:", "Supporters get this badge on their profile, public profile and community activity on the site:")}
               </p>
               <div className="pt-1">
                 <SupporterBadge />

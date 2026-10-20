@@ -4,6 +4,7 @@ import { ArrowRight, BookOpen, ChevronDown, Compass, Dices, Layers, Swords } fro
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export type SeriesInfo = {
   id: string;
@@ -330,6 +331,90 @@ export const GUNDAM_SERIES_CATALOG: SeriesInfo[] = [
   },
 ];
 
+/** Textos das séries com o site em inglês (o resto dos dados — nomes, anos, mechas — já é igual nos dois). */
+const SERIES_EN: Record<string, { description: string; tcgStyle: string }> = {
+  "msg-0079": {
+    description: "The legendary One Year War between the Earth Federation and the Principality of Zeon. Young civilian Amuro Ray pilots the RX-78-2 prototype and awakens his Newtype abilities against the feared 'Red Comet' Char Aznable.",
+    tcgStyle: "The game's foundation: classic balance, Federation military synergy and aggressive Zeon assaults.",
+  },
+  "zeta-gundam": {
+    description: "Seven years after the One Year War, the elite militarist Titans oppress the space colonies. Kamille Bidan joins the AEUG resistance alongside Quattro Bajeena (Char Aznable).",
+    tcgStyle: "Transformable Wave Rider frames, a Bio-Sensor that kicks in under pressure and strong counterattacks.",
+  },
+  "gundam-0080": {
+    description: "In the final days of the One Year War on the neutral colony Libot, Zeon's secret 'Cyclops' team tries to sabotage the Newtype prototype Gundam NT-1 Alex, while young Al witnesses the human cost of war alongside Bernie.",
+    tcgStyle: "Fast infiltration with the Kämpfer, protective Chobham Armor and close-range ambush triggers.",
+  },
+  "chars-counterattack": {
+    description: "The final clash between Amuro Ray and Char Aznable. Determined to force humanity into space so the Earth can rest, Char tries to drop the asteroid Axis onto the planet.",
+    tcgStyle: "Long-range guided Fin Funnels, Psycoframe resonance armor and lethal high-cost finishers.",
+  },
+  "hathaways-flash": {
+    description: "Twelve years after Char's rebellion, the federal government has sunk into corruption. Hathaway Noa takes on the secret identity of 'Mafty Navue Erin', leading an armed resistance against the Earth elite's tyranny.",
+    tcgStyle: "Atmospheric flight with Minovsky Craft, supersonic Funnel Missile barrages and full control of the skies.",
+  },
+  "gundam-unicorn": {
+    description: "The bloody race for 'Laplace's Box', a century-old secret that could bring down the Earth Federation. Banagher Links awakens the Unicorn Gundam and its mysterious NT-D (Newtype Destroyer) system.",
+    tcgStyle: "Explosive shifts into Destroy Mode, removal triggers and heavy Mobile Armor synergies.",
+  },
+  "victory-gundam": {
+    description: "Late in the Universal Century, the Zanscare Empire invades Earth with guillotines and religious fanaticism. Young Uso Ewin pilots the Victory Gundam for the rebel militia League Militaire.",
+    tcgStyle: "Swappable modular parts, the devastating 'Wings of Light' effect and acrobatic mobility.",
+  },
+  "g-gundam": {
+    description: "Wars between space nations have been replaced by the legendary 'Gundam Fight', a global martial arts tournament between mobile suits. Domon Kasshu fights for Neo Japan while searching for his brother and the Dark Gundam.",
+    tcgStyle: "Supreme melee combat, devastating martial arts strikes (Sekiha Tenkyoken) and explosive AP buffs in duels.",
+  },
+  "gundam-wing": {
+    description: "Five young pilots are sent from the space colonies in 'Operation Meteor' to free Earth from the militarist Treize Foundation and OZ, using Mobile Suits made of indestructible Gundanium alloy.",
+    tcgStyle: "Massive area Buster Rifle shots, Deathscythe's stealthy evasion and explosive Burst triggers.",
+  },
+  "wing-endless-waltz": {
+    description: "A year after the war ends, the Mariemaia Army defies global disarmament by kidnapping Relena Peacecraft. Heero Yuy and the Gundam pilots return to action in their final angel-winged suits.",
+    tcgStyle: "Angel wings with top aerial maneuverability, pinpoint shooting and legendary toughness.",
+  },
+  "gundam-x": {
+    description: "Fifteen years after hundreds of falling colonies plunged Earth into a post-apocalyptic winter, Garrod Ran finds the Gundam X and protects the young Newtype seer Tiffa Adill from vultures and the New United Nations.",
+    tcgStyle: "A Satellite Cannon charged by microwaves from the lunar base, mass annihilation and Newtype synergy.",
+  },
+  "turn-a-gundam": {
+    description: "Millennia after every Gundam era converged in the Dark History apocalypse, Earth's civilization lives with peaceful rural technology until the lunar Moonrace arrives. Loran Cehack unearths the mysterious 'White Mustache' Turn A.",
+    tcgStyle: "The legendary Moonlight Butterfly effect, nanotech regeneration and shutting down the opponent's resources.",
+  },
+  "gundam-seed": {
+    description: "The bloody racial war between the Earth Alliance (Naturals) and ZAFT (genetically enhanced Coordinators). Childhood friends Kira Yamato and Athrun Zala clash on opposite sides piloting the G-Weapons.",
+    tcgStyle: "Phase Shift Armor immune to physical damage, multi-lock Hi-MAT fire and coordinated attacks.",
+  },
+  "gundam-seed-destiny": {
+    description: "Two years after the Battle of Jachin Due, tensions flare again with the attack on Armory One. Young ZAFT pilot Shinn Asuka fights to protect the innocent as the world spirals into Gilbert Durandal's Destiny Plan.",
+    tcgStyle: "SEED Mode activation, Wings of Light and relentless high-damage attacks.",
+  },
+  "gundam-00": {
+    description: "The paramilitary organization Celestial Being stages armed interventions around the globe with four Gundams powered by semi-perpetual GN Drives, aiming to wipe out armed conflict and unite humanity.",
+    tcgStyle: "Resource acceleration with GN Particles, Trans-Am power spikes and precise multi-attacks.",
+  },
+  "gundam-age": {
+    description: "An epic generational saga across three generations of the Asuno family (Flit, Asemu and Kio) facing the mysterious 'Vagan'. The suit evolves during battle thanks to the legendary AGE System.",
+    tcgStyle: "Adaptive AGE System: instant swaps of tactical 'Wears', constant evolution and flexibility against any threat.",
+  },
+  "gundam-gquuuuuux": {
+    description: "An original line created to push the boundaries of the Gundam Card Game. Experimental machines with the mysterious Omega Psycommu system that bend the usual rules of mobile suit combat.",
+    tcgStyle: "Groundbreaking experimental mechanics, resource zone manipulation and unpredictable Omega Psycommu combos.",
+  },
+  "iron-blooded-orphans": {
+    description: "On Mars three centuries after the Calamity War, child soldiers form the mercenary company Tekkadan to escort activist Kudelia Aina Bernstein to Earth. The relentless Mikazuki Augus pilots the relic Gundam Barbatos.",
+    tcgStyle: "Visceral physical combat with no beam weapons, high-absorption Nanolaminate armor and blunt damage with maces and claws.",
+  },
+  "witch-from-mercury": {
+    description: "At the prestigious Asticassia School of Technology, business and corporate disputes are settled in Mobile Suit duels. Suletta Mercury arrives from Mercury piloting the mysterious Aerial with forbidden GUND technology.",
+    tcgStyle: "GUND-Format synergy with Bit Staves: switching smoothly between an impenetrable shield and guided barrages.",
+  },
+  "sd-gundam-eternal": {
+    description: "Every era, pilot and mobile suit in Gundam history meets in a tactical Super Deformed format. Pilot anything from Universal Century classics to iconic machines from alternate universes.",
+    tcgStyle: "Universal EX abilities, free pairing of pilots and Mobile Suits from any timeline and tactical versatility.",
+  },
+};
+
 // Função determinística para sortear n itens aleatórios
 function getRandomSample<T>(array: T[], size: number): T[] {
   const shuffled = [...array];
@@ -341,6 +426,7 @@ function getRandomSample<T>(array: T[], size: number): T[] {
 }
 
 export function GundamSeriesShowcase() {
+  const { tr, isEn } = useSiteLanguage();
   const [selectedSeries, setSelectedSeries] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [randomSeed, setRandomSeed] = useState(0);
@@ -370,18 +456,20 @@ export function GundamSeriesShowcase() {
           <div>
             <div className="flex items-center gap-2">
               <Badge className="rounded-none border border-cyan-400/40 bg-cyan-400/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-300">
-                Universo & Lore
+                {tr("Universo & Lore", "Universe & Lore")}
               </Badge>
               <span className="text-xs dark:text-slate-400 light:text-slate-600 font-mono">
                 {GUNDAM_SERIES_CATALOG.length} Linhas Temporais Oficiais no Card Game
               </span>
             </div>
             <h2 className="heading-portal font-heading text-3xl sm:text-4xl uppercase mt-2 dark:text-white light:text-slate-950">
-              Conheça as Séries de Gundam
+              {tr("Conheça as Séries de Gundam", "Discover the Gundam Series")}
             </h2>
             <p className="text-soft text-xs sm:text-sm mt-1 max-w-3xl leading-relaxed">
-              Cada carta do Gundam Card Game é inspirada em batalhas históricas, pilotos memoráveis e Mobile Suits lendários.
-              Abaixo listamos uma <strong>seleção rotativa</strong> das séries já presentes no jogo — e prepare-se para a futura <strong>Wiki Completa</strong> da Anaheim HUB!
+              {tr(
+                "Cada carta do Gundam Card Game é inspirada em batalhas históricas, pilotos memoráveis e Mobile Suits lendários. Abaixo listamos uma seleção rotativa das séries já presentes no jogo — e prepare-se para a futura Wiki Completa da Anaheim HUB!",
+                "Every Gundam Card Game card is inspired by historic battles, memorable pilots and legendary Mobile Suits. Below is a rotating selection of the series already in the game — and get ready for Anaheim HUB's upcoming full Wiki!",
+              )}
             </p>
           </div>
 
@@ -394,10 +482,10 @@ export function GundamSeriesShowcase() {
                 size="sm"
                 onClick={handleShuffle}
                 className="h-9 rounded-none dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:hover:border-cyan-400 dark:hover:bg-cyan-500/10 dark:hover:text-cyan-300 light:border-slate-300 light:bg-white light:text-slate-800 light:hover:bg-slate-100 light:hover:border-cyan-600 text-xs font-mono tracking-wider transition-all"
-                title="Sortear 6 séries aleatórias da lista de 20"
+                title={tr("Sortear 6 séries aleatórias da lista de 20", "Shuffle 6 random series from the list of 20")}
               >
                 <Dices className="mr-1.5 size-4 text-cyan-400" />
-                Sortear outras
+                {tr("Sortear outras", "Shuffle")}
               </Button>
             )}
 
@@ -411,19 +499,19 @@ export function GundamSeriesShowcase() {
               {showAll ? (
                 <>
                   <Dices className="mr-1.5 size-4" />
-                  Voltar ao sorteio (6)
+                  {tr("Voltar ao sorteio (6)", "Back to shuffle (6)")}
                 </>
               ) : (
                 <>
                   <Layers className="mr-1.5 size-4" />
-                  Ver todas as {GUNDAM_SERIES_CATALOG.length} séries
+                  {tr(`Ver todas as ${GUNDAM_SERIES_CATALOG.length} séries`, `See all ${GUNDAM_SERIES_CATALOG.length} series`)}
                 </>
               )}
             </Button>
 
             <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full dark:bg-cyan-950/60 dark:border-cyan-500/30 dark:text-cyan-300 light:bg-cyan-100/80 light:border-cyan-400/50 light:text-cyan-800 border px-3 py-1 font-mono text-[11px]">
               <Compass className="size-3.5 text-cyan-400 animate-spin" style={{ animationDuration: "12s" }} />
-              Wiki em Construção
+              {tr("Wiki em Construção", "Wiki Under Construction")}
             </span>
           </div>
         </div>
@@ -432,8 +520,8 @@ export function GundamSeriesShowcase() {
         <div className="flex items-center justify-between text-xs dark:text-slate-400 light:text-slate-600 font-mono">
           <span>
             Exibindo <strong className="dark:text-cyan-300 light:text-cyan-700">{displayedSeries.length}</strong> de{" "}
-            <strong>{GUNDAM_SERIES_CATALOG.length}</strong> sagas catalogadas
-            {!showAll && " (selecionadas aleatoriamente para manter a página compacta)"}
+            <strong>{GUNDAM_SERIES_CATALOG.length}</strong> {tr("sagas catalogadas", "sagas listed")}
+            {!showAll && tr(" (selecionadas aleatoriamente para manter a página compacta)", " (randomly picked to keep the page compact)")}
           </span>
         </div>
 
@@ -470,26 +558,26 @@ export function GundamSeriesShowcase() {
                         {series.year}
                       </span>
                       <span className="font-mono text-[10px] dark:text-cyan-400 light:text-cyan-700 font-medium">
-                        {series.cardCount} cartas
+                        {series.cardCount} {tr("cartas", "cards")}
                       </span>
                     </div>
                   </div>
 
                   {/* Resumo Rápido */}
                   <p className="text-xs dark:text-slate-300 light:text-slate-600 leading-relaxed line-clamp-3">
-                    {series.description}
+                    {isEn ? SERIES_EN[series.id]?.description ?? series.description : series.description}
                   </p>
 
                   {/* Destaque Mecha e Presença no TCG */}
                   <div className="space-y-1.5 pt-2 border-t dark:border-white/10 light:border-slate-200 text-xs">
                     <div className="flex items-center gap-2">
                       <Swords className="size-3.5 text-cyan-400 shrink-0" />
-                      <span className="dark:text-slate-400 light:text-slate-500 text-[11px]">Destaques:</span>
+                      <span className="dark:text-slate-400 light:text-slate-500 text-[11px]">{tr("Destaques:", "Highlights:")}</span>
                       <span className="dark:text-white light:text-slate-800 font-medium text-[11px] truncate">{series.highlightMecha}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Layers className="size-3.5 text-cyan-400 shrink-0" />
-                      <span className="dark:text-slate-400 light:text-slate-500 text-[11px]">No TCG:</span>
+                      <span className="dark:text-slate-400 light:text-slate-500 text-[11px]">{tr("No TCG:", "In the TCG:")}</span>
                       <span className="dark:text-cyan-300 light:text-cyan-700 text-[11px] truncate font-medium">{series.startersOrPacks}</span>
                     </div>
                   </div>
@@ -499,17 +587,17 @@ export function GundamSeriesShowcase() {
                     <div className="mt-3 pt-3 border-t border-cyan-500/20 space-y-2.5 animate-in fade-in-50 duration-200">
                       <div className="rounded-lg dark:bg-cyan-950/30 dark:border-cyan-500/20 light:bg-cyan-50 light:border-cyan-200 border p-3 text-xs">
                         <p className="font-semibold dark:text-cyan-300 light:text-cyan-800 uppercase tracking-wider text-[10px]">
-                          Estilo de Jogo no TCG:
+                          {tr("Estilo de Jogo no TCG:", "TCG Play Style:")}
                         </p>
-                        <p className="mt-1 dark:text-slate-300 light:text-slate-700 text-[11px] leading-relaxed">{series.tcgStyle}</p>
+                        <p className="mt-1 dark:text-slate-300 light:text-slate-700 text-[11px] leading-relaxed">{isEn ? SERIES_EN[series.id]?.tcgStyle ?? series.tcgStyle : series.tcgStyle}</p>
                       </div>
 
                       <div className="rounded-lg dark:bg-white/[0.02] dark:border-white/10 light:bg-slate-50 light:border-slate-200 border p-3 text-xs">
                         <p className="font-semibold dark:text-slate-300 light:text-slate-700 uppercase tracking-wider text-[10px]">
-                          Futura Enciclopédia & Wiki:
+                          {tr("Futura Enciclopédia & Wiki:", "Upcoming Encyclopedia & Wiki:")}
                         </p>
                         <p className="mt-1 dark:text-slate-400 light:text-slate-600 text-[11px] leading-relaxed">
-                          Ficha técnica de Mobile Suits, biografias de pilotos, relações de docking e guias de facções em português.
+                          {tr("Ficha técnica de Mobile Suits, biografias de pilotos, relações de docking e guias de facções em português.", "Mobile Suit specs, pilot bios, pairing relationships and faction guides.")}
                         </p>
                       </div>
                     </div>
@@ -532,9 +620,9 @@ export function GundamSeriesShowcase() {
                       <Link
                         href={`/series/${series.loreSlug}`}
                         className="font-semibold uppercase tracking-wider dark:text-white dark:hover:text-cyan-300 light:text-slate-800 light:hover:text-cyan-700 transition-colors flex items-center gap-1 text-[11px]"
-                        title={`Ver a página de lore completa de ${series.name}`}
+                        title={tr(`Ver a página de lore completa de ${series.name}`, `See the full lore page for ${series.name}`)}
                       >
-                        <BookOpen className="size-3" />Ver Lore
+                        <BookOpen className="size-3" />{tr("Ver Lore", "See Lore")}
                       </Link>
                     ) : null}
                     <Link
@@ -542,7 +630,7 @@ export function GundamSeriesShowcase() {
                       className="font-semibold uppercase tracking-wider dark:text-cyan-400 dark:hover:text-cyan-300 light:text-cyan-600 light:hover:text-cyan-800 transition-colors flex items-center gap-1 text-[11px]"
                       title={`Ver as ${series.cardCount} cartas de ${series.name} no banco de dados`}
                     >
-                      Ver Cartas ({series.cardCount}) <ArrowRight className="size-3" />
+                      {tr("Ver Cartas", "See Cards")} ({series.cardCount}) <ArrowRight className="size-3" />
                     </Link>
                   </div>
                 </div>
@@ -559,18 +647,20 @@ export function GundamSeriesShowcase() {
             </div>
             <div>
               <h4 className="font-heading text-lg uppercase dark:text-white light:text-slate-950">
-                Universe Hub — Wiki em construção, primeiras séries no ar
+                {tr("Universe Hub — Wiki em construção, primeiras séries no ar", "Universe Hub — Wiki under construction, first series live")}
               </h4>
               <p className="text-xs dark:text-slate-400 light:text-slate-600 mt-0.5 max-w-2xl">
-                Sinopse, Mobile Suits, pilotos e curiosidades de cada saga, em português. Zeta Gundam e Gundam SEED já
-                estão completos — as demais séries chegam em waves seguintes.
+                {tr(
+                  "Sinopse, Mobile Suits, pilotos e curiosidades de cada saga, em português. Zeta Gundam e Gundam SEED já estão completos — as demais séries chegam em waves seguintes.",
+                  "Synopsis, Mobile Suits, pilots and trivia for each saga (in Portuguese for now). Zeta Gundam and Gundam SEED are complete — the other series arrive in later waves.",
+                )}
               </p>
             </div>
           </div>
 
           <Button asChild variant="outline" className="rounded-none border-cyan-500/40 dark:text-cyan-300 dark:hover:bg-cyan-500/10 light:text-cyan-700 light:bg-cyan-50 light:hover:bg-cyan-100 text-xs uppercase tracking-[0.14em] shrink-0">
             <Link href="/series">
-              Abrir Universe Hub <ArrowRight className="ml-1.5 size-3.5" />
+              {tr("Abrir Universe Hub", "Open Universe Hub")} <ArrowRight className="ml-1.5 size-3.5" />
             </Link>
           </Button>
         </div>
