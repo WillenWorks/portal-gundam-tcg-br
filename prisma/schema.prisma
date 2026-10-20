@@ -127,6 +127,8 @@ model User {
   role                  UserRole     @default(USER)
   isActive              Boolean      @default(true)
   isHoster              Boolean      @default(false)
+  // sobe a cada troca/redefinição de senha; tokens com outra versão deixam de valer (server/sessionState.ts)
+  tokenVersion          Int          @default(0)
   preferredCardLanguage CardLanguage @default(PT_BR)
   bio                   String?      @db.Text
   avatarUrl             String?
