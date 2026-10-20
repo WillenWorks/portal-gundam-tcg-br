@@ -7,8 +7,12 @@ import { Link } from "wouter";
 import { ChevronLeft, ChevronRight, LayoutGrid, Layers, Sparkles } from "lucide-react";
 import { api, type PopularLrCard } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
+import { useCardLanguage } from "@/i18n/useCardLanguage";
 
 export function PopularMainCardsSection() {
+  const { tr } = useSiteLanguage();
+  const { isPt: cardsInPt } = useCardLanguage();
   const [cards, setCards] = useState<PopularLrCard[]>([]);
   const [loading, setLoading] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -52,7 +56,7 @@ export function PopularMainCardsSection() {
                 <LayoutGrid className="size-5" />
               </div>
               <h2 className="font-heading text-xl sm:text-2xl font-bold tracking-wide dark:text-white light:text-slate-950">
-                Cartas Principais Populares
+                {tr("Cartas Principais Populares", "Popular Main Cards")}
               </h2>
             </div>
             {/* Linha com acento ciano à esquerda */}
@@ -67,7 +71,7 @@ export function PopularMainCardsSection() {
               type="button"
               onClick={() => scroll("left")}
               className="flex size-8 items-center justify-center rounded-lg border dark:border-white/15 dark:bg-white/5 dark:text-slate-300 dark:hover:text-white dark:hover:bg-cyan-500/10 light:border-slate-300 light:bg-slate-100 light:text-slate-700 light:hover:bg-slate-200 light:hover:text-slate-950 transition hover:border-cyan-400"
-              aria-label="Rolar para a esquerda"
+              aria-label={tr("Rolar para a esquerda", "Scroll left")}
             >
               <ChevronLeft className="size-4" />
             </button>
@@ -75,7 +79,7 @@ export function PopularMainCardsSection() {
               type="button"
               onClick={() => scroll("right")}
               className="flex size-8 items-center justify-center rounded-lg border dark:border-white/15 dark:bg-white/5 dark:text-slate-300 dark:hover:text-white dark:hover:bg-cyan-500/10 light:border-slate-300 light:bg-slate-100 light:text-slate-700 light:hover:bg-slate-200 light:hover:text-slate-950 transition hover:border-cyan-400"
-              aria-label="Rolar para a direita"
+              aria-label={tr("Rolar para a direita", "Scroll right")}
             >
               <ChevronRight className="size-4" />
             </button>
@@ -102,14 +106,14 @@ export function PopularMainCardsSection() {
             ))
           ) : cards.length === 0 ? (
             <div className="w-full py-12 text-center text-sm text-slate-400">
-              Nenhuma carta LR registrada em decks públicos no momento.
+              {tr("Nenhuma carta LR registrada em decks públicos no momento.", "No LR cards in public decks right now.")}
             </div>
           ) : (
             <>
               {cards.map((card, idx) => {
                 const rank = idx + 1;
                 const cardImage = card.imageMediumUrl || card.imageUrl;
-                const displayName = card.namePt || card.nameEn;
+                const displayName = (cardsInPt ? card.namePt || card.nameEn : card.nameEn || card.namePt) || "";
 
                 return (
                   <Link
@@ -169,10 +173,10 @@ export function PopularMainCardsSection() {
                     <Sparkles className="size-5" />
                   </div>
                   <span className="font-heading text-sm font-bold dark:text-slate-200 light:text-slate-800 group-hover:text-cyan-300 transition-colors">
-                    Ver mais
+                    {tr("Ver mais", "See more")}
                   </span>
                   <span className="text-[10px] dark:text-slate-400 light:text-slate-600 uppercase tracking-widest font-mono">
-                    Ver LRs no catálogo
+                    {tr("Ver LRs no catálogo", "See LRs in the catalog")}
                   </span>
                 </div>
               </Link>

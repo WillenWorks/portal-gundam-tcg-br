@@ -15,43 +15,44 @@ import { cn } from "@/lib/utils";
 
 import haroRulesOff from "@/assets/home/haro_rules_off.webp";
 import haroRulesOn from "@/assets/home/haro_rules_on.webp";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 // Subsequentes aos 4 primeiros da Hero (Artigos #5 a #8)
 const SUBSEQUENT_ARTICLES = [
   {
     id: 5,
-    tag: "Rulings Oficiais",
-    date: "02 Set 2026",
-    title: "Resolução de Burst e Gatilhos de Escudo",
+    tag: { pt: "Rulings Oficiais", en: "Official Rulings" },
+    date: { pt: "02 Set 2026", en: "Sep 02, 2026" },
+    title: { pt: "Resolução de Burst e Gatilhos de Escudo", en: "Resolving Burst and Shield Triggers" },
     summary:
-      "Como funcionam as prioridades quando múltiplas cartas de escudo sofrem dano simultâneo e a ordem de ativação das cartas de Comando.",
+      { pt: "Como funcionam as prioridades quando múltiplas cartas de escudo sofrem dano simultâneo e a ordem de ativação das cartas de Comando.", en: "How priorities work when several shield cards take damage at the same time, and the activation order of Command cards." },
     link: "/rules",
   },
   {
     id: 6,
-    tag: "Guia",
-    date: "31 Ago 2026",
-    title: "Sinergia de Traits: Earth Alliance vs Zeon",
+    tag: { pt: "Guia", en: "Guide" },
+    date: { pt: "31 Ago 2026", en: "Aug 31, 2026" },
+    title: { pt: "Sinergia de Traits: Earth Alliance vs Zeon", en: "Trait Synergy: Earth Alliance vs Zeon" },
     summary:
-      "Estudo detalhado das tags militares, acoplamento de pilotos correspondentes e ganhos de poder de combate por fidelidade temática.",
+      { pt: "Estudo detalhado das tags militares, acoplamento de pilotos correspondentes e ganhos de poder de combate por fidelidade temática.", en: "A detailed look at military traits, pairing matching pilots and the combat bonuses of staying on theme." },
     link: "/sets",
   },
   {
     id: 7,
-    tag: "Deckbuilding",
-    date: "28 Ago 2026",
-    title: "Curva de Recursos e Gestão de Energia",
+    tag: { pt: "Deckbuilding", en: "Deckbuilding" },
+    date: { pt: "28 Ago 2026", en: "Aug 28, 2026" },
+    title: { pt: "Curva de Recursos e Gestão de Energia", en: "Resource Curve and Energy Management" },
     summary:
-      "A proporção ideal entre Unidades pesadas, pilotos de suporte e cartas de comando para manter ritmo contínuo desde o turno 1.",
+      { pt: "A proporção ideal entre Unidades pesadas, pilotos de suporte e cartas de comando para manter ritmo contínuo desde o turno 1.", en: "The ideal mix of heavy Units, support pilots and command cards to keep a steady pace from turn 1." },
     link: "/deckbuilder",
   },
   {
     id: 8,
-    tag: "Metagame & Stats",
-    date: "25 Ago 2026",
-    title: "Relatório de Eficiência: ST01 vs ST02",
+    tag: { pt: "Metagame & Stats", en: "Metagame & Stats" },
+    date: { pt: "25 Ago 2026", en: "Aug 25, 2026" },
+    title: { pt: "Relatório de Eficiência: ST01 vs ST02", en: "Efficiency Report: ST01 vs ST02" },
     summary:
-      "Dados dos torneios registrados mostrando o confronto entre a agressividade de Zeon e a estabilidade da Federação.",
+      { pt: "Dados dos torneios registrados mostrando o confronto entre a agressividade de Zeon e a estabilidade da Federação.", en: "Recorded tournament data on the clash between Zeon's aggression and the Federation's stability." },
     link: "/stats",
   },
 ];
@@ -59,34 +60,34 @@ const SUBSEQUENT_ARTICLES = [
 // Links Oficiais (Referência Bandai e Compêndio)
 const OFFICIAL_LINKS = [
   {
-    tag: "REGRAS",
+    tag: { pt: "REGRAS", en: "RULES" },
     tagColor: "border-cyan-500/40 bg-cyan-500/10 text-cyan-400",
-    title: "Regras & Rulings Oficiais",
-    description: "Manual oficial, estrutura de fases, combate e decisões oficiais de arbitragem.",
+    title: { pt: "Regras & Rulings Oficiais", en: "Official Rules & Rulings" },
+    description: { pt: "Manual oficial, estrutura de fases, combate e decisões oficiais de arbitragem.", en: "Official manual, phase structure, combat and official judge rulings." },
     link: "/rules",
     isExternal: false,
   },
   {
-    tag: "CONSTRUÇÃO",
+    tag: { pt: "CONSTRUÇÃO", en: "BUILDING" },
     tagColor: "border-amber-500/40 bg-amber-500/10 text-amber-400",
-    title: "Regulamento de Decks & Torneios",
-    description: "Formatos válidos, restrições de cores, regras de 50 cartas e cartas banidas.",
+    title: { pt: "Regulamento de Decks & Torneios", en: "Deck & Tournament Regulations" },
+    description: { pt: "Formatos válidos, restrições de cores, regras de 50 cartas e cartas banidas.", en: "Legal formats, color limits, the 50-card rule and banned cards." },
     link: "/deckbuilder",
     isExternal: false,
   },
   {
-    tag: "APRENDA",
+    tag: { pt: "APRENDA", en: "LEARN" },
     tagColor: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400",
-    title: "Guia Como Jogar",
-    description: "Passo a passo para quem está começando: fluxo do turno, Link e conceitos básicos.",
+    title: { pt: "Guia Como Jogar", en: "How to Play Guide" },
+    description: { pt: "Passo a passo para quem está começando: fluxo do turno, Link e conceitos básicos.", en: "Step by step for beginners: turn flow, Link and the basics." },
     link: "/rules",
     isExternal: false,
   },
   {
-    tag: "OFICIAL",
+    tag: { pt: "OFICIAL", en: "OFFICIAL" },
     tagColor: "border-red-500/40 bg-red-500/10 text-red-400",
-    title: "Portal Global Bandai",
-    description: "Site mundial oficial do Gundam Card Game com novidades, erratas e torneios.",
+    title: { pt: "Portal Global Bandai", en: "Bandai Global Portal" },
+    description: { pt: "Site mundial oficial do Gundam Card Game com novidades, erratas e torneios.", en: "The official worldwide Gundam Card Game site with news, errata and tournaments." },
     link: "https://www.gundam-gcg.com/",
     isExternal: true,
   },
@@ -133,6 +134,7 @@ function AnimatedCounter({ value, duration = 1400, trigger }: AnimatedCounterPro
 }
 
 export function HomeDirectivesSection() {
+  const { tr } = useSiteLanguage();
   const sectionRef = useRef<HTMLElement>(null);
   const [inView, setInView] = useState(false);
   const [metrics, setMetrics] = useState({
@@ -191,19 +193,20 @@ export function HomeDirectivesSection() {
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <span className="rounded-xs border border-primary/50 bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
-                  AnaheimHub · Comunidade
+                  {tr("AnaheimHub · Comunidade", "AnaheimHub · Community")}
                 </span>
               </div>
 
               <h3 className="font-heading text-2xl sm:text-3xl uppercase text-white leading-tight heading-portal">
-                Obrigado por jogar com a gente
+                {tr("Obrigado por jogar com a gente", "Thanks for playing with us")}
               </h3>
 
               {/* Texto Institucional Solicitado */}
               <p className="text-sm sm:text-base leading-relaxed text-slate-300 light:text-slate-700">
-                A <strong className="text-white light:text-slate-900 font-semibold">Anaheim HUB</strong> expressa
-                agradece a todos os jogadores cadastrados. Se tiver dúvida sobre como jogar ou sobre alguma regra,
-                veja a área de regras.
+                {tr(
+                  "A Anaheim HUB agradece a todos os jogadores cadastrados. Se tiver dúvida sobre como jogar ou sobre alguma regra, veja a área de regras.",
+                  "Anaheim HUB thanks every registered player. If you have questions about how to play or about a rule, check the rules section.",
+                )}
               </p>
             </div>
 
@@ -213,12 +216,12 @@ export function HomeDirectivesSection() {
               <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:border-cyan-400/40 light:border-slate-200 light:bg-slate-50">
                 <div className="flex items-center gap-2 text-cyan-400 mb-1">
                   <Users className="size-4" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider">Jogadores</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider">{tr("Jogadores", "Players")}</span>
                 </div>
                 <div className="font-heading text-2xl sm:text-3xl text-white heading-portal">
                   <AnimatedCounter value={metrics.userCount} trigger={inView} />
                 </div>
-                <p className="text-[11px] text-muted-portal mt-0.5">Cadastrados no sistema</p>
+                <p className="text-[11px] text-muted-portal mt-0.5">{tr("Cadastrados no sistema", "Registered")}</p>
               </div>
 
               {/* 2. Cards Cadastrados */}
@@ -230,7 +233,7 @@ export function HomeDirectivesSection() {
                 <div className="font-heading text-2xl sm:text-3xl text-white heading-portal">
                   <AnimatedCounter value={metrics.cardCount} trigger={inView} />
                 </div>
-                <p className="text-[11px] text-muted-portal mt-0.5">No acervo oficial</p>
+                <p className="text-[11px] text-muted-portal mt-0.5">{tr("No acervo oficial", "In the official catalog")}</p>
               </div>
 
               {/* 3. Decks Registrados */}
@@ -242,26 +245,26 @@ export function HomeDirectivesSection() {
                 <div className="font-heading text-2xl sm:text-3xl text-white heading-portal">
                   <AnimatedCounter value={metrics.deckCount} trigger={inView} />
                 </div>
-                <p className="text-[11px] text-muted-portal mt-0.5">Montados no site</p>
+                <p className="text-[11px] text-muted-portal mt-0.5">{tr("Montados no site", "Built on the site")}</p>
               </div>
 
               {/* 4. Produtos Cadastrados */}
               <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-colors hover:border-emerald-400/40 light:border-slate-200 light:bg-slate-50">
                 <div className="flex items-center gap-2 text-emerald-400 mb-1">
                   <Box className="size-4" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider">Produtos</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider">{tr("Produtos", "Products")}</span>
                 </div>
                 <div className="font-heading text-2xl sm:text-3xl text-white heading-portal">
                   <AnimatedCounter value={metrics.productCount} trigger={inView} />
                 </div>
-                <p className="text-[11px] text-muted-portal mt-0.5">Coleções e starters</p>
+                <p className="text-[11px] text-muted-portal mt-0.5">{tr("Coleções e starters", "Sets and starters")}</p>
               </div>
             </div>
 
             {/* Card Tático para Rulings (No mesmo estilo dos ícones da Hero com Haro Árbitro) */}
             <Link
               href="/rules"
-              title="Acessar o Compêndio Oficial de Regras, Rulings e Arbitragem"
+              title={tr("Acessar o Compêndio Oficial de Regras, Rulings e Arbitragem", "Open the official rules, rulings and judging compendium")}
               className="group relative flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4 transition-all duration-300 hover:bg-white/[0.07] hover:border-emerald-400/50 light:border-slate-300 light:bg-slate-50 light:hover:bg-slate-100"
             >
               {/* Ícone com Efeito Haro On/Off no Hover */}
@@ -269,13 +272,13 @@ export function HomeDirectivesSection() {
                 {/* Standby: Haro Clássico em Modo Bola Fechado */}
                 <img loading="lazy" decoding="async"
                   src={haroRulesOff}
-                  alt="Haro Clássico em Modo Bola Fechado"
+                  alt={tr("Haro Clássico em Modo Bola Fechado", "Classic Haro, closed ball mode")}
                   className="absolute inset-0 size-full object-cover transition-opacity duration-300 group-hover:opacity-0"
                 />
                 {/* Energizado no Hover: Haro Aberto com Orelhas e Olhos Acesos */}
                 <img loading="lazy" decoding="async"
                   src={haroRulesOn}
-                  alt="Haro Clássico Aberto com Orelhas e Olhos Acesos"
+                  alt={tr("Haro Clássico Aberto com Orelhas e Olhos Acesos", "Classic Haro open with ears and glowing eyes")}
                   className="absolute inset-0 size-full object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                 />
               </div>
@@ -289,10 +292,10 @@ export function HomeDirectivesSection() {
                   </span>
                 </div>
                 <h4 className="font-heading text-lg sm:text-xl uppercase text-white transition-colors duration-200 heading-portal truncate group-hover:text-lime-400">
-                  Diretrizes & Rulings
+                  {tr("Diretrizes & Rulings", "Guidelines & Rulings")}
                 </h4>
                 <p className="text-xs text-muted-portal line-clamp-2 mt-0.5 leading-relaxed">
-                  Consulte regras oficiais, timing de ações, precedência de efeitos e resoluções homologadas com o Haro!
+                  {tr("Consulte regras oficiais, timing de ações, precedência de efeitos e resoluções homologadas com o Haro!", "Check official rules, action timing, effect precedence and approved rulings with Haro!")}
                 </p>
               </div>
 
@@ -314,8 +317,8 @@ export function HomeDirectivesSection() {
                     <ShieldCheck className="size-4" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-400">Referência Oficial</p>
-                    <h3 className="font-heading text-xl uppercase tracking-wider text-white heading-portal">Links Oficiais</h3>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-400">{tr("Referência Oficial", "Official Reference")}</p>
+                    <h3 className="font-heading text-xl uppercase tracking-wider text-white heading-portal">{tr("Links Oficiais", "Official Links")}</h3>
                   </div>
                 </div>
                 <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-slate-400 font-mono">
@@ -334,7 +337,7 @@ export function HomeDirectivesSection() {
                       <div>
                         <div className="flex items-center justify-between gap-2 mb-2">
                           <span className={cn("px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-xs border", item.tagColor)}>
-                            {item.tag}
+                            {tr(item.tag)}
                           </span>
                           {item.isExternal ? (
                             <ExternalLink className="size-3.5 text-slate-500 transition-transform duration-300 group-hover:scale-110 group-hover:text-cyan-400" />
@@ -343,10 +346,10 @@ export function HomeDirectivesSection() {
                           )}
                         </div>
                         <h4 className="font-heading text-base uppercase text-white transition-colors duration-200 heading-portal group-hover:text-cyan-300">
-                          {item.title}
+                          {tr(item.title)}
                         </h4>
                         <p className="text-xs text-muted-portal mt-1 leading-relaxed line-clamp-2">
-                          {item.description}
+                          {tr(item.description)}
                         </p>
                       </div>
                     </div>
@@ -373,8 +376,8 @@ export function HomeDirectivesSection() {
                     <BookOpen className="size-4" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-primary">Notícias</p>
-                    <h3 className="font-heading text-xl uppercase tracking-wider text-white heading-portal">Artigos & Análises Táticas</h3>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-primary">{tr("Notícias", "News")}</p>
+                    <h3 className="font-heading text-xl uppercase tracking-wider text-white heading-portal">{tr("Artigos & Análises Táticas", "Articles & Tactical Analysis")}</h3>
                   </div>
                 </div>
                 <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-white/5 border border-white/10 px-2.5 py-0.5 text-[10px] text-slate-400 font-mono">
@@ -393,20 +396,20 @@ export function HomeDirectivesSection() {
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-                          {article.tag}
+                          {tr(article.tag)}
                         </span>
-                        <span className="text-[10px] font-mono text-slate-400">{article.date}</span>
+                        <span className="text-[10px] font-mono text-slate-400">{tr(article.date)}</span>
                       </div>
                       <h4 className="font-heading text-sm uppercase text-white transition-colors duration-200 heading-portal line-clamp-1 group-hover:text-primary">
-                        {article.title}
+                        {tr(article.title)}
                       </h4>
                       <p className="text-xs text-muted-portal mt-1.5 leading-relaxed line-clamp-2">
-                        {article.summary}
+                        {tr(article.summary)}
                       </p>
                     </div>
 
                     <div className="pt-3 mt-2 border-t border-white/5 flex items-center justify-between text-[11px] font-semibold text-primary/80 group-hover:text-primary">
-                      <span>Ler Matéria</span>
+                      <span>{tr("Ler Matéria", "Read Article")}</span>
                       <ArrowRight className="size-3 transition-transform duration-200 group-hover:translate-x-1" />
                     </div>
                   </Link>

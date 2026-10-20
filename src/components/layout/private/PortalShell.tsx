@@ -21,36 +21,38 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { cn } from "@/lib/utils";
+import { useSiteLanguage, type Localized } from "@/i18n/siteLanguage";
 
 type Crumb = { label: string; href?: string };
 
 const userNav = [
-  { href: "/", label: "Página Inicial", icon: Globe },
-  { href: "/portal", label: "Painel", icon: Home },
-  { href: "/binders", label: "Pastas", icon: BookMarked },
-  { href: "/profile", label: "Configurações", icon: Settings },
+  { href: "/", label: { pt: "Página Inicial", en: "Home" }, icon: Globe },
+  { href: "/portal", label: { pt: "Painel", en: "Dashboard" }, icon: Home },
+  { href: "/binders", label: { pt: "Pastas", en: "Binders" }, icon: BookMarked },
+  { href: "/profile", label: { pt: "Configurações", en: "Settings" }, icon: Settings },
 ] as const;
 
 const hosterNav = [
-  { href: "/organizador", label: "Meus eventos", icon: Trophy },
+  { href: "/organizador", label: { pt: "Meus eventos", en: "My events" }, icon: Trophy },
 ] as const;
 
-const titles: Record<string, string> = {
-  "/portal": "Minha área",
-  "/deckbuilder": "Deckbuilder",
-  "/profile": "Configurações",
-  "/binders": "Pastas",
-  "/organizador": "Meus eventos",
-  "/simulador": "Simulador",
-  "/simulador/treino": "Treino contra o bot",
+const titles: Record<string, Localized> = {
+  "/portal": { pt: "Minha área", en: "My area" },
+  "/deckbuilder": { pt: "Deckbuilder", en: "Deckbuilder" },
+  "/profile": { pt: "Configurações", en: "Settings" },
+  "/binders": { pt: "Pastas", en: "Binders" },
+  "/organizador": { pt: "Meus eventos", en: "My events" },
+  "/simulador": { pt: "Simulador", en: "Simulator" },
+  "/simulador/treino": { pt: "Treino contra o bot", en: "Practice against the bot" },
 };
 
 function SidebarLinks({ location, isAdmin, isHoster, onNavigate, collapsed = false }: { location: string; isAdmin: boolean; isHoster: boolean; onNavigate?: () => void; collapsed?: boolean }) {
+  const { tr } = useSiteLanguage();
   const currentPath = location.split("?")[0];
-  const navGroups: Array<{ title: string; items: ReadonlyArray<{ href: string; label: string; icon: ComponentType<{ className?: string }> }> }> = [
-    { title: "Painel do usuário", items: userNav },
+  const navGroups: Array<{ title: string; items: ReadonlyArray<{ href: string; label: Localized; icon: ComponentType<{ className?: string }> }> }> = [
+    { title: tr("Painel do usuário", "User panel"), items: userNav },
   ];
-  if (isHoster || isAdmin) navGroups.push({ title: "Organizador", items: hosterNav });
+  if (isHoster || isAdmin) navGroups.push({ title: tr("Organizador", "Organizer"), items: hosterNav });
 
   return (
     <div className="space-y-6">
@@ -65,7 +67,7 @@ function SidebarLinks({ location, isAdmin, isHoster, onNavigate, collapsed = fal
                 key={item.href}
                 href={item.href}
                 onClick={onNavigate}
-                title={collapsed ? item.label : undefined}
+                title={collapsed ? tr(item.label) : undefined}
                 className={cn(
                   "panel-cut flex items-center gap-3 border px-4 py-3 text-sm uppercase tracking-[0.18em] transition",
                   collapsed ? "justify-center px-0" : "",
@@ -75,7 +77,7 @@ function SidebarLinks({ location, isAdmin, isHoster, onNavigate, collapsed = fal
                 )}
               >
                 <Icon className={cn("size-4 shrink-0", active ? "text-primary" : "text-slate-400")} />
-                {!collapsed ? <span>{item.label}</span> : null}
+                {!collapsed ? <span>{tr(item.label)}</span> : null}
               </Link>
             );
           })}
@@ -88,24 +90,24 @@ function SidebarLinks({ location, isAdmin, isHoster, onNavigate, collapsed = fal
           {!collapsed ? (
             <div className="panel-cut border border-amber-500/30 bg-amber-500/[0.06] p-3 text-left">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400">Credencial Root</span>
+                <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400">{tr("Credencial Root", "Root access")}</span>
                 <Badge variant="outline" className="rounded-none border-amber-500/40 text-[9px] text-amber-300">ADMIN</Badge>
               </div>
-              <p className="mt-1 text-xs text-slate-400">Console isolado de governança e catálogo</p>
+              <p className="mt-1 text-xs text-slate-400">{tr("Console isolado de governança e catálogo", "Separate console for governance and catalog")}</p>
               <Link
                 href="/admin"
                 onClick={onNavigate}
                 className="mt-2.5 flex items-center justify-center gap-2 border border-amber-400/40 bg-amber-400/10 py-1.5 text-xs font-semibold uppercase tracking-wider text-amber-300 transition hover:bg-amber-400/20"
               >
                 <ShieldCheck className="size-3.5 text-amber-400" />
-                Abrir Console Admin
+                {tr("Abrir Console Admin", "Open Admin Console")}
               </Link>
             </div>
           ) : (
             <Link
               href="/admin"
               onClick={onNavigate}
-              title="Abrir Console de Administração"
+              title={tr("Abrir Console de Administração", "Open Admin Console")}
               className="panel-cut flex items-center justify-center border border-amber-400/40 bg-amber-400/10 py-2.5 text-amber-300 transition hover:bg-amber-400/20"
             >
               <ShieldCheck className="size-4" />
@@ -118,6 +120,7 @@ function SidebarLinks({ location, isAdmin, isHoster, onNavigate, collapsed = fal
 }
 
 export function PortalShell({ children, breadcrumbs }: { children: ReactNode; breadcrumbs?: Crumb[] }) {
+  const { tr } = useSiteLanguage();
   const [location] = useLocation();
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -132,7 +135,7 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
   }, [collapsed]);
 
   const currentPath = useMemo(() => location.split("?")[0], [location]);
-  const currentTitle = titles[currentPath] ?? "Portal";
+  const currentTitle = titles[currentPath] ? tr(titles[currentPath]) : "Portal";
   const trail = breadcrumbs?.length ? breadcrumbs : [{ label: currentTitle }];
   const isAdmin = user?.role === "ADMIN";
   const isHoster = Boolean(user?.isHoster);
@@ -145,7 +148,7 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
           <div className="flex min-w-0 items-center gap-3">
             <Button type="button" variant="outline" className="rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950 lg:hidden" onClick={() => setMobileSidebarOpen(true)}>
               <Menu className="size-4" />
-              <span className="ml-2">Painel</span>
+              <span className="ml-2">{tr("Painel", "Dashboard")}</span>
             </Button>
             <Link href="/portal" className="flex min-w-0 items-center gap-3 text-white transition-opacity hover:opacity-95">
               <img loading="lazy" decoding="async" src={anaheimLogo} alt="Anaheim Hub - Gundam Card Game" className="h-11 sm:h-12 w-auto object-contain drop-shadow-[0_0_12px_rgba(56,189,248,0.25)]" />
@@ -160,7 +163,7 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
               <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex rounded-none border-amber-500/40 bg-amber-500/10 text-xs font-mono uppercase tracking-wider text-amber-300 hover:bg-amber-500/20 hover:text-amber-100">
                 <Link href="/admin">
                   <ShieldCheck className="mr-1.5 size-3.5 text-amber-400" />
-                  Console Admin
+                  {tr("Console Admin", "Admin Console")}
                 </Link>
               </Button>
             ) : null}
@@ -168,7 +171,7 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
               {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </Button>
             <Button type="button" variant="outline" className="rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={logout}>
-              <LogOut className="mr-2 size-4" />Sair
+              <LogOut className="mr-2 size-4" />{tr("Sair", "Sign out")}
             </Button>
           </div>
         </div>
@@ -176,12 +179,12 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
 
       <div className={cn("grid min-h-[calc(100vh-73px)] w-full transition-[grid-template-columns] duration-200", collapsed ? "lg:grid-cols-[76px_minmax(0,1fr)]" : "lg:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[340px_minmax(0,1fr)]")}>
         <aside className={cn("hidden border-r border-white/10 bg-slate-950/82 py-6 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/82 light:border-slate-300/70 light:bg-white/82 lg:flex lg:sticky lg:top-[73px] lg:h-[calc(100vh-73px)] lg:flex-col lg:overflow-y-auto", collapsed ? "px-2" : "px-5")}>
-          {!collapsed ? <Badge className="rounded-none border border-primary/40 bg-primary/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-primary">Área privada</Badge> : null}
+          {!collapsed ? <Badge className="rounded-none border border-primary/40 bg-primary/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-primary">{tr("Área privada", "Private area")}</Badge> : null}
           <div className={cn("flex-1", collapsed ? "mt-2" : "mt-8")}>
             <SidebarLinks location={location} isAdmin={isAdmin} isHoster={isHoster} collapsed={collapsed} />
           </div>
           <Button type="button" variant="outline" className={cn("mt-4 hidden w-full rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950 lg:inline-flex", collapsed ? "justify-center px-0" : "justify-start")} onClick={() => setCollapsed((current) => !current)} title={collapsed ? "Expandir painel" : "Recolher painel"}>
-            {collapsed ? <ChevronRight className="size-4" /> : <><ChevronLeft className="mr-2 size-4" />Recolher</>}
+            {collapsed ? <ChevronRight className="size-4" /> : <><ChevronLeft className="mr-2 size-4" />{tr("Recolher", "Collapse")}</>}
           </Button>
         </aside>
 
@@ -192,7 +195,7 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
               <BreadcrumbList>
                 <BreadcrumbItem>
                   <BreadcrumbLink asChild>
-                    <Link href="/">Início</Link>
+                    <Link href="/">{tr("Início", "Home")}</Link>
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 {trail.map((crumb, index) => (
@@ -213,7 +216,7 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
             </Breadcrumb>
 
             <div className="panel-cut border border-white/10 bg-slate-950/70 px-5 py-5 dark:border-white/10 dark:bg-slate-950/70 light:border-slate-300/80 light:bg-white/88 light:shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Terminal do Piloto</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">{tr("Terminal do Piloto", "Player Terminal")}</p>
               <h1 className="mt-2 font-heading text-5xl uppercase leading-none dark:text-white light:text-slate-900">{currentTitle}</h1>
             </div>
           </header>
@@ -228,18 +231,18 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
       <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
         <SheetContent side="left" className="w-[88vw] max-w-[360px] border-white/10 bg-slate-950 text-white">
           <SheetHeader className="border-b border-white/10 pb-4">
-            <SheetTitle className="font-heading text-2xl uppercase tracking-[0.16em] text-white">Painel</SheetTitle>
-            <SheetDescription className="text-slate-400">Navegação privada sobreposta para mobile.</SheetDescription>
+            <SheetTitle className="font-heading text-2xl uppercase tracking-[0.16em] text-white">{tr("Painel", "Dashboard")}</SheetTitle>
+            <SheetDescription className="text-slate-400">{tr("Navegação privada sobreposta para mobile.", "Private navigation for mobile.")}</SheetDescription>
           </SheetHeader>
           <div className="px-4 pb-6">
-            <Badge className="rounded-none border border-primary/40 bg-primary/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-primary">Área privada</Badge>
+            <Badge className="rounded-none border border-primary/40 bg-primary/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-primary">{tr("Área privada", "Private area")}</Badge>
             <div className="mt-6">
               <SidebarLinks location={location} isAdmin={isAdmin} isHoster={isHoster} onNavigate={() => setMobileSidebarOpen(false)} />
             </div>
             <Separator className="my-6 bg-white/10" />
             <div className="grid gap-2">
               <button type="button" className="panel-cut border border-white/10 bg-white/5 px-4 py-3 text-left text-sm uppercase tracking-[0.18em] text-slate-200" onClick={() => { setMobileSidebarOpen(false); logout(); }}>
-                Sair
+                {tr("Sair", "Sign out")}
               </button>
             </div>
           </div>

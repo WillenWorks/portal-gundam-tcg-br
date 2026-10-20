@@ -1,5 +1,6 @@
+import { tr } from "@/i18n/siteLanguageCore";
 /* Loader global — brilho técnico + núcleo girando para transições entre páginas e módulos. */
-export function GlobalLoader({ label = "Sincronizando hangar" }: { label?: string }) {
+export function GlobalLoader({ label = tr("Sincronizando hangar", "Loading") }: { label?: string }) {
   return (
     <div className="flex min-h-[40vh] items-center justify-center px-6 py-16 text-white">
       <div className="panel-cut border border-white/10 bg-white/5 px-8 py-10 text-center shadow-[0_0_40px_rgba(0,190,255,0.12)] backdrop-blur-xl">

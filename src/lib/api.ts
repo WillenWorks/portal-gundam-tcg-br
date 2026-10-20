@@ -23,6 +23,7 @@ export type AuthUser = {
   isActive?: boolean;
   isHoster?: boolean;
   preferredCardLanguage?: "PT_BR" | "EN";
+  preferredSiteLanguage?: "pt-BR" | "en";
   preferredTheme?: string | null;
   hasPassword?: boolean;
   emailVerified?: boolean;
@@ -1315,7 +1316,7 @@ export const api = {
   verifyEmail: (token: string) => mutate<{ ok: true; message: string }>("/auth/verify-email", { method: "POST", body: JSON.stringify({ token }) }, ["/auth/me"]),
   resendVerificationEmail: () => request<{ ok: true; message: string }>("/auth/verify-email/resend", { method: "POST" }),
   requestVerificationEmail: (email: string) => request<{ ok: true; message: string }>("/auth/verify-email/request", { method: "POST", body: JSON.stringify({ email }) }),
-  updateMe: (payload: { displayName?: string; bio?: string; avatarUrl?: string; preferredCardLanguage?: "PT_BR" | "EN"; preferredTheme?: string }) => mutate<AuthUser>("/auth/me", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me", "/users/", "/decks/me", "/binders/me"]),
+  updateMe: (payload: { displayName?: string; bio?: string; avatarUrl?: string; preferredCardLanguage?: "PT_BR" | "EN"; preferredSiteLanguage?: "pt-BR" | "en"; preferredTheme?: string }) => mutate<AuthUser>("/auth/me", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me", "/users/", "/decks/me", "/binders/me"]),
   // a troca de senha encerra as outras sessões; este aparelho recebe um token novo e segue conectado
   updatePassword: async (payload: { currentPassword?: string; newPassword: string }) => {
     const result = await mutate<{ ok: true; token?: string }>("/auth/password", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me"]);

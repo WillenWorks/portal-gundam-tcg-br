@@ -22,6 +22,7 @@ import { GundamSeriesShowcase } from "@/components/home/GundamSeriesShowcase";
 import { AboutAnaheimHubSection } from "@/components/home/AboutAnaheimHubSection";
 import { useFaction } from "@/contexts/FactionContext";
 import { cn } from "@/lib/utils";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 import rx78HeadOff from "@/assets/home/rx78_head_off.webp";
 import rx78HeadOn from "@/assets/home/rx78_head_on.webp";
@@ -42,52 +43,77 @@ const CAROUSEL_SLIDES = [
   {
     id: 1,
     category: "GUIA",
+    categoryEn: "GUIDE",
     date: "09 Set 2026",
+    dateEn: "Sep 09, 2026",
     title: "STARTERS ST01 A ST04: GUIA PARA COMEÇAR",
+    titleEn: "STARTERS ST01 TO ST04: A GUIDE TO GET STARTED",
     summary:
       "Entenda o estilo de cada um dos quatro starters: a agressividade de Zeon, a flexibilidade da Federação, o controle de SEED e a tecnologia de The Witch from Mercury.",
+    summaryEn:
+      "Learn the style of each of the four starters: Zeon's aggression, the Federation's flexibility, SEED's control and The Witch from Mercury's technology.",
     image: newsStartersClash,
     link: "/sets",
     actionLabel: "Ver coleções",
+    actionLabelEn: "See sets",
   },
   {
     id: 2,
     category: "ESTATÍSTICAS",
+    categoryEn: "STATS",
     date: "08 Set 2026",
+    dateEn: "Sep 08, 2026",
     title: "META DA TEMPORADA: DECKS E CARTAS QUE MAIS VENCEM",
+    titleEn: "SEASON META: THE DECKS AND CARDS THAT WIN THE MOST",
     summary:
       "Taxas de vitória, cartas mais usadas em campeonatos e os arquétipos que dominam a temporada, a partir dos torneios registrados.",
+    summaryEn:
+      "Win rates, the most played cards in tournaments and the archetypes that dominate the season, based on recorded tournaments.",
     image: newsVedaTerminal,
     link: "/stats",
     actionLabel: "Ver estatísticas",
+    actionLabelEn: "See stats",
   },
   {
     id: 3,
     category: "SIMULADOR",
+    categoryEn: "SIMULATOR",
     date: "06 Set 2026",
+    dateEn: "Sep 06, 2026",
     title: "SIMULADOR: PARTIDAS ONLINE E TREINO CONTRA O BOT",
+    titleEn: "SIMULATOR: ONLINE MATCHES AND PRACTICE AGAINST THE BOT",
     summary:
       "Jogue com as regras oficiais contra outras pessoas online ou treine sozinho contra o bot. Entrar na conta é opcional.",
+    summaryEn:
+      "Play with the official rules against other people online or practice on your own against the bot.",
     image: newsStartersClash,
     link: "/simulador",
     actionLabel: "Abrir o simulador",
+    actionLabelEn: "Open the simulator",
   },
   {
     id: 4,
     category: "DECKBUILDER",
+    categoryEn: "DECKBUILDER",
     date: "04 Set 2026",
+    dateEn: "Sep 04, 2026",
     title: "MONTE SEU DECK: CURVA DE CUSTO E RECURSOS",
+    titleEn: "BUILD YOUR DECK: COST CURVE AND RESOURCES",
     summary:
       "Aprenda a equilibrar Unidades, Pilotos e Comandos para ter um deck consistente do primeiro ao último turno.",
+    summaryEn:
+      "Learn to balance Units, Pilots and Commands for a deck that stays consistent from the first turn to the last.",
     image: newsVedaTerminal,
     link: "/deckbuilder",
     actionLabel: "Montar um deck",
+    actionLabelEn: "Build a deck",
   },
 ];
 
 export default function Home({ targetSection }: HomeProps) {
   const { faction } = useFaction();
   const isZeon = faction === "zeon";
+  const { tr, isEn } = useSiteLanguage();
 
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -153,7 +179,7 @@ export default function Home({ targetSection }: HomeProps) {
       */}
 
       <main id="topo">
-        <h1 className="sr-only">AnaheimHub: cartas, decks, torneios, estatísticas e simulador de Gundam Card Game no Brasil</h1>
+        <h1 className="sr-only">{tr("AnaheimHub: cartas, decks, torneios, estatísticas e simulador de Gundam Card Game no Brasil", "AnaheimHub: Gundam Card Game cards, decks, tournaments, stats and simulator")}</h1>
         {/* ── HERO SECTION: PORTAL RESUMO (CARROSSEL + LINKS RÁPIDOS) ───── */}
         <section className="relative isolate overflow-hidden border-b border-white/10 py-6 sm:py-8 lg:py-10">
           <div className="container-ultrawide">
@@ -180,7 +206,7 @@ export default function Home({ targetSection }: HomeProps) {
                       {/* Imagem de Fundo da Notícia */}
                       <img decoding="async"
                         src={slide.image}
-                        alt={slide.title}
+                        alt={isEn ? slide.titleEn : slide.title}
                         className="size-full object-cover object-center transform transition-transform duration-1000 group-hover:scale-105"
                       />
                       {/* Overlay Escuro com Gradiente para Leitura Perfeita */}
@@ -193,30 +219,30 @@ export default function Home({ targetSection }: HomeProps) {
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div className="flex items-center gap-2.5">
                             <span className="rounded-xs border border-primary/50 bg-primary/20 backdrop-blur-md px-3 py-1 text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-primary">
-                              {slide.category}
+                              {isEn ? slide.categoryEn : slide.category}
                             </span>
                             <span className="text-[11px] text-slate-300 font-mono tracking-wider">
-                              {slide.date}
+                              {isEn ? slide.dateEn : slide.date}
                             </span>
                           </div>
                           <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-black/40 border border-white/10 px-3 py-0.5 text-[10px] text-slate-300 backdrop-blur-md">
                             <span className="size-1.5 rounded-full bg-primary animate-pulse" />
-                            Destaque
+                            {tr("Destaque", "Featured")}
                           </span>
                         </div>
 
                         {/* Base do Card: Título integrado na Capa, Resumo e Botão de Ação */}
                         <div className="space-y-3 sm:space-y-4 max-w-3xl">
                           <h2 className="font-heading text-2xl sm:text-3xl md:text-4xl uppercase text-white leading-tight drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">
-                            {slide.title}
+                            {isEn ? slide.titleEn : slide.title}
                           </h2>
                           <p className="text-slate-300 text-xs sm:text-sm md:text-base leading-relaxed line-clamp-2 sm:line-clamp-3 drop-shadow-[0_1px_6px_rgba(0,0,0,0.8)]">
-                            {slide.summary}
+                            {isEn ? slide.summaryEn : slide.summary}
                           </p>
                           <div className="pt-2 flex items-center gap-4">
                             <Button asChild className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground text-xs uppercase tracking-[0.16em] font-semibold px-6 h-10 shadow-lg shadow-primary/20">
                               <Link href={slide.link}>
-                                {slide.actionLabel}
+                                {isEn ? slide.actionLabelEn : slide.actionLabel}
                                 <ArrowRight className="ml-2 size-3.5" />
                               </Link>
                             </Button>
@@ -231,7 +257,7 @@ export default function Home({ targetSection }: HomeProps) {
                 <button
                   type="button"
                   onClick={prevSlide}
-                  aria-label="Slide anterior"
+                  aria-label={tr("Slide anterior", "Previous slide")}
                   className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 z-30 hidden sm:flex size-9 sm:size-10 items-center justify-center rounded-full border border-white/20 bg-slate-950/60 text-white backdrop-blur-md transition-all hover:bg-slate-900/90 hover:scale-110 active:scale-95"
                 >
                   <ChevronLeft className="size-5" />
@@ -239,7 +265,7 @@ export default function Home({ targetSection }: HomeProps) {
                 <button
                   type="button"
                   onClick={nextSlide}
-                  aria-label="Próximo slide"
+                  aria-label={tr("Próximo slide", "Next slide")}
                   className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 z-30 hidden sm:flex size-9 sm:size-10 items-center justify-center rounded-full border border-white/20 bg-slate-950/60 text-white backdrop-blur-md transition-all hover:bg-slate-900/90 hover:scale-110 active:scale-95"
                 >
                   <ChevronRight className="size-5" />
@@ -252,7 +278,7 @@ export default function Home({ targetSection }: HomeProps) {
                       key={idx}
                       type="button"
                       onClick={() => setCurrentSlide(idx)}
-                      aria-label={`Ir para o slide ${idx + 1}`}
+                      aria-label={tr(`Ir para o slide ${idx + 1}`, `Go to slide ${idx + 1}`)}
                       className={cn(
                         "h-1.5 rounded-full transition-all duration-300",
                         idx === currentSlide
@@ -273,8 +299,8 @@ export default function Home({ targetSection }: HomeProps) {
                       <Activity className="size-4 animate-pulse" />
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-primary">Comece por aqui</p>
-                      <h3 className="font-heading text-xl uppercase tracking-wider text-white heading-portal">O que dá para fazer</h3>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-primary">{tr("Comece por aqui", "Start here")}</p>
+                      <h3 className="font-heading text-xl uppercase tracking-wider text-white heading-portal">{tr("O que dá para fazer", "What you can do")}</h3>
                     </div>
                   </div>
                   <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-400">
@@ -288,7 +314,7 @@ export default function Home({ targetSection }: HomeProps) {
                   {/* Linha 1: Simulador (Arena Asticassia) */}
                   <Link
                     href="/simulador"
-                    title="Abrir o simulador — partidas online e treino contra o bot"
+                    title={tr("Abrir o simulador — partidas online e treino contra o bot", "Open the simulator — online matches and practice against the bot")}
                     className={cn(
                       "group relative flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4 transition-all duration-300 hover:bg-white/[0.07] hover:border-white/20 light:border-slate-300 light:bg-slate-50 light:hover:bg-slate-100",
                       isZeon ? "hover:border-red-500/40" : "hover:border-primary/40"
@@ -327,17 +353,17 @@ export default function Home({ targetSection }: HomeProps) {
                             : "border-primary/40 bg-primary/15 text-primary"
                         )}>
                           <span className={cn("size-1.5 rounded-full animate-pulse", isZeon ? "bg-red-500" : "bg-primary")} />
-                          SIMULADOR ONLINE · LOGIN OPCIONAL
+                          {tr("SIMULADOR ONLINE · LOGIN OPCIONAL", "ONLINE SIMULATOR · SIGN-IN OPTIONAL")}
                         </span>
                       </div>
                       <h4 className={cn(
                         "font-heading text-lg sm:text-xl uppercase text-white transition-colors duration-200 heading-portal line-clamp-2",
                         isZeon ? "group-hover:text-red-400" : "group-hover:text-primary"
                       )}>
-                        Simulador
+                        {tr("Simulador", "Simulator")}
                       </h4>
                       <p className="text-xs text-muted-portal line-clamp-2 mt-0.5 leading-relaxed">
-                        Jogue online contra outras pessoas ou treine contra o bot.
+                        {tr("Jogue online contra outras pessoas ou treine contra o bot.", "Play online against other people or practice against the bot.")}
                       </p>
                     </div>
 
@@ -350,7 +376,7 @@ export default function Home({ targetSection }: HomeProps) {
                   {/* Linha 2: Deckbuilder (Hangar Tático) */}
                   <Link
                     href="/deckbuilder"
-                    title="Abrir o deckbuilder — montar e validar decks"
+                    title={tr("Abrir o deckbuilder — montar e validar decks", "Open the deckbuilder — build and validate decks")}
                     className="group relative flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4 transition-all duration-300 hover:bg-white/[0.07] hover:border-amber-400/40 light:border-slate-300 light:bg-slate-50 light:hover:bg-slate-100"
                   >
                     {/* Ícone com Efeito Hangar On/Off no Hover */}
@@ -372,14 +398,14 @@ export default function Home({ targetSection }: HomeProps) {
                       <div className="flex items-center gap-2 mb-1">
                         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-xs border border-amber-500/40 bg-amber-500/15 text-amber-400">
                           <span className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
-                          DECKBUILDER · ACESSO PÚBLICO LIVRE
+                          {tr("DECKBUILDER · ACESSO PÚBLICO LIVRE", "DECKBUILDER · FREE PUBLIC ACCESS")}
                         </span>
                       </div>
                       <h4 className="font-heading text-lg sm:text-xl uppercase text-white transition-colors duration-200 heading-portal line-clamp-2 group-hover:text-amber-400">
                         Deckbuilder
                       </h4>
                       <p className="text-xs text-muted-portal line-clamp-2 mt-0.5 leading-relaxed">
-                        Monte, valide e compartilhe decks, com estatísticas do deck enquanto você monta.
+                        {tr("Monte, valide e compartilhe decks, com estatísticas do deck enquanto você monta.", "Build, validate and share decks, with deck stats while you build.")}
                       </p>
                     </div>
 
@@ -392,7 +418,7 @@ export default function Home({ targetSection }: HomeProps) {
                   {/* Linha 3: Estatísticas (Sistema VEDA) */}
                   <Link
                     href="/stats"
-                    title="Abrir as estatísticas — taxas de vitória e meta"
+                    title={tr("Abrir as estatísticas — taxas de vitória e meta", "Open the stats — win rates and meta")}
                     className="group relative flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4 transition-all duration-300 hover:bg-white/[0.07] hover:border-emerald-400/40 light:border-slate-300 light:bg-slate-50 light:hover:bg-slate-100"
                   >
                     {/* Ícone com Efeito VEDA On/Off no Hover */}
@@ -414,14 +440,14 @@ export default function Home({ targetSection }: HomeProps) {
                       <div className="flex items-center gap-2 mb-1">
                         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-xs border border-emerald-500/40 bg-emerald-500/15 text-emerald-400">
                           <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                          METAGAME & STATS · ACESSO PÚBLICO LIVRE
+                          {tr("METAGAME & STATS · ACESSO PÚBLICO LIVRE", "METAGAME & STATS · FREE PUBLIC ACCESS")}
                         </span>
                       </div>
                       <h4 className="font-heading text-lg sm:text-xl uppercase text-white transition-colors duration-200 heading-portal line-clamp-2 group-hover:text-emerald-400">
-                        Estatísticas
+                        {tr("Estatísticas", "Stats")}
                       </h4>
                       <p className="text-xs text-muted-portal line-clamp-2 mt-0.5 leading-relaxed">
-                        Taxas de vitória, cores mais jogadas e o meta de cada temporada.
+                        {tr("Taxas de vitória, cores mais jogadas e o meta de cada temporada.", "Win rates, most played colors and each season's meta.")}
                       </p>
                     </div>
 
@@ -436,10 +462,10 @@ export default function Home({ targetSection }: HomeProps) {
                 <div className="mt-4 pt-3.5 border-t border-white/10 flex items-center justify-between text-xs text-muted-portal light:border-slate-200">
                   <span className="flex items-center gap-1.5">
                     <Radio className="size-3 text-primary animate-pulse" />
-                    Atualizado com os torneios registrados
+                    {tr("Atualizado com os torneios registrados", "Updated with recorded tournaments")}
                   </span>
                   <Link href="/novidades" className="hover:text-primary transition-colors flex items-center gap-1 font-medium">
-                    Ver novidades do site <ArrowRight className="size-3" />
+                    {tr("Ver novidades do site", "See site news")} <ArrowRight className="size-3" />
                   </Link>
                 </div>
               </div>

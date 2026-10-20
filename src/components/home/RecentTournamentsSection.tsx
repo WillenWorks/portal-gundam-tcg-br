@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api";
+import { siteLocale, useSiteLanguage } from "@/i18n/siteLanguage";
 
 type TournamentPodiumEntry = {
   placement: number;
@@ -30,6 +31,7 @@ type TournamentDisplay = {
 
 
 export function RecentTournamentsSection() {
+  const { tr } = useSiteLanguage();
   const [scope, setScope] = useState<"todos" | "brasil">("brasil");
   const [dbTournaments, setDbTournaments] = useState<TournamentDisplay[]>([]);
 
@@ -40,8 +42,8 @@ export function RecentTournamentsSection() {
         if (Array.isArray(data) && data.length > 0) {
           const formatted: TournamentDisplay[] = data.map((t) => {
             const dateObj = t.dateStart ? new Date(t.dateStart) : new Date();
-            const dateStr = dateObj.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
-            const timeStr = dateObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+            const dateStr = dateObj.toLocaleDateString(siteLocale(), { day: "2-digit", month: "short", year: "numeric" });
+            const timeStr = dateObj.toLocaleTimeString(siteLocale(), { hour: "2-digit", minute: "2-digit" });
 
             const entries = Array.isArray(t.entries) ? t.entries : [];
             const sortedEntries = [...entries].sort((a, b) => (a.placement || 99) - (b.placement || 99));
@@ -49,7 +51,7 @@ export function RecentTournamentsSection() {
             const podium: TournamentPodiumEntry[] = sortedEntries.slice(0, 3).map((e, idx) => ({
               placement: e.placement || idx + 1,
               playerName: e.playerName || e.user?.displayName || "Jogador",
-              deckName: e.deck?.name || e.archetype || "Deck sem nome",
+              deckName: e.deck?.name || e.archetype || tr("Deck sem nome", "Unnamed deck"),
               deckArchetype: e.archetype || "Gundam TCG",
               score:
                 e.wins != null
@@ -143,15 +145,15 @@ export function RecentTournamentsSection() {
           <div>
             <div className="flex items-center gap-2">
               <Badge className="rounded-none border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.24em] text-amber-500 dark:text-amber-400">
-                Competitivo
+                {tr("Competitivo", "Competitive")}
               </Badge>
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">Metagame & Torneios</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">{tr("Metagame & Torneios", "Metagame & Tournaments")}</span>
             </div>
             <h2 className="heading-portal font-heading text-3xl sm:text-4xl uppercase mt-2 dark:text-white light:text-slate-950">
-              Últimos Eventos
+              {tr("Últimos Eventos", "Latest Events")}
             </h2>
             <p className="text-soft text-xs sm:text-sm mt-1 max-w-2xl dark:text-slate-400 light:text-slate-600">
-              Relatórios dos confrontos recentes de Gundam TCG, pódios oficiais, decks campeões e desempenho dos jogadores.
+              {tr("Relatórios dos confrontos recentes de Gundam TCG, pódios oficiais, decks campeões e desempenho dos jogadores.", "Reports on recent Gundam TCG matches, official podiums, winning decks and player performance.")}
             </p>
           </div>
 
@@ -167,10 +169,10 @@ export function RecentTournamentsSection() {
                     ? "bg-amber-500 text-slate-950 shadow-xs"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
-                title="Exibir torneios realizados no Brasil"
+                title={tr("Exibir torneios realizados no Brasil", "Show tournaments held in Brazil")}
               >
                 <Flag className="size-3.5" />
-                Brasil
+                {tr("Brasil", "Brazil")}
               </button>
               <button
                 type="button"
@@ -180,10 +182,10 @@ export function RecentTournamentsSection() {
                     ? "bg-amber-500 text-slate-950 shadow-xs"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
-                title="Exibir todos os torneios mundiais e nacionais"
+                title={tr("Exibir todos os torneios mundiais e nacionais", "Show all worldwide and national tournaments")}
               >
                 <Globe className="size-3.5" />
-                Todos
+                {tr("Todos", "All")}
               </button>
             </div>
 
@@ -194,7 +196,7 @@ export function RecentTournamentsSection() {
               className="rounded-none dark:border-white/20 dark:bg-white/5 dark:text-white light:border-slate-300 light:bg-white light:text-slate-800 light:hover:bg-slate-100 text-xs uppercase tracking-[0.14em] shrink-0"
             >
               <Link href="/torneios">
-                Ver Todos os Torneios <ArrowRight className="ml-1.5 size-3.5" />
+                {tr("Ver Todos os Torneios", "See All Tournaments")} <ArrowRight className="ml-1.5 size-3.5" />
               </Link>
             </Button>
           </div>
@@ -202,8 +204,8 @@ export function RecentTournamentsSection() {
 
         {displayedTournaments.length === 0 && (
           <p className="rounded-xl border dark:border-white/10 light:border-slate-300 p-6 text-sm dark:text-slate-300 light:text-slate-700">
-            Nenhum torneio registrado {scope === "brasil" ? "no Brasil " : ""}ainda.{" "}
-            <Link href="/torneios" className="font-semibold text-amber-600 dark:text-amber-400 hover:underline">Ver a página de torneios</Link>
+            {scope === "brasil" ? tr("Nenhum torneio registrado no Brasil ainda.", "No tournaments recorded in Brazil yet.") : tr("Nenhum torneio registrado ainda.", "No tournaments recorded yet.")}{" "}
+            <Link href="/torneios" className="font-semibold text-amber-600 dark:text-amber-400 hover:underline">{tr("Ver a página de torneios", "See the tournaments page")}</Link>
           </p>
         )}
 
@@ -223,7 +225,7 @@ export function RecentTournamentsSection() {
                     </span>
                     {tournament.totalPlayers > 0 && (
                       <span className="dark:text-slate-400 light:text-slate-600 text-[11px] font-mono font-semibold">
-                        {tournament.totalPlayers} jogadores
+                        {tournament.totalPlayers} {tr("jogadores", "players")}
                       </span>
                     )}
                   </div>
@@ -264,12 +266,12 @@ export function RecentTournamentsSection() {
                 {/* Bloco Top 3 */}
                 <div className="space-y-3">
                   <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                    <Trophy className="size-3.5" /> Pódio e decks usados
+                    <Trophy className="size-3.5" /> {tr("Pódio e decks usados", "Podium and decks played")}
                   </p>
 
                   <div className="space-y-2">
                     {tournament.podium.length === 0 && (
-                      <p className="text-xs dark:text-slate-400 light:text-slate-600">Resultado ainda não publicado.</p>
+                      <p className="text-xs dark:text-slate-400 light:text-slate-600">{tr("Resultado ainda não publicado.", "Result not published yet.")}</p>
                     )}
                     {tournament.podium.map((pod) => (
                       <div
