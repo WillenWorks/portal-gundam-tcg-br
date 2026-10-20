@@ -10,7 +10,7 @@ export const SITE_URL = "https://anaheimhub.com";
 export const SITE_NAME = "Anaheim Hub";
 const DEFAULT_DESCRIPTION =
   "Plataforma pública e gratuita de Gundam Card Game no Brasil: catálogo de cartas, deckbuilder, torneios, regras e metagame.";
-const DEFAULT_IMAGE = `${SITE_URL}/favicon-64.png`;
+const DEFAULT_IMAGE = `${SITE_URL}/og-default.jpg`;
 
 /** Seções da landing acessíveis por caminho (`/ultimos-eventos` rola até a seção). São a home:
  *  canonical "/". Qualquer outro caminho de um nível desconhecido é 404 (ver App.tsx). */
