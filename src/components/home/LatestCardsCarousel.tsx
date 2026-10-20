@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
+import { useCardLanguage } from "@/i18n/useCardLanguage";
 
 interface LatestCardsCarouselProps {
   limit?: number;
@@ -12,6 +14,8 @@ interface LatestCardsCarouselProps {
 }
 
 export function LatestCardsCarousel({ limit = 30, className }: LatestCardsCarouselProps) {
+  const { tr } = useSiteLanguage();
+  const { isPt: cardsInPt } = useCardLanguage();
   const [cards, setCards] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -146,14 +150,14 @@ export function LatestCardsCarousel({ limit = 30, className }: LatestCardsCarous
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-400">Catálogo oficial</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-400">{tr("Catálogo oficial", "Official catalog")}</span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-white/5 border border-white/10 px-2 py-0.5 text-[9px] text-slate-400">
                   <span className="size-1.5 rounded-full bg-cyan-400 animate-ping" />
-                  {cards.length > 0 ? `${cards.length} cartas recentes` : "Carregando"}
+                  {cards.length > 0 ? tr(`${cards.length} cartas recentes`, `${cards.length} recent cards`) : tr("Carregando", "Loading")}
                 </span>
               </div>
               <h3 className="font-heading text-xl sm:text-2xl lg:text-3xl uppercase tracking-wider text-white heading-portal">
-                Cartas Recentes
+                {tr("Cartas Recentes", "Recent Cards")}
               </h3>
             </div>
           </div>
@@ -165,7 +169,7 @@ export function LatestCardsCarousel({ limit = 30, className }: LatestCardsCarous
             className="rounded-xl border-white/20 bg-white/5 hover:bg-white/10 hover:border-cyan-400/50 text-xs sm:text-sm uppercase tracking-[0.16em] font-semibold text-white light:border-slate-300 light:text-slate-900 light:hover:bg-slate-100 transition-all duration-300"
           >
             <Link href="/cards">
-              Explorar Catálogo
+              {tr("Explorar Catálogo", "Explore Catalog")}
               <ArrowRight className="ml-2 size-3.5" />
             </Link>
           </Button>
@@ -196,7 +200,7 @@ export function LatestCardsCarousel({ limit = 30, className }: LatestCardsCarous
             {!loading &&
               cards.map((card) => {
                 const imgUrl = card.imageMediumUrl || card.imageUrl || card.imageLargeUrl || card.thumbUrl;
-                const cardName = card.namePt || card.nameEn || "Carta sem nome";
+                const cardName = (cardsInPt ? card.namePt || card.nameEn : card.nameEn || card.namePt) || tr("Carta sem nome", "Unnamed card");
                 const cardCode = card.code || "—";
                 const setCode = card.set?.code || "";
 
@@ -258,7 +262,7 @@ export function LatestCardsCarousel({ limit = 30, className }: LatestCardsCarous
               type="button"
               onClick={() => scrollByAmount(-480)}
               disabled={!canScrollLeft}
-              aria-label="Rolar cartas para a esquerda"
+              aria-label={tr("Rolar cartas para a esquerda", "Scroll cards left")}
               className={cn(
                 "flex size-8 sm:size-9 items-center justify-center rounded-lg border transition-all duration-200",
                 canScrollLeft
@@ -285,7 +289,7 @@ export function LatestCardsCarousel({ limit = 30, className }: LatestCardsCarous
               type="button"
               onClick={() => scrollByAmount(480)}
               disabled={!canScrollRight}
-              aria-label="Rolar cartas para a direita"
+              aria-label={tr("Rolar cartas para a direita", "Scroll cards right")}
               className={cn(
                 "flex size-8 sm:size-9 items-center justify-center rounded-lg border transition-all duration-200",
                 canScrollRight

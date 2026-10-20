@@ -18,10 +18,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
 export function CockpitRegistrationSection() {
+  const { tr } = useSiteLanguage();
   const { user, isAuthenticated, register, loginWithGoogle } = useAuth();
 
   const [displayName, setDisplayName] = useState("");
@@ -48,10 +50,10 @@ export function CockpitRegistrationSection() {
           setErrorMessage(null);
           loginWithGoogle(response.credential)
             .then(() => {
-              toast.success("Login com Google realizado com sucesso!");
+              toast.success(tr("Login com Google realizado com sucesso!", "Signed in with Google!"));
             })
             .catch((err: any) => {
-              const msg = err?.message || "Erro na autenticação social Google.";
+              const msg = err?.message || tr("Erro na autenticação social Google.", "Google sign-in failed.");
               setErrorMessage(msg);
               toast.error(msg);
             })
@@ -86,20 +88,20 @@ export function CockpitRegistrationSection() {
   const passwordStrength = useMemo(() => {
     if (!password) return { score: 0, label: "", color: "" };
     if (password.length < 6) {
-      return { score: 1, label: "Senha Fraca (mínimo 6 caracteres)", color: "text-red-400 bg-red-500" };
+      return { score: 1, label: tr("Senha Fraca (mínimo 6 caracteres)", "Weak password (at least 6 characters)"), color: "text-red-400 bg-red-500" };
     }
     const hasNumbers = /\d/.test(password);
     const hasLetters = /[a-zA-Z]/.test(password);
     const hasSpecial = /[^a-zA-Z0-9]/.test(password);
 
     if (password.length >= 8 && hasNumbers && hasLetters && hasSpecial) {
-      return { score: 3, label: "Senha Forte e Segura", color: "text-emerald-400 bg-emerald-500" };
+      return { score: 3, label: tr("Senha Forte e Segura", "Strong password"), color: "text-emerald-400 bg-emerald-500" };
     }
     if (password.length >= 6 && hasNumbers && hasLetters) {
-      return { score: 2, label: "Senha Razoável", color: "text-amber-400 bg-amber-500" };
+      return { score: 2, label: tr("Senha Razoável", "Fair password"), color: "text-amber-400 bg-amber-500" };
     }
-    return { score: 1, label: "Senha Fraca (adicione números ou símbolos)", color: "text-red-400 bg-red-500" };
-  }, [password]);
+    return { score: 1, label: tr("Senha Fraca (adicione números ou símbolos)", "Weak password (add numbers or symbols)"), color: "text-red-400 bg-red-500" };
+  }, [password, tr]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,21 +113,21 @@ export function CockpitRegistrationSection() {
 
     // Validações de campos obrigatórios
     if (!cleanName) {
-      const msg = "Informe seu nome de jogador.";
+      const msg = tr("Informe seu nome de jogador.", "Enter your player name.");
       setErrorMessage(msg);
       toast.error(msg);
       return;
     }
 
     if (!cleanEmail || !cleanEmail.includes("@") || !cleanEmail.includes(".")) {
-      const msg = "Por favor, informe um endereço de email válido.";
+      const msg = tr("Por favor, informe um endereço de email válido.", "Please enter a valid email address.");
       setErrorMessage(msg);
       toast.error(msg);
       return;
     }
 
     if (!cleanPass || cleanPass.length < 6) {
-      const msg = "A senha deve conter no mínimo 6 caracteres.";
+      const msg = tr("A senha deve conter no mínimo 6 caracteres.", "Password must be at least 6 characters.");
       setErrorMessage(msg);
       toast.error(msg);
       return;
@@ -138,13 +140,13 @@ export function CockpitRegistrationSection() {
         email: cleanEmail,
         password: cleanPass,
       });
-      toast.success(`Credenciais ativadas! Bem-vindo à cabine, ${cleanName}.`);
+      toast.success(tr(`Conta criada! Bem-vindo, ${cleanName}.`, `Account created! Welcome, ${cleanName}.`));
     } catch (err: any) {
       const rawMsg = err?.message || "";
-      let friendlyMsg = "Não foi possível criar a conta.";
+      let friendlyMsg = tr("Não foi possível criar a conta.", "Couldn't create the account.");
 
       if (rawMsg.toLowerCase().includes("já cadastrado") || rawMsg.toLowerCase().includes("already") || rawMsg.includes("409")) {
-        friendlyMsg = "Este e-mail já tem uma conta. Tente entrar.";
+        friendlyMsg = tr("Este e-mail já tem uma conta. Tente entrar.", "This email already has an account. Try signing in.");
       } else if (rawMsg) {
         friendlyMsg = rawMsg;
       }
@@ -169,7 +171,7 @@ export function CockpitRegistrationSection() {
             <div className="relative min-h-[380px] sm:min-h-[460px] lg:min-h-full overflow-hidden bg-slate-950 group">
               <img loading="lazy" decoding="async"
                 src={cockpitImg}
-                alt="Cabine vazia de Mobile Suit Gundam esperando por piloto"
+                alt={tr("Cabine vazia de Mobile Suit Gundam esperando por piloto", "Empty Mobile Suit Gundam cockpit waiting for a pilot")}
                 className="size-full object-cover object-center transition-transform duration-1000 group-hover:scale-105"
               />
 
@@ -193,14 +195,14 @@ export function CockpitRegistrationSection() {
                   <div className="flex items-center gap-2">
                     <Zap className="size-4 text-amber-400 animate-pulse" />
                     <span className="font-mono text-xs uppercase tracking-widest text-amber-400 font-bold">
-                      Conta gratuita
+                      {tr("Conta gratuita", "Free account")}
                     </span>
                   </div>
                   <h3 className="font-heading text-2xl sm:text-3xl uppercase text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
-                    Salve seus decks e acompanhe seu jogo
+                    {tr("Salve seus decks e acompanhe seu jogo", "Save your decks and track your games")}
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-300 drop-shadow-[0_1px_6px_rgba(0,0,0,0.9)] leading-relaxed">
-                    Com uma conta você salva decks, vê as estatísticas completas deles e joga no simulador contra outras pessoas.
+                    {tr("Com uma conta você salva decks, vê as estatísticas completas deles e joga no simulador contra outras pessoas.", "With an account you can save decks, see their full stats and play other people in the simulator.")}
                   </p>
                 </div>
               </div>
@@ -213,13 +215,13 @@ export function CockpitRegistrationSection() {
                 <div className="space-y-6 my-auto py-6">
                   <div className="space-y-2">
                     <Badge className="rounded-none border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">
-                      Sessão Ativa
+                      {tr("Sessão Ativa", "Signed in")}
                     </Badge>
                     <h2 className="heading-portal font-heading text-3xl uppercase dark:text-white light:text-slate-950">
-                      Você está conectado
+                      {tr("Você está conectado", "You're signed in")}
                     </h2>
                     <p className="dark:text-slate-400 light:text-slate-600 text-sm leading-relaxed">
-                      Você já está conectado ao AnaheimHub com o perfil{" "}
+                      {tr("Você já está conectado ao AnaheimHub com o perfil", "You're signed in to AnaheimHub as")}{" "}
                       <span className="text-cyan-300 font-semibold">{user.displayName}</span> ({user.email}).
                     </p>
                   </div>
@@ -230,7 +232,7 @@ export function CockpitRegistrationSection() {
                         <UserCheck className="size-5" />
                       </div>
                       <div>
-                        <p className="text-xs font-mono uppercase dark:text-slate-400 light:text-slate-500">Sua conta</p>
+                        <p className="text-xs font-mono uppercase dark:text-slate-400 light:text-slate-500">{tr("Sua conta", "Your account")}</p>
                         <p className="font-heading text-lg dark:text-white light:text-slate-950 uppercase">{user.displayName}</p>
                       </div>
                     </div>
@@ -240,7 +242,7 @@ export function CockpitRegistrationSection() {
                     <Button asChild className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground text-xs uppercase tracking-[0.16em] font-semibold px-6">
                       <Link href="/simulador">
                         <Swords className="mr-2 size-4" />
-                        Entrar no Simulador
+                        {tr("Entrar no Simulador", "Open the Simulator")}
                       </Link>
                     </Button>
                     <Button asChild variant="outline" className="rounded-none dark:border-white/20 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 light:border-slate-300 light:bg-slate-100 light:text-slate-800 light:hover:bg-slate-200 text-xs uppercase tracking-[0.16em]">
@@ -258,10 +260,10 @@ export function CockpitRegistrationSection() {
                       Criar conta (opcional)
                     </Badge>
                     <h2 className="heading-portal font-heading text-3xl sm:text-4xl uppercase mt-2 dark:text-white light:text-slate-950">
-                      Crie sua conta
+                      {tr("Crie sua conta", "Create your account")}
                     </h2>
                     <p className="dark:text-slate-400 light:text-slate-600 text-xs sm:text-sm mt-1 leading-relaxed">
-                      A navegação pelo catálogo de cartas, metagame, regras e torneios é 100% pública e sem login. Crie sua conta gratuitamente apenas se desejar salvar decks ilimitados e registrar telemetria de partidas.
+                      {tr("A navegação pelo catálogo de cartas, metagame, regras e torneios é 100% pública e sem login. Crie sua conta gratuitamente apenas se desejar salvar decks ilimitados e registrar telemetria de partidas.", "The card catalog, metagame, rules and tournaments are fully public, no sign-in needed. Create a free account only if you want to save unlimited decks and track your matches.")}
                     </p>
                   </div>
 
@@ -270,7 +272,7 @@ export function CockpitRegistrationSection() {
                     <div className="flex items-start gap-3 rounded-lg border border-red-500/40 bg-red-950/40 p-3.5 text-xs text-red-200">
                       <AlertCircle className="size-4 text-red-400 shrink-0 mt-0.5" />
                       <div className="flex-1">
-                        <p className="font-semibold">Atenção no alistamento:</p>
+                        <p className="font-semibold">{tr("Atenção no alistamento:", "Sign-up problem:")}</p>
                         <p className="mt-0.5 text-red-300">{errorMessage}</p>
                       </div>
                     </div>
@@ -280,7 +282,7 @@ export function CockpitRegistrationSection() {
                     {/* Campo Nome de jogador */}
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold uppercase tracking-wider dark:text-slate-300 light:text-slate-700 flex items-center gap-1.5">
-                        <User className="size-3.5 text-primary" /> Nome de jogador
+                        <User className="size-3.5 text-primary" /> {tr("Nome de jogador", "Player name")}
                       </label>
                       <Input
                         type="text"
@@ -289,7 +291,7 @@ export function CockpitRegistrationSection() {
                           setDisplayName(e.target.value);
                           if (errorMessage) setErrorMessage(null);
                         }}
-                        placeholder="Ex: Amuro_Ray ou ComandanteZaku"
+                        placeholder={tr("Ex: Amuro_Ray ou ComandanteZaku", "e.g. Amuro_Ray or ZakuCommander")}
                         className="rounded-lg dark:border-white/15 dark:bg-slate-900/90 dark:text-white dark:placeholder:text-slate-500 light:border-slate-300 light:bg-slate-50 light:text-slate-900 light:placeholder:text-slate-400 focus:border-cyan-400 h-10"
                         required
                       />
@@ -298,7 +300,7 @@ export function CockpitRegistrationSection() {
                     {/* Campo Email */}
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold uppercase tracking-wider dark:text-slate-300 light:text-slate-700 flex items-center gap-1.5">
-                        <Mail className="size-3.5 text-primary" /> Seu Melhor Email
+                        <Mail className="size-3.5 text-primary" /> {tr("Seu melhor e-mail", "Your email")}
                       </label>
                       <Input
                         type="email"
@@ -317,7 +319,7 @@ export function CockpitRegistrationSection() {
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold uppercase tracking-wider dark:text-slate-300 light:text-slate-700 flex items-center gap-1.5">
-                          <Lock className="size-3.5 text-primary" /> Senha de Acesso
+                          <Lock className="size-3.5 text-primary" /> {tr("Senha de acesso", "Password")}
                         </label>
                         {password && (
                           <span className={cn("font-mono text-[10px] font-semibold", passwordStrength.color.split(" ")[0])}>
@@ -332,7 +334,7 @@ export function CockpitRegistrationSection() {
                           setPassword(e.target.value);
                           if (errorMessage) setErrorMessage(null);
                         }}
-                        placeholder="Mínimo de 6 caracteres"
+                        placeholder={tr("Mínimo de 6 caracteres", "At least 6 characters")}
                         className="rounded-lg dark:border-white/15 dark:bg-slate-900/90 dark:text-white dark:placeholder:text-slate-500 light:border-slate-300 light:bg-slate-50 light:text-slate-900 light:placeholder:text-slate-400 focus:border-cyan-400 h-10"
                         required
                       />
@@ -353,7 +355,7 @@ export function CockpitRegistrationSection() {
                       disabled={loading}
                       className="w-full rounded-none bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs uppercase tracking-[0.18em] h-11 shadow-lg shadow-primary/25 mt-2"
                     >
-                      {loading ? "Criando conta..." : "Criar conta"}
+                      {loading ? tr("Criando conta...", "Creating account...") : tr("Criar conta", "Create account")}
                     </Button>
                   </form>
 
@@ -364,7 +366,7 @@ export function CockpitRegistrationSection() {
                     </div>
                     <div className="relative flex justify-center text-xs uppercase">
                       <span className="dark:bg-slate-950 light:bg-white px-3 dark:text-slate-500 light:text-slate-500 font-mono text-[10px]">
-                        Ou acesse via login social
+                        {tr("Ou acesse via login social", "Or sign in with")}
                       </span>
                     </div>
                   </div>
@@ -376,9 +378,9 @@ export function CockpitRegistrationSection() {
 
                   {/* Atalho para quem já tem conta */}
                   <p className="text-center text-xs dark:text-slate-400 light:text-slate-600 pt-2 border-t dark:border-white/5 light:border-slate-200">
-                    Já tem conta?{" "}
+                    {tr("Já tem conta?", "Already have an account?")}{" "}
                     <Link href="/login" className="text-primary hover:underline font-semibold">
-                      Entrar
+                      {tr("Entrar", "Sign in")}
                     </Link>
                   </p>
                 </div>

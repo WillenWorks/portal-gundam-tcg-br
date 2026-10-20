@@ -2,8 +2,10 @@ import { Globe, Shield, Sparkles, Terminal, Users } from "lucide-react";
 
 import anaheimLogo from "@/assets/anaheim-logo.webp";
 import anaheimLogoTransparent from "@/assets/anaheim-logo-transparent.webp";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export function AboutAnaheimHubSection() {
+  const { tr } = useSiteLanguage();
   return (
     <section id="sobre-anaheim-hub" className="relative border-t dark:border-white/10 dark:bg-slate-950 light:border-slate-300/80 light:bg-slate-100/80 py-16 sm:py-24 overflow-hidden">
       {/* Luzes de ambientação de fundo */}
@@ -21,7 +23,7 @@ export function AboutAnaheimHubSection() {
             <div className="relative flex size-28 sm:size-36 items-center justify-center rounded-2xl border border-cyan-400/40 dark:bg-slate-950/80 light:bg-slate-100/90 p-3 shadow-[0_0_32px_rgba(6,182,212,0.35)] transition-transform duration-500 hover:scale-105">
               <img loading="lazy" decoding="async"
                 src={anaheimLogoTransparent || anaheimLogo}
-                alt="Anaheim HUB - Elmo do Gundam com A.H."
+                alt={tr("Anaheim HUB - Elmo do Gundam com A.H.", "Anaheim HUB - Gundam helmet with A.H.")}
                 className="size-full object-contain filter drop-shadow-[0_0_12px_rgba(6,182,212,0.6)]"
               />
               <div className="absolute -bottom-2.5 rounded-full border border-cyan-400/50 dark:bg-black light:bg-slate-900 px-2.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-cyan-300 shadow-md">
@@ -33,17 +35,17 @@ export function AboutAnaheimHubSection() {
             <div className="space-y-3">
               <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3.5 py-1 text-xs font-semibold uppercase tracking-[0.24em] dark:text-cyan-300 light:text-cyan-700">
                 <Sparkles className="size-3.5 text-cyan-400" />
-                Sobre o site
+                {tr("Sobre o site", "About the site")}
               </div>
               <h2 className="font-heading text-3xl sm:text-4xl md:text-5xl uppercase tracking-wider dark:text-white light:text-slate-950 heading-portal">
-                O que é a Anaheim HUB?
+                {tr("O que é a Anaheim HUB?", "What is Anaheim HUB?")}
               </h2>
             </div>
 
             {/* Texto Principal Requisitado */}
             <div className="rounded-xl border dark:border-white/10 dark:bg-slate-950/60 light:border-slate-200 light:bg-slate-50 p-6 sm:p-8 text-left sm:text-center shadow-inner">
               <p className="text-base sm:text-lg md:text-xl dark:text-slate-200 light:text-slate-800 leading-relaxed font-sans font-normal">
-                "A Anaheim HUB é uma plataforma criada e destinada aos jogadores de Gundam TCG para trocarem informações de cartas, decks, informações sobre o metagame, treinar no simulador tanto solo quanto outros jogadores e, principalmente, auxiliar os novos jogadores a descobrirem o universo Gundam de maneira simples e guiada. Plataforma em constante evolução para oferecer informações traduzidas e informações importantes para auxiliar a comunidade."
+                {tr("\"A Anaheim HUB é uma plataforma criada e destinada aos jogadores de Gundam TCG para trocarem informações de cartas, decks, informações sobre o metagame, treinar no simulador tanto solo quanto outros jogadores e, principalmente, auxiliar os novos jogadores a descobrirem o universo Gundam de maneira simples e guiada. Plataforma em constante evolução para oferecer informações traduzidas e informações importantes para auxiliar a comunidade.\"", "\"Anaheim HUB is a platform made for Gundam TCG players to share card and deck information, follow the metagame, practice in the simulator solo or against other players and, above all, help new players discover the Gundam universe in a simple, guided way. It keeps evolving to bring translated and useful information to the community.\"")}
               </p>
             </div>
 
@@ -51,20 +53,20 @@ export function AboutAnaheimHubSection() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full pt-2">
               <div className="flex flex-col items-center p-4 rounded-xl border dark:border-white/5 dark:bg-white/[0.02] light:border-slate-200 light:bg-slate-50">
                 <Users className="size-6 text-cyan-400 mb-2" />
-                <h4 className="font-heading text-base uppercase dark:text-white light:text-slate-950">Comunidade & Trocas</h4>
-                <p className="text-xs dark:text-slate-400 light:text-slate-600 mt-1">Conectando jogadores e fortalecendo a cena em todo o país.</p>
+                <h4 className="font-heading text-base uppercase dark:text-white light:text-slate-950">{tr("Comunidade & Trocas", "Community & Trading")}</h4>
+                <p className="text-xs dark:text-slate-400 light:text-slate-600 mt-1">{tr("Conectando jogadores e fortalecendo a cena em todo o país.", "Connecting players and strengthening the scene across the country.")}</p>
               </div>
 
               <div className="flex flex-col items-center p-4 rounded-xl border dark:border-white/5 dark:bg-white/[0.02] light:border-slate-200 light:bg-slate-50">
                 <Terminal className="size-6 text-cyan-400 mb-2" />
-                <h4 className="font-heading text-base uppercase dark:text-white light:text-slate-950">Simulador & Metagame</h4>
-                <p className="text-xs dark:text-slate-400 light:text-slate-600 mt-1">Treino contra o bot, partidas online e estatísticas.</p>
+                <h4 className="font-heading text-base uppercase dark:text-white light:text-slate-950">{tr("Simulador & Metagame", "Simulator & Metagame")}</h4>
+                <p className="text-xs dark:text-slate-400 light:text-slate-600 mt-1">{tr("Treino contra o bot, partidas online e estatísticas.", "Practice against the bot, online matches and stats.")}</p>
               </div>
 
               <div className="flex flex-col items-center p-4 rounded-xl border dark:border-white/5 dark:bg-white/[0.02] light:border-slate-200 light:bg-slate-50">
                 <Globe className="size-6 text-cyan-400 mb-2" />
-                <h4 className="font-heading text-base uppercase dark:text-white light:text-slate-950">Acolhimento em PT-BR</h4>
-                <p className="text-xs dark:text-slate-400 light:text-slate-600 mt-1">Regras traduzidas, glossário e apoio a quem está começando.</p>
+                <h4 className="font-heading text-base uppercase dark:text-white light:text-slate-950">{tr("Acolhimento em PT-BR", "Welcoming in PT-BR")}</h4>
+                <p className="text-xs dark:text-slate-400 light:text-slate-600 mt-1">{tr("Regras traduzidas, glossário e apoio a quem está começando.", "Translated rules, glossary and help for newcomers.")}</p>
               </div>
             </div>
 
@@ -73,7 +75,7 @@ export function AboutAnaheimHubSection() {
               <div className="flex items-start justify-center gap-2.5 text-xs dark:text-slate-400 light:text-slate-600 max-w-2xl mx-auto text-center">
                 <Shield className="size-4 text-slate-500 shrink-0 mt-0.5" />
                 <p className="leading-relaxed text-[11px] dark:text-slate-400 light:text-slate-600">
-                  <strong className="dark:text-slate-300 light:text-slate-700">Aviso da Comunidade:</strong> A Anaheim HUB é uma iniciativa independente, sem fins lucrativos, criada por fãs e para a comunidade brasileira de jogadores. Não somos afiliados, patrocinados nem temos vínculo oficial com a Bandai Co., Ltd., Bandai Namco, Sunrise ou Sotsu. Todas as marcas, ilustrações, personagens e termos de Gundam Card Game são propriedades de seus respectivos detentores de direitos.
+                  <strong className="dark:text-slate-300 light:text-slate-700">{tr("Aviso da Comunidade:", "Community notice:")}</strong>{tr(" A Anaheim HUB é uma iniciativa independente, sem fins lucrativos, criada por fãs e para a comunidade brasileira de jogadores. Não somos afiliados, patrocinados nem temos vínculo oficial com a Bandai Co., Ltd., Bandai Namco, Sunrise ou Sotsu. Todas as marcas, ilustrações, personagens e termos de Gundam Card Game são propriedades de seus respectivos detentores de direitos.", " Anaheim HUB is an independent, non-profit initiative made by fans for the Brazilian player community. We are not affiliated with, sponsored by or officially linked to Bandai Co., Ltd., Bandai Namco, Sunrise or Sotsu. All Gundam Card Game trademarks, artwork, characters and terms belong to their respective rights holders.")}
                 </p>
               </div>
             </div>

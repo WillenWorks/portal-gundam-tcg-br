@@ -10,18 +10,21 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
+import { useCardLanguage } from "@/i18n/useCardLanguage";
 
-export const SEARCH_PAGES: Array<{ label: string; href: string; keywords: string }> = [
-  { label: "Catálogo de cartas", href: "/cards", keywords: "cartas database catalogo" },
-  { label: "Decks públicos", href: "/decks", keywords: "decks listas comunidade" },
-  { label: "Deckbuilder", href: "/deckbuilder", keywords: "montar deck construtor" },
-  { label: "Torneios", href: "/torneios", keywords: "torneios eventos resultados" },
-  { label: "Estatísticas do meta", href: "/stats", keywords: "estatisticas meta metagame" },
-  { label: "Arquétipos", href: "/arquetipos", keywords: "arquetipos meta" },
-  { label: "Coleções", href: "/sets", keywords: "colecoes sets produtos" },
-  { label: "Séries Gundam", href: "/series", keywords: "series obras" },
-  { label: "Regras", href: "/rules", keywords: "regras rulings" },
-  { label: "Simulador", href: "/simulador", keywords: "simulador jogar partida bot" },
+/** Páginas da busca. A busca casa nos dois idiomas (nome em português, em inglês e palavras-chave). */
+export const SEARCH_PAGES: Array<{ label: string; labelEn: string; href: string; keywords: string }> = [
+  { label: "Catálogo de cartas", labelEn: "Card catalog", href: "/cards", keywords: "cartas database catalogo cards" },
+  { label: "Decks públicos", labelEn: "Public decks", href: "/decks", keywords: "decks listas comunidade lists community" },
+  { label: "Deckbuilder", labelEn: "Deckbuilder", href: "/deckbuilder", keywords: "montar deck construtor build" },
+  { label: "Torneios", labelEn: "Tournaments", href: "/torneios", keywords: "torneios eventos resultados events results" },
+  { label: "Estatísticas do meta", labelEn: "Meta stats", href: "/stats", keywords: "estatisticas meta metagame statistics" },
+  { label: "Arquétipos", labelEn: "Archetypes", href: "/arquetipos", keywords: "arquetipos meta" },
+  { label: "Coleções", labelEn: "Sets", href: "/sets", keywords: "colecoes sets produtos products" },
+  { label: "Séries Gundam", labelEn: "Gundam series", href: "/series", keywords: "series obras" },
+  { label: "Regras", labelEn: "Rules", href: "/rules", keywords: "regras rulings rules" },
+  { label: "Simulador", labelEn: "Simulator", href: "/simulador", keywords: "simulador jogar partida bot play match" },
 ];
 
 const normalize = (text: string) => text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -31,7 +34,7 @@ export function matchSearchPages(term: string) {
   const words = normalize(term).split(/\s+/).filter(Boolean);
   if (words.length === 0) return SEARCH_PAGES;
   return SEARCH_PAGES.filter((page) => {
-    const hay = normalize(`${page.label} ${page.keywords}`);
+    const hay = normalize(`${page.label} ${page.labelEn} ${page.keywords}`);
     return words.every((w) => hay.includes(w));
   });
 }
@@ -47,6 +50,8 @@ export function GlobalSearch({ className, shortcut = false }: { className?: stri
   const [decks, setDecks] = useState<DeckHit[]>([]);
   const [loading, setLoading] = useState(false);
   const [, navigate] = useLocation();
+  const { tr, isEn } = useSiteLanguage();
+  const { isPt: cardsInPt } = useCardLanguage();
 
   useEffect(() => {
     if (!shortcut) return;
@@ -100,58 +105,58 @@ export function GlobalSearch({ className, shortcut = false }: { className?: stri
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="Buscar cartas, decks e páginas (Ctrl+K)"
-        title="Buscar (Ctrl+K)"
+        aria-label={tr("Buscar cartas, decks e páginas (Ctrl+K)", "Search cards, decks and pages (Ctrl+K)")}
+        title={tr("Buscar (Ctrl+K)", "Search (Ctrl+K)")}
         className={cn(
           "inline-flex h-9 min-w-9 items-center justify-center gap-2 rounded-md border border-white/15 bg-white/5 px-2.5 text-xs text-slate-300 transition-colors hover:bg-white/10 hover:text-white light:border-slate-300 light:bg-white light:text-slate-600",
           className,
         )}
       >
         <Search className="size-4" />
-        <span className="hidden 2xl:inline">Buscar</span>
+        <span className="hidden 2xl:inline">{tr("Buscar", "Search")}</span>
         <kbd className="hidden rounded border border-white/15 px-1 font-mono text-[10px] text-slate-400 2xl:inline">Ctrl K</kbd>
       </button>
 
       <Dialog open={open} onOpenChange={(value) => { setOpen(value); if (!value) setTerm(""); }}>
         <DialogHeader className="sr-only">
-          <DialogTitle>Buscar no AnaheimHub</DialogTitle>
-          <DialogDescription>Cartas por nome ou código, decks públicos e páginas do site.</DialogDescription>
+          <DialogTitle>{tr("Buscar no AnaheimHub", "Search AnaheimHub")}</DialogTitle>
+          <DialogDescription>{tr("Cartas por nome ou código, decks públicos e páginas do site.", "Cards by name or code, public decks and site pages.")}</DialogDescription>
         </DialogHeader>
         <DialogContent className="overflow-hidden p-0 sm:max-w-xl" showCloseButton={false}>
           <CommandPrimitive shouldFilter={false} className="flex h-full w-full flex-col overflow-hidden bg-popover text-popover-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-item]]:py-2.5">
-            <CommandInput value={term} onValueChange={setTerm} placeholder="Nome ou código da carta, nome do deck, página..." />
+            <CommandInput value={term} onValueChange={setTerm} placeholder={tr("Nome ou código da carta, nome do deck, página...", "Card name or code, deck name, page...")} />
             <CommandList className="max-h-[60vh]">
-              <CommandEmpty>{loading ? "Buscando..." : term.trim().length < 2 ? "Digite pelo menos 2 letras." : "Nada encontrado."}</CommandEmpty>
+              <CommandEmpty>{loading ? tr("Buscando...", "Searching...") : term.trim().length < 2 ? tr("Digite pelo menos 2 letras.", "Type at least 2 letters.") : tr("Nada encontrado.", "Nothing found.")}</CommandEmpty>
               {cards.length > 0 && (
-                <CommandGroup heading="Cartas">
+                <CommandGroup heading={tr("Cartas", "Cards")}>
                   {cards.map((card) => (
                     <CommandItem key={card.id} value={`card-${card.id}`} onSelect={() => go(`/cards/${encodeURIComponent(card.id)}`)}>
                       <Layers className="text-muted-foreground" />
                       <span className="font-mono text-xs text-muted-foreground">{card.code}</span>
-                      <span>{card.namePt || card.nameEn}</span>
+                      <span>{cardsInPt ? card.namePt || card.nameEn : card.nameEn || card.namePt}</span>
                     </CommandItem>
                   ))}
                 </CommandGroup>
               )}
               {decks.length > 0 && (
-                <CommandGroup heading="Decks públicos">
+                <CommandGroup heading={tr("Decks públicos", "Public decks")}>
                   {decks.filter((deck) => deck.shareId).map((deck) => (
                     <CommandItem key={deck.id} value={`deck-${deck.id}`} onSelect={() => go(`/deck/${encodeURIComponent(deck.shareId!)}`)}>
                       <Swords className="text-muted-foreground" />
                       <span>{deck.name}</span>
                       {deck.user?.displayName || deck.user?.username ? (
-                        <span className="text-xs text-muted-foreground">de {deck.user.displayName || deck.user.username}</span>
+                        <span className="text-xs text-muted-foreground">{tr("de", "by")} {deck.user.displayName || deck.user.username}</span>
                       ) : null}
                     </CommandItem>
                   ))}
                 </CommandGroup>
               )}
               {pages.length > 0 && (
-                <CommandGroup heading="Páginas">
+                <CommandGroup heading={tr("Páginas", "Pages")}>
                   {pages.map((page) => (
                     <CommandItem key={page.href} value={`page-${page.href}`} onSelect={() => go(page.href)}>
                       <FileText className="text-muted-foreground" />
-                      <span>{page.label}</span>
+                      <span>{isEn ? page.labelEn : page.label}</span>
                     </CommandItem>
                   ))}
                 </CommandGroup>

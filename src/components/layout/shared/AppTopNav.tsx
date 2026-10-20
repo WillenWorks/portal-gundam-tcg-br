@@ -17,31 +17,41 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { GlobalSearch } from "@/components/layout/shared/GlobalSearch";
+import { LanguageSwitcher } from "@/components/layout/shared/LanguageSwitcher";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export type NavItem = {
   href: string;
   label: string;
+  /** rótulo com o site em inglês */
+  labelEn: string;
   authRequired?: boolean;
-  children?: readonly { href: string; label: string }[];
+  children?: readonly { href: string; label: string; labelEn: string }[];
 };
 
+/** Rótulo do item no idioma do site. */
+export function navLabel(item: { label: string; labelEn: string }, isEn: boolean) {
+  return isEn ? item.labelEn : item.label;
+}
+
 export const publicTopNav: readonly NavItem[] = [
-  { href: "/", label: "Início" },
-  { href: "/decks", label: "Decks" },
+  { href: "/", label: "Início", labelEn: "Home" },
+  { href: "/decks", label: "Decks", labelEn: "Decks" },
   {
     href: "/database",
     label: "Catálogo",
+    labelEn: "Catalog",
     children: [
-      { href: "/database", label: "Cartas" },
-      { href: "/sets", label: "Produtos" },
+      { href: "/database", label: "Cartas", labelEn: "Cards" },
+      { href: "/sets", label: "Produtos", labelEn: "Products" },
     ],
   },
-  { href: "/torneios", label: "Torneios" },
-  { href: "/stats", label: "Estatísticas" },
+  { href: "/torneios", label: "Torneios", labelEn: "Tournaments" },
+  { href: "/stats", label: "Estatísticas", labelEn: "Stats" },
   // { href: "/series", label: "Universo" },
   // { href: "/articles", label: "Artigos" },
-  { href: "/rules", label: "Regras" },
-  { href: "/simulador", label: "Simulador", authRequired: true },
+  { href: "/rules", label: "Regras", labelEn: "Rules" },
+  { href: "/simulador", label: "Simulador", labelEn: "Simulator", authRequired: true },
 ] as const;
 
 function isActiveRoute(currentPath: string, href: string) {
@@ -59,6 +69,7 @@ function NavDropdown({
   currentPath: string;
 }) {
   const [open, setOpen] = useState(false);
+  const { isEn, tr } = useSiteLanguage();
   const children = item.children;
   if (!children) return null;
 
@@ -76,9 +87,9 @@ function NavDropdown({
               "inline-flex items-center gap-1 px-2.5 xl:px-3 py-1.5 text-xs font-medium uppercase tracking-[0.12em] xl:tracking-[0.14em] nav-hover-soft transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary",
               active ? "text-primary font-semibold" : "text-slate-300 hover:text-white",
             )}
-            aria-label={`${item.label} (menu suspenso)`}
+            aria-label={`${navLabel(item, isEn)} ${tr("(menu suspenso)", "(dropdown menu)")}`}
           >
-            <span>{item.label}</span>
+            <span>{navLabel(item, isEn)}</span>
             <ChevronDown className={cn("size-3 transition-transform duration-200", open ? "rotate-180" : "")} />
           </button>
         </DropdownMenuTrigger>
@@ -105,7 +116,7 @@ function NavDropdown({
                       : "text-slate-300 hover:text-white light:text-slate-700 light:hover:text-slate-950",
                   )}
                 >
-                  {child.label}
+                  {navLabel(child, isEn)}
                 </Link>
               </DropdownMenuItem>
             );
@@ -122,6 +133,7 @@ function MoreDropdown({
   currentPath: string;
 }) {
   const [open, setOpen] = useState(false);
+  const { tr } = useSiteLanguage();
 
   const isMoreActive = useMemo(() => {
     return (
@@ -148,9 +160,9 @@ function MoreDropdown({
               "inline-flex items-center gap-1 px-2.5 xl:px-3 py-1.5 text-xs font-medium uppercase tracking-[0.12em] xl:tracking-[0.14em] nav-hover-soft transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary",
               isMoreActive ? "text-primary font-semibold" : "text-slate-300 hover:text-white",
             )}
-            aria-label="Mais seções do site (menu suspenso)"
+            aria-label={tr("Mais seções do site (menu suspenso)", "More site sections (dropdown menu)")}
           >
-            <span>Mais</span>
+            <span>{tr("Mais", "More")}</span>
             <ChevronDown className={cn("size-3 transition-transform duration-200", open ? "rotate-180" : "")} />
           </button>
         </DropdownMenuTrigger>
@@ -171,7 +183,7 @@ function MoreDropdown({
                   : "text-slate-300 hover:text-white light:text-slate-700 light:hover:text-slate-950",
               )}
             >
-              Torneios & Eventos
+              {tr("Torneios & Eventos", "Tournaments & Events")}
             </Link>
           </DropdownMenuItem>
 
@@ -187,7 +199,7 @@ function MoreDropdown({
                   : "text-slate-300 hover:text-white light:text-slate-700 light:hover:text-slate-950",
               )}
             >
-              Estatísticas
+              {tr("Estatísticas", "Stats")}
             </Link>
           </DropdownMenuItem>
 
@@ -234,7 +246,7 @@ function MoreDropdown({
                   : "text-slate-300 hover:text-white light:text-slate-700 light:hover:text-slate-950",
               )}
             >
-              Regras
+              {tr("Regras", "Rules")}
             </Link>
           </DropdownMenuItem>
 
@@ -250,7 +262,7 @@ function MoreDropdown({
                   : "text-slate-300 hover:text-white light:text-slate-700 light:hover:text-slate-950",
               )}
             >
-              Novidades & Atualizações
+              {tr("Novidades & Atualizações", "News & Updates")}
             </Link>
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -262,6 +274,7 @@ function MoreDropdown({
 export function AppTopNav() {
   const { isAuthenticated, user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { isEn, tr } = useSiteLanguage();
   const [location, navigate] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileDatabaseOpen, setMobileDatabaseOpen] = useState(false);
@@ -289,7 +302,7 @@ export function AppTopNav() {
   const handleNavClick = (e: React.MouseEvent, item: NavItem) => {
     if (item.authRequired && !isAuthenticated) {
       e.preventDefault();
-      toast.info("Acesse sua conta para entrar no Simulador.");
+      toast.info(tr("Acesse sua conta para entrar no Simulador.", "Sign in to use the Simulator."));
       navigate("/login?redirect=" + encodeURIComponent(item.href));
       setMobileOpen(false);
       return;
@@ -308,19 +321,19 @@ export function AppTopNav() {
           <Link
             href="/"
             className="flex shrink-0 items-center gap-2.5 sm:gap-3 text-white transition-opacity hover:opacity-95"
-            aria-label="Anaheim Hub - Página Inicial"
+            aria-label={tr("Anaheim Hub - Página Inicial", "Anaheim Hub - Home")}
           >
             <img loading="lazy" decoding="async"
               src={anaheimLogo}
               alt="Anaheim Hub - Gundam Card Game"
               className="h-10 sm:h-11 xl:h-12 w-auto object-contain drop-shadow-[0_0_12px_rgba(56,189,248,0.25)]"
             />
-            <div className="hidden min-w-0 border-l border-white/15 pl-3 xl:block">
+            <div className="hidden min-w-0 border-l border-white/15 pl-3 3xl:block">
               <p className="font-heading text-lg xl:text-xl uppercase tracking-[0.16em] xl:tracking-[0.2em] text-white">Anaheim Hub</p>
             </div>
           </Link>
 
-          <nav className="hidden items-center gap-0.5 xl:gap-1 lg:flex" aria-label="Navegação principal">
+          <nav className="hidden items-center gap-0.5 xl:gap-1 lg:flex" aria-label={tr("Navegação principal", "Main navigation")}>
             {/* 1. Home */}
             <Link
               href="/"
@@ -329,7 +342,7 @@ export function AppTopNav() {
                 isActiveRoute(currentPath, "/") ? "text-primary font-semibold" : "text-slate-300 hover:text-white",
               )}
             >
-              Início
+              {tr("Início", "Home")}
             </Link>
 
             {/* 2. Decks */}
@@ -358,7 +371,7 @@ export function AppTopNav() {
                 isActiveRoute(currentPath, "/torneios") ? "text-primary font-semibold" : "text-slate-300 hover:text-white",
               )}
             >
-              Torneios
+              {tr("Torneios", "Tournaments")}
             </Link>
 
             {/* 5. Estatísticas — visível a partir de xl (1280px, incluindo 1366px); em lg fica no Mais */}
@@ -369,7 +382,7 @@ export function AppTopNav() {
                 isActiveRoute(currentPath, "/stats") ? "text-primary font-semibold" : "text-slate-300 hover:text-white",
               )}
             >
-              Estatísticas
+              {tr("Estatísticas", "Stats")}
             </Link>
 
             {/* 5. Universo — visível a partir de 2xl (1536px); em telas menores fica no Mais (ocultado temporariamente)
@@ -404,7 +417,7 @@ export function AppTopNav() {
                 isActiveRoute(currentPath, "/rules") ? "text-primary font-semibold" : "text-slate-300 hover:text-white",
               )}
             >
-              Regras
+              {tr("Regras", "Rules")}
             </Link>
 
             {/* 8. Simulador — destaque com selo BETA */}
@@ -416,7 +429,7 @@ export function AppTopNav() {
                 isActiveRoute(currentPath, "/simulador") ? "text-primary font-semibold" : "text-slate-300 hover:text-white",
               )}
             >
-              <span>Simulador</span>
+              <span>{tr("Simulador", "Simulator")}</span>
               <span className="rounded-xs border border-primary/40 bg-primary/20 px-1 py-0.5 text-[9px] font-bold tracking-wider text-primary">
                 BETA
               </span>
@@ -435,11 +448,11 @@ export function AppTopNav() {
             size="icon"
             className="rounded-none border border-primary/50 bg-primary/15 text-primary hover:bg-primary/25 2xl:size-auto 2xl:px-3.5 2xl:py-2"
             onClick={() => setSupportOpen(true)}
-            title="Apoiar o Anaheim Hub via Pix"
-            aria-label="Apoiar o Anaheim Hub via Pix"
+            title={tr("Apoiar o Anaheim Hub via Pix", "Support Anaheim Hub (Pix)")}
+            aria-label={tr("Apoiar o Anaheim Hub via Pix", "Support Anaheim Hub (Pix)")}
           >
             <HeartHandshake className="size-4 2xl:mr-1.5 2xl:size-3.5" />
-            <span className="hidden text-xs font-semibold uppercase tracking-[0.14em] 2xl:inline">Apoiar</span>
+            <span className="hidden text-xs font-semibold uppercase tracking-[0.14em] 2xl:inline">{tr("Apoiar", "Support")}</span>
           </Button>
 
           <Button
@@ -447,8 +460,8 @@ export function AppTopNav() {
             variant="outline"
             size="icon"
             className="hidden 2xl:inline-flex rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-primary light:border-slate-400/90 light:bg-white light:text-slate-950"
-            title="Novidades e Atualizações do Portal"
-            aria-label="Novidades e Atualizações do Portal"
+            title={tr("Novidades e Atualizações do Portal", "Site news & updates")}
+            aria-label={tr("Novidades e Atualizações do Portal", "Site news & updates")}
           >
             <Link href="/novidades">
               <CircleHelp className="size-4" />
@@ -461,11 +474,13 @@ export function AppTopNav() {
             size="icon"
             className="rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"
             onClick={toggleTheme}
-            title={theme === "dark" ? "Modo Claro" : "Modo Escuro"}
-            aria-label={theme === "dark" ? "Alternar para Modo Claro" : "Alternar para Modo Escuro"}
+            title={theme === "dark" ? tr("Modo Claro", "Light mode") : tr("Modo Escuro", "Dark mode")}
+            aria-label={theme === "dark" ? tr("Alternar para Modo Claro", "Switch to light mode") : tr("Alternar para Modo Escuro", "Switch to dark mode")}
           >
             {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
           </Button>
+
+          <LanguageSwitcher compact />
 
           {isAuthenticated ? (
             <>
@@ -475,15 +490,15 @@ export function AppTopNav() {
                 </Button>
               )}
               <Button asChild variant="outline" size="sm" className="rounded-none border-white/20 bg-white/5 text-xs uppercase tracking-[0.12em] xl:tracking-[0.14em] text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">
-                <Link href={dashboardHref}><PanelsTopLeft className="mr-1.5 size-3.5" />Perfil</Link>
+                <Link href={dashboardHref}><PanelsTopLeft className="mr-1.5 size-3.5" />{tr("Perfil", "Profile")}</Link>
               </Button>
               <Button type="button" variant="outline" size="sm" className="rounded-none border-white/20 bg-white/5 text-xs uppercase tracking-[0.12em] xl:tracking-[0.14em] text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={logout}>
-                <LogOut className="mr-1.5 size-3.5" />Sair
+                <LogOut className="mr-1.5 size-3.5" />{tr("Sair", "Sign out")}
               </Button>
             </>
           ) : (
             <Button asChild size="sm" className="rounded-none bg-primary px-3 xl:px-4 text-xs font-semibold uppercase tracking-[0.14em] xl:tracking-[0.16em] text-primary-foreground hover:bg-primary/90">
-              <Link href="/login"><LogIn className="mr-1.5 size-3.5" />Entrar</Link>
+              <Link href="/login"><LogIn className="mr-1.5 size-3.5" />{tr("Entrar", "Sign in")}</Link>
             </Button>
           )}
         </div>
@@ -496,8 +511,8 @@ export function AppTopNav() {
             variant="outline"
             size="icon"
             className="rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-primary light:border-slate-400/90 light:bg-white light:text-slate-950"
-            title="Novidades"
-            aria-label="Novidades e Atualizações"
+            title={tr("Novidades", "News")}
+            aria-label={tr("Novidades e Atualizações", "News & Updates")}
           >
             <Link href="/novidades">
               <CircleHelp className="size-4" />
@@ -509,18 +524,19 @@ export function AppTopNav() {
             size="icon"
             className="rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"
             onClick={toggleTheme}
-            title={theme === "dark" ? "Modo Claro" : "Modo Escuro"}
-            aria-label={theme === "dark" ? "Alternar para Modo Claro" : "Alternar para Modo Escuro"}
+            title={theme === "dark" ? tr("Modo Claro", "Light mode") : tr("Modo Escuro", "Dark mode")}
+            aria-label={theme === "dark" ? tr("Alternar para Modo Claro", "Switch to light mode") : tr("Alternar para Modo Escuro", "Switch to dark mode")}
           >
             {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
           </Button>
+          <LanguageSwitcher compact className="md:hidden" />
           <Button
             type="button"
             variant="outline"
             className="rounded-none border-white/20 bg-white/5 px-2.5 py-1 text-xs text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950 min-h-[36px]"
             onClick={() => setMobileOpen((prev) => !prev)}
             aria-expanded={mobileOpen}
-            aria-label={mobileOpen ? "Fechar menu de navegação" : "Abrir menu de navegação"}
+            aria-label={mobileOpen ? tr("Fechar menu de navegação", "Close navigation menu") : tr("Abrir menu de navegação", "Open navigation menu")}
           >
             {mobileOpen ? <X className="size-4" /> : <Menu className="size-4" />}
             <span className="ml-1.5 font-medium uppercase tracking-[0.1em]">Menu</span>
@@ -533,7 +549,7 @@ export function AppTopNav() {
       {mobileOpen ? (
         <div
           role="dialog"
-          aria-label="Menu principal de navegação"
+          aria-label={tr("Menu principal de navegação", "Main navigation menu")}
           aria-modal="true"
           className="border-t border-white/10 bg-slate-950/98 shadow-2xl backdrop-blur-2xl lg:hidden max-h-[calc(100vh-65px)] overflow-y-auto"
         >
@@ -556,7 +572,7 @@ export function AppTopNav() {
                           : "border-white/10 bg-white/[0.03] text-slate-200 hover:border-white/20 light:border-slate-300 light:bg-white light:text-slate-800",
                       )}
                     >
-                      <span>{item.label}</span>
+                      <span>{navLabel(item, isEn)}</span>
                       <ChevronDown className={cn("size-4 text-slate-400 transition-transform duration-200", mobileDatabaseOpen ? "rotate-180" : "")} />
                     </button>
 
@@ -572,7 +588,7 @@ export function AppTopNav() {
                             )}
                             onClick={() => setMobileOpen(false)}
                           >
-                            {child.label}
+                            {navLabel(child, isEn)}
                           </Link>
                         ))}
                       </div>
@@ -596,7 +612,7 @@ export function AppTopNav() {
                   <span className="flex items-center gap-2">
                     {item.href === "/simulador" ? <Swords className="size-3.5 text-primary" /> : null}
                     {item.href === "/torneios" ? <Trophy className="size-3.5 text-amber-400" /> : null}
-                    {item.label}
+                    {navLabel(item, isEn)}
                   </span>
                   {item.href === "/simulador" ? (
                     <span className="rounded-xs border border-primary/40 bg-primary/20 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-primary">
@@ -619,7 +635,7 @@ export function AppTopNav() {
               onClick={() => setMobileOpen(false)}
             >
               <CircleHelp className="size-3.5 text-primary" />
-              <span>Novidades & Atualizações</span>
+              <span>{tr("Novidades & Atualizações", "News & Updates")}</span>
             </Link>
 
             {/* Apoiar (Pix) */}
@@ -632,7 +648,7 @@ export function AppTopNav() {
               className="flex w-full min-h-[44px] items-center gap-2.5 border border-primary/40 bg-primary/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-primary transition-colors hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
             >
               <HeartHandshake className="size-3.5" />
-              <span>Apoiar o Anaheim Hub</span>
+              <span>{tr("Apoiar o Anaheim Hub", "Support Anaheim Hub")}</span>
             </button>
 
             {/* Seção de Autenticação / Perfil no Mobile */}
@@ -655,7 +671,7 @@ export function AppTopNav() {
                     onClick={() => setMobileOpen(false)}
                   >
                     <PanelsTopLeft className="size-3.5" />
-                    Perfil
+                    {tr("Perfil", "Profile")}
                   </Link>
                   <button
                     type="button"
@@ -666,7 +682,7 @@ export function AppTopNav() {
                     }}
                   >
                     <LogOut className="size-3.5" />
-                    Sair
+                    {tr("Sair", "Sign out")}
                   </button>
                 </div>
               ) : (
@@ -676,7 +692,7 @@ export function AppTopNav() {
                   onClick={() => setMobileOpen(false)}
                 >
                   <LogIn className="size-4" />
-                  Entrar
+                  {tr("Entrar", "Sign in")}
                 </Link>
               )}
             </div>

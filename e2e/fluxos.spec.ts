@@ -89,3 +89,20 @@ test("no celular os filtros do catálogo ficam recolhidos até tocar em Filtros"
   await page.getByRole("button", { name: /^filtros/i }).click();
   await expect(ordenar).toBeVisible();
 });
+
+test("trocar o idioma do site para inglês muda os menus e fica salvo no navegador", async ({ page, isMobile }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /idioma do site e das cartas/i }).filter({ visible: true }).first().click();
+  await page.getByRole("menuitemradio", { name: "English" }).first().click();
+  // seletor fecha; menus já em inglês
+  if (isMobile) {
+    await page.getByRole("button", { name: /open navigation menu/i }).click();
+  }
+  const nav = isMobile ? page.getByRole("dialog", { name: /main navigation menu/i }) : page.getByRole("navigation", { name: /main navigation/i });
+  await expect(nav.getByText("Home", { exact: true })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(page.getByRole("button", { name: /site and card language/i }).filter({ visible: true }).first()).toBeVisible();
+});

@@ -14,11 +14,13 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 type Crumb = { label: string; href?: string };
 
 export function PublicShell({ children, breadcrumbs, title, description, heroBanner }: { children: ReactNode; breadcrumbs?: Crumb[]; title?: string; description?: string; heroBanner?: ReactNode }) {
-  const trail = breadcrumbs?.length ? breadcrumbs : [{ label: title || "Página pública" }];
+  const { tr } = useSiteLanguage();
+  const trail = breadcrumbs?.length ? breadcrumbs : [{ label: title || tr("Página pública", "Public page") }];
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-x-hidden text-white dark:text-white light:text-slate-900">
@@ -34,7 +36,7 @@ export function PublicShell({ children, breadcrumbs, title, description, heroBan
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
-                  <Link href="/">Início</Link>
+                  <Link href="/">{tr("Início", "Home")}</Link>
                 </BreadcrumbLink>
               </BreadcrumbItem>
               {trail.map((crumb, index) => (
@@ -62,11 +64,11 @@ export function PublicShell({ children, breadcrumbs, title, description, heroBan
             <div className="panel-cut border border-white/10 bg-slate-950/70 px-5 py-5 dark:border-white/10 dark:bg-slate-950/70 light:border-slate-300/80 light:bg-white/86 light:shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Núcleo público</p>
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">{tr("Núcleo público", "Public area")}</p>
                   {title ? <h1 className="mt-2 font-heading text-3xl uppercase leading-none sm:text-4xl lg:text-5xl dark:text-white light:text-slate-900">{title}</h1> : null}
                   {description ? <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{description}</p> : null}
                 </div>
-                <Badge className="rounded-none border border-primary/40 bg-primary/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-primary">Área pública</Badge>
+                <Badge className="rounded-none border border-primary/40 bg-primary/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-primary">{tr("Área pública", "Public area")}</Badge>
               </div>
             </div>
           ) : null}

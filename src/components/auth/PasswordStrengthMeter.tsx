@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Check, Circle } from "lucide-react";
 import { evaluatePasswordStrength, type PasswordStrength } from "@/lib/passwordStrength";
 import { cn } from "@/lib/utils";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 interface PasswordStrengthMeterProps {
   password?: string;
@@ -16,6 +17,7 @@ export function PasswordStrengthMeter({
   className,
   showRequirements = true,
 }: PasswordStrengthMeterProps) {
+  const { tr } = useSiteLanguage();
   const strength = useMemo(() => {
     return providedStrength ?? evaluatePasswordStrength(password);
   }, [providedStrength, password]);
@@ -25,7 +27,7 @@ export function PasswordStrengthMeter({
   return (
     <div className={cn("space-y-2 pt-1", className)} aria-live="polite">
       <div className="flex items-center justify-between text-xs">
-        <span className="text-slate-400 light:text-slate-500">Força da senha</span>
+        <span className="text-slate-400 light:text-slate-500">{tr("Força da senha", "Password strength")}</span>
         <span
           className={cn(
             "font-semibold transition-colors",

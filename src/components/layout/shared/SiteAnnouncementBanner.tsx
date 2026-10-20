@@ -3,12 +3,14 @@ import { Link } from "wouter";
 import { AlertCircle, ArrowRight, CheckCircle2, Info, ShieldAlert, X } from "lucide-react";
 import { api, type PublicSiteConfig } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 const BANNER_STORAGE_KEY = "portal-gundam-tcg-br:dismissed-announcement";
 
 export function SiteAnnouncementBanner() {
   const [config, setConfig] = useState<PublicSiteConfig["announcement"] | null>(null);
   const [dismissed, setDismissed] = useState(true);
+  const { tr } = useSiteLanguage();
 
   useEffect(() => {
     let mounted = true;
@@ -72,7 +74,7 @@ export function SiteAnnouncementBanner() {
   return (
     <div
       role="region"
-      aria-label="Aviso do Portal"
+      aria-label={tr("Aviso do Portal", "Site notice")}
       className={cn(
         "relative z-50 border-b px-4 py-2.5 text-xs transition-all backdrop-blur-md",
         typeStyles.bar
@@ -99,7 +101,7 @@ export function SiteAnnouncementBanner() {
               href={config.link}
               className="inline-flex shrink-0 items-center gap-1 font-semibold uppercase tracking-wider text-primary hover:text-white transition-colors underline-offset-4 hover:underline text-[11px]"
             >
-              <span>{config.linkText || "Saiba mais"}</span>
+              <span>{config.linkText || tr("Saiba mais", "Learn more")}</span>
               <ArrowRight className="size-3" />
             </Link>
           ) : null}
@@ -109,8 +111,8 @@ export function SiteAnnouncementBanner() {
           type="button"
           onClick={handleDismiss}
           className="shrink-0 p-1 text-slate-400 hover:text-white transition-colors"
-          title="Fechar aviso"
-          aria-label="Fechar aviso"
+          title={tr("Fechar aviso", "Close notice")}
+          aria-label={tr("Fechar aviso", "Close notice")}
         >
           <X className="size-4" />
         </button>

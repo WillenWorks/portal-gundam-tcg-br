@@ -17,6 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { evaluatePasswordStrength, validatePasswordStrength } from "@/lib/passwordStrength";
 import { executeRecaptcha } from "@/lib/recaptcha";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
@@ -30,6 +31,7 @@ function getInitialMode() {
 }
 
 export default function AuthPage() {
+  const { tr } = useSiteLanguage();
   const { login, register, loginWithGoogle, isAuthenticated, user } = useAuth();
   const [, navigate] = useLocation();
   const [mode, setMode] = useState<"login" | "register">(() => getInitialMode());
@@ -50,8 +52,8 @@ export default function AuthPage() {
   const [emailStatus, setEmailStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
   const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
 
-  const eyebrow = useMemo(() => (mode === "login" ? "Entrar" : "Criar conta"), [mode]);
-  const title = useMemo(() => (mode === "login" ? "Entrar" : "Criar conta"), [mode]);
+  const eyebrow = mode === "login" ? tr("Entrar", "Sign in") : tr(tr("Criar conta", "Create account"), "Create account");
+  const title = eyebrow;
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
 
   // Cálculos reativos
@@ -79,7 +81,7 @@ export default function AuthPage() {
           setErrorMessage(null);
           loginWithGoogle(response.credential)
             .catch((err: any) => {
-              const msg = err?.message || "Erro ao entrar com Google.";
+              const msg = err?.message || tr("Erro ao entrar com Google.", "Google sign-in failed.");
               setErrorMessage(msg);
               toast.error(msg);
             })
@@ -132,7 +134,7 @@ export default function AuthPage() {
 
     if (mode === "login") {
       if (!cleanEmail || !password.trim()) {
-        const msg = "Por favor, preencha email e senha.";
+        const msg = tr("Por favor, preencha email e senha.", "Please enter your email and password.");
         setErrorMessage(msg);
         toast.error(msg);
         return;
@@ -143,7 +145,7 @@ export default function AuthPage() {
         const recaptchaToken = await executeRecaptcha("LOGIN").catch(() => null);
         await login(cleanEmail, password, recaptchaToken || undefined);
       } catch (err: any) {
-        const msg = err?.message || "Credenciais incorretas ou falha no servidor.";
+        const msg = err?.message || tr("Credenciais incorretas ou falha no servidor.", "Wrong credentials or server error.");
         setErrorMessage(msg);
         toast.error(msg);
       } finally {
@@ -154,28 +156,28 @@ export default function AuthPage() {
 
     // Validações completas do modo Cadastro
     if (!cleanName || cleanName.length < 3) {
-      const msg = "Informe seu nome completo (mínimo de 3 caracteres).";
+      const msg = tr("Informe seu nome completo (mínimo de 3 caracteres).", "Enter your full name (at least 3 characters).");
       setErrorMessage(msg);
       toast.error(msg);
       return;
     }
 
     if (!cleanUsername || !USERNAME_REGEX.test(cleanUsername)) {
-      const msg = "Nome de usuário deve ter entre 3 e 30 caracteres (letras, números, _ ou -).";
+      const msg = tr("Nome de usuário deve ter entre 3 e 30 caracteres (letras, números, _ ou -).", "Username must be 3 to 30 characters (letters, numbers, _ or -).");
       setErrorMessage(msg);
       toast.error(msg);
       return;
     }
 
     if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
-      const msg = "Por favor, informe um endereço de e-mail válido.";
+      const msg = tr("Por favor, informe um endereço de e-mail válido.", "Please enter a valid email address.");
       setErrorMessage(msg);
       toast.error(msg);
       return;
     }
 
     if (cleanEmail !== cleanConfirmEmail) {
-      const msg = "Os e-mails informados não coincidem. Verifique a confirmação.";
+      const msg = tr("Os e-mails informados não coincidem. Verifique a confirmação.", "The emails don't match. Check the confirmation.");
       setErrorMessage(msg);
       toast.error(msg);
       return;
@@ -183,14 +185,14 @@ export default function AuthPage() {
 
     const passValidation = validatePasswordStrength(password);
     if (!passValidation.valid) {
-      const msg = passValidation.error || "A senha não atende aos requisitos de segurança.";
+      const msg = passValidation.error || tr("A senha não atende aos requisitos de segurança.", "The password doesn't meet the security requirements.");
       setErrorMessage(msg);
       toast.error(msg);
       return;
     }
 
     if (password !== confirmPassword) {
-      const msg = "As senhas informadas não coincidem.";
+      const msg = tr("As senhas informadas não coincidem.", "The passwords don't match.");
       setErrorMessage(msg);
       toast.error(msg);
       return;
@@ -206,9 +208,9 @@ export default function AuthPage() {
         password,
         recaptchaToken: recaptchaToken || undefined,
       });
-      toast.success(`Conta criada com sucesso! Enviamos um link de confirmação para ${cleanEmail}.`);
+      toast.success(tr(`Conta criada com sucesso! Enviamos um link de confirmação para ${cleanEmail}.`, `Account created! We sent a confirmation link to ${cleanEmail}.`));
     } catch (err: any) {
-      const msg = err?.message || "Falha ao criar conta.";
+      const msg = err?.message || tr("Falha ao criar conta.", "Couldn't create the account.");
       setErrorMessage(msg);
       toast.error(msg);
     } finally {
@@ -230,14 +232,14 @@ export default function AuthPage() {
 
   return (
     <PublicShell
-      breadcrumbs={[{ label: mode === "login" ? "Login" : "Cadastro" }]}
+      breadcrumbs={[{ label: mode === "login" ? tr("Login", "Sign in") : "Cadastro" }]}
       title={title}
-      description="Entre no AnaheimHub para gerenciar seus decks e coleções e jogar no simulador."
+      description={tr("Entre no AnaheimHub para gerenciar seus decks e coleções e jogar no simulador.", "Sign in to AnaheimHub to manage your decks and collections and play in the simulator.")}
     >
       <RequestLoadingOverlay
         visible={loading}
-        label={mode === "login" ? "Entrando..." : "Criando conta..."}
-        sublabel="Só um instante"
+        label={mode === "login" ? tr("Entrando...", "Signing in...") : tr("Criando conta...", "Creating account...")}
+        sublabel={tr("Só um instante", "Just a moment")}
       />
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
@@ -251,8 +253,8 @@ export default function AuthPage() {
               <h2 className="mt-4 font-heading text-4xl uppercase leading-none md:text-5xl">{title}</h2>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300">
                 {mode === "login"
-                  ? "Informe seus dados de acesso para carregar sua coleção, decks salvos e histórico de combate."
-                  : "Crie sua conta gratuitamente e comece a montar listas competitivas e disputar partidas online."}
+                  ? tr("Informe seus dados de acesso para carregar sua coleção, decks salvos e histórico de combate.", "Enter your sign-in details to load your collection, saved decks and match history.")
+                  : tr("Crie sua conta gratuitamente e comece a montar listas competitivas e disputar partidas online.", "Create a free account and start building competitive lists and playing online matches.")}
               </p>
             </div>
 
@@ -265,7 +267,7 @@ export default function AuthPage() {
                 disabled={loading}
               >
                 <LogIn className="mr-1.5 size-3.5" />
-                Login
+                {tr("Login", "Sign in")}
               </Button>
               <Button
                 type="button"
@@ -275,7 +277,7 @@ export default function AuthPage() {
                 disabled={loading}
               >
                 <UserPlus className="mr-1.5 size-3.5" />
-                Criar conta
+                {tr("Criar conta", "Create account")}
               </Button>
             </div>
 
@@ -284,7 +286,7 @@ export default function AuthPage() {
               <div className="panel-cut flex items-start gap-3 border border-red-500/50 bg-red-950/50 p-4 text-red-200" role="alert">
                 <AlertCircle className="mt-0.5 size-5 shrink-0 text-red-400" />
                 <div className="text-sm leading-6">
-                  <p className="font-semibold text-red-300">Não foi possível prosseguir:</p>
+                  <p className="font-semibold text-red-300">{tr("Não foi possível prosseguir:", "Couldn't continue:")}</p>
                   <p>{errorMessage}</p>
                 </div>
               </div>
@@ -295,7 +297,7 @@ export default function AuthPage() {
                 <>
                   {/* Nome Completo */}
                   <div className="space-y-1">
-                    <label className="text-xs text-slate-400 light:text-slate-600">Nome completo</label>
+                    <label className="text-xs text-slate-400 light:text-slate-600">{tr("Nome completo", "Full name")}</label>
                     <Input
                       value={displayName}
                       onChange={(event) => { setDisplayName(event.target.value); setErrorMessage(null); }}
@@ -303,16 +305,16 @@ export default function AuthPage() {
                       className="field-shell"
                       disabled={loading}
                       autoComplete="name"
-                      aria-label="Nome completo"
+                      aria-label={tr("Nome completo", "Full name")}
                     />
                     {displayName && displayName.trim().length < 3 ? (
-                      <p className="text-[0.7rem] text-amber-400">Mínimo de 3 caracteres.</p>
+                      <p className="text-[0.7rem] text-amber-400">{tr("Mínimo de 3 caracteres.", "At least 3 characters.")}</p>
                     ) : null}
                   </div>
 
                   {/* Nome de Usuário */}
                   <div className="space-y-1">
-                    <label className="text-xs text-slate-400 light:text-slate-600">Nome de usuário (@)</label>
+                    <label className="text-xs text-slate-400 light:text-slate-600">{tr("Nome de usuário (@)", "Username (@)")}</label>
                     <div className="relative">
                       <Input
                         value={username}
@@ -327,21 +329,21 @@ export default function AuthPage() {
                         className="field-shell"
                         disabled={loading}
                         autoComplete="username"
-                        aria-label="Nome de usuário"
+                        aria-label={tr("Nome de usuário", "Username")}
                       />
                       {usernameStatus === "checking" ? (
                         <Loader2 className="absolute right-3 top-3 size-4 animate-spin text-primary" />
                       ) : null}
                     </div>
                     {username && !isUsernameFormatValid ? (
-                      <p className="text-[0.7rem] text-red-400">3 a 30 caracteres (letras, números, _ ou -).</p>
+                      <p className="text-[0.7rem] text-red-400">{tr("3 a 30 caracteres (letras, números, _ ou -).", "3 to 30 characters (letters, numbers, _ or -).")}</p>
                     ) : usernameStatus === "taken" ? (
                       <p className="flex items-center gap-1 text-[0.7rem] text-red-400">
-                        <XCircle className="size-3" /> Nome de usuário já em uso.
+                        <XCircle className="size-3" /> {tr("Nome de usuário já em uso.", "Username already taken.")}
                       </p>
                     ) : usernameStatus === "available" ? (
                       <p className="flex items-center gap-1 text-[0.7rem] text-emerald-400">
-                        <CheckCircle2 className="size-3" /> Nome de usuário disponível!
+                        <CheckCircle2 className="size-3" /> {tr("Nome de usuário disponível!", "Username available!")}
                       </p>
                     ) : (
                       <p className="text-[0.7rem] text-slate-500">Seu perfil: /u/{cleanUsername || "usuario"}</p>
@@ -350,7 +352,7 @@ export default function AuthPage() {
 
                   {/* E-mail */}
                   <div className="space-y-1">
-                    <label className="text-xs text-slate-400 light:text-slate-600">E-mail</label>
+                    <label className="text-xs text-slate-400 light:text-slate-600">{tr("E-mail", "Email")}</label>
                     <div className="relative">
                       <Input
                         value={email}
@@ -365,35 +367,35 @@ export default function AuthPage() {
                         type="email"
                         disabled={loading}
                         autoComplete="email"
-                        aria-label="E-mail"
+                        aria-label={tr("E-mail", "Email")}
                       />
                       {emailStatus === "checking" ? (
                         <Loader2 className="absolute right-3 top-3 size-4 animate-spin text-primary" />
                       ) : null}
                     </div>
                     {email && !isEmailFormatValid ? (
-                      <p className="text-[0.7rem] text-red-400">Formato de e-mail inválido.</p>
+                      <p className="text-[0.7rem] text-red-400">{tr("Formato de e-mail inválido.", "Invalid email format.")}</p>
                     ) : emailStatus === "taken" ? (
                       <p className="flex items-center gap-1 text-[0.7rem] text-red-400">
-                        <XCircle className="size-3" /> E-mail já cadastrado.{" "}
+                        <XCircle className="size-3" /> {tr("E-mail já cadastrado.", "Email already registered.")}{" "}
                         <button
                           type="button"
                           onClick={() => { setMode("login"); setErrorMessage(null); }}
                           className="underline hover:text-primary"
                         >
-                          Fazer login?
+                          {tr("Fazer login?", "Sign in?")}
                         </button>
                       </p>
                     ) : emailStatus === "available" ? (
                       <p className="flex items-center gap-1 text-[0.7rem] text-emerald-400">
-                        <CheckCircle2 className="size-3" /> E-mail disponível!
+                        <CheckCircle2 className="size-3" /> {tr("E-mail disponível!", "Email available!")}
                       </p>
                     ) : null}
                   </div>
 
                   {/* Confirmar E-mail */}
                   <div className="space-y-1">
-                    <label className="text-xs text-slate-400 light:text-slate-600">Confirmar e-mail</label>
+                    <label className="text-xs text-slate-400 light:text-slate-600">{tr("Confirmar e-mail", "Confirm email")}</label>
                     <Input
                       value={confirmEmail}
                       onChange={(event) => { setConfirmEmail(event.target.value); setErrorMessage(null); }}
@@ -402,35 +404,35 @@ export default function AuthPage() {
                       type="email"
                       disabled={loading}
                       autoComplete="email"
-                      aria-label="Confirmar e-mail"
+                      aria-label={tr("Confirmar e-mail", "Confirm email")}
                     />
                     {confirmEmail && !emailsMatch ? (
-                      <p className="text-[0.7rem] text-amber-400">Os e-mails não coincidem.</p>
+                      <p className="text-[0.7rem] text-amber-400">{tr("Os e-mails não coincidem.", "The emails don't match.")}</p>
                     ) : confirmEmail && emailsMatch ? (
                       <p className="flex items-center gap-1 text-[0.7rem] text-emerald-400">
-                        <CheckCircle2 className="size-3" /> E-mails conferem.
+                        <CheckCircle2 className="size-3" /> {tr("E-mails conferem.", "Emails match.")}
                       </p>
                     ) : null}
                   </div>
 
                   {/* Senha */}
                   <div className="space-y-1">
-                    <label className="text-xs text-slate-400 light:text-slate-600">Senha</label>
+                    <label className="text-xs text-slate-400 light:text-slate-600">{tr("Senha", "Password")}</label>
                     <Input
                       value={password}
                       onChange={(event) => { setPassword(event.target.value); setErrorMessage(null); }}
                       type="password"
-                      placeholder="Crie uma senha forte"
+                      placeholder={tr("Crie uma senha forte", "Create a strong password")}
                       className="field-shell"
                       disabled={loading}
                       autoComplete="new-password"
-                      aria-label="Senha"
+                      aria-label={tr("Senha", "Password")}
                     />
                   </div>
 
                   {/* Confirmar Senha */}
                   <div className="space-y-1">
-                    <label className="text-xs text-slate-400 light:text-slate-600">Confirmar senha</label>
+                    <label className="text-xs text-slate-400 light:text-slate-600">{tr("Confirmar senha", "Confirm password")}</label>
                     <Input
                       value={confirmPassword}
                       onChange={(event) => { setConfirmPassword(event.target.value); setErrorMessage(null); }}
@@ -439,13 +441,13 @@ export default function AuthPage() {
                       className="field-shell"
                       disabled={loading}
                       autoComplete="new-password"
-                      aria-label="Confirmar senha"
+                      aria-label={tr("Confirmar senha", "Confirm password")}
                     />
                     {confirmPassword && !passwordsMatch ? (
-                      <p className="text-[0.7rem] text-amber-400">As senhas não coincidem.</p>
+                      <p className="text-[0.7rem] text-amber-400">{tr("As senhas não coincidem.", "The passwords don't match.")}</p>
                     ) : confirmPassword && passwordsMatch ? (
                       <p className="flex items-center gap-1 text-[0.7rem] text-emerald-400">
-                        <CheckCircle2 className="size-3" /> Senhas conferem.
+                        <CheckCircle2 className="size-3" /> {tr("Senhas conferem.", "Passwords match.")}
                       </p>
                     ) : null}
                   </div>
@@ -459,48 +461,48 @@ export default function AuthPage() {
 
                   {/* Termos e Política */}
                   <div className="text-xs leading-5 text-slate-400 light:text-slate-600 md:col-span-2">
-                    Ao criar sua conta, você concorda com os{" "}
+                    {tr("Ao criar sua conta, você concorda com os", "By creating an account you agree to the")}{" "}
                     <a href="/termos/" target="_blank" rel="noreferrer" className="text-primary hover:underline">
-                      Termos de Uso
+                      {tr("Termos de Uso", "Terms of Use")}
                     </a>{" "}
-                    e a{" "}
+                    {tr("e a", "and the")}{" "}
                     <a href="/privacidade/" target="_blank" rel="noreferrer" className="text-primary hover:underline">
-                      Política de Privacidade
+                      {tr("Política de Privacidade", "Privacy Policy")}
                     </a>{" "}
-                    do AnaheimHub.
+                    {tr("do AnaheimHub.", "of AnaheimHub.")}
                   </div>
                 </>
               ) : (
                 <>
                   {/* Modo Login */}
                   <div className="space-y-1 md:col-span-1">
-                    <label className="text-xs text-slate-400 light:text-slate-600">E-mail</label>
+                    <label className="text-xs text-slate-400 light:text-slate-600">{tr("E-mail", "Email")}</label>
                     <Input
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
-                      placeholder="Seu email"
+                      placeholder={tr("Seu email", "Your email")}
                       className="field-shell"
                       type="email"
                       disabled={loading}
                       autoComplete="email"
-                      aria-label="E-mail"
+                      aria-label={tr("E-mail", "Email")}
                     />
                   </div>
                   <div className="space-y-1 md:col-span-1">
-                    <label className="text-xs text-slate-400 light:text-slate-600">Senha</label>
+                    <label className="text-xs text-slate-400 light:text-slate-600">{tr("Senha", "Password")}</label>
                     <Input
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       type="password"
-                      placeholder="Sua senha"
+                      placeholder={tr("Sua senha", "Your password")}
                       className="field-shell"
                       disabled={loading}
                       autoComplete="current-password"
-                      aria-label="Senha"
+                      aria-label={tr("Senha", "Password")}
                     />
                   </div>
                   <Link href="/recuperar-senha" className="text-xs text-primary hover:underline md:col-span-2">
-                    Esqueci minha senha
+                    {tr("Esqueci minha senha", "Forgot my password")}
                   </Link>
                 </>
               )}
@@ -514,12 +516,12 @@ export default function AuthPage() {
                   {loading ? (
                     <>
                       <Loader2 className="mr-2 size-4 animate-spin" />
-                      Processando...
+                      {tr("Processando...", "Processing...")}
                     </>
                   ) : mode === "login" ? (
-                    "Entrar no painel"
+                    tr("Entrar no painel", "Sign in")
                   ) : (
-                    "Criar conta e entrar"
+                    tr("Criar conta e entrar", "Create account and sign in")
                   )}
                 </Button>
                 <Button
@@ -527,14 +529,14 @@ export default function AuthPage() {
                   variant="outline"
                   className="rounded-none border-white/20 bg-white/5 text-xs uppercase tracking-[0.14em] text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"
                 >
-                  <Link href="/decks">Explorar decks públicos</Link>
+                  <Link href="/decks">{tr("Explorar decks públicos", "Browse public decks")}</Link>
                 </Button>
               </div>
             </form>
 
             {GOOGLE_CLIENT_ID ? (
               <div className="space-y-3 border-t border-white/10 pt-5">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">ou entre com</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{tr("ou entre com", "or sign in with")}</p>
                 <div ref={googleButtonRef} />
               </div>
             ) : null}
@@ -544,34 +546,34 @@ export default function AuthPage() {
         <div className="grid gap-4">
           <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
             <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Recursos de Piloto</p>
-              <h3 className="mt-3 font-heading text-3xl uppercase">Tudo em um só lugar</h3>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">{tr("Recursos de Piloto", "Player features")}</p>
+              <h3 className="mt-3 font-heading text-3xl uppercase">{tr("Tudo em um só lugar", "Everything in one place")}</h3>
               <p className="mt-4 text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">
-                Salve suas listas, acompanhe a curva de custos com validação oficial em tempo real, organize suas cartas na pasta virtual e enfrente adversários na arena.
+                {tr("Salve suas listas, acompanhe a curva de custos com validação oficial em tempo real, organize suas cartas na pasta virtual e enfrente adversários na arena.", "Save your lists, follow your cost curve with real-time official validation, organize your cards in a virtual binder and face opponents in the arena.")}
               </p>
             </CardContent>
           </Card>
 
           <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
             <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Acesso Seguro</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">{tr("Acesso Seguro", "Secure access")}</p>
               {isAuthenticated ? (
                 <>
-                  <h3 className="mt-3 font-heading text-3xl uppercase">Você já está autenticado</h3>
+                  <h3 className="mt-3 font-heading text-3xl uppercase">{tr("Você já está autenticado", "You're already signed in")}</h3>
                   <p className="mt-4 text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">
                     Sessão ativa como <span className="font-semibold text-primary">{user?.displayName}</span> (@{user?.username}).
                   </p>
                   <div className="mt-5 flex flex-wrap gap-3">
                     <Button asChild className="rounded-none bg-primary text-xs uppercase tracking-[0.14em] text-primary-foreground hover:bg-primary/90">
-                      <Link href="/profile">Abrir perfil</Link>
+                      <Link href="/profile">{tr("Abrir perfil", "Open profile")}</Link>
                     </Button>
                   </div>
                 </>
               ) : (
                 <>
-                  <h3 className="mt-3 font-heading text-3xl uppercase">Padrão AnaheimHub</h3>
+                  <h3 className="mt-3 font-heading text-3xl uppercase">{tr("Padrão AnaheimHub", "The AnaheimHub way")}</h3>
                   <p className="mt-4 text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">
-                    Cadastre-se com email e senha ou utilize sua conta Google. Suas credenciais são criptografadas com salting, e o login social utiliza OAuth 2.0 seguro.
+                    {tr("Cadastre-se com email e senha ou utilize sua conta Google. Suas credenciais são criptografadas com salting, e o login social utiliza OAuth 2.0 seguro.", "Sign up with email and password or use your Google account. Passwords are stored salted and hashed, and social sign-in uses secure OAuth 2.0.")}
                   </p>
                 </>
               )}

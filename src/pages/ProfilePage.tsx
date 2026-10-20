@@ -45,6 +45,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import defaultPilotAvatar from "@/assets/home/default_pilot_avatar.webp";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 type FriendItem = {
   friendshipId: string;
@@ -81,6 +82,7 @@ type PendingSentItem = {
 };
 
 export default function ProfilePage() {
+  const { tr, lang: siteLang, setLanguage: setSiteLanguage, locale } = useSiteLanguage();
   const { user, refreshMe, setCurrentUser } = useAuth();
   const { theme, setTheme } = useTheme();
   const { faction, setFaction } = useFaction();
@@ -129,41 +131,41 @@ export default function ProfilePage() {
   const handleAcceptFriend = async (friendshipId: string, username: string) => {
     try {
       await api.acceptFriendRequest(friendshipId);
-      toast.success(`Você e @${username} agora são amigos de esquadrão!`);
+      toast.success(tr(`Você e @${username} agora são amigos de esquadrão!`, `You and @${username} are now friends!`));
       await loadFriendsData();
     } catch (err: any) {
-      toast.error(err?.message || "Erro ao aceitar solicitação.");
+      toast.error(err?.message || tr("Erro ao aceitar solicitação.", "Couldn't accept the request."));
     }
   };
 
   const handleDeclineFriend = async (username: string) => {
     try {
       await api.removeFriend(username);
-      toast.info("Solicitação recusada.");
+      toast.info(tr("Solicitação recusada.", "Request declined."));
       await loadFriendsData();
     } catch (err: any) {
-      toast.error(err?.message || "Erro ao recusar solicitação.");
+      toast.error(err?.message || tr("Erro ao recusar solicitação.", "Couldn't decline the request."));
     }
   };
 
   const handleCancelSentRequest = async (username: string) => {
     try {
       await api.removeFriend(username);
-      toast.info("Solicitação cancelada.");
+      toast.info(tr("Solicitação cancelada.", "Request cancelled."));
       await loadFriendsData();
     } catch (err: any) {
-      toast.error(err?.message || "Erro ao cancelar solicitação.");
+      toast.error(err?.message || tr("Erro ao cancelar solicitação.", "Couldn't cancel the request."));
     }
   };
 
   const handleRemoveFriend = async (username: string) => {
-    if (!window.confirm(`Tem certeza que deseja desfazer o vínculo de amizade com @${username}?`)) return;
+    if (!window.confirm(tr(`Tem certeza que deseja desfazer o vínculo de amizade com @${username}?`, `Remove @${username} from your friends?`))) return;
     try {
       await api.removeFriend(username);
-      toast.info(`Vínculo de amizade com @${username} desfeito.`);
+      toast.info(tr(`Vínculo de amizade com @${username} desfeito.`, `@${username} removed from your friends.`));
       await loadFriendsData();
     } catch (err: any) {
-      toast.error(err?.message || "Erro ao desfazer amizade.");
+      toast.error(err?.message || tr("Erro ao desfazer amizade.", "Couldn't remove the friend."));
     }
   };
 
@@ -172,21 +174,21 @@ export default function ProfilePage() {
     const cleanUsername = addFriendInput.trim().replace(/^@/, "");
     if (!cleanUsername) return;
     if (cleanUsername.toLowerCase() === user?.username?.toLowerCase()) {
-      toast.warning("Você não pode enviar solicitação para si mesmo.");
+      toast.warning(tr("Você não pode enviar solicitação para si mesmo.", "You can't send a request to yourself."));
       return;
     }
     setSendingFriendRequest(true);
     try {
       const res = await api.sendFriendRequest(cleanUsername);
       if (res.status === "FRIENDS") {
-        toast.success(`Você e @${cleanUsername} agora são amigos!`);
+        toast.success(tr(`Você e @${cleanUsername} agora são amigos!`, `You and @${cleanUsername} are now friends!`));
       } else {
-        toast.success(`Solicitação de amizade enviada para @${cleanUsername}!`);
+        toast.success(tr(`Solicitação de amizade enviada para @${cleanUsername}!`, `Friend request sent to @${cleanUsername}!`));
       }
       setAddFriendInput("");
       await loadFriendsData();
     } catch (err: any) {
-      toast.error(err?.message || "Erro ao enviar solicitação de amizade.");
+      toast.error(err?.message || tr("Erro ao enviar solicitação de amizade.", "Couldn't send the friend request."));
     } finally {
       setSendingFriendRequest(false);
     }
@@ -218,9 +220,9 @@ export default function ProfilePage() {
       const nextPublic = !binder.isPublic;
       await api.updateMyBinder(binder.id, { isPublic: nextPublic });
       setBinders((prev) => prev.map((b) => (b.id === binder.id ? { ...b, isPublic: nextPublic } : b)));
-      toast.success(nextPublic ? "Pasta agora está PÚBLICA e acessível via link único." : "Pasta agora está PRIVADA.");
+      toast.success(nextPublic ? tr("Pasta agora está PÚBLICA e acessível via link único.", "Binder is now PUBLIC and reachable through its unique link.") : tr("Pasta agora está PRIVADA.", "Binder is now PRIVATE."));
     } catch (err: any) {
-      toast.error(err?.message || "Erro ao alterar visibilidade da pasta.");
+      toast.error(err?.message || tr("Erro ao alterar visibilidade da pasta.", "Couldn't change the binder visibility."));
     }
   };
 
@@ -228,9 +230,9 @@ export default function ProfilePage() {
     const url = `${window.location.origin}/binder/${shareId}`;
     try {
       await navigator.clipboard.writeText(url);
-      toast.success("Link único da pasta copiado para a área de transferência!");
+      toast.success(tr("Link único da pasta copiado para a área de transferência!", "Binder link copied to the clipboard!"));
     } catch {
-      toast.error("Não foi possível copiar o link.");
+      toast.error(tr("Não foi possível copiar o link.", "Couldn't copy the link."));
     }
   };
 
@@ -242,10 +244,10 @@ export default function ProfilePage() {
         description: "Cartas que possuo e coleciono no Anaheim Hub.",
         isPublic: true,
       });
-      toast.success("Pasta de coleção criada com sucesso!");
+      toast.success(tr("Pasta de coleção criada com sucesso!", "Collection binder created!"));
       await loadBinders();
     } catch (err: any) {
-      toast.error(err?.message || "Erro ao criar pasta.");
+      toast.error(err?.message || tr("Erro ao criar pasta.", "Couldn't create the binder."));
     } finally {
       setCreatingBinder(false);
     }
@@ -265,13 +267,13 @@ export default function ProfilePage() {
     const updated = await api.updateMe({ displayName, bio, preferredCardLanguage, preferredTheme: theme });
     setCurrentUser(updated);
     await refreshMe();
-    toast.success("Dados atualizados.");
+    toast.success(tr("Dados atualizados.", "Saved."));
   };
 
   const savePassword = async () => {
     const validation = validatePasswordStrength(newPassword);
     if (!validation.valid) {
-      toast.error(validation.error || "A nova senha não atende aos requisitos de segurança.");
+      toast.error(validation.error || tr("A nova senha não atende aos requisitos de segurança.", "The new password doesn't meet the security requirements."));
       return;
     }
     try {
@@ -279,9 +281,9 @@ export default function ProfilePage() {
       setCurrentPassword("");
       setNewPassword("");
       await refreshMe();
-      toast.success(user?.hasPassword ? "Senha atualizada." : "Senha definida — agora você também pode entrar com email e senha.");
+      toast.success(user?.hasPassword ? tr("Senha atualizada.", "Password updated.") : tr("Senha definida — agora você também pode entrar com email e senha.", "Password set — you can now also sign in with email and password."));
     } catch (err: any) {
-      toast.error(err?.message || "Erro ao salvar senha.");
+      toast.error(err?.message || tr("Erro ao salvar senha.", "Couldn't save the password."));
     }
   };
 
@@ -298,50 +300,50 @@ export default function ProfilePage() {
       const updated = await api.uploadAvatar(formData);
       setCurrentUser(updated);
       await refreshMe();
-      toast.success("Avatar atualizado.");
+      toast.success(tr("Avatar atualizado.", "Avatar updated."));
     } catch (err: any) {
-      toast.error(err?.message || "Erro ao enviar avatar.");
+      toast.error(err?.message || tr("Erro ao enviar avatar.", "Couldn't upload the avatar."));
     } finally {
       setUploadingAvatar(false);
     }
   };
 
-  const loginMethod = user?.hasPassword ? "Email e senha" : "Login com Google";
+  const loginMethod = user?.hasPassword ? tr("Email e senha", "Email and password") : tr("Login com Google", "Google sign-in");
   const [resendingEmail, setResendingEmail] = useState(false);
   const resendVerification = async () => {
     setResendingEmail(true);
     try {
       const res = await api.resendVerificationEmail();
-      toast.success(res?.message ?? "Enviamos um novo link de confirmação.");
+      toast.success(res?.message ?? tr("Enviamos um novo link de confirmação.", "We sent a new confirmation link."));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Não foi possível reenviar agora.");
+      toast.error(err instanceof Error ? err.message : tr("Não foi possível reenviar agora.", "Couldn't resend right now."));
     } finally {
       setResendingEmail(false);
     }
   };
 
   return (
-    <PortalShell breadcrumbs={[{ label: "Configurações" }]}>
+    <PortalShell breadcrumbs={[{ label: tr("Configurações", "Settings") }]}>
       <div className="space-y-6">
         {/* Bloco de Gestão de Coleção de Cartas & Pastas Públicas */}
         <Card className="panel-cut rounded-none border-primary/40 hero-surface">
           <CardContent className="space-y-5 p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-white/10 pb-5">
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-primary">Hangar de Colecionador</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-primary">{tr("Hangar de Colecionador", "Collector's Hangar")}</p>
                 <div className="mt-1 flex flex-wrap items-center gap-3">
-                  <h2 className="font-heading text-3xl uppercase tracking-wider">Minhas Cartas & Pastas Públicas</h2>
+                  <h2 className="font-heading text-3xl uppercase tracking-wider">{tr("Minhas Cartas & Pastas Públicas", "My Cards & Public Binders")}</h2>
                   <Badge className="rounded-none border-primary/50 bg-primary/20 text-primary font-mono text-xs">BINDER SYSTEM</Badge>
                 </div>
                 <p className="mt-2 text-sm text-slate-300 max-w-3xl leading-relaxed">
-                  Cadastre as cartas que você possui diferenciando as artes e impressões (Regular, Alt-Art, Parallel Rare, Promo ou Winner). Pastas marcadas como públicas geram um <strong className="text-white">link único exclusivo</strong> para compartilhar sua vitrine com a comunidade do Anaheim Hub.
+                  {tr("Cadastre as cartas que você possui diferenciando as artes e impressões (Regular, Alt-Art, Parallel Rare, Promo ou Winner). Pastas marcadas como públicas geram um", "Register the cards you own, telling apart arts and prints (Regular, Alt-Art, Parallel Rare, Promo or Winner). Public binders get a")} <strong className="text-white">{tr("link único exclusivo", "unique link")}</strong> {tr("para compartilhar sua vitrine com a comunidade do Anaheim Hub.", "to share your showcase with the Anaheim Hub community.")}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Button asChild className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90">
                   <Link href="/binders">
                     <BookMarked className="mr-2 size-4" />
-                    Gerenciar Todas as Pastas
+                    {tr("Gerenciar Todas as Pastas", "Manage All Binders")}
                   </Link>
                 </Button>
                 {binders.length === 0 ? (
@@ -353,7 +355,7 @@ export default function ProfilePage() {
                     className="rounded-none border-white/20 bg-white/5 text-white hover:bg-white/10"
                   >
                     <Plus className="mr-2 size-4" />
-                    {creatingBinder ? "Criando..." : "Criar Pasta de Coleção"}
+                    {creatingBinder ? tr("Criando...", "Creating...") : tr("Criar Pasta de Coleção", "Create Collection Binder")}
                   </Button>
                 ) : null}
               </div>
@@ -362,39 +364,39 @@ export default function ProfilePage() {
             {/* Métricas rápidas de cartas e pastas */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="panel-cut border border-white/10 bg-slate-950/60 p-3">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Total de Pastas</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">{tr("Total de Pastas", "Total Binders")}</p>
                 <p className="mt-1 font-heading text-2xl text-white">{binders.length}</p>
               </div>
               <div className="panel-cut border border-white/10 bg-slate-950/60 p-3">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Cartas Cadastradas</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">{tr("Cartas Cadastradas", "Cards Registered")}</p>
                 <p className="mt-1 font-heading text-2xl text-primary">
                   {binders.reduce((acc, b) => acc + (b._count?.items ?? b.items?.length ?? 0), 0)}
                 </p>
               </div>
               <div className="panel-cut border border-white/10 bg-slate-950/60 p-3">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Pastas Públicas</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">{tr("Pastas Públicas", "Public Binders")}</p>
                 <p className="mt-1 font-heading text-2xl text-emerald-400">
                   {binders.filter((b) => b.isPublic).length}
                 </p>
               </div>
               <div className="panel-cut border border-white/10 bg-slate-950/60 p-3">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Diferenciação</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">{tr("Diferenciação", "Variants")}</p>
                 <div className="mt-1 flex items-center gap-1.5 text-xs text-amber-300 font-mono">
                   <Sparkles className="size-3.5" />
-                  <span>Alt-Arts Ativas</span>
+                  <span>{tr("Alt-Arts Ativas", "Active Alt-Arts")}</span>
                 </div>
               </div>
             </div>
 
             {/* Listagem das pastas ou estado vazio */}
             {loadingBinders ? (
-              <p className="text-sm text-slate-400 py-4 text-center">Carregando dados da coleção...</p>
+              <p className="text-sm text-slate-400 py-4 text-center">{tr("Carregando dados da coleção...", "Loading collection...")}</p>
             ) : binders.length === 0 ? (
               <div className="panel-cut border border-dashed border-white/20 bg-slate-950/40 p-6 text-center">
                 <BookMarked className="mx-auto size-8 text-slate-500 mb-2" />
-                <h3 className="font-heading text-lg uppercase text-slate-300">Você ainda não possui nenhuma pasta de cartas</h3>
+                <h3 className="font-heading text-lg uppercase text-slate-300">{tr("Você ainda não possui nenhuma pasta de cartas", "You don't have any card binders yet")}</h3>
                 <p className="mt-1 text-sm text-slate-400 max-w-lg mx-auto">
-                  Crie sua primeira pasta para cadastrar suas cartas físicas, escolher versões de arte específicas e compartilhar seu fichário publicamente.
+                  {tr("Crie sua primeira pasta para cadastrar suas cartas físicas, escolher versões de arte específicas e compartilhar seu fichário publicamente.", "Create your first binder to register your physical cards, pick specific art versions and share your binder publicly.")}
                 </p>
                 <Button
                   type="button"
@@ -403,14 +405,14 @@ export default function ProfilePage() {
                   className="mt-4 rounded-none bg-primary text-primary-foreground hover:bg-primary/90"
                 >
                   <Plus className="mr-2 size-4" />
-                  {creatingBinder ? "Criando pasta..." : "Criar Minha Pasta Agora"}
+                  {creatingBinder ? tr("Criando pasta...", "Creating binder...") : tr("Criar Minha Pasta Agora", "Create My Binder Now")}
                 </Button>
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-mono">Suas Pastas & Links Únicos de Compartilhamento</p>
-                  <p className="text-[11px] text-slate-400 hidden sm:block">Dica: No editor, use o ícone de galeria para selecionar artes alternativas.</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-mono">{tr("Suas Pastas & Links Únicos de Compartilhamento", "Your Binders & Share Links")}</p>
+                  <p className="text-[11px] text-slate-400 hidden sm:block">{tr("Dica: No editor, use o ícone de galeria para selecionar artes alternativas.", "Tip: in the editor, use the gallery icon to pick alternate arts.")}</p>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   {binders.map((binder) => {
@@ -423,22 +425,22 @@ export default function ProfilePage() {
                             <h4 className="font-heading text-xl uppercase text-white hover:text-primary transition">
                               <Link href={`/binders/${binder.id}`}>{binder.name}</Link>
                             </h4>
-                            <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">{binder.description || "Sem descrição pública."}</p>
+                            <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">{binder.description || tr("Sem descrição pública.", "No public description.")}</p>
                           </div>
                           <Badge className={`rounded-none border text-[10px] font-mono uppercase ${binder.isPublic ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-slate-500/40 bg-slate-500/10 text-slate-400"}`}>
-                            {binder.isPublic ? "Pública" : "Privada"}
+                            {binder.isPublic ? tr("Pública", "Public") : tr("Privada", "Private")}
                           </Badge>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-                          <span className="font-mono text-primary font-bold">{itemCount}</span> cartas cadastradas
+                          <span className="font-mono text-primary font-bold">{itemCount}</span> {tr("cartas cadastradas", "cards registered")}
                           <span>•</span>
                           <button
                             type="button"
                             onClick={() => toggleBinderVisibility(binder)}
                             className="text-primary hover:underline font-mono text-[11px]"
                           >
-                            {binder.isPublic ? "Mudar para Privada" : "Tornar Pública"}
+                            {binder.isPublic ? tr("Mudar para Privada", "Make Private") : tr("Tornar Pública", "Make Public")}
                           </button>
                         </div>
 
@@ -447,7 +449,7 @@ export default function ProfilePage() {
                             <div className="flex items-center justify-between gap-2">
                               <span className="text-[10px] uppercase font-mono tracking-wider text-emerald-400 flex items-center gap-1">
                                 <Globe className="size-3" />
-                                Link Único Compartilhável:
+                                {tr("Link Único Compartilhável:", "Shareable link:")}
                               </span>
                               <Button
                                 type="button"
@@ -457,7 +459,7 @@ export default function ProfilePage() {
                                 className="h-6 rounded-none border-emerald-400/40 bg-emerald-400/10 text-[10px] text-emerald-300 hover:bg-emerald-400/20"
                               >
                                 <Copy className="mr-1 size-3" />
-                                Copiar Link
+                                {tr("Copiar Link", "Copy Link")}
                               </Button>
                             </div>
                             <div className="bg-slate-950/80 p-1.5 border border-white/10 font-mono text-[11px] text-slate-300 truncate select-all">
@@ -467,21 +469,21 @@ export default function ProfilePage() {
                         ) : (
                           <div className="panel-cut border border-slate-700/40 bg-slate-900/30 p-2.5 flex items-center gap-2 text-xs text-slate-400">
                             <Lock className="size-3.5 text-slate-500 shrink-0" />
-                            <span>Pasta privada. Marque como pública para liberar o link único de compartilhamento.</span>
+                            <span>{tr("Pasta privada. Marque como pública para liberar o link único de compartilhamento.", "Private binder. Make it public to get a share link.")}</span>
                           </div>
                         )}
 
                         <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-white/10">
                           <Button asChild size="sm" className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90 text-xs">
                             <Link href={`/binders/${binder.id}`}>
-                              Cadastrar / Editar Cartas
+                              {tr("Cadastrar / Editar Cartas", "Add / Edit Cards")}
                             </Link>
                           </Button>
                           {binder.isPublic ? (
                             <Button asChild size="sm" variant="outline" className="rounded-none border-white/20 bg-white/5 text-xs text-white hover:bg-white/10">
                               <a href={`/binder/${binder.shareId}`} target="_blank" rel="noreferrer">
                                 <ExternalLink className="mr-1.5 size-3" />
-                                Ver Vitrine
+                                {tr("Ver Vitrine", "View Showcase")}
                               </a>
                             </Button>
                           ) : null}
@@ -500,13 +502,13 @@ export default function ProfilePage() {
           <CardContent className="space-y-5 p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-white/10 pb-5">
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-cyan-400 font-mono">Rede Social & Matchmaking</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-cyan-400 font-mono">{tr("Rede Social & Matchmaking", "Social & Matchmaking")}</p>
                 <div className="mt-1 flex flex-wrap items-center gap-3">
-                  <h2 className="font-heading text-3xl uppercase tracking-wider text-white">Central de Esquadrão & Amigos</h2>
+                  <h2 className="font-heading text-3xl uppercase tracking-wider text-white">{tr("Central de Esquadrão & Amigos", "Friends & Squad")}</h2>
                   <Badge className="rounded-none border-cyan-500/50 bg-cyan-500/20 text-cyan-300 font-mono text-xs">TACTICAL SOCIAL HUB</Badge>
                 </div>
                 <p className="mt-2 text-sm text-slate-300 max-w-3xl leading-relaxed">
-                  Gerencie seus vínculos de amizade. Pilotos amigos podem enviar correspondências táticas assíncronas (Caixa Postal / E-mail) e convidar para <strong className="text-rose-400">Partidas Rápidas</strong> com 1 clique direto no simulador quando estiverem online simultaneamente.
+                  {tr("Gerencie seus vínculos de amizade. Pilotos amigos podem enviar correspondências táticas assíncronas (Caixa Postal / E-mail) e convidar para", "Manage your friends. Friends can send each other messages (Mailbox / email) and invite each other to")} <strong className="text-rose-400">{tr("Partidas Rápidas", "Quick Matches")}</strong> {tr("com 1 clique direto no simulador quando estiverem online simultaneamente.", "with one click in the simulator when both are online.")}
                 </p>
               </div>
 
@@ -518,7 +520,7 @@ export default function ProfilePage() {
                   className="relative rounded-none border border-cyan-500/50 bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 uppercase tracking-wider text-xs font-mono"
                 >
                   <Mail className="mr-2 size-4 text-cyan-400" />
-                  Caixa Postal de Piloto
+                  {tr("Caixa Postal de Piloto", "Player Mailbox")}
                   {unreadMailCount > 0 && (
                     <span className="ml-2 inline-flex items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
                       {unreadMailCount}
@@ -542,7 +544,7 @@ export default function ProfilePage() {
                   }`}
                 >
                   <Users className="inline mr-1.5 size-3.5" />
-                  Amigos ({friends.length})
+                  {tr("Amigos", "Friends")} ({friends.length})
                 </button>
 
                 <button
@@ -555,7 +557,7 @@ export default function ProfilePage() {
                   }`}
                 >
                   <UserPlus className="inline mr-1.5 size-3.5" />
-                  Recebidas ({pendingReceived.length})
+                  {tr("Recebidas", "Received")} ({pendingReceived.length})
                   {pendingReceived.length > 0 && (
                     <span className="ml-1.5 inline-block size-2 rounded-full bg-amber-400 animate-pulse" />
                   )}
@@ -571,7 +573,7 @@ export default function ProfilePage() {
                   }`}
                 >
                   <Clock className="inline mr-1.5 size-3.5" />
-                  Enviadas ({pendingSent.length})
+                  {tr("Enviadas", "Sent")} ({pendingSent.length})
                 </button>
               </div>
 
@@ -579,7 +581,7 @@ export default function ProfilePage() {
               <form onSubmit={handleSendFriendRequest} className="flex items-center gap-2 max-w-sm w-full">
                 <Input
                   type="text"
-                  placeholder="Nome de usuário do piloto (@...)"
+                  placeholder={tr("Nome de usuário do piloto (@...)", "Player username (@...)")}
                   value={addFriendInput}
                   onChange={(e) => setAddFriendInput(e.target.value)}
                   className="h-8 rounded-none bg-slate-950/80 border-white/15 text-xs font-mono"
@@ -591,21 +593,21 @@ export default function ProfilePage() {
                   className="h-8 rounded-none bg-primary text-primary-foreground hover:bg-primary/90 text-xs shrink-0"
                 >
                   <UserPlus className="mr-1.5 size-3.5" />
-                  {sendingFriendRequest ? "Enviando..." : "Adicionar"}
+                  {sendingFriendRequest ? tr("Enviando...", "Sending...") : "Adicionar"}
                 </Button>
               </form>
             </div>
 
             {/* Conteúdo das Abas */}
             {loadingFriends ? (
-              <p className="text-sm text-slate-400 py-6 text-center font-mono">Sincronizando esquadrão...</p>
+              <p className="text-sm text-slate-400 py-6 text-center font-mono">{tr("Sincronizando esquadrão...", "Loading friends...")}</p>
             ) : friendsTab === "friends" ? (
               friends.length === 0 ? (
                 <div className="panel-cut border border-dashed border-white/15 bg-slate-950/40 p-6 text-center">
                   <Users className="mx-auto size-8 text-slate-500 mb-2" />
-                  <h4 className="font-heading text-lg uppercase text-slate-300">Nenhum piloto no esquadrão ainda</h4>
+                  <h4 className="font-heading text-lg uppercase text-slate-300">{tr("Nenhum piloto no esquadrão ainda", "No friends yet")}</h4>
                   <p className="mt-1 text-xs text-slate-400 max-w-md mx-auto">
-                    Use o campo acima para adicionar outros pilotos ou visite os perfis públicos de criadores de decks para solicitar amizade.
+                    {tr("Use o campo acima para adicionar outros pilotos ou visite os perfis públicos de criadores de decks para solicitar amizade.", "Use the field above to add other players, or visit deck creators' public profiles to send a friend request.")}
                   </p>
                 </div>
               ) : (
@@ -626,7 +628,7 @@ export default function ProfilePage() {
                             className={`absolute bottom-0 right-0 size-2.5 rounded-full ring-2 ring-slate-950 ${
                               f.online ? "bg-emerald-400 animate-pulse" : "bg-slate-600"
                             }`}
-                            title={f.online ? "Online no Hangar" : "Offline"}
+                            title={f.online ? tr("Online no Hangar", "Online") : "Offline"}
                           />
                         </div>
                         <div className="min-w-0 flex-1">
@@ -636,7 +638,7 @@ export default function ProfilePage() {
                           </div>
                           <p className="text-xs text-slate-400 font-mono truncate">@{f.username}</p>
                           <span className={`inline-block text-[10px] font-mono ${f.online ? "text-emerald-400" : "text-slate-500"}`}>
-                            {f.online ? "● Conectado agora" : "○ Desconectado"}
+                            {f.online ? tr("● Conectado agora", "● Online now") : tr("○ Desconectado", "○ Offline")}
                           </span>
                         </div>
                       </div>
@@ -650,7 +652,7 @@ export default function ProfilePage() {
                           variant="outline"
                           onClick={() => {
                             if (!f.online) {
-                              toast.warning(`@${f.username} está offline. Convites de Partida Rápida exigem que ambos os pilotos estejam conectados.`);
+                              toast.warning(tr(`@${f.username} está offline. Convites de Partida Rápida exigem que ambos os pilotos estejam conectados.`, `@${f.username} is offline. Quick Match invites need both players online.`));
                               return;
                             }
                             startQuickMatch(f.id, f.username, f.displayName);
@@ -660,10 +662,10 @@ export default function ProfilePage() {
                               ? "border-rose-500/60 bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 shadow-[0_0_10px_rgba(244,63,94,0.2)]"
                               : "border-white/10 bg-white/5 text-slate-500 hover:bg-white/10"
                           }`}
-                          title={f.online ? "Desafiar para Partida Rápida com 1 clique" : "Piloto offline"}
+                          title={f.online ? tr("Desafiar para Partida Rápida com 1 clique", "Challenge to a Quick Match with one click") : tr("Piloto offline", "Player offline")}
                         >
                           <Swords className={`mr-1 size-3 ${f.online ? "text-rose-400" : ""}`} />
-                          Partida
+                          {tr("Partida", "Match")}
                         </Button>
 
                         {/* Mensagem Assíncrona */}
@@ -673,7 +675,7 @@ export default function ProfilePage() {
                           variant="outline"
                           onClick={() => openMailbox(f.username)}
                           className="h-7 rounded-none border-cyan-500/30 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 text-[11px] uppercase tracking-wider px-2"
-                          title="Enviar correspondência tática (Caixa Postal)"
+                          title={tr("Enviar correspondência tática (Caixa Postal)", "Send a message (Mailbox)")}
                         >
                           <Mail className="size-3" />
                         </Button>
@@ -684,7 +686,7 @@ export default function ProfilePage() {
                           size="sm"
                           variant="ghost"
                           className="h-7 rounded-none text-slate-400 hover:text-white px-2"
-                          title="Ver Perfil Público"
+                          title={tr("Ver Perfil Público", "View Public Profile")}
                         >
                           <Link href={`/u/${f.username}`}>
                             <ExternalLink className="size-3" />
@@ -698,7 +700,7 @@ export default function ProfilePage() {
                           variant="ghost"
                           onClick={() => handleRemoveFriend(f.username)}
                           className="h-7 rounded-none text-slate-500 hover:text-rose-400 px-2"
-                          title="Desfazer amizade"
+                          title={tr("Desfazer amizade", "Remove friend")}
                         >
                           <UserMinus className="size-3" />
                         </Button>
@@ -711,7 +713,7 @@ export default function ProfilePage() {
               pendingReceived.length === 0 ? (
                 <div className="panel-cut border border-dashed border-white/15 bg-slate-950/40 p-6 text-center">
                   <UserCheck className="mx-auto size-8 text-slate-500 mb-2" />
-                  <p className="text-xs text-slate-400 font-mono">Nenhuma solicitação de amizade pendente no momento.</p>
+                  <p className="text-xs text-slate-400 font-mono">{tr("Nenhuma solicitação de amizade pendente no momento.", "No pending friend requests right now.")}</p>
                 </div>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -732,7 +734,7 @@ export default function ProfilePage() {
                           </span>
                           <p className="text-xs text-slate-400 font-mono truncate">@{req.requester.username}</p>
                           <span className="text-[10px] text-slate-500 font-mono">
-                            Recebido em {new Date(req.createdAt).toLocaleDateString()}
+                            {tr("Recebido em", "Received on")} {new Date(req.createdAt).toLocaleDateString(locale)}
                           </span>
                         </div>
                       </div>
@@ -745,7 +747,7 @@ export default function ProfilePage() {
                           className="h-7 flex-1 rounded-none bg-emerald-600 text-white hover:bg-emerald-500 text-xs uppercase tracking-wider"
                         >
                           <Check className="mr-1 size-3" />
-                          Aceitar
+                          {tr("Aceitar", "Accept")}
                         </Button>
                         <Button
                           type="button"
@@ -755,7 +757,7 @@ export default function ProfilePage() {
                           className="h-7 flex-1 rounded-none border-white/15 bg-white/5 text-slate-300 hover:text-white text-xs uppercase tracking-wider"
                         >
                           <X className="mr-1 size-3" />
-                          Recusar
+                          {tr("Recusar", "Decline")}
                         </Button>
                       </div>
                     </div>
@@ -766,7 +768,7 @@ export default function ProfilePage() {
               pendingSent.length === 0 ? (
                 <div className="panel-cut border border-dashed border-white/15 bg-slate-950/40 p-6 text-center">
                   <Clock className="mx-auto size-8 text-slate-500 mb-2" />
-                  <p className="text-xs text-slate-400 font-mono">Você não tem solicitações enviadas aguardando resposta.</p>
+                  <p className="text-xs text-slate-400 font-mono">{tr("Você não tem solicitações enviadas aguardando resposta.", "You have no sent requests waiting for a reply.")}</p>
                 </div>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -787,7 +789,7 @@ export default function ProfilePage() {
                           </span>
                           <p className="text-xs text-slate-400 font-mono truncate">@{req.addressee.username}</p>
                           <span className="text-[10px] text-slate-500 font-mono">
-                            Aguardando resposta desde {new Date(req.createdAt).toLocaleDateString()}
+                            {tr("Aguardando resposta desde", "Waiting for a reply since")} {new Date(req.createdAt).toLocaleDateString(locale)}
                           </span>
                         </div>
                       </div>
@@ -801,7 +803,7 @@ export default function ProfilePage() {
                           className="h-7 w-full rounded-none border-white/15 bg-white/5 text-slate-400 hover:text-white text-xs uppercase tracking-wider"
                         >
                           <X className="mr-1.5 size-3" />
-                          Cancelar Solicitação
+                          {tr("Cancelar Solicitação", "Cancel Request")}
                         </Button>
                       </div>
                     </div>
@@ -817,12 +819,12 @@ export default function ProfilePage() {
           <Card className="panel-cut rounded-none border-primary/30 hero-surface">
             <CardContent className="space-y-5 p-6">
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Dados pessoais</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">{tr("Dados pessoais", "Personal details")}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-3">
-                  <h2 className="font-heading text-4xl uppercase">Sua conta</h2>
+                  <h2 className="font-heading text-4xl uppercase">{tr("Sua conta", "Your account")}</h2>
                   {user?.isSupporter ? <SupporterBadge /> : null}
                 </div>
-                <p className="mt-2 text-sm leading-6 text-slate-400 dark:text-slate-400 light:text-slate-600">Nome, avatar e senha de acesso. O que já vem do seu login social (Google) não pode ser editado por aqui.</p>
+                <p className="mt-2 text-sm leading-6 text-slate-400 dark:text-slate-400 light:text-slate-600">{tr("Nome, avatar e senha de acesso. O que já vem do seu login social (Google) não pode ser editado por aqui.", "Name, avatar and password. What comes from your social sign-in (Google) can't be edited here.")}</p>
               </div>
 
               <div className="flex items-center gap-4">
@@ -833,29 +835,29 @@ export default function ProfilePage() {
                   </div>
                 </button>
                 <div>
-                  <Button type="button" variant="outline" size="sm" className="rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={handleAvatarPick} disabled={uploadingAvatar}>{uploadingAvatar ? "Enviando…" : "Trocar avatar"}</Button>
-                  <p className="mt-1.5 text-xs text-slate-500">JPG, PNG ou WebP.</p>
+                  <Button type="button" variant="outline" size="sm" className="rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={handleAvatarPick} disabled={uploadingAvatar}>{uploadingAvatar ? tr("Enviando…", "Uploading…") : tr("Trocar avatar", "Change avatar")}</Button>
+                  <p className="mt-1.5 text-xs text-slate-500">{tr("JPG, PNG ou WebP.", "JPG, PNG or WebP.")}</p>
                 </div>
                 <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
               </div>
 
-              <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Nome de exibição" className="rounded-none" />
-              <Textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Bio pública" className="min-h-24 rounded-none" />
-              <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveProfile}><Save className="mr-2 size-4" />Salvar dados</Button>
+              <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={tr("Nome de exibição", "Display name")} className="rounded-none" />
+              <Textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder={tr("Bio pública", "Public bio")} className="min-h-24 rounded-none" />
+              <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveProfile}><Save className="mr-2 size-4" />{tr("Salvar dados", "Save")}</Button>
 
               <div className="border-t border-white/10 pt-5">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">{user?.hasPassword ? "Alterar senha" : "Definir senha"}</p>
-                {!user?.hasPassword ? <p className="mt-2 text-sm leading-6 text-slate-400 dark:text-slate-400 light:text-slate-600">Sua conta usa login do Google e ainda não tem senha própria. Você pode definir uma agora — isso não desativa o login com Google, só adiciona uma segunda forma de entrar.</p> : null}
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">{user?.hasPassword ? tr("Alterar senha", "Change password") : tr("Definir senha", "Set password")}</p>
+                {!user?.hasPassword ? <p className="mt-2 text-sm leading-6 text-slate-400 dark:text-slate-400 light:text-slate-600">{tr("Sua conta usa login do Google e ainda não tem senha própria. Você pode definir uma agora — isso não desativa o login com Google, só adiciona uma segunda forma de entrar.", "Your account uses Google sign-in and has no password of its own. You can set one now — it doesn't turn off Google sign-in, it just adds a second way to sign in.")}</p> : null}
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  {user?.hasPassword ? <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Senha atual" className="rounded-none" /> : null}
-                  <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Nova senha (mín. 8 caracteres)" className="rounded-none" />
+                  {user?.hasPassword ? <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder={tr("Senha atual", "Current password")} className="rounded-none" /> : null}
+                  <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={tr("Nova senha (mín. 8 caracteres)", "New password (min. 8 characters)")} className="rounded-none" />
                 </div>
                 {newPassword ? (
                   <div className="mt-3 rounded border border-white/10 bg-slate-900/40 p-3 light:bg-slate-100/70">
                     <PasswordStrengthMeter password={newPassword} />
                   </div>
                 ) : null}
-                <Button className="mt-3 rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={savePassword}><KeyRound className="mr-2 size-4" />{user?.hasPassword ? "Alterar senha" : "Definir senha"}</Button>
+                <Button className="mt-3 rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={savePassword}><KeyRound className="mr-2 size-4" />{user?.hasPassword ? tr("Alterar senha", "Change password") : tr("Definir senha", "Set password")}</Button>
               </div>
             </CardContent>
           </Card>
@@ -864,9 +866,9 @@ export default function ProfilePage() {
         <div className="space-y-6">
           <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
             <CardContent className="space-y-4 p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Aparência e idioma</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">{tr("Aparência e idioma", "Appearance and language")}</p>
               <div>
-                <label className="text-xs text-slate-500">Perfil visual</label>
+                <label className="text-xs text-slate-500">{tr("Perfil visual", "Visual theme")}</label>
                 <div className="mt-1.5 grid grid-cols-2 gap-2">
                   {(["hangar", "zeon"] as const).map((option) => (
                     <button key={option} type="button" onClick={() => setFaction(option)} className={`flex items-center gap-2.5 border p-2.5 text-left transition ${faction === option ? "border-primary/60 bg-primary/10" : "border-white/15 bg-white/5 hover:border-white/30"}`}>
@@ -875,34 +877,34 @@ export default function ProfilePage() {
                     </button>
                   ))}
                 </div>
-                <p className="mt-1.5 text-xs text-slate-500">Muda a identidade visual do site (cor, cantos, tipografia). Mais facções chegam depois.</p>
+                <p className="mt-1.5 text-xs text-slate-500">{tr("Muda a identidade visual do site (cor, cantos, tipografia). Mais facções chegam depois.", "Changes the site's look (color, corners, typography). More factions coming later.")}</p>
               </div>
               <div>
-                <label className="text-xs text-slate-500">Modo de cor</label>
+                <label className="text-xs text-slate-500">{tr("Modo de cor", "Color mode")}</label>
                 <select value={theme} onChange={(e) => setTheme(e.target.value as "light" | "dark")} className="field-shell mt-1.5 h-10 w-full px-3 text-sm">
-                  <option value="dark">Escuro</option>
-                  <option value="light">Claro</option>
+                  <option value="dark">{tr("Escuro", "Dark")}</option>
+                  <option value="light">{tr("Claro", "Light")}</option>
                 </select>
               </div>
               <div>
-                <label className="text-xs text-slate-500">Texto das cartas</label>
+                <label className="text-xs text-slate-500">{tr("Texto das cartas", "Card text")}</label>
                 <select value={preferredCardLanguage} onChange={(e) => setPreferredCardLanguage(e.target.value as "PT_BR" | "EN")} className="field-shell mt-1.5 h-10 w-full px-3 text-sm">
-                  <option value="PT_BR">Português</option>
-                  <option value="EN">Inglês</option>
+                  <option value="PT_BR">{tr("Português", "Portuguese")}</option>
+                  <option value="EN">{tr("Inglês", "English")}</option>
                 </select>
               </div>
               <div>
-                <label className="text-xs text-slate-500">Idioma do site</label>
-                <select defaultValue="pt-BR" className="field-shell mt-1.5 h-10 w-full px-3 text-sm">
+                <label className="text-xs text-slate-500">{tr("Idioma do site", "Site language")}</label>
+                <select value={siteLang} onChange={(e) => setSiteLanguage(e.target.value === "en" ? "en" : "pt-BR")} className="field-shell mt-1.5 h-10 w-full px-3 text-sm">
                   <option value="pt-BR">Português (Brasil)</option>
-                  <option value="en" disabled>English (em breve)</option>
+                  <option value="en">English</option>
                 </select>
-                <p className="mt-1.5 text-xs text-slate-500">Idioma padrão da interface de navegação e menus.</p>
+                <p className="mt-1.5 text-xs text-slate-500">{tr("Idioma padrão da interface de navegação e menus.", "Language of the menus and the rest of the interface.")}</p>
               </div>
-              <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveProfile}><Save className="mr-2 size-4" />Salvar preferências</Button>
+              <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveProfile}><Save className="mr-2 size-4" />{tr("Salvar preferências", "Save preferences")}</Button>
               {user?.username ? (
                 <div className="border-t border-white/10 pt-4">
-                  <p className="text-xs text-slate-500">Seu perfil público:</p>
+                  <p className="text-xs text-slate-500">{tr("Seu perfil público:", "Your public profile:")}</p>
                   <a href={`/u/${user.username}`} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs text-primary hover:underline">
                     {window.location.origin}/u/{user.username}
                   </a>
@@ -913,35 +915,35 @@ export default function ProfilePage() {
 
           <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
             <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Resumo da conta</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">{tr("Resumo da conta", "Account summary")}</p>
               <div className="mt-5 space-y-3">
                 <div className="panel-cut flex items-center justify-between gap-4 border border-white/10 bg-slate-950/60 p-4 dark:bg-slate-950/60 light:bg-slate-50">
                   <span className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">Email</span>
                   <span className="text-sm">{user?.email}</span>
                 </div>
                 <div className="panel-cut flex items-center justify-between gap-4 border border-white/10 bg-slate-950/60 p-4 dark:bg-slate-950/60 light:bg-slate-50">
-                  <span className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">Forma de acesso</span>
+                  <span className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">{tr("Forma de acesso", "Sign-in method")}</span>
                   <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{loginMethod}</Badge>
                 </div>
                 <div className="panel-cut flex flex-wrap items-center justify-between gap-4 border border-white/10 bg-slate-950/60 p-4 dark:bg-slate-950/60 light:bg-slate-50">
-                  <span className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">E-mail</span>
+                  <span className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">{tr("E-mail", "Email")}</span>
                   {user?.emailVerified ? (
-                    <Badge className="rounded-none border border-emerald-400/40 bg-emerald-400/10 text-emerald-300">Confirmado</Badge>
+                    <Badge className="rounded-none border border-emerald-400/40 bg-emerald-400/10 text-emerald-300">{tr("Confirmado", "Confirmed")}</Badge>
                   ) : (
                     <span className="flex flex-wrap items-center gap-3">
-                      <Badge className="rounded-none border border-amber-400/40 bg-amber-400/10 text-amber-300">Não confirmado</Badge>
+                      <Badge className="rounded-none border border-amber-400/40 bg-amber-400/10 text-amber-300">{tr("Não confirmado", "Not confirmed")}</Badge>
                       <Button type="button" variant="outline" size="sm" disabled={resendingEmail} onClick={resendVerification} className="rounded-none text-xs">
-                        {resendingEmail ? "Enviando..." : "Reenviar link"}
+                        {resendingEmail ? tr("Enviando...", "Sending...") : tr("Reenviar link", "Resend link")}
                       </Button>
                     </span>
                   )}
                 </div>
                 <div className="panel-cut flex items-center justify-between gap-4 border border-white/10 bg-slate-950/60 p-4 dark:bg-slate-950/60 light:bg-slate-50">
-                  <span className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">Usuário</span>
+                  <span className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">{tr("Usuário", "Username")}</span>
                   <span className="text-sm">@{user?.username}</span>
                 </div>
                 <div className="panel-cut flex flex-wrap items-center justify-between gap-4 border border-white/10 bg-slate-950/60 p-4 dark:bg-slate-950/60 light:bg-slate-50">
-                  <span className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">Apoio Comunitário</span>
+                  <span className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">{tr("Apoio Comunitário", "Community Support")}</span>
                   {user?.isSupporter ? (
                     <div className="flex flex-wrap items-center gap-2">
                       <SupporterBadge size="sm" />
@@ -953,7 +955,7 @@ export default function ProfilePage() {
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-500">Ainda não apoia</span>
+                      <span className="text-xs text-slate-500">{tr("Ainda não apoia", "Not a supporter yet")}</span>
                       <Button
                         type="button"
                         variant="outline"
@@ -962,7 +964,7 @@ export default function ProfilePage() {
                         className="h-7 rounded-none border-amber-400/40 bg-amber-400/10 text-xs text-amber-300 hover:bg-amber-400/20"
                       >
                         <HeartHandshake className="mr-1.5 size-3 text-amber-400" />
-                        Apoiar via Pix
+                        {tr("Apoiar via Pix", "Support via Pix")}
                       </Button>
                     </div>
                   )}
@@ -972,24 +974,24 @@ export default function ProfilePage() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <ShieldAlert className="size-4 text-amber-400" />
-                        <span className="text-xs font-mono uppercase tracking-wider text-amber-300 font-semibold">Credenciais de Administrador</span>
+                        <span className="text-xs font-mono uppercase tracking-wider text-amber-300 font-semibold">{tr("Credenciais de Administrador", "Administrator Access")}</span>
                       </div>
                       <Badge className="rounded-none border-amber-400/50 bg-amber-400/20 text-amber-200 text-[10px] font-mono">NÍVEL ALPHA</Badge>
                     </div>
                     <p className="text-xs text-slate-300 leading-relaxed">
-                      Sua conta possui acesso administrativo total. A governança de cartas, regras, usuários, torneios e CMS é operada através do Console Administrativo dedicado, separado do portal de jogador.
+                      {tr("Sua conta possui acesso administrativo total. A governança de cartas, regras, usuários, torneios e CMS é operada através do Console Administrativo dedicado, separado do portal de jogador.", "Your account has full admin access. Cards, rules, users, tournaments and content are managed in the dedicated Admin Console, separate from the player portal.")}
                     </p>
                     <Button asChild size="sm" className="w-full rounded-none bg-amber-500 text-slate-950 font-semibold hover:bg-amber-400 uppercase tracking-wider text-xs">
                       <Link href="/admin">
                         <ShieldCheck className="mr-2 size-4" />
-                        Abrir Console de Administração
+                        {tr("Abrir Console de Administração", "Open Admin Console")}
                       </Link>
                     </Button>
                   </div>
                 ) : null}
                 <div className="panel-cut flex items-center gap-3 border border-emerald-400/20 bg-emerald-400/5 p-4">
                   <ShieldCheck className="size-4 shrink-0 text-emerald-400" />
-                  <span className="text-xs leading-5 text-slate-400 dark:text-slate-400 light:text-slate-600">Sua senha nunca é armazenada em texto puro, e o login com Google não expõe sua senha do Google pra este site.</span>
+                  <span className="text-xs leading-5 text-slate-400 dark:text-slate-400 light:text-slate-600">{tr("Sua senha nunca é armazenada em texto puro, e o login com Google não expõe sua senha do Google pra este site.", "Your password is never stored in plain text, and Google sign-in never shares your Google password with this site.")}</span>
                 </div>
               </div>
             </CardContent>

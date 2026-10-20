@@ -4,6 +4,8 @@ import { ArrowRight, ChevronLeft, ChevronRight, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
+import { useCardLanguage } from "@/i18n/useCardLanguage";
 
 type SetItem = {
   id: string;
@@ -18,6 +20,8 @@ type SetItem = {
 };
 
 export function LatestCollectionsSection() {
+  const { tr, locale } = useSiteLanguage();
+  const { isPt: cardsInPt } = useCardLanguage();
   const [sets, setSets] = useState<SetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -67,11 +71,11 @@ export function LatestCollectionsSection() {
   };
 
   const formatSetType = (type?: string) => {
-    if (!type) return "EXPANSÃO";
+    if (!type) return tr("EXPANSÃO", "EXPANSION");
     if (type === "STARTER_DECK") return "STARTER DECK";
     if (type === "BOOSTER_PACK") return "BOOSTER PACK";
     if (type === "PREMIUM_BANDAI") return "PREMIUM BANDAI";
-    if (type === "ACCESSORIES") return "ACESSÓRIOS";
+    if (type === "ACCESSORIES") return tr("ACESSÓRIOS", "ACCESSORIES");
     return type.replace(/_/g, " ");
   };
 
@@ -83,15 +87,15 @@ export function LatestCollectionsSection() {
           <div>
             <div className="flex items-center gap-2">
               <Badge className="rounded-none border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.24em] text-primary">
-                Lançamentos
+                {tr("Lançamentos", "Releases")}
               </Badge>
-              <span className="text-xs text-slate-400 dark:text-slate-400 light:text-slate-600 font-mono">Catálogo Oficial</span>
+              <span className="text-xs text-slate-400 dark:text-slate-400 light:text-slate-600 font-mono">{tr("Catálogo Oficial", "Official Catalog")}</span>
             </div>
             <h2 className="heading-portal font-heading text-3xl sm:text-4xl uppercase mt-2">
-              Últimas Coleções
+              {tr("Últimas Coleções", "Latest Sets")}
             </h2>
             <p className="text-soft text-xs sm:text-sm mt-1 max-w-2xl">
-              Produtos e expansões oficiais de Gundam TCG ordenados dos mais recentes para os primeiros lançamentos.
+              {tr("Produtos e expansões oficiais de Gundam TCG ordenados dos mais recentes para os primeiros lançamentos.", "Official Gundam TCG products and expansions, from the newest to the earliest releases.")}
             </p>
           </div>
 
@@ -102,7 +106,7 @@ export function LatestCollectionsSection() {
                 type="button"
                 onClick={() => scroll("left")}
                 disabled={!canScrollLeft}
-                aria-label="Rolar coleções para a esquerda"
+                aria-label={tr("Rolar coleções para a esquerda", "Scroll sets left")}
                 className="flex size-9 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-white dark:border-white/15 dark:bg-white/5 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 light:hover:bg-slate-100 transition hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronLeft className="size-4" />
@@ -111,7 +115,7 @@ export function LatestCollectionsSection() {
                 type="button"
                 onClick={() => scroll("right")}
                 disabled={!canScrollRight}
-                aria-label="Rolar coleções para a direita"
+                aria-label={tr("Rolar coleções para a direita", "Scroll sets right")}
                 className="flex size-9 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-white dark:border-white/15 dark:bg-white/5 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 light:hover:bg-slate-100 transition hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronRight className="size-4" />
@@ -141,11 +145,11 @@ export function LatestCollectionsSection() {
             ))
           ) : sets.length === 0 ? (
             <div className="w-full py-12 text-center text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">
-              Nenhuma coleção encontrada no catálogo.
+              {tr("Nenhuma coleção encontrada no catálogo.", "No sets found in the catalog.")}
             </div>
           ) : (
             sets.map((set) => {
-              const displayName = set.namePt || set.nameEn;
+              const displayName = cardsInPt ? set.namePt || set.nameEn : set.nameEn || set.namePt || "";
               const cardCount = set._count?.cards ?? 0;
 
               return (
@@ -172,7 +176,7 @@ export function LatestCollectionsSection() {
                           {set.code}
                         </span>
                         <span className="text-[10px] text-slate-500 uppercase tracking-widest mt-1">
-                          Sem Capa
+                          {tr("Sem Capa", "No Cover")}
                         </span>
                       </div>
                     )}
@@ -187,7 +191,7 @@ export function LatestCollectionsSection() {
                     {cardCount > 0 && (
                       <div className="absolute bottom-2.5 right-2.5 z-10">
                         <span className="rounded bg-slate-950/85 px-2 py-0.5 font-mono text-[10px] text-slate-300 border border-white/10">
-                          {cardCount} cartas
+                          {cardCount} {tr("cartas", "cards")}
                         </span>
                       </div>
                     )}
@@ -196,7 +200,7 @@ export function LatestCollectionsSection() {
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-60 pointer-events-none" />
                   </Link>
 
-                  {/* Detalhes do Produto */}
+                  {/* {tr("Detalhes", "Details")} do Produto */}
                   <div className="flex flex-1 flex-col justify-between p-4 border-t border-white/10 dark:border-white/10 light:border-slate-200">
                     <div>
                       <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-primary">
@@ -207,7 +211,7 @@ export function LatestCollectionsSection() {
                       </h3>
                       {set.releaseDate && (
                         <p className="text-[11px] text-slate-400 dark:text-slate-400 light:text-slate-600 mt-1 font-mono">
-                          Lançamento: {new Date(set.releaseDate).toLocaleDateString("pt-BR")}
+                          {tr("Lançamento", "Release")}: {new Date(set.releaseDate).toLocaleDateString(locale)}
                         </p>
                       )}
                     </div>
@@ -218,13 +222,13 @@ export function LatestCollectionsSection() {
                         href={`/cards?setCode=${encodeURIComponent(set.code)}`}
                         className="flex-1 rounded-none border border-white/15 bg-white/5 px-2.5 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-200 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 light:border-slate-300 light:bg-slate-100 light:text-slate-800 transition hover:border-primary/50 hover:bg-primary/10 hover:text-primary"
                       >
-                        Ver Cartas
+                        {tr("Ver Cartas", "See Cards")}
                       </Link>
                       <Link
                         href={`/sets/${encodeURIComponent(set.code)}`}
                         className="rounded-none border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wider text-primary transition hover:bg-primary hover:text-primary-foreground"
                       >
-                        Detalhes
+                        {tr("Detalhes", "Details")}
                       </Link>
                     </div>
                   </div>
