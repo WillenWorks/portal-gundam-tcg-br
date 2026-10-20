@@ -120,7 +120,7 @@ export function PopularMainCardsSection() {
                     key={card.id}
                     href={`/cards/${card.id}`}
                     className="group relative flex w-[145px] sm:w-[165px] md:w-[180px] shrink-0 flex-col overflow-hidden rounded-xl border dark:border-white/15 dark:bg-slate-950 light:border-slate-200 light:bg-white shadow-lg transition-all duration-300 hover:scale-[1.03] hover:border-cyan-400/80 hover:shadow-[0_0_24px_rgba(6,182,212,0.35)]"
-                    title={`${displayName} — Presente em ${card.deckCount} decks`}
+                    title={tr(`${displayName} — Presente em ${card.deckCount} decks`, `${displayName} — In ${card.deckCount} decks`)}
                   >
                     {/* Badge de Ranking (#1, #2...) */}
                     <div className="absolute left-2 top-2 z-10 rounded dark:bg-slate-950/90 dark:text-white dark:border-white/20 light:bg-white/95 light:text-slate-900 light:border-slate-300 px-2 py-0.5 font-mono text-[11px] font-bold border shadow-md">

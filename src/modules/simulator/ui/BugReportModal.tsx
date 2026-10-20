@@ -86,7 +86,7 @@ export function BugReportModal({
               <div className="mt-2.5 rounded border border-white/10 bg-black/40 p-2 text-[11px] space-y-1.5">
                 <div className="flex items-center justify-between text-slate-300">
                   <span>
-                    <strong>Turno {snapshot.turnNumber}</strong> · Fase <code className="text-amber-300">{snapshot.phase}</code>
+                    <strong>{tr("Turno", "Turn")} {snapshot.turnNumber}</strong> · {tr("Fase", "Phase")} <code className="text-amber-300">{snapshot.phase}</code>
                   </span>
                   <span className="flex items-center gap-1 text-[10px] text-slate-400">
                     <Shield className="size-3 text-cyan-400" /> {snapshot.myShieldCount} vs {snapshot.oppShieldCount}

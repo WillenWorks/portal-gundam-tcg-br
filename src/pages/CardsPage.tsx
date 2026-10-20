@@ -18,6 +18,7 @@ import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX } from "@/lib/gundam-catalog";
 import { MultiSelectFilter } from "@/components/catalog/MultiSelectFilter";
 import { normalizeRarityLabel, groupRaritiesByLabel, expandRarityFilter } from "@/lib/rarityLabels";
 import { useCardLanguage } from "@/i18n";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 const cardTypeLabel = (value?: string | null) => CARD_TYPE_OPTIONS.find((item) => item.value === value)?.label || value || "—";
 
@@ -89,6 +90,7 @@ function buildShareUrl(basePath: string, filters: CardFilters, page: number, pag
 }
 
 export default function CardsPage() {
+  const { tr } = useSiteLanguage();
   const { isPt } = useCardLanguage();
   const [location, navigate] = useLocation();
   const basePath = useMemo(() => location.split("?")[0], [location]);
@@ -161,19 +163,19 @@ export default function CardsPage() {
 
   const copySearchLink = async () => {
     await navigator.clipboard.writeText(buildShareUrl(basePath, filters, page, pageSize));
-    toast.success("Link da busca copiado.");
+    toast.success(tr("Link da busca copiado.", "Search link copied."));
   };
   const rarityOptions = useMemo(() => Array.from(rarityGroups.keys()).sort(), [rarityGroups]);
 
   return (
     <PublicShell
-      breadcrumbs={[{ label: "Cartas" }]}
+      breadcrumbs={[{ label: tr("Cartas", "Cards") }]}
       heroBanner={
         <ParallaxHeroBanner
           image="/images/unicorn_blueprint_banner.webp"
-          eyebrow="Catálogo oficial"
-          title="Cartas"
-          badge={loadError ? "Catálogo indisponível" : loading && total === 0 ? "Carregando..." : `${total} cartas`}
+          eyebrow={tr("Catálogo oficial", "Official catalog")}
+          title={tr("Cartas", "Cards")}
+          badge={loadError ? tr("Catálogo indisponível", "Catalog unavailable") : loading && total === 0 ? tr("Carregando...", "Loading...") : tr(`${total} cartas`, `${total} cards`)}
         />
       }
     >
@@ -185,7 +187,7 @@ export default function CardsPage() {
               <Input
                 value={filters.q ?? ""}
                 onChange={(event) => setFilter("q", event.target.value)}
-                placeholder="Nome, código, trait, efeito ou série"
+                placeholder={tr("Nome, código, trait, efeito ou série", "Name, code, trait, effect or series")}
                 className="field-shell h-11 flex-1 text-sm light:border-slate-300/80 light:bg-white light:text-slate-900"
               />
               <button
@@ -196,7 +198,7 @@ export default function CardsPage() {
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-none border border-white/15 bg-white/5 px-4 text-xs uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950 sm:hidden"
               >
                 <SlidersHorizontal className="size-4" />
-                {mobileFiltersOpen ? "Esconder filtros" : `Filtros${activeFilters > 0 ? ` (${activeFilters})` : ""}`}
+                {mobileFiltersOpen ? tr("Esconder filtros", "Hide filters") : `${tr("Filtros", "Filters")}${activeFilters > 0 ? ` (${activeFilters})` : ""}`}
               </button>
               <div className={cn("flex-wrap items-center gap-2 sm:flex", mobileFiltersOpen ? "flex" : "hidden")}>
                 <button
@@ -207,23 +209,23 @@ export default function CardsPage() {
                       ? "border-emerald-400 bg-emerald-500/20 text-emerald-300 font-bold"
                       : "border-white/15 bg-white/5 nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"
                   }`}
-                  title="Filtrar apenas cartas 100% implementadas no simulador"
+                  title={tr("Filtrar apenas cartas 100% implementadas no simulador", "Show only cards fully implemented in the simulator")}
                 >
                   <CheckCircle2 className="mr-2 size-4 text-emerald-400" />
-                  {filters.playability === "apta" ? "Só aptas (ativo)" : "Só aptas"}
+                  {filters.playability === "apta" ? tr("Só aptas (ativo)", "Ready only (on)") : tr("Só aptas", "Ready only")}
                 </button>
-                <button type="button" onClick={copySearchLink} className="inline-flex h-11 items-center rounded-none border border-white/15 bg-white/5 px-4 text-xs uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"><Copy className="mr-2 size-4" />Copiar busca</button>
-                <button type="button" onClick={resetFilters} className="inline-flex h-11 items-center rounded-none border border-white/15 bg-white/5 px-4 text-xs uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">Limpar filtros</button>
-                <Badge variant="outline" className="h-11 rounded-none border-white/20 px-3 text-slate-300 dark:text-slate-300 light:border-slate-300/80 light:text-slate-700">{activeFilters > 0 ? `${activeFilters} filtros ativos` : "sem filtros extras"}</Badge>
-                <Badge className="h-11 rounded-none border border-accent/40 bg-accent/10 px-3 text-accent">{total} resultados</Badge>
+                <button type="button" onClick={copySearchLink} className="inline-flex h-11 items-center rounded-none border border-white/15 bg-white/5 px-4 text-xs uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"><Copy className="mr-2 size-4" />{tr("Copiar busca", "Copy search")}</button>
+                <button type="button" onClick={resetFilters} className="inline-flex h-11 items-center rounded-none border border-white/15 bg-white/5 px-4 text-xs uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">{tr("Limpar filtros", "Clear filters")}</button>
+                <Badge variant="outline" className="h-11 rounded-none border-white/20 px-3 text-slate-300 dark:text-slate-300 light:border-slate-300/80 light:text-slate-700">{activeFilters > 0 ? tr(`${activeFilters} filtros ativos`, `${activeFilters} active filters`) : tr("sem filtros extras", "no extra filters")}</Badge>
+                <Badge className="h-11 rounded-none border border-accent/40 bg-accent/10 px-3 text-accent">{total} {tr("resultados", "results")}</Badge>
                 {filters.keyword ? (
                   <Link
                     href={`/rules?relatedKeyword=${encodeURIComponent(filters.keyword)}`}
                     className="inline-flex h-11 items-center gap-1.5 rounded-none border border-primary/40 bg-primary/10 px-3 text-xs uppercase tracking-[0.16em] text-primary transition hover:bg-primary/20"
-                    title={isPt ? `Abrir regra de ${filters.keyword} no Glossário` : `Open ${filters.keyword} rule in Glossary`}
+                    title={tr(`Abrir regra de ${filters.keyword} no Glossário`, `Open ${filters.keyword} rule in Glossary`)}
                   >
                     <HelpCircle className="size-3.5" />
-                    <span>{isPt ? `Glossário: ${filters.keyword}` : `Glossary: ${filters.keyword}`}</span>
+                    <span>{tr(`Glossário: ${filters.keyword}`, `Glossary: ${filters.keyword}`)}</span>
                   </Link>
                 ) : null}
               </div>
@@ -231,28 +233,28 @@ export default function CardsPage() {
 
             {/* Barra de Parâmetros Principais */}
             <div id="filtros-catalogo" className={cn("gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-4", mobileFiltersOpen ? "grid" : "hidden")}>
-              <MultiSelectFilter label="Cores" options={meta.colors} value={filters.color ?? ""} onChange={(v) => setFilter("color", v)} />
-              <select value={filters.cardType ?? ""} onChange={(event) => setFilter("cardType", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todos os tipos</option>{meta.cardTypes.map((item) => <option key={item} value={item}>{cardTypeLabel(item)}</option>)}</select>
-              <select value={filters.setCode ?? ""} onChange={(event) => setFilter("setCode", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as coleções</option>{meta.sets.map((item) => <option key={item.code} value={item.code}>{item.code} · {isPt ? (item.namePt || item.nameEn) : (item.nameEn || item.namePt)}</option>)}</select>
-              <select value={filters.rarity ?? ""} onChange={(event) => setFilter("rarity", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as raridades</option>{rarityOptions.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <MultiSelectFilter label={tr("Cores", "Colors")} options={meta.colors} value={filters.color ?? ""} onChange={(v) => setFilter("color", v)} />
+              <select value={filters.cardType ?? ""} onChange={(event) => setFilter("cardType", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">{tr("Todos os tipos", "All types")}</option>{meta.cardTypes.map((item) => <option key={item} value={item}>{cardTypeLabel(item)}</option>)}</select>
+              <select value={filters.setCode ?? ""} onChange={(event) => setFilter("setCode", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">{tr("Todas as coleções", "All sets")}</option>{meta.sets.map((item) => <option key={item.code} value={item.code}>{item.code} · {isPt ? (item.namePt || item.nameEn) : (item.nameEn || item.namePt)}</option>)}</select>
+              <select value={filters.rarity ?? ""} onChange={(event) => setFilter("rarity", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">{tr("Todas as raridades", "All rarities")}</option>{rarityOptions.map((item) => <option key={item} value={item}>{item}</option>)}</select>
             </div>
 
             {/* Barra de Parâmetros de Lore, Simulador & Ordenação */}
             <div className={cn("gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-6", mobileFiltersOpen ? "grid" : "hidden")}>
-              <select value={filters.series ?? ""} onChange={(event) => setFilter("series", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as séries</option>{meta.series.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <select value={filters.series ?? ""} onChange={(event) => setFilter("series", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">{tr("Todas as séries", "All series")}</option>{meta.series.map((item) => <option key={item} value={item}>{item}</option>)}</select>
               <MultiSelectFilter label="Traits" options={meta.traits} value={filters.trait ?? ""} onChange={(v) => setFilter("trait", v)} />
-              <select value={filters.keyword ?? ""} onChange={(event) => setFilter("keyword", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as keywords</option>{meta.keywords.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <select value={filters.keyword ?? ""} onChange={(event) => setFilter("keyword", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">{tr("Todas as keywords", "All keywords")}</option>{meta.keywords.map((item) => <option key={item} value={item}>{item}</option>)}</select>
               <select value={filters.playability ?? ""} onChange={(event) => setFilter("playability", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900">
-                <option value="">Status no simulador</option>
-                <option value="apta">Apenas aptas (100%)</option>
-                <option value="revisao">Em revisão no motor</option>
-                <option value="fora">Fora do simulador</option>
+                <option value="">{tr("Status no simulador", "Simulator status")}</option>
+                <option value="apta">{tr("Apenas aptas (100%)", "Ready only (100%)")}</option>
+                <option value="revisao">{tr("Em revisão no motor", "Under review")}</option>
+                <option value="fora">{tr("Fora do simulador", "Not in simulator")}</option>
               </select>
-              <select value={filters.sort ?? "code_asc"} onChange={(event) => setFilter("sort", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="code_asc">Ordenar por código</option><option value="created_desc">Últimas cadastradas</option><option value="name_asc">Ordenar por nome</option><option value="cost_asc">Menor custo</option><option value="cost_desc">Maior custo</option></select>
+              <select value={filters.sort ?? "code_asc"} onChange={(event) => setFilter("sort", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="code_asc">{tr("Ordenar por código", "Sort by code")}</option><option value="created_desc">{tr("Últimas cadastradas", "Newest")}</option><option value="name_asc">{tr("Ordenar por nome", "Sort by name")}</option><option value="cost_asc">{tr("Menor custo", "Lowest cost")}</option><option value="cost_desc">{tr("Maior custo", "Highest cost")}</option></select>
               <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-400">
-                <span className="shrink-0">Por página</span>
+                <span className="shrink-0">{tr("Por página", "Per page")}</span>
                 <select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} className="h-10 w-full rounded-none border border-white/15 bg-slate-950/70 px-2 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900">
-                  {PAGE_SIZE_OPTIONS.map((size) => <option key={size} value={size}>{size === 9999 ? "Todas" : size}</option>)}
+                  {PAGE_SIZE_OPTIONS.map((size) => <option key={size} value={size}>{size === 9999 ? tr("Todas", "All") : size}</option>)}
                 </select>
               </div>
             </div>
@@ -262,12 +264,12 @@ export default function CardsPage() {
         {/* Painel com progresso de implementação por set no motor */}
         <SetPlayabilityProgress />
 
-        {loading ? <p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">Carregando catálogo...</p> : null}
+        {loading ? <p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">{tr("Carregando catálogo...", "Loading catalog...")}</p> : null}
         {loadError && !loading ? (
           <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100 light:text-amber-900">
-            <span>Não foi possível carregar as cartas agora. Pode ser uma instabilidade momentânea.</span>
+            <span>{tr("Não foi possível carregar as cartas agora. Pode ser uma instabilidade momentânea.", "Couldn't load the cards right now. It may be a temporary issue.")}</span>
             <Button type="button" variant="outline" size="sm" onClick={() => setReloadKey((key) => key + 1)}>
-              Tentar de novo
+              {tr("Tentar de novo", "Try again")}
             </Button>
           </div>
         ) : null}
@@ -284,7 +286,7 @@ export default function CardsPage() {
                   {card.imageMediumUrl || card.imageUrl ? (
                     <img src={card.imageMediumUrl || card.imageUrl} alt={cardName} className="h-full w-full object-cover" loading="lazy" />
                   ) : (
-                    <div className="flex h-full items-center justify-center text-center text-[10px] uppercase tracking-[0.2em] text-slate-600">Sem arte</div>
+                    <div className="flex h-full items-center justify-center text-center text-[10px] uppercase tracking-[0.2em] text-slate-600">{tr("Sem arte", "No art")}</div>
                   )}
                   {/* Selo A3: Status no simulador no canto superior esquerdo */}
                   <div className="absolute left-1 top-1 z-10 flex flex-col items-start gap-1">
@@ -305,7 +307,7 @@ export default function CardsPage() {
                     <button
                       type="button"
                       onClick={() => setFilter(traitText ? "trait" : "series", traitText ? (card.traits?.[0] || card.trait) : seriesText)}
-                      title={`Filtrar por ${traitText || seriesText}`}
+                      title={tr(`Filtrar por ${traitText || seriesText}`, `Filter by ${traitText || seriesText}`)}
                       className="block truncate text-left text-[11px] text-slate-500 transition hover:text-primary hover:underline"
                     >
                       {traitText || seriesText}
@@ -319,10 +321,10 @@ export default function CardsPage() {
 
         {totalPages > 1 ? (
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4 light:border-slate-300/60">
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Página {page} de {totalPages}</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{tr(`Página ${page} de ${totalPages}`, `Page ${page} of ${totalPages}`)}</p>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="rounded-none border-white/20 light:border-slate-400/90" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>Anterior</Button>
-              <Button variant="outline" size="sm" className="rounded-none border-white/20 light:border-slate-400/90" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))}>Próxima</Button>
+              <Button variant="outline" size="sm" className="rounded-none border-white/20 light:border-slate-400/90" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>{tr("Anterior", "Previous")}</Button>
+              <Button variant="outline" size="sm" className="rounded-none border-white/20 light:border-slate-400/90" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))}>{tr("Próxima", "Next")}</Button>
             </div>
           </div>
         ) : null}

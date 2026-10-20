@@ -2518,7 +2518,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         }}
         className="flex items-center gap-1.5"
       >
-        <p className="shrink-0 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Mão ({count})</p>
+        <p className="shrink-0 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{tr("Mão", "Hand")} ({count})</p>
         <div className="flex">
           {Array.from({ length: Math.min(count, 10) }).map((_, i) => (
             <img

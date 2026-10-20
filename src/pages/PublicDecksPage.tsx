@@ -28,14 +28,15 @@ import { DeckPreviewCard } from "@/components/deck/DeckPreviewCard";
 import { DeckFiltersModal } from "@/components/deck/DeckFiltersModal";
 import { api, type ApiDeck } from "@/lib/api";
 import { GAME_COLOR_HEX } from "@/lib/gundam-catalog";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 const SORT_OPTIONS = [
-  { value: "views_desc", label: "Mais Vistos" },
-  { value: "likes_desc", label: "Mais Curtidos" },
-  { value: "recent", label: "Mais Recentes" },
-  { value: "oldest", label: "Mais Antigos" },
-  { value: "name_asc", label: "Nome A-Z" },
-  { value: "name_desc", label: "Nome Z-A" },
+  { value: "views_desc", label: { pt: "Mais Vistos", en: "Most Viewed" } },
+  { value: "likes_desc", label: { pt: "Mais Curtidos", en: "Most Liked" } },
+  { value: "recent", label: { pt: "Mais Recentes", en: "Newest" } },
+  { value: "oldest", label: { pt: "Mais Antigos", en: "Oldest" } },
+  { value: "name_asc", label: { pt: "Nome A-Z", en: "Name A-Z" } },
+  { value: "name_desc", label: { pt: "Nome Z-A", en: "Name Z-A" } },
 ] as const;
 
 const AVAILABLE_COLORS = [
@@ -47,6 +48,7 @@ const AVAILABLE_COLORS = [
 ];
 
 export default function PublicDecksPage() {
+  const { tr } = useSiteLanguage();
   const [, navigate] = useLocation();
 
   const [decks, setDecks] = useState<ApiDeck[]>([]);
@@ -156,7 +158,7 @@ export default function PublicDecksPage() {
       setHasMore(Boolean(res.hasMore));
     } catch (err) {
       console.error("Erro ao carregar mais decks:", err);
-      toast.error("Erro ao carregar mais decks.");
+      toast.error(tr("Erro ao carregar mais decks.", "Couldn't load more decks."));
     } finally {
       setLoadingMore(false);
     }
@@ -215,7 +217,7 @@ export default function PublicDecksPage() {
 
   const handleStartImport = () => {
     if (!importText.trim()) {
-      toast.error("Cole ao menos uma linha de texto com o código das cartas.");
+      toast.error(tr("Cole ao menos uma linha de texto com o código das cartas.", "Paste at least one line with card codes."));
       return;
     }
     // Salva rascunho temporário no localStorage e redireciona para o deckbuilder
@@ -255,29 +257,29 @@ export default function PublicDecksPage() {
               </div>
 
               <h1 className="font-heading text-3xl sm:text-4xl md:text-5xl uppercase tracking-tight text-white leading-tight drop-shadow-md">
-                Decks públicos
+                {tr("Decks públicos", "Public decks")}
               </h1>
 
               <p className="text-sm sm:text-base text-slate-200 leading-relaxed max-w-2xl font-sans drop-shadow">
-                Decks compartilhados pela comunidade para estudar, copiar e testar.
+                {tr("Decks compartilhados pela comunidade para estudar, copiar e testar.", "Decks shared by the community to study, copy and test.")}
               </p>
 
               {/* Informações táticas de status */}
               <div className="pt-2 flex flex-wrap items-center gap-4 text-xs font-mono text-slate-300">
                 <span className="flex items-center gap-1.5">
                   <Layers className="size-3.5 text-primary" />
-                  Total em Operação:{" "}
+                  {tr("Total em Operação:", "Total:")}{" "}
                   <strong className="text-white">{totalDecks} Decks</strong>
                 </span>
                 <span className="hidden sm:inline text-slate-600">|</span>
                 <span className="flex items-center gap-1.5">
                   <Swords className="size-3.5 text-amber-400" />
-                  Formatos: Padrão Construído
+                  {tr("Formatos: Padrão Construído", "Formats: Standard Constructed")}
                 </span>
                 <span className="hidden sm:inline text-slate-600">|</span>
                 <span className="text-emerald-400 flex items-center gap-1">
                   <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Acesso Livre para Criação
+                  {tr("Acesso Livre para Criação", "Free to build")}
                 </span>
               </div>
             </div>
@@ -291,7 +293,7 @@ export default function PublicDecksPage() {
               >
                 <Link href="/deckbuilder/novo">
                   <Plus className="mr-2 size-5" />
-                  Criar Deck
+                  {tr("Criar Deck", "Create Deck")}
                 </Link>
               </Button>
 
@@ -303,7 +305,7 @@ export default function PublicDecksPage() {
                 className="rounded-none border-white/20 bg-slate-900/80 backdrop-blur text-white font-heading uppercase tracking-wider text-sm px-6 py-6 hover:bg-white/10 hover:border-primary/50 transition-all"
               >
                 <Upload className="mr-2 size-4 text-primary" />
-                Importar Decklist
+                {tr("Importar Decklist", "Import Decklist")}
               </Button>
             </div>
           </div>
@@ -321,7 +323,7 @@ export default function PublicDecksPage() {
               <Input
                 value={queryDraft}
                 onChange={(e) => setQueryDraft(e.target.value)}
-                placeholder="Buscar por nome do deck ou jogador..."
+                placeholder={tr("Buscar por nome do deck ou jogador...", "Search by deck or player name...")}
                 className="field-shell pl-9 h-11 text-sm placeholder:text-slate-500"
               />
               {queryDraft && (
@@ -360,10 +362,10 @@ export default function PublicDecksPage() {
                   ? "border-sky-400 bg-sky-950/60 text-sky-300 shadow-sm shadow-sky-400/20"
                   : "border-white/15 bg-slate-900/60 text-slate-300 hover:text-white"
               }`}
-              title="Abrir painel de filtros avançados estilo Exburst"
+              title={tr("Abrir painel de filtros avançados estilo Exburst", "Open advanced filters")}
             >
               <Filter className="size-3.5 text-sky-400" />
-              <span>Filtros</span>
+              <span>{tr("Filtros", "Filters")}</span>
               {activeFiltersCount > 0 && (
                 <span className="size-4 rounded-full bg-sky-400 text-slate-950 font-bold text-[10px] flex items-center justify-center">
                   {activeFiltersCount}
@@ -380,10 +382,10 @@ export default function PublicDecksPage() {
                   ? "bg-amber-600 hover:bg-amber-500 text-white border-amber-500"
                   : "border-white/15 bg-slate-900/60 text-slate-300 hover:text-white"
               }`}
-              title="Filtrar decks centrados em Mobile Suits Legend Rare (LR)"
+              title={tr("Filtrar decks centrados em Mobile Suits Legend Rare (LR)", "Filter decks built around Legend Rare (LR) Mobile Suits")}
             >
               <Sparkles className="mr-1.5 size-3.5" />
-              Principal (LR)
+              {tr("Principal (LR)", "Main (LR)")}
             </Button>
 
             <div className="relative min-w-[190px]">
@@ -395,7 +397,7 @@ export default function PublicDecksPage() {
               >
                 {SORT_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value} className="bg-slate-900 text-white">
-                    {opt.label}
+                    {tr(opt.label)}
                   </option>
                 ))}
               </select>
@@ -407,7 +409,7 @@ export default function PublicDecksPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-white/10">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs uppercase tracking-wider text-slate-400 font-mono flex items-center gap-1.5 mr-1">
-              <Filter className="size-3 text-primary" /> Cores:
+              <Filter className="size-3 text-primary" /> {tr("Cores:", "Colors:")}
             </span>
 
             {AVAILABLE_COLORS.map((c) => {
@@ -437,25 +439,25 @@ export default function PublicDecksPage() {
             {/* Badges de filtros adicionais ativos */}
             {exactColor && (
               <Badge className="rounded-none bg-sky-950/80 border-sky-400/50 text-sky-300 text-[11px] font-mono flex items-center gap-1 py-1">
-                Cor Exata
+                {tr("Cor Exata", "Exact Color")}
                 <button onClick={() => setExactColor(false)} className="hover:text-white ml-0.5">✕</button>
               </Badge>
             )}
             {starterDecksOnly && (
               <Badge className="rounded-none bg-sky-950/80 border-sky-400/50 text-sky-300 text-[11px] font-mono flex items-center gap-1 py-1">
-                Apenas Decks Iniciais
+                {tr("Apenas Decks Iniciais", "Starter Decks Only")}
                 <button onClick={() => setStarterDecksOnly(false)} className="hover:text-white ml-0.5">✕</button>
               </Badge>
             )}
             {dateRange !== "all" && (
               <Badge className="rounded-none bg-sky-950/80 border-sky-400/50 text-sky-300 text-[11px] font-mono flex items-center gap-1 py-1">
-                {dateRange === "3months" ? "Últimos 3 Meses" : "Últimos 6 Meses"}
+                {dateRange === "3months" ? tr("Últimos 3 Meses", "Last 3 Months") : tr("Últimos 6 Meses", "Last 6 Months")}
                 <button onClick={() => setDateRange("all")} className="hover:text-white ml-0.5">✕</button>
               </Badge>
             )}
             {unit && (
               <Badge className="rounded-none bg-sky-950/80 border-sky-400/50 text-sky-300 text-[11px] font-mono flex items-center gap-1 py-1">
-                Carta: {unit}
+                {tr("Carta", "Card")}: {unit}
                 <button onClick={() => { setUnit(""); setUnitDraft(""); }} className="hover:text-white ml-0.5">✕</button>
               </Badge>
             )}
@@ -469,14 +471,14 @@ export default function PublicDecksPage() {
                 onClick={clearAllFilters}
                 className="text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-950/20 rounded-none h-8 px-2"
               >
-                <RotateCcw className="mr-1 size-3" /> Limpar filtros
+                <RotateCcw className="mr-1 size-3" /> {tr("Limpar filtros", "Clear filters")}
               </Button>
             )}
           </div>
 
           <div className="text-xs font-mono text-slate-400">
-            Exibindo <span className="text-white font-bold">{decks.length}</span> de{" "}
-            <span className="text-white font-bold">{totalDecks}</span> projetos
+            {tr("Exibindo", "Showing")} <span className="text-white font-bold">{decks.length}</span> {tr("de", "of")}{" "}
+            <span className="text-white font-bold">{totalDecks}</span> {tr("projetos", "decks")}
           </div>
         </div>
       </div>
@@ -486,7 +488,7 @@ export default function PublicDecksPage() {
         <div className="py-24 text-center text-sm text-slate-400">
           <div className="mx-auto size-10 border-2 border-primary/40 border-t-primary animate-spin mb-4" />
           <p className="uppercase tracking-[0.2em] text-xs font-mono">
-            Carregando decks...
+            {tr("Carregando decks...", "Loading decks...")}
           </p>
         </div>
       ) : !decks.length ? (
@@ -494,12 +496,12 @@ export default function PublicDecksPage() {
           <CardContent className="p-16 text-center text-sm text-slate-400 space-y-4">
             <Swords className="mx-auto size-12 text-slate-600" />
             <p className="font-heading text-2xl uppercase text-slate-200">
-              Nenhum deck encontrado
+              {tr("Nenhum deck encontrado", "No decks found")}
             </p>
             <p className="text-xs uppercase tracking-widest text-slate-500 max-w-md mx-auto">
               {query || unit || selectedColors.length > 0
-                ? "Nenhum deck coincide com os filtros atuais. Tente buscar com outros termos ou redefinir os parâmetros."
-                : "Seja a primeira pessoa a publicar um deck!"}
+                ? tr("Nenhum deck coincide com os filtros atuais. Tente buscar com outros termos ou redefinir os parâmetros.", "No deck matches the current filters. Try other terms or reset the filters.")
+                : tr("Seja a primeira pessoa a publicar um deck!", "Be the first to publish a deck!")}
             </p>
             <div className="pt-2 flex justify-center gap-3">
               {(query || unit || selectedColors.length > 0) && (
@@ -508,11 +510,11 @@ export default function PublicDecksPage() {
                   onClick={clearAllFilters}
                   className="rounded-none border-white/15"
                 >
-                  Limpar Parâmetros
+                  {tr("Limpar Parâmetros", "Reset Filters")}
                 </Button>
               )}
               <Button asChild className="rounded-none bg-primary text-primary-foreground">
-                <Link href="/deckbuilder/novo">Construir Novo Deck</Link>
+                <Link href="/deckbuilder/novo">{tr("Construir Novo Deck", "Build a New Deck")}</Link>
               </Button>
             </div>
           </CardContent>
@@ -538,11 +540,11 @@ export default function PublicDecksPage() {
                 onClick={loadMoreDecks}
                 className="rounded-none border-white/20 bg-slate-900/60 font-mono text-xs uppercase tracking-wider hover:border-primary/50"
               >
-                Carregar Mais Decks ({decks.length}/{totalDecks})
+                {tr("Carregar Mais Decks", "Load More Decks")} ({decks.length}/{totalDecks})
               </Button>
             ) : decks.length > 12 ? (
               <p className="text-xs font-mono uppercase tracking-widest text-slate-500">
-                Fim do registro de dados · Todos os {totalDecks} decks carregados
+                {tr(`Fim da lista · Todos os ${totalDecks} decks carregados`, `End of list · All ${totalDecks} decks loaded`)}
               </p>
             ) : null}
           </div>
@@ -554,11 +556,13 @@ export default function PublicDecksPage() {
         <DialogContent className="rounded-none border-primary/40 bg-slate-950 text-white max-w-xl">
           <DialogHeader>
             <DialogTitle className="font-heading text-xl uppercase tracking-wider text-primary flex items-center gap-2">
-              <Upload className="size-5" /> Importar Lista Tática
+              <Upload className="size-5" /> {tr("Importar Lista Tática", "Import Decklist")}
             </DialogTitle>
             <DialogDescription className="text-slate-400 text-xs">
-              Cole sua decklist nos formatos compatíveis (MSA / Exburst, Wing Table ou lista simples
-              de códigos). O deckbuilder monta o rascunho na hora.
+              {tr(
+                "Cole sua decklist nos formatos compatíveis (MSA / Exburst, Wing Table ou lista simples de códigos). O deckbuilder monta o rascunho na hora.",
+                "Paste your decklist in a supported format (MSA / Exburst, Wing Table or a plain list of codes). The deckbuilder builds the draft right away.",
+              )}
             </DialogDescription>
           </DialogHeader>
 
@@ -572,20 +576,20 @@ export default function PublicDecksPage() {
             />
 
             <div className="flex items-center justify-between text-xs text-slate-400">
-              <span>Qualquer usuário ou visitante pode importar e editar.</span>
+              <span>{tr("Qualquer usuário ou visitante pode importar e editar.", "Anyone, signed in or not, can import and edit.")}</span>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   onClick={() => setImportOpen(false)}
                   className="rounded-none border-white/20"
                 >
-                  Cancelar
+                  {tr("Cancelar", "Cancel")}
                 </Button>
                 <Button
                   onClick={handleStartImport}
                   className="rounded-none bg-primary text-primary-foreground font-heading uppercase tracking-wider"
                 >
-                  Abrir no deckbuilder
+                  {tr("Abrir no deckbuilder", "Open in the deckbuilder")}
                 </Button>
               </div>
             </div>

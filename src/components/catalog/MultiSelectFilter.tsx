@@ -5,8 +5,10 @@
  * (ainda string) em cascata por todo o código que já usa esses filtros. */
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export function MultiSelectFilter({ label, options, value, onChange }: { label: string; options: string[]; value: string; onChange: (next: string) => void }) {
+  const { tr } = useSiteLanguage();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const selected = value ? value.split(",").filter(Boolean) : [];
@@ -28,7 +30,7 @@ export function MultiSelectFilter({ label, options, value, onChange }: { label: 
   return (
     <div ref={ref} className="relative">
       <button type="button" onClick={() => setOpen((o) => !o)} className="field-shell flex h-10 w-full items-center justify-between px-3 text-sm">
-        <span className="truncate">{selected.length ? `${label} (${selected.length})` : `Todas as ${label.toLowerCase()}`}</span>
+        <span className="truncate">{selected.length ? `${label} (${selected.length})` : tr(`Todas as ${label.toLowerCase()}`, `All ${label.toLowerCase()}`)}</span>
         <ChevronDown className="size-4 shrink-0 text-slate-500" />
       </button>
       {open ? (
@@ -38,8 +40,8 @@ export function MultiSelectFilter({ label, options, value, onChange }: { label: 
               <input type="checkbox" checked={selected.includes(option)} onChange={() => toggle(option)} className="accent-primary" />
               {option}
             </label>
-          )) : <p className="px-2 py-1.5 text-xs text-slate-500">Nenhuma opção.</p>}
-          {selected.length ? <button type="button" onClick={() => onChange("")} className="mt-1 w-full border-t border-white/10 px-2 pt-2 text-left text-xs text-slate-400 hover:text-white">Limpar seleção</button> : null}
+          )) : <p className="px-2 py-1.5 text-xs text-slate-500">{tr("Nenhuma opção.", "No options.")}</p>}
+          {selected.length ? <button type="button" onClick={() => onChange("")} className="mt-1 w-full border-t border-white/10 px-2 pt-2 text-left text-xs text-slate-400 hover:text-white">{tr("Limpar seleção", "Clear selection")}</button> : null}
         </div>
       ) : null}
     </div>

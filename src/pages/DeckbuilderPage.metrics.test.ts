@@ -54,8 +54,9 @@ describe("DeckbuilderPage — cobertura de tooltips nas métricas", () => {
     expect(tooltips.length).toBeGreaterThanOrEqual(20);
     for (const attrs of tooltips) {
       const metric = attrs.match(/metric="([^"]+)"/)?.[1] ?? "";
-      const what = attrs.match(/what="([^"]+)"/)?.[1] ?? "";
-      const howToRead = attrs.match(/howToRead="([^"]+)"/)?.[1] ?? "";
+      // texto direto (what="...") ou nos dois idiomas (what={tr("pt", "en")}); mede o português
+      const what = attrs.match(/what=(?:"([^"]+)"|\{tr\("((?:[^"\\]|\\.)+)")/)?.slice(1).find(Boolean) ?? "";
+      const howToRead = attrs.match(/howToRead=(?:"([^"]+)"|\{tr\("((?:[^"\\]|\\.)+)")/)?.slice(1).find(Boolean) ?? "";
       expect(metric, `metric ausente em: ${attrs}`).toMatch(/^[a-z][a-z-]+$/);
       expect(what.length, `what curto demais para ${metric}`).toBeGreaterThan(15);
       expect(howToRead.length, `howToRead curto demais para ${metric}`).toBeGreaterThan(15);

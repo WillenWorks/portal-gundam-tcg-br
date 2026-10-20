@@ -400,7 +400,7 @@ export function SideboardModal({
                   {tr("Main Deck Atual", "Current Main Deck")}
                 </span>
                 <span className="text-[11px] text-slate-400 font-mono">
-                  ({baseMain.length} cartas base)
+                  ({baseMain.length} {tr("cartas base", "base cards")})
                 </span>
               </div>
               <span className="text-[10px] text-slate-500 font-mono">
@@ -511,7 +511,7 @@ export function SideboardModal({
                   {tr("Sideboard Disponível", "Available Sideboard")}
                 </span>
                 <span className="text-[11px] text-slate-400 font-mono">
-                  ({baseSide.length} cartas)
+                  ({baseSide.length} {tr("cartas", "cards")})
                 </span>
               </div>
               <span className="text-[10px] text-slate-500 font-mono">

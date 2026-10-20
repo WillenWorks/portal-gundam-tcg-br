@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import type { CardStatusEntry, PlayabilityStatus } from "@/lib/api";
 import { isNonStatsCard } from "@/lib/deck-legality";
 import { useCardPlayability } from "./useCardPlayability";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export interface CardPlayabilityBadgeProps {
   /** Código da carta (ex.: 'ST01-001', 'EB01-003'). */
@@ -48,6 +49,7 @@ export function CardPlayabilityBadge({
   className,
   onClick,
 }: CardPlayabilityBadgeProps) {
+  const { tr } = useSiteLanguage();
   // Cartas fixas (Ex Base, Resources, Ex Resources, Tokens) não possuem selo de jogabilidade
   // (o hook vem antes do retorno: hooks não podem ser condicionais)
   const nonStats = isNonStatsCard({ code, name: propEntry?.name, cardType: (propEntry as any)?.cardType || (propEntry as any)?.type });
@@ -81,26 +83,26 @@ export function CardPlayabilityBadge({
     statusBadgeStyle =
       "border-emerald-500/40 bg-emerald-500/15 text-emerald-300 backdrop-blur-xs transition-colors hover:bg-emerald-500/25 dark:text-emerald-300 light:border-emerald-600/30 light:bg-emerald-50 light:text-emerald-700";
     iconNode = <CheckCircle2 className={iconSizes} aria-hidden />;
-    labelText = size === "xs" ? "Apta" : "Apta para jogar";
-    tooltipText = "Apta para jogar no simulador: 100% implementada e testada no motor de regras.";
+    labelText = size === "xs" ? tr("Apta", "Ready") : tr("Apta para jogar", "Playable");
+    tooltipText = tr("Apta para jogar no simulador: 100% implementada e testada no motor de regras.", "Playable in the simulator: fully implemented and tested in the rules engine.");
   } else if (status === "revisao") {
     statusBadgeStyle =
       "border-amber-500/40 bg-amber-500/15 text-amber-300 backdrop-blur-xs transition-colors hover:bg-amber-500/25 dark:text-amber-300 light:border-amber-600/30 light:bg-amber-50 light:text-amber-800";
     iconNode = <AlertTriangle className={iconSizes} aria-hidden />;
     labelText =
-      showMissingCount && missingCount > 0 ? `Em revisão (${missingCount})` : "Em revisão";
+      showMissingCount && missingCount > 0 ? tr(`Em revisão (${missingCount})`, `Under review (${missingCount})`) : tr("Em revisão", "Under review");
     tooltipText =
       missingCount > 0
-        ? `Ainda em revisão no simulador: ${missingCount} cláusula(s) pendente(s) de implementação no motor.`
+        ? tr(`Ainda em revisão no simulador: ${missingCount} cláusula(s) pendente(s) de implementação no motor.`, `Still under review in the simulator: ${missingCount} clause(s) not implemented yet.`)
         : entry?.motivo ||
-          "Ainda em revisão no simulador: algumas cláusulas desta carta não foram implementadas.";
+          tr("Ainda em revisão no simulador: algumas cláusulas desta carta não foram implementadas.", "Still under review in the simulator: some of this card's clauses aren't implemented yet.");
   } else {
     statusBadgeStyle =
       "border-slate-500/40 bg-slate-800/80 text-slate-400 backdrop-blur-xs dark:text-slate-400 light:border-slate-400/40 light:bg-slate-100 light:text-slate-600";
     iconNode = <HelpCircle className={iconSizes} aria-hidden />;
-    labelText = "Fora do simulador";
+    labelText = tr("Fora do simulador", "Not in simulator");
     tooltipText =
-      entry?.motivo || "Fora do simulador: carta ainda não catalogada no motor do simulador.";
+      entry?.motivo || tr("Fora do simulador: carta ainda não catalogada no motor do simulador.", "Not in simulator: card not yet added to the simulator engine.");
   }
 
   const badgeContent = (
@@ -163,10 +165,10 @@ export function CardPlayabilityBadge({
         <div className="space-y-1">
           <p className="font-semibold text-white">
             {status === "apta"
-              ? "Apta no Simulador"
+              ? tr("Apta no Simulador", "Simulator-ready")
               : status === "revisao"
-                ? "Em Revisão no Simulador"
-                : "Fora do Simulador"}
+                ? tr("Em Revisão no Simulador", "Under review in the Simulator")
+                : tr("Fora do Simulador", "Not in the Simulator")}
           </p>
           <p className="text-slate-300 text-[11px] leading-relaxed">{tooltipText}</p>
         </div>

@@ -35,7 +35,7 @@ export default function ForgotPasswordPage() {
         <div className="space-y-4" role="status">
           <p className="flex items-start gap-3 text-sm leading-7 text-slate-300 light:text-slate-600">
             <MailCheck className="mt-1 size-5 shrink-0 text-primary" aria-hidden />
-            {sentMessage} Confira também a caixa de spam. O link vale por 1 hora.
+            {sentMessage} {tr("Confira também a caixa de spam. O link vale por 1 hora.", "Also check your spam folder. The link is valid for 1 hour.")}
           </p>
           <Link href="/login" className="text-sm text-primary hover:underline">{tr("Voltar para o login", "Back to sign in")}</Link>
         </div>
