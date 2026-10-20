@@ -108,6 +108,17 @@ export default function Home({ targetSection }: HomeProps) {
     setCurrentSlide((prev) => (prev + 1) % CAROUSEL_SLIDES.length);
   };
 
+  // no celular as setas ficam escondidas (cobriam o título); troca de slide deslizando o dedo
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const onTouchStart = (event: React.TouchEvent) => setTouchStartX(event.touches[0]?.clientX ?? null);
+  const onTouchEnd = (event: React.TouchEvent) => {
+    if (touchStartX === null) return;
+    const dx = (event.changedTouches[0]?.clientX ?? touchStartX) - touchStartX;
+    if (dx > 40) prevSlide();
+    else if (dx < -40) nextSlide();
+    setTouchStartX(null);
+  };
+
   useEffect(() => {
     if (targetSection) {
       document.getElementById(targetSection)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -151,6 +162,8 @@ export default function Home({ targetSection }: HomeProps) {
               <div
                 className="relative flex flex-col justify-end overflow-hidden rounded-2xl border border-white/15 bg-slate-950 shadow-2xl min-h-[440px] sm:min-h-[480px] lg:min-h-[520px] group"
                 onMouseEnter={() => setIsPaused(true)}
+                onTouchStart={onTouchStart}
+                onTouchEnd={onTouchEnd}
                 onMouseLeave={() => setIsPaused(false)}
               >
                 {/* Slides com transição suave */}
@@ -219,7 +232,7 @@ export default function Home({ targetSection }: HomeProps) {
                   type="button"
                   onClick={prevSlide}
                   aria-label="Slide anterior"
-                  className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 z-30 flex size-9 sm:size-10 items-center justify-center rounded-full border border-white/20 bg-slate-950/60 text-white backdrop-blur-md transition-all hover:bg-slate-900/90 hover:scale-110 active:scale-95"
+                  className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 z-30 hidden sm:flex size-9 sm:size-10 items-center justify-center rounded-full border border-white/20 bg-slate-950/60 text-white backdrop-blur-md transition-all hover:bg-slate-900/90 hover:scale-110 active:scale-95"
                 >
                   <ChevronLeft className="size-5" />
                 </button>
@@ -227,7 +240,7 @@ export default function Home({ targetSection }: HomeProps) {
                   type="button"
                   onClick={nextSlide}
                   aria-label="Próximo slide"
-                  className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 z-30 flex size-9 sm:size-10 items-center justify-center rounded-full border border-white/20 bg-slate-950/60 text-white backdrop-blur-md transition-all hover:bg-slate-900/90 hover:scale-110 active:scale-95"
+                  className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 z-30 hidden sm:flex size-9 sm:size-10 items-center justify-center rounded-full border border-white/20 bg-slate-950/60 text-white backdrop-blur-md transition-all hover:bg-slate-900/90 hover:scale-110 active:scale-95"
                 >
                   <ChevronRight className="size-5" />
                 </button>
@@ -318,7 +331,7 @@ export default function Home({ targetSection }: HomeProps) {
                         </span>
                       </div>
                       <h4 className={cn(
-                        "font-heading text-lg sm:text-xl uppercase text-white transition-colors duration-200 heading-portal truncate",
+                        "font-heading text-lg sm:text-xl uppercase text-white transition-colors duration-200 heading-portal line-clamp-2",
                         isZeon ? "group-hover:text-red-400" : "group-hover:text-primary"
                       )}>
                         Simulador
@@ -362,7 +375,7 @@ export default function Home({ targetSection }: HomeProps) {
                           DECKBUILDER · ACESSO PÚBLICO LIVRE
                         </span>
                       </div>
-                      <h4 className="font-heading text-lg sm:text-xl uppercase text-white transition-colors duration-200 heading-portal truncate group-hover:text-amber-400">
+                      <h4 className="font-heading text-lg sm:text-xl uppercase text-white transition-colors duration-200 heading-portal line-clamp-2 group-hover:text-amber-400">
                         Deckbuilder
                       </h4>
                       <p className="text-xs text-muted-portal line-clamp-2 mt-0.5 leading-relaxed">
@@ -404,7 +417,7 @@ export default function Home({ targetSection }: HomeProps) {
                           METAGAME & STATS · ACESSO PÚBLICO LIVRE
                         </span>
                       </div>
-                      <h4 className="font-heading text-lg sm:text-xl uppercase text-white transition-colors duration-200 heading-portal truncate group-hover:text-emerald-400">
+                      <h4 className="font-heading text-lg sm:text-xl uppercase text-white transition-colors duration-200 heading-portal line-clamp-2 group-hover:text-emerald-400">
                         Estatísticas
                       </h4>
                       <p className="text-xs text-muted-portal line-clamp-2 mt-0.5 leading-relaxed">
