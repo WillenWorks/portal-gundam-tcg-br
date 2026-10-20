@@ -44,7 +44,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import defaultPilotAvatar from "@/assets/home/default_pilot_avatar.jpg";
+import defaultPilotAvatar from "@/assets/home/default_pilot_avatar.webp";
 
 type FriendItem = {
   friendshipId: string;

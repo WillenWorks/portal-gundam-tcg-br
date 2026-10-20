@@ -27,7 +27,7 @@ import { SupporterBadge } from "@/components/support/SupporterBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import defaultPilotAvatar from "@/assets/home/default_pilot_avatar.jpg";
+import defaultPilotAvatar from "@/assets/home/default_pilot_avatar.webp";
 
 import { useSocial } from "@/components/social/SocialQuickMatchOverlay";
 

@@ -10,7 +10,7 @@ import { HeartHandshake, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { CommunitySupportModal } from "@/components/support/CommunitySupportModal";
-import anaheimLogo from "@/assets/anaheim-logo-transparent.png";
+import anaheimLogo from "@/assets/anaheim-logo-transparent.webp";
 
 export function AppFooter({ className }: { className?: string }) {
   const [supportModalOpen, setSupportModalOpen] = useState(false);

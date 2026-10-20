@@ -23,16 +23,16 @@ import { AboutAnaheimHubSection } from "@/components/home/AboutAnaheimHubSection
 import { useFaction } from "@/contexts/FactionContext";
 import { cn } from "@/lib/utils";
 
-import rx78HeadOff from "@/assets/home/rx78_head_off.jpg";
-import rx78HeadOn from "@/assets/home/rx78_head_on.jpg";
-import zakuHeadOff from "@/assets/home/zaku_head_off.jpg";
-import zakuHeadOn from "@/assets/home/zaku_head_on.jpg";
-import ozHangarOff from "@/assets/home/oz_hangar_off.jpg";
-import ozHangarOn from "@/assets/home/oz_hangar_on.jpg";
-import exiaVedaOff from "@/assets/home/exia_veda_off.jpg";
-import exiaVedaOn from "@/assets/home/exia_veda_on.jpg";
-import newsStartersClash from "@/assets/home/news_starters_clash.jpg";
-import newsVedaTerminal from "@/assets/home/news_veda_terminal.jpg";
+import rx78HeadOff from "@/assets/home/rx78_head_off.webp";
+import rx78HeadOn from "@/assets/home/rx78_head_on.webp";
+import zakuHeadOff from "@/assets/home/zaku_head_off.webp";
+import zakuHeadOn from "@/assets/home/zaku_head_on.webp";
+import ozHangarOff from "@/assets/home/oz_hangar_off.webp";
+import ozHangarOn from "@/assets/home/oz_hangar_on.webp";
+import exiaVedaOff from "@/assets/home/exia_veda_off.webp";
+import exiaVedaOn from "@/assets/home/exia_veda_on.webp";
+import newsStartersClash from "@/assets/home/news_starters_clash.webp";
+import newsVedaTerminal from "@/assets/home/news_veda_terminal.webp";
 
 interface HomeProps {
   targetSection?: string;

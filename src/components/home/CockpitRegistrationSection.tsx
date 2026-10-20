@@ -12,7 +12,7 @@ import {
   Zap,
 } from "lucide-react";
 
-import cockpitImg from "@/assets/home/gundam_cockpit_interior.jpg";
+import cockpitImg from "@/assets/home/gundam_cockpit_interior.webp";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";

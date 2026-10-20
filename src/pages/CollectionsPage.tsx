@@ -33,7 +33,7 @@ export default function CollectionsPage() {
       breadcrumbs={[{ label: "Coleções & Produtos" }]}
       heroBanner={
         <ParallaxHeroBanner
-          image="/images/gundam_hangar_deploy_banner.png"
+          image="/images/gundam_hangar_deploy_banner.webp"
           eyebrow="Coleções oficiais"
           title="Coleções & Produtos"
           badge={`${sets.length} coleções catalogadas`}

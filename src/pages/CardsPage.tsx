@@ -100,6 +100,8 @@ export default function CardsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [meta, setMeta] = useState<{ colors: string[]; cardTypes: string[]; series: string[]; traits: string[]; keywords: string[]; rarities: string[]; sets: Array<{ code: string; namePt?: string | null; nameEn: string }> }>({ colors: [], cardTypes: [], series: [], traits: [], keywords: [], rarities: [], sets: [] });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     api.getCardFilters().then(setMeta).catch(() => undefined);
@@ -111,17 +113,30 @@ export default function CardsPage() {
   const rarityGroups = useMemo(() => groupRaritiesByLabel(meta.rarities), [meta.rarities]);
 
   useEffect(() => {
+    // `stale`: se o filtro mudar antes da resposta chegar, a resposta antiga é ignorada
+    // (sem isso, uma busca lenta podia chegar depois da nova e mostrar o resultado errado)
+    let stale = false;
     setLoading(true);
+    setLoadError(false);
     // `playability` vai pro servidor junto dos outros filtros (paginado lá, mesmo veredito do card-status).
     const apiFilters: CardFilters = { ...filters, rarity: expandRarityFilter(filters.rarity ?? "", rarityGroups) };
     api.listCardsPage(apiFilters, { page, pageSize })
       .then((result) => {
+        if (stale) return;
         setCards(result.items);
         setTotal(result.total);
         setTotalPages(result.totalPages);
       })
-      .finally(() => setLoading(false));
-  }, [filters, page, pageSize, rarityGroups]);
+      .catch(() => {
+        if (!stale) setLoadError(true);
+      })
+      .finally(() => {
+        if (!stale) setLoading(false);
+      });
+    return () => {
+      stale = true;
+    };
+  }, [filters, page, pageSize, rarityGroups, reloadKey]);
 
   useEffect(() => {
     navigate(buildHash(basePath, filters, page, pageSize), { replace: true });
@@ -152,10 +167,10 @@ export default function CardsPage() {
       breadcrumbs={[{ label: "Cartas" }]}
       heroBanner={
         <ParallaxHeroBanner
-          image="/images/unicorn_blueprint_banner.png"
+          image="/images/unicorn_blueprint_banner.webp"
           eyebrow="Catálogo oficial"
           title="Cartas"
-          badge={`${total} cartas`}
+          badge={loadError ? "Catálogo indisponível" : loading && total === 0 ? "Carregando..." : `${total} cartas`}
         />
       }
     >
@@ -235,6 +250,14 @@ export default function CardsPage() {
         <SetPlayabilityProgress />
 
         {loading ? <p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">Carregando catálogo...</p> : null}
+        {loadError && !loading ? (
+          <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100 light:text-amber-900">
+            <span>Não foi possível carregar as cartas agora. Pode ser uma instabilidade momentânea.</span>
+            <Button type="button" variant="outline" size="sm" onClick={() => setReloadKey((key) => key + 1)}>
+              Tentar de novo
+            </Button>
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 4xl:grid-cols-10">
           {cards.map((card) => {
