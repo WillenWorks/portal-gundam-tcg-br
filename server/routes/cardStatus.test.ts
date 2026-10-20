@@ -151,6 +151,13 @@ describe("cardStatus — rotas HTTP", () => {
     expect(body["ST01-001"].status).toBe("apta");
   });
 
+  it("montado na raiz, não responde a páginas do site (/cards, /torneios, /)", async () => {
+    for (const path of ["/cards", "/torneios", "/GD01-001", "/"]) {
+      const res = await fetch(`${baseUrl}${path}`);
+      expect(res.status, path).toBe(404);
+    }
+  });
+
   it("GET /api/simulator/card-status?code=ST01-001 retorna status da carta individual", async () => {
     const res = await fetch(`${baseUrl}/api/simulator/card-status?code=ST01-001`);
     expect(res.status).toBe(200);
