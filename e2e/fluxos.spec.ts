@@ -1,0 +1,63 @@
+import { expect, test } from "@playwright/test";
+import { json, mockApi } from "./fixtures";
+
+/* Fluxos principais do site, no build de produção e com a API simulada (e2e/fixtures.ts). */
+
+test.beforeEach(async ({ page }) => {
+  await mockApi(page);
+});
+
+test("home abre com título principal e menu com os nomes diretos", async ({ page, isMobile }) => {
+  await page.goto("/");
+  await expect(page.locator("h1").first()).toContainText("AnaheimHub");
+  if (isMobile) {
+    await page.getByRole("button", { name: /abrir menu/i }).click();
+  }
+  // no celular o menu é uma gaveta (dialog); no desktop, a barra de navegação
+  const nav = isMobile ? page.getByRole("dialog", { name: /menu principal/i }) : page.getByRole("navigation", { name: /navegação principal/i });
+  await expect(nav.getByText("Início", { exact: true })).toBeVisible();
+  await expect(nav.getByText("Decks", { exact: true })).toBeVisible();
+  await expect(nav.getByText("Catálogo", { exact: true })).toBeVisible();
+});
+
+test("catálogo lista as cartas e mostra o total", async ({ page }) => {
+  await page.goto("/cards");
+  await expect(page.getByText("2 cartas")).toBeVisible();
+  await expect(page.getByText("GD01-001").first()).toBeVisible();
+  await expect(page.getByText("GD01-002").first()).toBeVisible();
+});
+
+test("catálogo com a API fora do ar mostra aviso e se recupera ao tentar de novo", async ({ page }) => {
+  let falhar = true;
+  await mockApi(page, {
+    "/cards": (route) => {
+      if (falhar) return json(route, { error: "fora do ar" }, 500);
+      return json(route, { items: [{ id: "c1", code: "GD01-001", nameEn: "Gundam", namePt: "Gundam", cardType: "UNIT", color: "BLUE", traits: [] }], page: 1, pageSize: 24, total: 1, totalPages: 1 });
+    },
+  });
+  await page.goto("/cards");
+  const aviso = page.getByRole("alert").filter({ hasText: "Não foi possível carregar as cartas" });
+  await expect(aviso).toBeVisible();
+  await expect(page.getByText("0 cartas")).toHaveCount(0);
+  falhar = false;
+  await aviso.getByRole("button", { name: "Tentar de novo" }).click();
+  await expect(page.getByText("GD01-001").first()).toBeVisible();
+  await expect(aviso).toHaveCount(0);
+});
+
+test("deckbuilder abre e mostra a área de escolher cartas", async ({ page }) => {
+  await page.goto("/deckbuilder");
+  await expect(page.getByRole("heading", { name: "Escolha as cartas" })).toBeVisible();
+});
+
+test("endereço inexistente mostra a página de não encontrado", async ({ page }) => {
+  await page.goto("/esta-pagina-nao-existe");
+  await expect(page.getByRole("heading", { name: "Página não encontrada" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Início" })).toBeVisible();
+});
+
+test("política de privacidade cita os serviços de terceiros", async ({ page }) => {
+  await page.goto("/privacidade");
+  await expect(page.getByText("Sentry").first()).toBeVisible();
+  await expect(page.getByText("Cloudflare").first()).toBeVisible();
+});

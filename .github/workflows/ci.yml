@@ -50,6 +50,20 @@ jobs:
       - name: Build
         run: corepack pnpm run build
 
+      - name: Testes de ponta a ponta (build de produção + API simulada, desktop e celular)
+        run: |
+          corepack pnpm exec playwright install --with-deps chromium
+          corepack pnpm exec playwright test
+
+      - name: Relatório dos testes de ponta a ponta (se falharem)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-relatorio
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
       - name: Fuzz (regressão do motor — ~4500 partidas repartidas entre ST01-08, GD01 e os decks meta GD02)
         run: corepack pnpm run gundam:fuzz -- --totalGames=4500
 
