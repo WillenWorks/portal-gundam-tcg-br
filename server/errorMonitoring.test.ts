@@ -8,6 +8,8 @@ describe("shouldMonitorServer", () => {
     expect(shouldMonitorServer({ NODE_ENV: "development" } as NodeJS.ProcessEnv)).toBe(false);
     expect(shouldMonitorServer({ NODE_ENV: "test" } as NodeJS.ProcessEnv)).toBe(false);
     expect(shouldMonitorServer({ NODE_ENV: "production", SENTRY_DISABLED: "true" } as NodeJS.ProcessEnv)).toBe(false);
+    expect(shouldMonitorServer({ NODE_ENV: "development", SENTRY_ENABLED: "true" } as NodeJS.ProcessEnv)).toBe(true);
+    expect(shouldMonitorServer({ SENTRY_ENABLED: "true", SENTRY_DISABLED: "true" } as NodeJS.ProcessEnv)).toBe(false);
   });
 });
 

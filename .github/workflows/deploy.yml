@@ -95,6 +95,9 @@ jobs:
             # teto de heap do Node: o pm2 roda a API via bash/pnpm, então `--max-old-space-size` como argumento do
             # interpretador não chegava ao Node — vai por NODE_OPTIONS (o --update-env leva pro processo)
             export NODE_OPTIONS="--max-old-space-size=3072"
+            # o processo não roda com NODE_ENV=production; estes dois ligam o que é de produção explicitamente:
+            # API só aceita conexão de dentro da VPS (o nginx fala com ela por 127.0.0.1) e Sentry da API ligado
+            export API_HOST=127.0.0.1 SENTRY_ENABLED=true
             pm2 reload gundam-portal --update-env
 
             # 8. Conferir: API e uma página do site respondendo. Não voltou em ~90 s → versão anterior.
