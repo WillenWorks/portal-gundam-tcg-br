@@ -1,6 +1,6 @@
 /* Monitoramento de erros da API com o Sentry (plano gratuito).
  *
- * Só liga em produção (NODE_ENV=production). O SDK é importado sob demanda, então dev e testes não o
+ * Só liga em produção (NODE_ENV=production ou SENTRY_ENABLED=true, que o deploy da VPS exporta). O SDK é importado sob demanda, então dev e testes não o
  * carregam. Captura: erros que chegam ao handler de erro do Express (chamada explícita abaixo) e,
  * pelas integrações padrão do SDK, exceções e promessas rejeitadas não tratadas.
  *
@@ -44,8 +44,9 @@ export function scrubServerEvent(event: ErrorEvent): ErrorEvent {
   return event;
 }
 
+/** Liga com NODE_ENV=production ou SENTRY_ENABLED=true (o deploy da VPS exporta este último). */
 export function shouldMonitorServer(env: NodeJS.ProcessEnv): boolean {
-  return env.NODE_ENV === "production" && env.SENTRY_DISABLED !== "true";
+  return (env.NODE_ENV === "production" || env.SENTRY_ENABLED === "true") && env.SENTRY_DISABLED !== "true";
 }
 
 export async function initServerErrorMonitoring(env: NodeJS.ProcessEnv = process.env) {

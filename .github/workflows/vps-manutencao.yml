@@ -91,6 +91,10 @@ jobs:
               pm2 jlist | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{for(const p of JSON.parse(s))console.log(`${p.name.padEnd(16)} ${p.pm2_env.status.padEnd(8)} restarts=${p.pm2_env.restart_time} mem=${Math.round((p.monit?.memory||0)/1048576)}MB node=${p.pm2_env.node_version}`)})'
               P=$(pgrep -f -- "--require .*tsx" | head -1)
               [ -n "$P" ] && echo "API: $(ps -o rss=,etime= -p "$P" | awk '{printf "%d MB, no ar há %s", $1/1024, $2}') · $(tr '\0' '\n' < /proc/$P/environ | grep '^NODE_OPTIONS=' || echo 'sem NODE_OPTIONS')"
+              [ -n "$P" ] && echo "API, ambiente do processo: $(tr '\0' '\n' < /proc/$P/environ | grep -E '^(NODE_ENV|API_HOST|SENTRY_ENABLED)=' | tr '\n' ' ' || true)"
+              # só sim/não, nunca o valor
+              E="$APP/.env"
+              echo ".env: NODE_ENV=production $(grep -qE '^NODE_ENV=\"?production' "$E" && echo sim || echo não) · ALLOWED_ORIGINS definido $(grep -qE '^ALLOWED_ORIGINS=\"?[^\" ]' "$E" && echo sim || echo não) · JWT_SECRET próprio $(grep -E '^JWT_SECRET=' "$E" | grep -qvE 'change-this-secret|^JWT_SECRET=\"?\"?$' && echo sim || echo não)"
               secao "PostgreSQL"
               pg_lsclusters
               runuser -u postgres -- psql -Atc "select datname, pg_size_pretty(pg_database_size(datname)) from pg_database where not datistemplate order by 1"
