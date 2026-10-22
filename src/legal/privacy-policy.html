@@ -1,5 +1,5 @@
 <p>
-  O <strong>AnaheimHub</strong> (<a href="https://anaheimhub.com">https://anaheimhub.com</a>), também chamado de <strong>AnaheimHub Portal</strong>, é uma plataforma comunitária independente e sem fins lucrativos dedicada ao Gundam Card Game no Brasil. Esta Política explica quais dados pessoais tratamos, por quê, com qual base legal, onde ficam guardados, com quem são compartilhados e como você exerce os seus direitos, conforme a <strong>Lei Geral de Proteção de Dados Pessoais (LGPD, Lei nº 13.709/2018)</strong> e a <strong>Política de Dados do Usuário dos Serviços de API do Google</strong>.
+  O <strong>AnaheimHub</strong> (<a href="https://anaheimhub.com">https://anaheimhub.com</a>), também chamado de <strong>AnaheimHub Portal</strong>, é uma plataforma comunitária independente dedicada ao Gundam Card Game no Brasil. Esta Política explica quais dados pessoais tratamos, por quê, com qual base legal, onde ficam guardados, com quem são compartilhados e como você exerce os seus direitos, conforme a <strong>Lei Geral de Proteção de Dados Pessoais (LGPD, Lei nº 13.709/2018)</strong>, a <strong>Política de Dados do Usuário dos Serviços de API do Google</strong> e as <strong>Políticas de Privacidade e Cookies do Google AdSense</strong>.
 </p>
 
 <h2>1. Quem é o Controlador</h2>
@@ -18,6 +18,7 @@
   <li><strong>Dados do simulador:</strong> registros técnicos das partidas contra o bot ou na arena e relatórios de erro enviados voluntariamente, usados para melhorar as regras e a inteligência do simulador.</li>
   <li><strong>Dados técnicos e de segurança:</strong> endereço IP, data e hora de acesso e cabeçalhos das requisições, usados para segurança, limitação de tentativas de login e proteção contra robôs (Google reCAPTCHA).</li>
   <li><strong>Estatísticas de audiência:</strong> páginas visitadas, origem do acesso, tipo de navegador/dispositivo e país, coletados de forma agregada e sem cookies pelo Cloudflare Web Analytics (ver seção 7).</li>
+  <li><strong>Cookies e identificadores de publicidade:</strong> cookies e identificadores digitais utilizados por redes de publicidade terceiras parceiras (como o Google AdSense) para veiculação de anúncios e medição de desempenho, conforme detalhado na Seção 7.</li>
   <li><strong>Relatórios de erro técnico:</strong> quando uma página ou a API falha, registramos a mensagem do erro, o trecho do código onde ocorreu, a página ou rota, o navegador e o sistema operacional, pelo Sentry. Esses relatórios <em>não</em> incluem nome, e-mail, endereço IP, cookies, senhas nem o conteúdo do que você digitou; e-mails e códigos de acesso que apareçam em mensagens ou endereços são apagados antes do envio.</li>
 </ul>
 
@@ -40,12 +41,13 @@
 
 <h2>5. Finalidades e Bases Legais</h2>
 <ul>
-  <li><strong>Criar e manter sua conta, salvar decks e coleções, enviar e-mails de confirmação e de recuperação de senha:</strong> execução do contrato de uso da plataforma (art. 7º, V).</li>
-  <li><strong>Login com Google:</strong> execução do contrato, a seu pedido, quando você escolhe essa forma de acesso (art. 7º, V).</li>
-  <li><strong>Segurança, prevenção de fraude e de abuso, registros de acesso e reCAPTCHA:</strong> legítimo interesse em proteger a plataforma e seus usuários (art. 7º, IX).</li>
-  <li><strong>Relatórios de erro técnico:</strong> legítimo interesse em encontrar e corrigir falhas do portal (art. 7º, IX).</li>
-  <li><strong>Estatísticas agregadas de audiência e de metagame:</strong> legítimo interesse em entender o uso do portal e melhorar o serviço, sem identificar pessoas (art. 7º, IX).</li>
-  <li><strong>Resultados públicos de torneios:</strong> legítimo interesse, com dados tornados manifestamente públicos pelas organizações dos eventos (art. 7º, IX e § 4º).</li>
+  <li><strong>Criar e manter sua conta, salvar decks e coleções, enviar e-mails de confirmação e de recuperação de senha:</strong> execução do contrato de uso da plataforma (art. 7º, V da LGPD).</li>
+  <li><strong>Login com Google:</strong> execução do contrato, a seu pedido, quando você escolhe essa forma de acesso (art. 7º, V da LGPD).</li>
+  <li><strong>Segurança, prevenção de fraude e de abuso, registros de acesso e reCAPTCHA:</strong> legítimo interesse em proteger a plataforma e seus usuários (art. 7º, IX da LGPD).</li>
+  <li><strong>Relatórios de erro técnico:</strong> legítimo interesse em encontrar e corrigir falhas do portal (art. 7º, IX da LGPD).</li>
+  <li><strong>Estatísticas agregadas de audiência e de metagame:</strong> legítimo interesse em entender o uso do portal e melhorar o serviço, sem identificar pessoas (art. 7º, IX da LGPD).</li>
+  <li><strong>Sustentabilidade da plataforma e publicidade programática:</strong> legítimo interesse do controlador em obter receita para custeio de servidores, banco de dados e manutenção técnica gratuita do portal para a comunidade, associado ao consentimento e configurações do navegador do usuário (art. 7º, I e IX da LGPD).</li>
+  <li><strong>Resultados públicos de torneios:</strong> legítimo interesse, com dados tornados manifestamente públicos pelas organizações dos eventos (art. 7º, IX e § 4º da LGPD).</li>
 </ul>
 
 <h2>6. Onde os Dados Ficam e Transferência Internacional</h2>
@@ -53,26 +55,44 @@
   O banco de dados (PostgreSQL) e a aplicação rodam em um servidor virtual (VPS) contratado da <strong>Hostinger</strong>, localizado em <strong>São Paulo, Brasil</strong>. Os e-mails transacionais são enviados pelo serviço de e-mail da própria Hostinger.
 </p>
 <p>
-  Alguns serviços de terceiros processam dados fora do Brasil: o <strong>Google</strong> (login e reCAPTCHA), a <strong>Cloudflare</strong> (estatísticas de audiência) e o <strong>Sentry</strong> (relatórios de erro técnico), todos com sede nos Estados Unidos. Essas transferências ocorrem com base nas garantias contratuais e de proteção de dados oferecidas por esses provedores, nos termos do art. 33 da LGPD.
+  Alguns serviços de terceiros processam dados fora do Brasil: o <strong>Google LLC</strong> (login, reCAPTCHA e rede de anúncios Google AdSense), a <strong>Cloudflare</strong> (estatísticas de audiência) e o <strong>Sentry</strong> (relatórios de erro técnico), todos com sede nos Estados Unidos. Essas transferências ocorrem com base nas garantias contratuais e de proteção de dados oferecidas por esses provedores, nos termos do art. 33 da LGPD.
 </p>
 
-<h2>7. Cookies, Armazenamento Local e Estatísticas</h2>
+<h2>7. Cookies, Armazenamento Local e Publicidade (Google AdSense)</h2>
 <p>
-  O AnaheimHub <strong>não usa cookies de publicidade nem de rastreamento</strong>. Usamos apenas o armazenamento local do navegador (<code>localStorage</code>) estritamente necessário para manter você conectado, guardar suas preferências de exibição e rascunhos de decks.
+  O AnaheimHub utiliza tecnologias de armazenamento local e cookies estritamente necessários para o funcionamento técnico do site, medição de audiência e veiculação de anúncios para financiamento da infraestrutura:
 </p>
-<p>
-  Para medir a audiência usamos o <strong>Cloudflare Web Analytics</strong>, que não grava cookies nem dados no seu navegador, não cria perfil de usuário e entrega apenas números agregados (por exemplo, quantas visitas uma página recebeu).
-</p>
+<ul>
+  <li>
+    <strong>Armazenamento Local (localStorage e sessionStorage):</strong> utilizado estritamente para manter você conectado à sua conta, salvar rascunhos locais de decks e guardar suas preferências visuais (ex.: tema claro/escuro, idioma preferido de cartas). Não são compartilhados com terceiros.
+  </li>
+  <li>
+    <strong>Estatísticas de Audiência (Cloudflare Web Analytics):</strong> medição de acessos agregada e anônima, sem gravação de cookies no navegador e sem criação de perfis de usuário.
+  </li>
+  <li>
+    <strong>Publicidade de Terceiros e Google AdSense:</strong> para manter o portal gratuito e viabilizar os custos de servidores, utilizamos anúncios fornecidos pelo <strong>Google AdSense</strong>. Em conformidade com as políticas do Google:
+    <ul>
+      <li>Fornecedores terceiros, incluindo o Google, usam cookies para veicular anúncios com base em visitas anteriores do usuário a este website ou a outros websites.</li>
+      <li>Com o uso de cookies de publicidade, o Google e seus parceiros podem veicular anúncios para os usuários com base nas visitas feitas ao AnaheimHub e/ou a outros sites na Internet.</li>
+      <li>Os usuários podem desativar a publicidade personalizada acessando as <a href="https://adssettings.google.com" target="_blank" rel="noreferrer">Configurações de Anúncios do Google</a>.</li>
+      <li>Alternativamente, os usuários podem optar por desativar o uso de cookies de terceiros para publicidade personalizada acessando o portal <a href="https://www.aboutads.info/choices/" target="_blank" rel="noreferrer">www.aboutads.info</a> ou configurando as opções de bloqueio de cookies em seu navegador de internet.</li>
+    </ul>
+  </li>
+  <li>
+    <strong>Parcerias Comerciais e Links de Afiliados:</strong> o portal pode apresentar widgets de cotação de preços e links para plataformas de comércio eletrônico parceiras (como Mercado Livre, Amazon e lojas especializadas de TCG). Ao clicar nesses links, cookies de rastreamento de afiliados podem ser inseridos pela loja de destino para identificar que a indicação partiu do AnaheimHub, sem custo adicional para o usuário.
+  </li>
+</ul>
 
 <h2>8. Compartilhamento de Dados</h2>
-<p>Não vendemos nem alugamos dados pessoais. Compartilhamos apenas o necessário com os fornecedores que fazem a plataforma funcionar:</p>
+<p>Não vendemos nem alugamos dados pessoais. Compartilhamos apenas o estritamente necessário com os fornecedores que viabilizam o funcionamento da plataforma:</p>
 <ul>
   <li><strong>Hostinger:</strong> hospedagem do servidor (VPS), banco de dados e envio de e-mails transacionais.</li>
-  <li><strong>Google LLC:</strong> login com Conta Google (OAuth 2.0) e proteção contra robôs (reCAPTCHA).</li>
-  <li><strong>Cloudflare, Inc.:</strong> estatísticas agregadas de audiência, sem cookies.</li>
-  <li><strong>Functional Software, Inc. (Sentry):</strong> relatórios de erro técnico, sem dados de identificação.</li>
+  <li><strong>Google LLC:</strong> login com Conta Google (OAuth 2.0), proteção contra robôs (reCAPTCHA) e veiculação de anúncios programáticos (Google AdSense).</li>
+  <li><strong>Cloudflare, Inc.:</strong> entrega de conteúdo e estatísticas agregadas de audiência.</li>
+  <li><strong>Functional Software, Inc. (Sentry):</strong> relatórios de erro técnico, sem dados pessoais identificáveis.</li>
+  <li><strong>Marketplaces e Redes de Afiliados:</strong> ao clicar em links externos de produtos (ex.: Mercado Livre, Amazon), dados de navegação são processados pela respectiva plataforma de acordo com suas próprias políticas de privacidade.</li>
 </ul>
-<p>Dados também podem ser fornecidos a autoridades mediante ordem judicial ou obrigação legal.</p>
+<p>Dados também podem ser fornecidos a autoridades mediante ordem judicial ou estrita obrigação legal.</p>
 
 <h2>9. Por Quanto Tempo Guardamos</h2>
 <ul>

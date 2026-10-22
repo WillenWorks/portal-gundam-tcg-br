@@ -19,4 +19,11 @@ describe("Política de Privacidade", () => {
     expect(fragment).toContain("São Paulo, Brasil");
     expect(fragment).toContain("Cloudflare");
   });
+
+  it("contém as cláusulas obrigatórias de cookies e publicidade do Google AdSense", () => {
+    expect(fragment).toContain("Google AdSense");
+    expect(fragment).toContain("adssettings.google.com");
+    expect(fragment).toContain("aboutads.info");
+    expect(fragment).toContain("cookies de publicidade");
+  });
 });
