@@ -28,7 +28,7 @@ on:
       tarefa:
         description: "O que fazer"
         type: choice
-        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, postgres-18, fail2ban-instalar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar]
+        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, postgres-18, fail2ban-instalar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar, bug-reports]
         default: diagnostico
 
 # nunca junto com um deploy ou outra manutenção
@@ -453,7 +453,24 @@ jobs:
               fail2ban-client status sshd | grep -E "Currently banned|Total banned" | sed 's/^[^A-Z]*//'
             }
 
+            bug_reports() {
+              secao "bug-reports em disco"
+              find "$APP/bug-reports" -maxdepth 2 2>/dev/null || echo "sem pasta bug-reports"
+              for code in BUG-8STNFY BUG-CVKER1; do
+                secao "=== RELATO $code (DISCO) ==="
+                D=$(find "$APP/bug-reports" -name "*${code}*" 2>/dev/null | head -1)
+                if [ -n "$D" ] && [ -d "$D" ]; then
+                  cat "$D/report.md" 2>/dev/null || true
+                  echo "--- gameState.json ---"
+                  cat "$D/gameState.json" 2>/dev/null || true
+                fi
+                secao "=== RELATO $code (BANCO) ==="
+                runuser -u postgres -- psql -d gundam_portal -Atc "select json_build_object('shortCode', \"shortCode\", 'note', \"note\", 'seat', \"seat\", 'cardsInvolved', \"cardsInvolved\", 'status', \"status\", 'createdAt', \"createdAt\", 'clientSnapshot', \"clientSnapshot\", 'gameState', \"gameState\") from \"SimulatorBugReport\" where \"shortCode\" = '$code'" 2>/dev/null || true
+              done
+            }
+
             case "$TAREFA" in
+              bug-reports) bug_reports ;;
               diagnostico) diagnostico ;;
               seguranca-conferir) seguranca_conferir ;;
               upgrade-preparar) upgrade_preparar ;;
