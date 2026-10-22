@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { CardInstance, PendingDecision } from "@/modules/simulator/engine/types";
+import type { ArtLookup } from "./cardArt";
 import {
   AbilityResolutionModal,
   pickSecondaryTarget,
@@ -45,6 +46,7 @@ function Harness({
   busy,
   onResolve,
   devTrashCount,
+  art,
 }: {
   decision: AR;
   resolveLabel?: (id: string) => string;
@@ -52,6 +54,7 @@ function Harness({
   busy?: boolean;
   onResolve: (resolutions: ResolveArgs) => void;
   devTrashCount?: number;
+  art?: ArtLookup;
 }) {
   const resolveLabelFn = resolveLabelProp ?? resolveLabel;
   const [targets, setTargets] = useState<Record<string, string[]>>({});
@@ -109,6 +112,7 @@ function Harness({
         setActivate={setActivate}
         onResolve={onResolve}
         devTrashCount={devTrashCount}
+        art={art}
       />
     </>
   );
@@ -544,7 +548,7 @@ describe("AbilityResolutionModal", () => {
     ]);
   });
 
-  it("efeito único usa layout compacto (max-h-[24vh]), enquanto múltiplos efeitos mantêm a modal com ordenação (max-h-[38vh])", () => {
+  it("efeito único usa layout flexível sem barras desnecessárias (max-h-[min(54vh,540px)]), enquanto múltiplos efeitos mantêm a modal com ordenação (max-h-[min(65vh,620px)])", () => {
     const singleDecision: AR = {
       kind: "abilityResolution",
       trigger: "When Paired",
@@ -565,8 +569,8 @@ describe("AbilityResolutionModal", () => {
       <Harness decision={singleDecision} onResolve={vi.fn()} />,
     );
     const singlePanel = singleContainer.querySelector(".hero-surface");
-    expect(singlePanel).toHaveClass("max-h-[24vh]");
-    expect(singlePanel).toHaveClass("py-1.5");
+    expect(singlePanel).toHaveClass("max-h-[min(54vh,540px)]");
+    expect(singlePanel).toHaveClass("p-3");
     expect(screen.queryByText("Ordene e escolha os alvos:")).not.toBeInTheDocument();
 
     cleanup();
@@ -600,7 +604,7 @@ describe("AbilityResolutionModal", () => {
       <Harness decision={multiDecision} onResolve={vi.fn()} />,
     );
     const multiPanel = multiContainer.querySelector(".hero-surface");
-    expect(multiPanel).toHaveClass("max-h-[38vh]");
+    expect(multiPanel).toHaveClass("max-h-[min(65vh,620px)]");
     expect(multiPanel).toHaveClass("p-3");
     expect(screen.getByText("Ordene e escolha os alvos:")).toBeInTheDocument();
   });
@@ -723,5 +727,103 @@ describe("devTrashCount badge (Fase 2)", () => {
     expect(screen.getByText(/Development ·/i)).toBeInTheDocument();
     expect(screen.getByText("4")).toBeInTheDocument();
     expect(screen.getByText(/cartas \(G Generation\) no trash/i)).toBeInTheDocument();
+  });
+});
+
+describe("BUG-8STNFY & BUG-CVKER1 (posicionamento do botão Confirmar e imagens nas cartas do topo)", () => {
+  it("posiciona o botão Confirmar no rodapé abaixo das opções e efeitos (BUG-8STNFY)", () => {
+    const dec: AR = {
+      kind: "abilityResolution",
+      trigger: "When Paired",
+      queue: [
+        {
+          sourceInstanceId: "b1",
+          specId: "ST14-012-WhenPaired",
+          label: "When Paired effect label",
+          optional: false,
+          needsTarget: false,
+          targetScope: "enemyUnit",
+          legalTargets: [],
+        },
+      ],
+    };
+    const { container } = render(<Harness decision={dec} onResolve={vi.fn()} />);
+    const header = container.querySelector(".border-b");
+    const footer = container.querySelector(".border-t");
+    const confirmBtn = screen.getByRole("button", { name: "Confirmar" });
+    expect(header).not.toContainElement(confirmBtn);
+    expect(footer).toContainElement(confirmBtn);
+  });
+
+  it("deckReorder renderiza miniaturas com CardFace e códigos das cartas (BUG-CVKER1)", () => {
+    const c = (id: string, name: string): CardInstance =>
+      ({ instanceId: id, def: { code: id, nameEn: name, cardType: "UNIT", color: "blue" }, owner: "A", zone: "deck", rested: false, damage: 0, statModifiers: [], keywordGrants: [], usedKeywordsThisTurn: [], enteredZoneOnTurn: 0 }) as CardInstance;
+    const dec: AR = {
+      kind: "abilityResolution",
+      trigger: "Deploy",
+      queue: [
+        {
+          sourceInstanceId: "b1",
+          specId: "ST02-015-Deploy",
+          label: "look at top 2",
+          optional: false,
+          needsTarget: false,
+          targetScope: "enemyUnit",
+          legalTargets: [],
+          deckReorder: {
+            topCards: [c("ST02-001", "Wing"), c("ST02-002", "Leo")],
+            slots: [
+              { name: "toTop", position: "top" },
+              { name: "toBottom", position: "bottom" },
+            ],
+            label: "look at top 2",
+          },
+        },
+      ],
+    };
+    const art: ArtLookup = {
+      "ST02-001": { imageUrl: "https://img.com/wing.png" },
+      "ST02-002": { imageUrl: "https://img.com/leo.png" },
+    };
+    render(<Harness decision={dec} art={art} onResolve={vi.fn()} />);
+    expect(screen.getByRole("img", { name: "Wing" })).toHaveAttribute("src", "https://img.com/wing.png");
+    expect(screen.getByRole("img", { name: "Leo" })).toHaveAttribute("src", "https://img.com/leo.png");
+    expect(screen.getByText("ST02-001")).toBeInTheDocument();
+    expect(screen.getByText("ST02-002")).toBeInTheDocument();
+  });
+
+  it("deckTopReveal renderiza miniaturas com CardFace (BUG-CVKER1)", () => {
+    const fakeCard = (id: string, name: string, cardType: "UNIT" | "COMMAND"): CardInstance =>
+      ({ instanceId: id, def: { code: id, nameEn: name, cardType, color: "red" }, owner: "A", zone: "deck", rested: false, damage: 0, statModifiers: [], keywordGrants: [], usedKeywordsThisTurn: [], enteredZoneOnTurn: 0 }) as CardInstance;
+    const dec: AR = {
+      kind: "abilityResolution",
+      trigger: "Destroyed",
+      queue: [
+        {
+          sourceInstanceId: "z1",
+          specId: "ST03-006-Destroyed",
+          label: "reveal from top",
+          optional: false,
+          needsTarget: false,
+          targetScope: "enemyUnit",
+          legalTargets: [],
+          deckTopReveal: {
+            count: 2,
+            topCards: [fakeCard("ST03-001", "Zaku I", "UNIT"), fakeCard("ST03-002", "Dra-C", "UNIT")],
+            revealableIds: ["ST03-001", "ST03-002"],
+            label: "reveal from top",
+          },
+        },
+      ],
+    };
+    const art: ArtLookup = {
+      "ST03-001": { imageUrl: "https://img.com/zaku.png" },
+      "ST03-002": { imageUrl: "https://img.com/drac.png" },
+    };
+    render(<Harness decision={dec} art={art} onResolve={vi.fn()} />);
+    expect(screen.getByRole("img", { name: "Zaku I" })).toHaveAttribute("src", "https://img.com/zaku.png");
+    expect(screen.getByRole("img", { name: "Dra-C" })).toHaveAttribute("src", "https://img.com/drac.png");
+    expect(screen.getByText("ST03-001")).toBeInTheDocument();
+    expect(screen.getByText("ST03-002")).toBeInTheDocument();
   });
 });
