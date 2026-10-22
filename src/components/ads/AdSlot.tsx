@@ -20,7 +20,8 @@ interface AdSlotProps {
   className?: string;
 }
 
-const DEFAULT_ADSENSE_CLIENT = import.meta.env.VITE_ADSENSE_CLIENT_ID as string | undefined;
+const DEFAULT_ADSENSE_CLIENT =
+  (import.meta.env.VITE_ADSENSE_CLIENT_ID as string | undefined) || "ca-pub-4516039090052126";
 
 export function AdSlot({
   slotId,
@@ -57,7 +58,10 @@ export function AdSlot({
             try {
               // Garante script global do AdSense carregado de forma assíncrona
               const scriptId = "google-adsense-script";
-              if (!document.getElementById(scriptId)) {
+              if (
+                !document.getElementById(scriptId) &&
+                !document.querySelector('script[src*="adsbygoogle.js"]')
+              ) {
                 const script = document.createElement("script");
                 script.id = scriptId;
                 script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(clientId)}`;
