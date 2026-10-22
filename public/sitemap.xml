@@ -51,12 +51,12 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://anaheimhub.com/privacidade/</loc>
+    <loc>https://anaheimhub.com/privacidade</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://anaheimhub.com/termos/</loc>
+    <loc>https://anaheimhub.com/termos</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>

@@ -20,7 +20,7 @@ import { VedaSourceCredit } from "@/components/veda/VedaSourceCredit";
 import { VedaErrorView, VedaLoadingView } from "@/components/veda/VedaStateViews";
 import { vedaApi } from "@/lib/veda/api";
 import type { VedaTournamentDetail } from "@/lib/veda/types";
-import { GAME_COLOR_HEX, resolveGameColorHex, TOURNAMENT_TIER_OPTIONS } from "@/lib/gundam-catalog";
+import { resolveGameColorHex, TOURNAMENT_TIER_OPTIONS } from "@/lib/gundam-catalog";
 
 function formatDatePtBr(raw?: string | null): string {
   if (!raw) return "Data não informada";

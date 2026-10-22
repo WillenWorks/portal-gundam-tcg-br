@@ -278,7 +278,7 @@ export default function VedaTournamentsPage() {
       });
     }
     return sorted;
-  }, [data?.items, viewMode]);
+  }, [data, viewMode]);
 
   const displayedItems = useMemo(
     () => processedItems.slice(0, visibleCount),

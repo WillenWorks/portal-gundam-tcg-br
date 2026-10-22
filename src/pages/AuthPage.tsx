@@ -462,11 +462,11 @@ export default function AuthPage() {
                   {/* Termos e Política */}
                   <div className="text-xs leading-5 text-slate-400 light:text-slate-600 md:col-span-2">
                     {tr("Ao criar sua conta, você concorda com os", "By creating an account you agree to the")}{" "}
-                    <a href="/termos/" target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                    <a href="/termos" target="_blank" rel="noreferrer" className="text-primary hover:underline">
                       {tr("Termos de Uso", "Terms of Use")}
                     </a>{" "}
                     {tr("e a", "and the")}{" "}
-                    <a href="/privacidade/" target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                    <a href="/privacidade" target="_blank" rel="noreferrer" className="text-primary hover:underline">
                       {tr("Política de Privacidade", "Privacy Policy")}
                     </a>{" "}
                     {tr("do AnaheimHub.", "of AnaheimHub.")}
