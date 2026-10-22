@@ -87,6 +87,34 @@ export interface VedaData {
 
 // ---------- utilitários ----------
 
+export function normalizeSeason(season: string | null | undefined): string | null {
+  if (!season) return null;
+  const trimmed = season.trim();
+  if (trimmed === "GD05.5" || trimmed === "GD05_COMBINED" || trimmed === "GD05/GD05.5") return "GD05";
+  return trimmed;
+}
+
+function unifySeasons(
+  seasons: Array<{ code: string; name: string; isCurrent: boolean }>,
+): Array<{ code: string; name: string; isCurrent: boolean }> {
+  const map = new Map<string, { code: string; name: string; isCurrent: boolean }>();
+  for (const s of seasons) {
+    const code = normalizeSeason(s.code) ?? s.code;
+    const existing = map.get(code);
+    if (!existing) {
+      map.set(code, {
+        code,
+        name: code === "GD05" ? s.name.replace(/GD05\.5/g, "GD05") : s.name,
+        isCurrent: s.isCurrent,
+      });
+    } else {
+      existing.isCurrent = existing.isCurrent || s.isCurrent;
+      if (s.code === "GD05") existing.name = s.name;
+    }
+  }
+  return [...map.values()];
+}
+
 export function slugify(value: string): string {
   return String(value ?? "")
     .normalize("NFD")
@@ -121,21 +149,27 @@ export function playerRef(name: string): VedaPlayerRef {
   return { name, slug: slugify(name) || "sem-nome" };
 }
 
-/** Cores pelo rótulo ("Purple / Red Banshee") ou, se não houver, pelas duas cores mais presentes na lista */
+/** Cores pelo rótulo ("Purple / Red Banshee") ou, se não houver, pelas cores significativas (>=15%) na lista */
 export function archetypeColors(label: string | null, deck: Array<{ card: RawCard; quantity: number }> | null): GameColor[] {
   const lead = String(label ?? "").match(/^\s*((?:blue|green|red|white|purple)(?:\s*\/\s*(?:blue|green|red|white|purple))*)\b/i);
   if (lead) {
     const fromLabel = lead[1].split("/").map((p) => COLORS.find((x) => x.toLowerCase() === p.trim().toLowerCase()));
-    return [...new Set(fromLabel.filter((c): c is GameColor => !!c))];
+    return [...new Set(fromLabel.filter((c): c is GameColor => !!c))].slice(0, 2);
   }
   if (!deck?.length) return [];
   const count = new Map<GameColor, number>();
   for (const { card, quantity } of deck) {
-    const c = COLORS.find((x) => x === card.color);
+    const c = COLORS.find((x) => x.toLowerCase() === String(card.color ?? "").toLowerCase());
     if (c) count.set(c, (count.get(c) ?? 0) + quantity);
   }
+  const totalColored = [...count.values()].reduce((a, b) => a + b, 0);
   // ordem alfabética, a mesma dos rótulos da DigiLab ("Purple / Red"), para o slug bater entre as fontes
-  return [...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([c]) => c).sort();
+  return [...count.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .filter(([, qty], idx) => idx === 0 || (idx === 1 && totalColored > 0 && qty / totalColored >= 0.15))
+    .slice(0, 2)
+    .map(([c]) => c)
+    .sort();
 }
 
 export function archetypeRef(label: string | null, colors: GameColor[]): VedaArchetypeRef | null {
@@ -217,9 +251,10 @@ export interface TournamentFilter {
 const norm = (s: string | null | undefined) => slugify(s ?? "");
 
 export function filterTournaments(ix: VedaIndex, f: TournamentFilter): RawTournament[] {
+  const targetSeason = normalizeSeason(f.season);
   return ix.data.tournaments
     .filter((t) => {
-      if (f.season && t.season !== f.season) return false;
+      if (targetSeason && normalizeSeason(t.season) !== targetSeason) return false;
       if (f.tier && t.tier !== f.tier) return false;
       if (f.source && sourceOf(t.sourceUrl).id !== f.source) return false;
       if (f.country) {
@@ -257,7 +292,7 @@ export function tournamentCard(ix: VedaIndex, t: RawTournament): VedaTournamentC
     name: t.name,
     date: t.date,
     tier: t.tier,
-    season: t.season,
+    season: normalizeSeason(t.season),
     place: ix.place(t),
     participantCount: t.participantCount,
     entriesCount: entries.length,
@@ -323,7 +358,7 @@ export function decklist(ix: VedaIndex, entryId: string): VedaDecklist | null {
   const archetype = ix.archetypeOf(e);
   return {
     entryId: e.id,
-    tournament: { id: t.id, name: t.name, date: t.date, season: t.season, place: ix.place(t) },
+    tournament: { id: t.id, name: t.name, date: t.date, season: normalizeSeason(t.season), place: ix.place(t) },
     player: playerRef(e.playerName),
     placement: e.placement,
     placementLabel: placementLabel(e.placement),
@@ -346,7 +381,7 @@ function playerResult(ix: VedaIndex, e: RawEntry): VedaPlayerResult | null {
     tournamentId: t.id,
     tournamentName: t.name,
     date: t.date,
-    season: t.season,
+    season: normalizeSeason(t.season),
     place: ix.place(t),
     entryId: e.id,
     placement: e.placement,
@@ -360,7 +395,10 @@ function playerResult(ix: VedaIndex, e: RawEntry): VedaPlayerResult | null {
 const byDateDesc = (a: { date: string | null }, b: { date: string | null }) => (b.date ?? "").localeCompare(a.date ?? "");
 
 export function player(ix: VedaIndex, slug: string, season?: string): VedaPlayer | null {
-  const entries = ix.data.entries.filter((e) => playerRef(e.playerName).slug === slug && (!season || ix.byId.get(e.tournamentId)?.season === season));
+  const targetSeason = normalizeSeason(season);
+  const entries = ix.data.entries.filter(
+    (e) => playerRef(e.playerName).slug === slug && (!targetSeason || normalizeSeason(ix.byId.get(e.tournamentId)?.season) === targetSeason),
+  );
   if (!entries.length) return null;
   const results = entries.map((e) => playerResult(ix, e)).filter((r): r is VedaPlayerResult => !!r).sort(byDateDesc);
   const arch = new Map<string, { archetype: VedaArchetypeRef; count: number }>();
@@ -506,7 +544,10 @@ export function summary(ix: VedaIndex): VedaSummary {
   return {
     sample: sampleOf(entries, ix.byId),
     players: new Set(entries.map((e) => playerRef(e.playerName).slug)).size,
-    seasons: ix.data.seasons.map((s) => ({ ...s, tournaments: ix.data.tournaments.filter((t) => t.season === s.code).length })),
+    seasons: unifySeasons(ix.data.seasons).map((s) => ({
+      ...s,
+      tournaments: ix.data.tournaments.filter((t) => normalizeSeason(t.season) === s.code).length,
+    })),
     sources: [...sources.values()].sort((a, b) => b.tournaments - a.tournaments),
     lastTournamentDate: dates.at(-1) ?? null,
     updatedAt: updated.at(-1) ?? null,
@@ -532,7 +573,7 @@ export function filters(ix: VedaIndex): VedaFilters {
     if (t.organizer && t.city) stores.set(slugify(t.organizer), { name: t.organizer, city: t.city, uf: t.uf });
   }
   return {
-    seasons: ix.data.seasons,
+    seasons: unifySeasons(ix.data.seasons),
     tiers: [...tiers],
     sources: [...sources.values()],
     countries: [...countries].sort(),
@@ -553,13 +594,14 @@ const TIER_EVENT_TYPE: Record<VedaTier, string> = {
 export function exportLists(ix: VedaIndex, f: TournamentFilter & { since?: string }): VedaExportList[] {
   const out: VedaExportList[] = [];
   for (const t of filterTournaments(ix, { ...f, from: f.since ?? f.from })) {
+    const normalizedSeason = normalizeSeason(t.season);
     for (const e of ix.entriesByTournament.get(t.id) ?? []) {
       const deck = ix.deck(e);
-      if (!deck?.length || !t.season) continue;
+      if (!deck?.length || !normalizedSeason) continue;
       const main: Record<string, number> = {};
       for (const d of deck) main[d.card.code] = (main[d.card.code] ?? 0) + d.quantity;
       out.push({
-        format: t.season,
+        format: normalizedSeason,
         event: t.name,
         eventType: TIER_EVENT_TYPE[t.tier],
         date: t.date?.slice(0, 10) ?? null,

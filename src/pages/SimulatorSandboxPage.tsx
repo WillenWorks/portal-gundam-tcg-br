@@ -3,8 +3,7 @@
  * - 1 botão só ("Simulador Beta"). Sem escolher assento ou adversário --
  *   entra na fila, escolhe o deck, e a sincronização com o próximo jogador
  *   (sempre outra conta) resolve sozinha e abre a partida direto.
- * - Antes da fila, cada jogador escolhe o próprio deck (ST01/ST02, qualquer
- *   combinação, incluindo os dois lados com o mesmo deck).
+ * - Antes da fila, cada jogador escolhe o próprio deck.
  * - Aberto a qualquer usuário logado (não mais restrito a admin/hoster).
  * - Rodada visual (2026-08-31, "quando o jogo for marcado entre dois players
  *   logados, a tela tem que ser uma nova, por causa da UI e HUD"): esta
@@ -16,38 +15,34 @@
  *   redirecionamento acontece na checagem inicial abaixo.
  *
  * Frente 5 (docs/39) — convite direto por link. ADITIVO ao fluxo de fila
- * acima: além de "Entrar na fila", a lobby agora tem "Jogar com um amigo",
+ * acima: além de "Entrar na fila", a lobby agora tem "Convidar por Link",
  * que abre um código/link de convite via Socket.io (`socketClient.ts`). Quem
  * recebe o link cai em `/simulador?challenge=CÓDIGO`, escolhe o deck e aceita;
  * o servidor cria a `matchId` e manda `challenge:ready` pros dois. O SSE e o
  * polling da fila seguem intactos — isto é um caminho a mais, não uma troca.
  */
 import { useCallback, useEffect, useState } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
-import { Copy, Loader2, Swords, Users, Bot, CircleCheck, CircleX } from "lucide-react";
+import { Copy, Loader2, Swords, Users, Bot, CircleCheck, CircleX, PlusCircle } from "lucide-react";
 
 import { api } from "@/lib/api";
 import { simulatorSocket } from "@/modules/simulator/network/socketClient";
 import { PublicShell } from "@/components/layout/PublicShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { SIMULATOR_DECK_PRESETS } from "@/modules/simulator/content/simulatorDeckPresets";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useMySimulatorDecks } from "@/modules/simulator/ui/useMySimulatorDecks";
 import { SimulatorDeckCoverageNotice } from "@/modules/simulator/ui/SimulatorDeckCoverageNotice";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
-
-/**
- * docs/debates 2026-09-13/14 — os 4 decks de teste GD01
- * (`fixtures/gd01TestDecks.ts`) são feitos SÓ com o subconjunto de cartas com
- * cobertura real no motor (62 prontas + 28 vanilla), nunca com as ainda
- * deferidas. Liberados incondicionalmente em toda modalidade (sem
- * kill-switch, ver `server/index.ts`) junto com ST01 e qualquer deck salvo
- * do próprio jogador — este último sempre passa pelo mesmo gate de
- * cobertura no servidor, então mesmo que o cliente deixe escolher, o motor
- * nunca aceita carta sem regra implementada.
- */
-const DECK_OPTIONS = SIMULATOR_DECK_PRESETS;
 
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error && err.message ? err.message : fallback;
@@ -96,11 +91,24 @@ export default function SimulatorSandboxPage() {
   const { tr } = useSiteLanguage();
   const [, navigate] = useLocation();
   const [screen, setScreen] = useState<Screen>("checking");
-  const [deckKey, setDeckKey] = useState<string>("ST01");
+  const [deckKey, setDeckKey] = useState<string>("");
   const { decks: myDecks, loading: myDecksLoading } = useMySimulatorDecks();
+
+  useEffect(() => {
+    if (myDecksLoading) return;
+    if (myDecks.length === 0) {
+      setDeckKey("");
+      return;
+    }
+    if (!deckKey || !myDecks.some((d) => d.id === deckKey)) {
+      const firstPlayable = myDecks.find((d) => d.simulatorValid) ?? myDecks[0];
+      if (firstPlayable) setDeckKey(firstPlayable.id);
+    }
+  }, [myDecks, myDecksLoading, deckKey]);
+
   const selectedOwnDeck = myDecks.find((d) => d.id === deckKey);
-  const deckBlocked = Boolean(selectedOwnDeck && !selectedOwnDeck.simulatorValid);
-  const deckLabel = selectedOwnDeck?.name ?? DECK_OPTIONS.find((o) => o.key === deckKey)?.label ?? deckKey;
+  const deckBlocked = !selectedOwnDeck || !selectedOwnDeck.simulatorValid;
+  const deckLabel = selectedOwnDeck?.name ?? deckKey;
   const [joining, setJoining] = useState(false);
   const [leavingQueue, setLeavingQueue] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
@@ -165,7 +173,11 @@ export default function SimulatorSandboxPage() {
 
   const enterQueue = async () => {
     if (deckBlocked) {
-      toast.error(tr(`"${selectedOwnDeck!.name}" tem carta sem cobertura no simulador — veja o aviso abaixo e troque de deck.`, `"${selectedOwnDeck!.name}" has a card the simulator doesn't support — see the notice below and pick another deck.`));
+      if (selectedOwnDeck) {
+        toast.error(tr(`"${selectedOwnDeck.name}" tem carta sem cobertura no simulador — veja o aviso abaixo e troque de deck.`, `"${selectedOwnDeck.name}" has a card the simulator doesn't support — see the notice below and pick another deck.`));
+      } else {
+        toast.error(tr("Cadastre e selecione um deck válido para entrar na fila.", "Create and select a valid deck to join the queue."));
+      }
       return;
     }
     setJoining(true);
@@ -196,7 +208,11 @@ export default function SimulatorSandboxPage() {
 
   const createInvite = async () => {
     if (deckBlocked) {
-      toast.error(tr(`"${selectedOwnDeck!.name}" tem carta sem cobertura no simulador — veja o aviso abaixo e troque de deck.`, `"${selectedOwnDeck!.name}" has a card the simulator doesn't support — see the notice below and pick another deck.`));
+      if (selectedOwnDeck) {
+        toast.error(tr(`"${selectedOwnDeck.name}" tem carta sem cobertura no simulador — veja o aviso abaixo e troque de deck.`, `"${selectedOwnDeck.name}" has a card the simulator doesn't support — see the notice below and pick another deck.`));
+      } else {
+        toast.error(tr("Cadastre e selecione um deck válido para criar o convite.", "Create and select a valid deck to create an invite."));
+      }
       return;
     }
     setChallengeBusy(true);
@@ -214,7 +230,11 @@ export default function SimulatorSandboxPage() {
   const acceptInvite = async () => {
     if (!challengeCode) return;
     if (deckBlocked) {
-      toast.error(tr(`"${selectedOwnDeck!.name}" tem carta sem cobertura no simulador — veja o aviso abaixo e troque de deck.`, `"${selectedOwnDeck!.name}" has a card the simulator doesn't support — see the notice below and pick another deck.`));
+      if (selectedOwnDeck) {
+        toast.error(tr(`"${selectedOwnDeck.name}" tem carta sem cobertura no simulador — veja o aviso abaixo e troque de deck.`, `"${selectedOwnDeck.name}" has a card the simulator doesn't support — see the notice below and pick another deck.`));
+      } else {
+        toast.error(tr("Cadastre e selecione um deck válido para aceitar o convite.", "Create and select a valid deck to accept the invite."));
+      }
       return;
     }
     setChallengeBusy(true);
@@ -241,56 +261,67 @@ export default function SimulatorSandboxPage() {
   const deckPicker = (
     <div className="space-y-3">
       <div className="space-y-1.5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">{tr("Seu deck", "Your deck")}</p>
-        <div className="grid grid-cols-2 gap-2">
-          {DECK_OPTIONS.map((option) => (
-            <button
-              key={option.key}
-              type="button"
-              onClick={() => setDeckKey(option.key)}
-              className={`flex flex-col items-center gap-1 rounded-md border px-3 py-2.5 text-xs font-semibold uppercase tracking-[0.1em] transition-colors ${
-                deckKey === option.key
-                  ? "border-primary bg-primary/20 text-primary shadow-sm"
-                  : "border-white/10 bg-black/20 text-soft hover:border-primary/40 light:border-slate-300 light:bg-slate-100"
-              }`}
+        <label htmlFor="pvp-player-deck" className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400 block">
+          {tr("Seu deck", "Your deck")}
+        </label>
+        {myDecksLoading ? (
+          <p className="text-xs text-muted-portal py-2">{tr("Carregando seus decks…", "Loading your decks…")}</p>
+        ) : myDecks.length === 0 ? (
+          <div className="rounded-md border border-primary/30 bg-black/40 p-4 space-y-2.5 text-xs text-slate-300">
+            <p>
+              {tr(
+                "Você ainda não possui nenhum deck cadastrado no seu Hangar para jogar partidas PvP.",
+                "You don't have any decks saved in your Hangar for PvP matches yet.",
+              )}
+            </p>
+            <Link
+              href="/deckbuilder"
+              className="inline-flex items-center gap-1.5 font-semibold uppercase tracking-wider text-primary hover:underline"
             >
-              <span>{option.key}</span>
-            </button>
-          ))}
-        </div>
-        <p className="text-xs text-muted-portal">{tr("Qualquer combinação é válida — inclusive os dois lados com o mesmo deck.", "Any combination works — even both sides with the same deck.")}</p>
+              <PlusCircle className="size-3.5" />
+              {tr("Montar um deck no Deckbuilder", "Build a deck in the Deckbuilder")}
+            </Link>
+          </div>
+        ) : (
+          <Select value={deckKey} onValueChange={setDeckKey}>
+            <SelectTrigger
+              id="pvp-player-deck"
+              className="w-full h-12 border border-white/15 bg-black/40 px-4 py-2.5 text-xs sm:text-sm font-semibold uppercase tracking-[0.12em] text-white dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary rounded-md"
+            >
+              <SelectValue placeholder={tr("Selecione seu deck", "Select your deck")} />
+            </SelectTrigger>
+            <SelectContent className="border border-white/15 bg-slate-950/98 text-white dark:bg-slate-950 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 shadow-2xl z-50">
+              <SelectGroup>
+                <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
+                  {tr("Meus Decks Salvos", "My Saved Decks")}
+                </SelectLabel>
+                {myDecks.map((deck) => (
+                  <SelectItem
+                    key={deck.id}
+                    value={deck.id}
+                    disabled={!deck.simulatorValid}
+                    className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      {deck.simulatorValid ? (
+                        <CircleCheck className="size-3 shrink-0 text-emerald-400" />
+                      ) : (
+                        <CircleX className="size-3 shrink-0 text-red-400" />
+                      )}
+                      <span>{deck.name}</span>
+                      {!deck.simulatorValid ? (
+                        <span className="text-[10px] text-red-400 font-mono">
+                          {tr("(Incompleto / sem cobertura)", "(Incomplete / unsupported)")}
+                        </span>
+                      ) : null}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        )}
       </div>
-
-      {myDecksLoading || myDecks.length > 0 ? (
-        <div className="space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">{tr("Ou um deck do seu Hangar", "Or one of your saved decks")}</p>
-          {myDecksLoading ? (
-            <p className="text-xs text-muted-portal">{tr("Carregando seus decks…", "Loading your decks…")}</p>
-          ) : (
-            <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
-              {myDecks.map((deck) => (
-                <button
-                  key={deck.id}
-                  type="button"
-                  onClick={() => setDeckKey(deck.id)}
-                  className={`flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-xs font-semibold transition-colors ${
-                    deckKey === deck.id
-                      ? "border-primary bg-primary/20 text-primary shadow-sm"
-                      : "border-white/10 bg-black/20 text-soft hover:border-primary/40 light:border-slate-300 light:bg-slate-100"
-                  }`}
-                >
-                  {deck.simulatorValid ? (
-                    <CircleCheck className="size-3.5 shrink-0 text-emerald-400" />
-                  ) : (
-                    <CircleX className="size-3.5 shrink-0 text-red-400" />
-                  )}
-                  <span className="truncate">{deck.name}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : null}
 
       {selectedOwnDeck && !selectedOwnDeck.simulatorValid ? <SimulatorDeckCoverageNotice deck={selectedOwnDeck} /> : null}
     </div>
@@ -334,13 +365,13 @@ export default function SimulatorSandboxPage() {
 
   if (screen === "challenge-host") {
     return (
-      <PublicShell breadcrumbs={[{ label: "Simulador", href: "/simulador" }, { label: "Convite Direto" }]}>
+      <PublicShell breadcrumbs={[{ label: "Simulador", href: "/simulador" }, { label: tr("Convidar por Link", "Invite via Link") }]}>
         <ArenaBackgroundWrapper>
           <Card className="rounded-xl border-primary/40 bg-slate-950/85 backdrop-blur-md shadow-2xl">
             <CardContent className="flex flex-col items-center gap-4 p-10 text-center">
               <Loader2 className="size-8 animate-spin text-primary" />
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">{tr("Arena Asticassia · Convite Direto", "Asticassia Arena · Direct Invite")}</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">{tr("Arena Asticassia · Convidar por Link", "Asticassia Arena · Invite via Link")}</p>
                 <h1 className="mt-2 font-heading text-3xl uppercase heading-portal">{tr("Aguardando desafiante", "Waiting for a challenger")}</h1>
                 <p className="mt-3 text-sm leading-7 text-soft">
                   {tr("Código do duelo:", "Duel code:")} <strong className="tracking-[0.2em] text-primary">{inviteCode}</strong>. {tr("Transmita o link abaixo para outro piloto. Seu deck:", "Send the link below to another player. Your deck:")} <strong>{deckLabel}</strong>.
@@ -426,16 +457,7 @@ export default function SimulatorSandboxPage() {
               onClick={createInvite}
             >
               {challengeBusy ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Users className="mr-2 size-4" />}
-              {tr("Duelo com Amigo (Convite Direto)", "Duel a Friend (Direct Invite)")}
-            </Button>
-
-            <Button
-              variant="outline"
-              className="w-full rounded-arena border-violet-500/40 bg-violet-950/20 text-violet-300 hover:bg-violet-900/30 hover:border-violet-400 shadow-[0_0_15px_rgba(139,92,246,0.15)]"
-              onClick={() => navigate("/simulador/multiplayer")}
-            >
-              <Users className="mr-2 size-4 text-violet-400" />
-              Arena Multiplayer
+              {tr("Convidar por Link", "Invite via Link")}
             </Button>
 
             <div className="my-1 py-2">
@@ -457,7 +479,7 @@ export default function SimulatorSandboxPage() {
               onClick={() => navigate("/simulador/treino")}
             >
               <Bot className="mr-2 size-4 text-cyan-400" />
-              {tr("Simulação de Treinamento Asticassia (Contra Bot)", "Asticassia Practice (Against the Bot)")}
+              {tr("Treinamento no Simulador", "Simulator Training")}
             </Button>
           </CardContent>
         </Card>

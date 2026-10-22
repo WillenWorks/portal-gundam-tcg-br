@@ -1,4 +1,4 @@
-import { GAME_COLOR_HEX, GAME_COLOR_LABEL_PT } from "@/lib/gundam-catalog";
+import { normalizeDeckColors, resolveGameColorHex, resolveGameColorLabelPt } from "@/lib/gundam-catalog";
 import type { GameColor } from "@/lib/veda/types";
 
 export interface VedaColorPillsProps {
@@ -14,16 +14,17 @@ export function VedaColorPills({
   showLabel = false,
   className = "",
 }: VedaColorPillsProps) {
-  if (!colors || colors.length === 0) return null;
+  const normalized = normalizeDeckColors(colors);
+  if (normalized.length === 0) return null;
 
-  const dotSizeClass = size === "xs" ? "size-2" : size === "md" ? "size-3.5" : "size-2.5";
+  const dotSizeClass = size === "xs" ? "size-2.5" : size === "md" ? "size-3.5" : "size-3";
   const textSizeClass = size === "xs" ? "text-[10px]" : size === "md" ? "text-xs" : "text-[11px]";
 
   return (
     <div className={`inline-flex items-center gap-1.5 flex-wrap ${className}`}>
-      {colors.map((color, idx) => {
-        const hex = GAME_COLOR_HEX[color] || "#94a3b8";
-        const label = GAME_COLOR_LABEL_PT[color] || color;
+      {normalized.map((color, idx) => {
+        const hex = resolveGameColorHex(color);
+        const label = resolveGameColorLabelPt(color) || color;
 
         return (
           <span
@@ -32,7 +33,7 @@ export function VedaColorPills({
             title={`Cor: ${label}`}
           >
             <span
-              className={`rounded-full shrink-0 ${dotSizeClass} shadow-[0_0_6px_rgba(0,0,0,0.5)]`}
+              className={`rounded-full shrink-0 ${dotSizeClass} border border-slate-400/80 dark:border-white/40 shadow-[0_0_6px_rgba(0,0,0,0.45)]`}
               style={{ backgroundColor: hex }}
             />
             {showLabel && <span>{label}</span>}

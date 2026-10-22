@@ -13,10 +13,8 @@ import { formatCardText } from "@/lib/utils";
 import { translateRuleTitle } from "@/lib/ruleLabels";
 import { normalizeRarityLabel } from "@/lib/rarityLabels";
 import { useCardLanguage, cardText, KeywordTooltip, getTranslationPendingBadge } from "@/i18n";
-import { CardInspectorPlayabilityBadge } from "@/modules/simulator/ui/CardInspectorPlayabilityBadge";
 import type { CardLanguage } from "@/i18n/types";
 import { CardPlayabilityBadge } from "@/components/catalog/CardPlayabilityBadge";
-import { CardPlayabilityDetailBox } from "@/components/catalog/CardPlayabilityDetailBox";
 import { CardTournamentUsageSection } from "@/components/veda/CardTournamentUsageSection";
 import { usePageMeta } from "@/lib/pageMeta";
 import { useSiteLanguage, type Localized } from "@/i18n/siteLanguage";
@@ -185,7 +183,6 @@ export default function CardDetailPage() {
                   <Badge variant="outline" className="cursor-pointer rounded-none border-cyan-400/40 bg-cyan-400/10 text-cyan-300 transition hover:border-cyan-400 hover:bg-cyan-400/20">{tr(`Usada em ${card.publicDeckCount} deck${card.publicDeckCount === 1 ? "" : "s"} público${card.publicDeckCount === 1 ? "" : "s"}`, `Used in ${card.publicDeckCount} public deck${card.publicDeckCount === 1 ? "" : "s"}`)}</Badge>
                 </Link>
               ) : null}
-              <CardInspectorPlayabilityBadge code={selectedPrint?.code || card.code} />
             </div>
             <div>
               <p className="text-xs uppercase tracking-[0.26em] text-slate-400">{selectedPrint?.set?.code ? <Link href={`/sets/${selectedPrint.set.code}`} className="hover:text-primary hover:underline">{selectedPrint.set.code}</Link> : tr("Sem coleção", "No set")} · {selectedPrint?.code || card.code}</p>
@@ -275,11 +272,6 @@ export default function CardDetailPage() {
           </CardContent></Card>
         </section>
 
-        {/* Status de jogabilidade e o que falta no simulador (A3) */}
-        <section>
-          <CardPlayabilityDetailBox code={selectedPrint?.code || card.code} />
-        </section>
-
         {/* Em Torneios Competitivos (Veda System) */}
         <section>
           <CardTournamentUsageSection
@@ -352,7 +344,27 @@ export default function CardDetailPage() {
         </section>
 
         <section>
-          <Card className="panel-cut rounded-none surface-panel"><CardContent className="space-y-4 p-5"><h2 className="font-heading text-3xl uppercase">{tr("Fontes e regras", "Sources and rules")}</h2><p className="text-sm text-slate-400">{tr("Regras vinculadas a esta impressão", "Rulings linked to this print")}: {card.rulings?.length || 0}</p>{card.officialUrl ? <a href={card.officialUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">{tr("Abrir referência oficial", "Open official reference")} <ExternalLink className="size-4" /></a> : null}{card.rulings?.length ? <div className="grid gap-2 sm:grid-cols-2">{card.rulings.slice(0, 8).map((rule: any) => <Link key={rule.id} href={`/rules/${rule.id}`} className="block border border-white/10 p-3 text-sm hover:border-primary/50 dark:text-slate-200 light:text-slate-700"><span className="block text-[11px] uppercase tracking-[0.16em] text-slate-500">{isEffectivePt ? translateRuleTitle(rule.title) : rule.title}</span>{isEffectivePt ? (rule.questionPt || rule.title) : rule.title}</Link>)}</div> : <p className="text-sm text-slate-500">{tr("Nenhuma regra vinculada.", "No linked rulings.")}</p>}</CardContent></Card>
+          <Card className="panel-cut rounded-none surface-panel"><CardContent className="space-y-4 p-5"><h2 className="font-heading text-3xl uppercase">{tr("Fontes e regras", "Sources and rules")}</h2><p className="text-sm text-slate-400">{tr("Regras vinculadas a esta impressão", "Rulings linked to this print")}: {card.rulings?.length || 0}</p>{card.officialUrl ? <a href={card.officialUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">{tr("Abrir referência oficial", "Open official reference")} <ExternalLink className="size-4" /></a> : null}{card.rulings?.length ? <div className="grid gap-2 sm:grid-cols-2">{card.rulings.slice(0, 8).map((rule: any) => {
+            const titleLabel = isEffectivePt ? translateRuleTitle(rule.title) : rule.title;
+            const questionText = isEffectivePt
+              ? (rule.questionPt || rule.questionEn || rule.title)
+              : (rule.questionEn || rule.questionPt || rule.title);
+            const answerText = isEffectivePt
+              ? (rule.answerPt || rule.examplePlayPt || rule.answerEn || "")
+              : (rule.answerEn || rule.answerPt || rule.examplePlayPt || "");
+            const showTitle = Boolean(
+              titleLabel &&
+                titleLabel.trim().toLowerCase() !== (questionText || "").trim().toLowerCase() &&
+                (rule.title || "").trim().toLowerCase() !== (questionText || "").trim().toLowerCase(),
+            );
+            return (
+              <Link key={rule.id} href={`/rules/${rule.id}`} className="block space-y-1.5 border border-white/10 p-3 text-sm hover:border-primary/50 dark:text-slate-200 light:text-slate-700">
+                {showTitle ? <span className="block text-[11px] uppercase tracking-[0.16em] text-slate-500">{titleLabel}</span> : null}
+                <p className="font-medium dark:text-white light:text-slate-900">{questionText}</p>
+                {answerText ? <p className="text-xs leading-relaxed text-slate-400">{answerText}</p> : null}
+              </Link>
+            );
+          })}</div> : <p className="text-sm text-slate-500">{tr("Nenhuma regra vinculada.", "No linked rulings.")}</p>}</CardContent></Card>
         </section>
       </> : null}
     </div>

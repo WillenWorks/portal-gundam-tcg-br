@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { api, type PowerRankingEntry, type MetagameProvenance } from "@/lib/api";
-import { GAME_COLOR_HEX, GAME_COLOR_LABEL_PT, TOURNAMENT_TIER_OPTIONS } from "@/lib/gundam-catalog";
+import { GAME_COLOR_HEX, GAME_COLOR_LABEL_PT, TOURNAMENT_TIER_OPTIONS, normalizeDeckColors, resolveGameColorHex, resolveGameColorLabelPt } from "@/lib/gundam-catalog";
 import { BuildCoreDeckModal, type CoreCardItem } from "@/components/deck/BuildCoreDeckModal";
 import { DataSourceNote } from "@/components/stats/DataSourceNote";
 
@@ -200,7 +200,7 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
 
                 <div className="min-w-[180px] flex-1">
                   <div className="flex items-center gap-1.5">
-                    {entry.colors.map((c) => <span key={c} title={GAME_COLOR_LABEL_PT[c] || c} className="size-2.5 rounded-full" style={{ backgroundColor: GAME_COLOR_HEX[c] || FALLBACK_SLICE_COLOR }} />)}
+                    {normalizeDeckColors(entry.colors).map((c) => <span key={c} title={resolveGameColorLabelPt(c)} className="size-2.5 rounded-full border border-white/30 dark:border-white/25 light:border-slate-400" style={{ backgroundColor: resolveGameColorHex(c, FALLBACK_SLICE_COLOR) }} />)}
                   </div>
                   <p className="mt-1 font-heading text-xl uppercase leading-tight dark:text-white light:text-slate-900">{entry.archetype}</p>
                   <div className="flex flex-wrap items-center gap-2 mt-1">

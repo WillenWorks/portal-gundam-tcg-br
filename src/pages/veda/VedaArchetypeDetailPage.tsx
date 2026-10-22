@@ -118,7 +118,7 @@ export default function VedaArchetypeDetailPage() {
         { label: "Arquétipos", href: "/arquetipos" },
         { label: row.archetype.name },
       ]}
-      sample={sample}
+
     >
       <div className="space-y-6">
         {/* Cabeçalho do Arquétipo */}

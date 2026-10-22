@@ -47,7 +47,12 @@ export function MatchupMatrixPanel({ seasonId }: { seasonId: string }) {
             <p className="flex items-center gap-1.5 text-xs uppercase tracking-[0.24em] dark:text-slate-400 light:text-slate-600">
               <Swords className="size-3.5 text-accent" /> Matriz de Confrontos & Telemetria Avançada
             </p>
-            <h3 className="mt-2 font-heading text-3xl uppercase dark:text-white light:text-slate-900">Matchups por Arquétipo</h3>
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              <h3 className="font-heading text-3xl uppercase dark:text-white light:text-slate-900">Matchups por Arquétipo</h3>
+              <Badge className="rounded-none border border-sky-500/40 bg-sky-500/10 text-sky-400 text-[10px] font-mono uppercase">
+                Torneios Criados na Plataforma (Pareamentos Swiss)
+              </Badge>
+            </div>
           </div>
           <div className="flex gap-2">
             {WINDOW_OPTIONS.map((opt) => (
@@ -73,10 +78,10 @@ export function MatchupMatrixPanel({ seasonId }: { seasonId: string }) {
           <div className="mt-6 panel-cut border dark:border-white/10 dark:bg-slate-950/60 light:border-slate-200 light:bg-slate-50 p-6">
             <p className="flex items-center gap-2 text-sm dark:text-slate-300 light:text-slate-700">
               <Info className="size-4 shrink-0 text-accent" />
-              Ainda não há partidas com arquétipo e telemetria de iniciativa declarados o suficiente pra montar a matriz nesse recorte.
+              Ainda não há rodadas de torneios disputadas na plataforma com arquétipo e telemetria de iniciativa declarados o suficiente pra montar a matriz nesse recorte.
             </p>
             <p className="mt-2 text-xs dark:text-slate-500 light:text-slate-500">
-              Este módulo já está pronto pra ler confronto direto, Vitórias no Turno 1/2 (WR 1st/2nd) e Taxa de Iniciativa (Dice WR) assim que o fluxo de lançamento de partida do Hoster passar a capturar esse dado por confronto.
+              Os confrontos diretos (head-to-head) e métricas de iniciativa (Turno 1 / Turno 2) são processados exclusivamente a partir dos pareamentos rodada a rodada dos torneios criados e disputados dentro da plataforma AnaheimHub (as APIs externas de DigiLab e Egman Events registram apenas colocações finais agregadas dos jogadores).
             </p>
           </div>
         ) : (

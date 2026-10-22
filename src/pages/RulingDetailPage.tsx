@@ -111,17 +111,33 @@ export default function RulingDetailPage() {
                 <CardContent className="space-y-5 p-5">
                   <h3 className="font-heading text-3xl uppercase">Pergunta e resposta</h3>
                   <div>
-                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Pergunta PT-BR</p>
-                    <p className="mt-2 text-sm leading-7 text-slate-300">{rule.questionPt || "—"}</p>
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
+                      {isPt ? "Pergunta (PT-BR)" : "Question (EN)"}
+                    </p>
+                    <p className="mt-2 text-sm leading-7 text-slate-300">
+                      {(isPt ? (rule.questionPt || rule.questionEn) : (rule.questionEn || rule.questionPt)) || "—"}
+                    </p>
+                    {isPt && rule.questionEn && rule.questionPt && (
+                      <p className="mt-1.5 text-xs text-slate-500 italic">Original (EN): {rule.questionEn}</p>
+                    )}
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Resposta PT-BR</p>
-                    <p className="mt-2 text-sm leading-7 text-slate-300">{rule.answerPt || "—"}</p>
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
+                      {isPt ? "Resposta (PT-BR)" : "Answer (EN)"}
+                    </p>
+                    <p className="mt-2 text-sm leading-7 text-slate-300">
+                      {(isPt ? (rule.answerPt || rule.answerEn) : (rule.answerEn || rule.answerPt)) || "—"}
+                    </p>
+                    {isPt && rule.answerEn && rule.answerPt && (
+                      <p className="mt-1.5 text-xs text-slate-500 italic">Original (EN): {rule.answerEn}</p>
+                    )}
                   </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Exemplo de uso</p>
-                    <p className="mt-2 text-sm leading-7 text-slate-300">{rule.examplePlayPt || "—"}</p>
-                  </div>
+                  {rule.examplePlayPt ? (
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Exemplo de uso</p>
+                      <p className="mt-2 text-sm leading-7 text-slate-300">{rule.examplePlayPt}</p>
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
 

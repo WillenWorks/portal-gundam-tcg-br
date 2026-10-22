@@ -3,7 +3,7 @@
  * real" (TournamentEntry/HostedEventParticipant travado em DeckSnapshot) usada pelo
  * Sistema VEDA. */
 import { useState } from "react";
-import { PublicShell } from "@/components/layout/PublicShell";
+import { VedaShell } from "@/components/veda/VedaShell";
 import { RegionalMetaPanel } from "@/components/stats/RegionalMetaPanel";
 
 function urlParam(name: string): string {
@@ -17,12 +17,16 @@ export default function RegionalMetaPage() {
   const [selectedStore] = useState<string>(() => urlParam("loja"));
 
   return (
-    <PublicShell breadcrumbs={[{ label: "Sistema VEDA", href: "/stats" }, { label: "Metagame Regional" }]}>
+    <VedaShell
+      title="Metagame Regional & Inteligência Geográfica"
+      description="Compare a distribuição de cores, cartas mais jogadas e anomalias regionais por País, Estado (UF), Cidade e Loja Parceira a partir de resultados oficiais."
+      breadcrumbs={[{ label: "Metagame Regional" }]}
+    >
       <RegionalMetaPanel
         initialState={selectedState}
         initialCity={selectedCity}
         initialStore={selectedStore}
       />
-    </PublicShell>
+    </VedaShell>
   );
 }

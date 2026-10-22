@@ -86,7 +86,9 @@ describe("DataSourceNote", () => {
     // Link da fonte oficial
     const links = screen.getAllByRole("link", { name: /Fonte Oficial/i });
     expect(links.length).toBe(2);
-    expect(links[0]).toHaveAttribute("href", "https://tcg.bandai.co.jp/events/sp2026");
+    const hrefs = links.map((l) => l.getAttribute("href"));
+    expect(hrefs).toContain("https://tcg.bandai.co.jp/events/sp2026");
+    expect(hrefs).toContain("https://animegeek.com.br/torneios/42");
   });
 
   it("filtra a lista de torneios no diálogo pelo campo de busca", () => {

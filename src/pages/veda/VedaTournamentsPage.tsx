@@ -30,6 +30,7 @@ import type { Paginated, VedaFilters, VedaTournamentCard, VedaTournamentDetail }
 import { TOURNAMENT_TIER_OPTIONS } from "@/lib/gundam-catalog";
 
 const PAGE_SIZE = 24;
+const DEFAULT_BATCH_SIZE = 12;
 const DEFAULT_SEASON = "GD05";
 
 function formatDatePtBr(raw?: string | null): string {
@@ -71,7 +72,6 @@ export default function VedaTournamentsPage() {
 
   // Estados locais reativos dos filtros e paginação
   const initial = useMemo(() => readFiltersFromUrl(), []);
-  // a temporada veio na URL? (ref: limpar o filtro desliga sem re-render, como antes)
   const seasonFromUrl = useRef(initial.rawSeasonHasParam);
   const [country, setCountry] = useState(initial.country);
   const [season, setSeason] = useState(initial.season);
@@ -82,6 +82,12 @@ export default function VedaTournamentsPage() {
   const [q, setQ] = useState(initial.q);
   const [page, setPage] = useState(initial.page);
   const [searchDraft, setSearchDraft] = useState(initial.q);
+
+  // Controles de visualização e carregamento progressivo (scroll infinito por lotes)
+  const [viewMode, setViewMode] = useState<"all" | "recentByStore">("all");
+  const [batchSize, setBatchSize] = useState<number>(DEFAULT_BATCH_SIZE);
+  const [visibleCount, setVisibleCount] = useState<number>(DEFAULT_BATCH_SIZE);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const [filtersMeta, setFiltersMeta] = useState<VedaFilters | null>(null);
   const [data, setData] = useState<Paginated<VedaTournamentCard> | null>(null);
@@ -98,7 +104,6 @@ export default function VedaTournamentsPage() {
     return filtersMeta?.seasons.find((s) => s.isCurrent)?.code || DEFAULT_SEASON;
   }, [filtersMeta]);
 
-  // Carrega opções de filtro do backend e sincroniza temporada atual se necessário
   useEffect(() => {
     let active = true;
     vedaApi
@@ -115,9 +120,7 @@ export default function VedaTournamentsPage() {
           setSeason(cur);
         }
       })
-      .catch(() => {
-        // Fallback silencioso
-      });
+      .catch(() => {});
     return () => {
       active = false;
     };
@@ -134,7 +137,6 @@ export default function VedaTournamentsPage() {
       : "",
   );
 
-  // Sincroniza estado com a URL (mantendo links compartilháveis e preservando histórico)
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -161,15 +163,12 @@ export default function VedaTournamentsPage() {
     }
   }, [country, season, tier, source, uf, city, q, page, currentSeasonCode, navigate]);
 
-  // Sincroniza quando o usuário clica nos botões Voltar/Avançar do navegador
   useEffect(() => {
     const handlePopState = () => {
       const searchPart = window.location.hash.includes("?")
         ? window.location.hash.substring(window.location.hash.indexOf("?"))
         : window.location.search;
       const currentQs = new URLSearchParams(searchPart).toString();
-
-      // Se o evento foi disparado pela nossa própria navegação, ignora
       if (currentQs === lastNavigatedQs.current) return;
 
       lastNavigatedQs.current = currentQs;
@@ -204,9 +203,9 @@ export default function VedaTournamentsPage() {
     setQ("");
     setSearchDraft("");
     setPage(1);
+    setViewMode("all");
   }, [currentSeasonCode]);
 
-  // Alterna e carrega dados expandidos de um torneio
   const toggleExpandTournament = useCallback(
     async (id: string) => {
       setExpandedTournaments((prev) => ({
@@ -229,12 +228,13 @@ export default function VedaTournamentsPage() {
     [tournamentDetails, loadingDetails],
   );
 
-  // Carrega torneios quando filtros mudam
+  const fetchLimit = Math.max(PAGE_SIZE, batchSize);
+
   const loadTournaments = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const offset = (page - 1) * PAGE_SIZE;
+      const offset = (page - 1) * fetchLimit;
       const queryParams: VedaTournamentQueryParams = {
         country: country || undefined,
         season: season && season !== "all" ? season : undefined,
@@ -244,26 +244,69 @@ export default function VedaTournamentsPage() {
         city: city || undefined,
         q: q || undefined,
         offset,
-        limit: PAGE_SIZE,
+        limit: fetchLimit,
       };
 
       const result = await vedaApi.getTournaments(queryParams);
       setData(result);
+      setVisibleCount(batchSize);
     } catch (err: any) {
       setError(err?.message || "Não foi possível carregar os torneios.");
     } finally {
       setLoading(false);
     }
-  }, [page, country, season, tier, source, uf, city, q]);
+  }, [page, fetchLimit, batchSize, country, season, tier, source, uf, city, q]);
 
   useEffect(() => {
     loadTournaments();
   }, [loadTournaments]);
 
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
+  // Ordenação decrescente por data (mais recente para o mais antigo) e modo de visualização
+  const processedItems = useMemo(() => {
+    if (!data?.items) return [];
+    const sorted = [...data.items].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+    if (viewMode === "recentByStore") {
+      const counts = new Map<string, number>();
+      return sorted.filter((item) => {
+        const key = (item.place.store || item.place.city || item.place.uf || item.name || "global")
+          .toLowerCase()
+          .trim();
+        const prev = counts.get(key) ?? 0;
+        if (prev >= 2) return false;
+        counts.set(key, prev + 1);
+        return true;
+      });
+    }
+    return sorted;
+  }, [data?.items, viewMode]);
+
+  const displayedItems = useMemo(
+    () => processedItems.slice(0, visibleCount),
+    [processedItems, visibleCount],
+  );
+
+  // Carregamento progressivo automático ao rolar a página
+  useEffect(() => {
+    const node = loadMoreRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") return;
+    if (visibleCount >= processedItems.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleCount((prev) => Math.min(processedItems.length, prev + batchSize));
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [visibleCount, processedItems.length, batchSize]);
+
+  const totalPages = data ? Math.max(1, Math.ceil(data.total / fetchLimit)) : 1;
   const isCurrentSeasonActive = season === currentSeasonCode;
   const hasActiveFilters = Boolean(
-    country || (!isCurrentSeasonActive && season) || tier || source || uf || city || q
+    country || (!isCurrentSeasonActive && season) || tier || source || uf || city || q,
   );
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -275,8 +318,8 @@ export default function VedaTournamentsPage() {
   return (
     <VedaShell
       title="Torneios & Relatórios Oficiais"
-      description="Base unificada de torneios competitivos do Gundam TCG no Brasil e no mundo. Classificações consolidadas, decklists congeladas e divisão do metagame."
-      breadcrumbs={[{ label: "Torneios" }]}
+      description="Explore os campeonatos como um todo: súmulas verificadas, colocações, campeões e decklists congeladas em cada evento. Para métricas específicas de cartas, confrontos e evolução semanal, acesse Estatísticas & Cartas."
+      breadcrumbs={[{ label: "Torneios & Reports" }]}
     >
       <div className="space-y-6">
         {/* Barra de Filtros e Busca Tática */}
@@ -367,7 +410,8 @@ export default function VedaTournamentsPage() {
             <div className="hidden sm:flex items-center gap-3 text-xs font-mono text-slate-500 dark:text-slate-400">
               {data && (
                 <span>
-                  Mostrando <strong className="dark:text-white light:text-slate-900">{data.total}</strong> evento(s)
+                  Mostrando <strong className="dark:text-white light:text-slate-900">{displayedItems.length}</strong> de{" "}
+                  <strong className="dark:text-white light:text-slate-900">{data.total}</strong> evento(s)
                 </span>
               )}
               {hasActiveFilters && (
@@ -386,7 +430,7 @@ export default function VedaTournamentsPage() {
 
           {/* Linha de Seletores (Desktop ou Mobile Aberto) */}
           <div
-            className={`grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5 pt-3 border-t dark:border-white/10 light:border-slate-200 ${
+            className={`grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-7 pt-3 border-t dark:border-white/10 light:border-slate-200 ${
               mobileFiltersOpen ? "block" : "hidden sm:grid"
             }`}
           >
@@ -461,7 +505,7 @@ export default function VedaTournamentsPage() {
               </select>
             </div>
 
-            {/* Cidade (habilitado se UF selecionada ou global) */}
+            {/* Cidade */}
             <div className="space-y-1">
               <label className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 tracking-wider font-semibold">
                 Cidade
@@ -491,7 +535,7 @@ export default function VedaTournamentsPage() {
             </div>
 
             {/* Fonte dos Dados */}
-            <div className="space-y-1 col-span-2 sm:col-span-1">
+            <div className="space-y-1">
               <label className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 tracking-wider font-semibold">
                 Origem / Fonte
               </label>
@@ -509,6 +553,45 @@ export default function VedaTournamentsPage() {
                 <option value="manual">Cadastro no Site</option>
               </select>
             </div>
+
+            {/* Modo de Exibição */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 tracking-wider font-semibold">
+                Agrupamento
+              </label>
+              <select
+                aria-label="Agrupamento de torneios"
+                value={viewMode}
+                onChange={(e) => {
+                  setViewMode(e.target.value as "all" | "recentByStore");
+                }}
+                className="w-full h-8 px-2 rounded-none border dark:border-white/15 dark:bg-slate-900 dark:text-white light:border-slate-300 light:bg-slate-50 light:text-slate-900 text-xs font-mono focus:border-primary outline-none"
+              >
+                <option value="all">Por data (Mais recentes)</option>
+                <option value="recentByStore">Últimos 2 por loja/local</option>
+              </select>
+            </div>
+
+            {/* Quantidade por lote */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 tracking-wider font-semibold">
+                Itens por Lote
+              </label>
+              <select
+                aria-label="Itens por lote"
+                value={batchSize}
+                onChange={(e) => {
+                  const val = Number(e.target.value) || DEFAULT_BATCH_SIZE;
+                  setBatchSize(val);
+                  setVisibleCount(val);
+                }}
+                className="w-full h-8 px-2 rounded-none border dark:border-white/15 dark:bg-slate-900 dark:text-white light:border-slate-300 light:bg-slate-50 light:text-slate-900 text-xs font-mono focus:border-primary outline-none"
+              >
+                <option value={12}>12 por lote</option>
+                <option value={24}>24 por lote</option>
+                <option value={48}>48 por lote</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -517,7 +600,7 @@ export default function VedaTournamentsPage() {
           <VedaLoadingView label="Consultando arquivos de torneio do Veda System..." />
         ) : error ? (
           <VedaErrorView error={error} onRetry={loadTournaments} />
-        ) : !data || data.items.length === 0 ? (
+        ) : !data || displayedItems.length === 0 ? (
           <VedaEmptyView
             title="Nenhum torneio encontrado"
             description="Nenhum evento registrado corresponde aos critérios informados."
@@ -526,9 +609,9 @@ export default function VedaTournamentsPage() {
           />
         ) : (
           <div className="space-y-6">
-            {/* Grade de Torneios Responsiva: 1 col celular, 2 col tablet, 3 col desktop */}
+            {/* Grade de Torneios Responsiva */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {data.items.map((tournament) => {
+              {displayedItems.map((tournament) => {
                 const isExpanded = Boolean(expandedTournaments[tournament.id]);
                 const details = tournamentDetails[tournament.id];
                 const isLoadingDetail = Boolean(loadingDetails[tournament.id]);
@@ -729,7 +812,7 @@ export default function VedaTournamentsPage() {
 
                     {/* Rodapé do Card: Crédito da Fonte + Toggle de Expansão + Ação de Detalhe */}
                     <div className="mt-4 pt-3 border-t dark:border-white/10 light:border-slate-200 flex items-center justify-between gap-2">
-                      <VedaSourceCredit source={tournament.source} sourceUrl={tournament.sourceUrl} />
+                      <VedaSourceCredit source={tournament.source} sourceUrl={tournament.sourceUrl} compact />
 
                       <div className="flex items-center gap-1.5">
                         <Button
@@ -767,6 +850,21 @@ export default function VedaTournamentsPage() {
                 );
               })}
             </div>
+
+            {/* Sentinela de rolagem automática / Botão Carregar mais dentro do lote */}
+            {visibleCount < processedItems.length && (
+              <div ref={loadMoreRef} className="flex justify-center pt-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  type="button"
+                  onClick={() => setVisibleCount((prev) => Math.min(processedItems.length, prev + batchSize))}
+                  className="rounded-none font-mono text-xs uppercase border-primary/40 text-primary hover:bg-primary/10"
+                >
+                  Carregar mais eventos ({processedItems.length - visibleCount} restantes neste lote)
+                </Button>
+              </div>
+            )}
 
             {/* Barra de Paginação */}
             {totalPages > 1 && (

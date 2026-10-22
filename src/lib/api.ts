@@ -238,6 +238,8 @@ export interface MetagameTopCard {
   avgCopies: number | null;
   winRate: number | null;
   recordedMatches: number;
+  code?: string;
+  imageUrl?: string | null;
 }
 
 export interface MetagameTrendCard {
@@ -247,6 +249,8 @@ export interface MetagameTrendCard {
   priorPresenceRate: number;
   recentPresenceRate: number;
   trendDelta: number;
+  code?: string;
+  imageUrl?: string | null;
 }
 
 export interface MetagameStatsResponse {
@@ -291,6 +295,8 @@ export interface PowerRankingEntry {
   losses: number;
   draws: number;
   recordedMatches: number;
+  code?: string;
+  imageUrl?: string | null;
   winRate: number | null;
   powerRankingScore: number;
   bestPlacement: number | null;
@@ -1842,6 +1848,11 @@ export function mapApiRule(rule: any): RuleEntry {
     source: rule.sourceType === "OFFICIAL_FAQ" ? "Official FAQ" : rule.sourceType === "COMMUNITY_EXPLAINER" ? "Community Explainer" : "Official Rules",
     summaryPt: rule.answerPt ?? rule.answerEn ?? "",
     questionPt: rule.questionPt ?? rule.questionEn ?? "",
+    questionEn: rule.questionEn ?? undefined,
+    answerPt: rule.answerPt ?? undefined,
+    answerEn: rule.answerEn ?? undefined,
+    cardCode: rule.card?.code ?? undefined,
+    cardId: rule.card?.id ?? undefined,
     examplePlayPt: rule.examplePlayPt ?? undefined,
     originalRef: rule.originalUrl ?? rule.title,
     relatedCards: rule.card ? [rule.card.id] : [],

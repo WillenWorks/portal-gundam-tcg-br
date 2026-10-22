@@ -12,7 +12,7 @@ import { VedaArchetypeBadge } from "@/components/veda/VedaArchetypeBadge";
 import { VedaEmptyView, VedaErrorView, VedaLoadingView } from "@/components/veda/VedaStateViews";
 import { vedaApi, type VedaArchetypesQueryParams } from "@/lib/veda/api";
 import type { VedaArchetypeRow, VedaFilters } from "@/lib/veda/types";
-import { GAME_COLOR_HEX, TOURNAMENT_TIER_OPTIONS } from "@/lib/gundam-catalog";
+import { GAME_COLOR_HEX, resolveGameColorHex, TOURNAMENT_TIER_OPTIONS } from "@/lib/gundam-catalog";
 
 const DEFAULT_SEASON = "GD05";
 
@@ -172,8 +172,8 @@ export default function VedaArchetypesPage() {
 
   return (
     <VedaShell
-      title="Ranking de Arquétipos & Tier List Competitiva"
-      description="Presença consolidada no metagame, conversão em Top 8 e taxa de títulos por arquétipo a partir de decklists reais de torneio."
+      title="Arquétipos & Decks Competitivos"
+      description="Compare a presença de cada arquétipo no metagame, conversão em Top 8, títulos conquistados e inspecione as listas reais de cada deck."
       breadcrumbs={[{ label: "Arquétipos" }]}
     >
       <div className="space-y-6">
@@ -315,7 +315,7 @@ export default function VedaArchetypesPage() {
                     const top8Percent = (row.top8Share * 100).toFixed(1);
                     const winPercent = (row.winShare * 100).toFixed(1);
                     const primaryColor = row.archetype.colors?.[0];
-                    const barColor = primaryColor ? GAME_COLOR_HEX[primaryColor] || "#3b82f6" : "#3b82f6";
+                    const barColor = primaryColor ? resolveGameColorHex(primaryColor, "#3b82f6") : "#3b82f6";
 
                     return (
                       <tr key={row.archetype.slug} className="hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors">

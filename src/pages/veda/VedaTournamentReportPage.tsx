@@ -20,7 +20,7 @@ import { VedaSourceCredit } from "@/components/veda/VedaSourceCredit";
 import { VedaErrorView, VedaLoadingView } from "@/components/veda/VedaStateViews";
 import { vedaApi } from "@/lib/veda/api";
 import type { VedaTournamentDetail } from "@/lib/veda/types";
-import { GAME_COLOR_HEX, TOURNAMENT_TIER_OPTIONS } from "@/lib/gundam-catalog";
+import { GAME_COLOR_HEX, resolveGameColorHex, TOURNAMENT_TIER_OPTIONS } from "@/lib/gundam-catalog";
 
 function formatDatePtBr(raw?: string | null): string {
   if (!raw) return "Data não informada";
@@ -101,8 +101,8 @@ export default function VedaTournamentReportPage() {
   return (
     <VedaShell
       breadcrumbs={[{ label: "Torneios", href: "/torneios" }, { label: tournament.name }]}
-      source={tournament.source}
-      sourceUrl={tournament.sourceUrl}
+
+
     >
       <div className="space-y-6">
         {/* Cabeçalho do Evento (Tático Neo-Militar) */}
@@ -246,7 +246,7 @@ export default function VedaTournamentReportPage() {
               {tournament.meta.map((slice) => {
                 const percentage = (slice.share * 100).toFixed(1);
                 const primaryColor = slice.archetype.colors?.[0];
-                const barColor = primaryColor ? GAME_COLOR_HEX[primaryColor] || "#3b82f6" : "#3b82f6";
+                const barColor = primaryColor ? resolveGameColorHex(primaryColor, "#3b82f6") : "#3b82f6";
 
                 return (
                   <div

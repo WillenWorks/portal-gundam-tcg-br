@@ -1,13 +1,9 @@
 /* Traducao dos titulos de categoria de ruling (campo `title` no banco) para PT-BR.
  *
- * Regra fixada com o Willen (ver docs/17-glossario-traducao.md): a KEYWORD em si
- * nunca traduz (Burst, Blocker, Deploy, Repair etc. ficam exatamente como no card
- * ou nas regras oficiais, sempre em ingles) -- só a explicação mecânica vira PT-BR.
- * Por isso os titulos que SAO nome de keyword ficam de fora deste mapa de proposito
- * (Activate, Attack, Blocker, Burst, Command, Deploy, Destroyed, Development,
- * During Pair, First Strike, HP, Link, Once per Turn, Repair, Token, When Paired).
- * Os demais titulos aqui sao nomes estruturais/de fase que nao aparecem impressos
- * em nenhuma carta, entao traduzir ajuda o jogador que esta aprendendo.
+ * Regra fixada (ver docs/17-glossario-traducao.md): a KEYWORD em si
+ * nunca traduz (Burst, Blocker, Deploy, Repair, Breach, Support, High-Maneuver etc.
+ * ficam exatamente como no card ou nas regras oficiais, sempre em ingles) --
+ * só a explicação mecânica vira PT-BR.
  */
 const RULE_TITLE_LABELS_PT: Record<string, string> = {
   "Preparing to Play": "Preparação para Jogar",
@@ -24,6 +20,30 @@ const RULE_TITLE_LABELS_PT: Record<string, string> = {
   "Rules Management": "Gerenciamento de Regras",
   "Fundamental Terminology": "Terminologia Fundamental",
   Damage: "Dano",
+  Color: "Cor",
+  Target: "Alvo",
+  Unit: "Unidade",
+  Pilot: "Piloto",
+  Command: "Comando",
+  Miscellaneous: "Geral / Diversos",
+  Repair: "Repair",
+  Breach: "Breach",
+  Support: "Support",
+  Blocker: "Blocker",
+  "First Strike": "First Strike",
+  "High-Maneuver": "High-Maneuver",
+  Suppression: "Suppression",
+  Activate: "Activate",
+  Burst: "Burst",
+  Deploy: "Deploy",
+  Attack: "Attack",
+  Destroyed: "Destroyed",
+  "When Paired": "When Paired",
+  "During Pair": "During Pair",
+  "Once per Turn": "Once per Turn",
+  Token: "Token",
+  AP: "AP",
+  HP: "HP",
 };
 
 export function translateRuleTitle(title: string | undefined | null): string {

@@ -53,3 +53,7 @@ export const SIMULATOR_DECK_PRESETS: SimulatorDeckPreset[] = [
   { key: "ST13-BIT-FUNNEL", label: "Bit / Funnel Verde/Vermelho (ST13)" },
   { key: "ST14-HEAVY-ARMED", label: "Heavy Armed Branco/Verde (ST14)" },
 ];
+
+export const STARTER_DECK_PRESETS: SimulatorDeckPreset[] = SIMULATOR_DECK_PRESETS.filter((d) =>
+  d.key.startsWith("ST"),
+);

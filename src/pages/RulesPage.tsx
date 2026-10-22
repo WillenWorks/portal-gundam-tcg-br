@@ -135,13 +135,16 @@ function buildShareUrl(filters: RulingFilters) {
 }
 
 // Item folha do accordion: mostra a PERGUNTA como gatilho e expande a RESPOSTA direto ali
-function RuleRow({ item }: { item: RuleEntry }) {
+function RuleRow({ item, isPt }: { item: RuleEntry; isPt: boolean }) {
   const hasExtra = Boolean(item.examplePlayPt) || Boolean(item.relatedCards?.length);
+  const qText = isPt ? (item.questionPt || item.questionEn || item.title) : (item.questionEn || item.questionPt || item.title);
+  const aText = isPt ? (item.answerPt || item.summaryPt || item.answerEn) : (item.answerEn || item.answerPt || item.summaryPt);
+
   return (
     <AccordionItem value={item.id} className="border-t border-white/10 first:border-t-0">
       <AccordionTrigger className="px-4 py-3 text-sm font-medium hover:no-underline dark:text-white light:text-slate-900 [&>svg]:mt-1">
         <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-left">
-          <span className="min-w-0 flex-1">{item.questionPt || item.title}</span>
+          <span className="min-w-0 flex-1">{qText}</span>
           {item.relatedKeyword ? (
             <KeywordTooltip keyword={item.relatedKeyword} showLink={false}>
               <Badge variant="outline" className="shrink-0 rounded-none border-accent/40 text-accent cursor-help">
@@ -152,7 +155,10 @@ function RuleRow({ item }: { item: RuleEntry }) {
         </span>
       </AccordionTrigger>
       <AccordionContent className="px-4 pb-4 pt-0">
-        <p className="text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{item.summaryPt || "Sem resposta cadastrada."}</p>
+        <p className="text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{aText || "Sem resposta cadastrada."}</p>
+        {isPt && item.answerEn && item.answerPt && item.answerEn !== item.answerPt ? (
+          <p className="mt-2 text-xs text-slate-500 italic">Original: {item.answerEn}</p>
+        ) : null}
         {item.examplePlayPt ? (
           <p className="mt-3 text-sm leading-7 text-slate-400"><span className="text-xs uppercase tracking-[0.2em] text-slate-500">Exemplo: </span>{item.examplePlayPt}</p>
         ) : null}
@@ -429,12 +435,38 @@ export default function RulesPage() {
     }).filter((g) => g.count > 0);
     const otherItems = [...byPhase.entries()].filter(([phase]) => !knownPhases.has(phase)).flatMap(([, items]) => items);
     if (otherItems.length) {
-      const byTitle = new Map<string, RuleEntry[]>();
-      for (const item of otherItems) {
-        if (!byTitle.has(item.title)) byTitle.set(item.title, []);
-        byTitle.get(item.title)!.push(item);
+      // Separa FAQs de cartas de regras gerais
+      const cardItems = otherItems.filter((item) => Boolean(item.cardCode || item.cardId || item.relatedCards?.length));
+      const generalItems = otherItems.filter((item) => !item.cardCode && !item.cardId && !item.relatedCards?.length);
+
+      if (generalItems.length) {
+        const byTitle = new Map<string, RuleEntry[]>();
+        for (const item of generalItems) {
+          if (!byTitle.has(item.title)) byTitle.set(item.title, []);
+          byTitle.get(item.title)!.push(item);
+        }
+        groups.push({ key: "other_general", label: "Regras Gerais / Diversas", count: generalItems.length, categories: [...byTitle.entries()].map(([title, rows]) => ({ title, rows })) });
       }
-      groups.push({ key: "other", label: "Outras", count: otherItems.length, categories: [...byTitle.entries()].map(([title, rows]) => ({ title, rows })) });
+
+      if (cardItems.length) {
+        const bySet = new Map<string, RuleEntry[]>();
+        for (const item of cardItems) {
+          const code = item.cardCode || item.relatedCards?.[0] || "";
+          const setKey = code.split("-")[0] || "Outros";
+          if (!bySet.has(setKey)) bySet.set(setKey, []);
+          bySet.get(setKey)!.push(item);
+        }
+        const sortedSets = [...bySet.entries()].sort(([a], [b]) => a.localeCompare(b));
+        groups.push({
+          key: "card_faqs",
+          label: "FAQs de Cartas por Coleção",
+          count: cardItems.length,
+          categories: sortedSets.map(([setKey, rows]) => ({
+            title: `Coleção ${setKey} (${rows.length} ${rows.length === 1 ? "pergunta" : "perguntas"})`,
+            rows,
+          })),
+        });
+      }
     }
     return groups;
   }, [allRules]);
@@ -666,7 +698,7 @@ export default function RulesPage() {
                             <AccordionContent className="p-0">
                               <Accordion type="multiple" className="w-full border-t border-white/10">
                                 {cat.rows.map((row) => (
-                                  <RuleRow key={row.id} item={row} />
+                                  <RuleRow key={row.id} item={row} isPt={isPt} />
                                 ))}
                               </Accordion>
                             </AccordionContent>

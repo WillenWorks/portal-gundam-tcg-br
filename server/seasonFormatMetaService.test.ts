@@ -89,24 +89,32 @@ describe("seasonFormatMetaService", () => {
     expect(res!.archetypes.every((a) => a.colors.includes("green"))).toBe(true);
   });
 
-  it("ordena GD05_COMBINED no topo de getAvailableFormats e inclui ALL", () => {
+  it("ordena GD05 unificado no topo de getAvailableFormats (sem GD05.5 separado) e inclui ALL", () => {
     const formats = getAvailableFormats();
-    expect(formats[0].format).toBe("GD05_COMBINED");
+    expect(formats[0].format).toBe("GD05");
+    expect(formats.some((f) => f.format === "GD05.5")).toBe(false);
+    expect(formats.some((f) => f.format === "GD05_COMBINED")).toBe(false);
     expect(formats.some((f) => f.format === "ALL")).toBe(true);
   });
 
-  it("temporada atual não soma o GD05.5 de novo (é um recorte por data do GD05)", async () => {
+  it("temporada atual unifica GD05 e GD05.5 sob GD05 sem somar duas vezes", async () => {
     // o recorte está contido no GD05
     expect(F["GD05.5"].lists).toBeLessThanOrEqual(F.GD05.lists);
 
-    const res = await getFormatMetaBreakdown(mockPrisma, "GD05_COMBINED");
+    const res = await getFormatMetaBreakdown(mockPrisma, "GD05");
     expect(res).toBeDefined();
-    expect(res!.format).toBe("GD05_COMBINED");
+    expect(res!.format).toBe("GD05");
     expect(res!.totalLists).toBe(F.GD05.lists);
     expect(res!.totalEvents).toBe(F.GD05.events);
     expect(res!.provenance.totalDecks).toBe(F.GD05.lists);
-    expect(res!.provenance.tournaments[0].name).toContain("Temporada Atual GD05 & GD05.5");
+    expect(res!.provenance.tournaments[0].name).toContain("Temporada Atual GD05");
     expect(getAvailableFormats()[0].totalLists).toBe(F.GD05.lists);
+
+    // aliases legados como GD05.5 ou GD05_COMBINED também resolvem para GD05
+    const resAlias = await getFormatMetaBreakdown(mockPrisma, "GD05_COMBINED");
+    expect(resAlias?.format).toBe("GD05");
+    const resSub = await getFormatMetaBreakdown(mockPrisma, "GD05.5");
+    expect(resSub?.format).toBe("GD05");
 
     // cada arquétipo com as mesmas listas que tem no GD05
     for (const a of res!.archetypes) {

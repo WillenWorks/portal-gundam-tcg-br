@@ -10,7 +10,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, B
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { GAME_COLOR_HEX, GAME_COLOR_LABEL_PT, TOURNAMENT_TIER_OPTIONS } from "@/lib/gundam-catalog";
+import { GAME_COLOR_HEX, GAME_COLOR_LABEL_PT, TOURNAMENT_TIER_OPTIONS, normalizeDeckColors, resolveGameColorHex, resolveGameColorLabelPt } from "@/lib/gundam-catalog";
 import { loadDeckbuilderDraft } from "@/lib/deckbuilder-draft";
 import type { NormalizedEvent } from "@/lib/tournament-normalize";
 
@@ -227,7 +227,14 @@ export function TournamentDetailDialog({
                         <td className="py-2 pr-3">{p.archetype || <span className="text-slate-600">—</span>}</td>
                         <td className="py-2 pr-3">
                           <div className="flex gap-1">
-                            {p.colors.map((c) => <span key={c} title={GAME_COLOR_LABEL_PT[c] || c} className="size-2.5 rounded-full" style={{ backgroundColor: GAME_COLOR_HEX[c] || FALLBACK_SLICE_COLOR }} />)}
+                            {normalizeDeckColors(p.colors).map((c) => (
+                              <span
+                                key={c}
+                                title={resolveGameColorLabelPt(c)}
+                                className="size-2.5 rounded-full border border-white/20 shadow-xs"
+                                style={{ backgroundColor: resolveGameColorHex(c) }}
+                              />
+                            ))}
                           </div>
                         </td>
                         <td className="py-2 pr-3 text-xs text-slate-500">{p.wins ?? "-"}V {p.losses ?? "-"}D {p.draws ?? "-"}E</td>

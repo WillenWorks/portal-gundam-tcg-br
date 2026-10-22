@@ -6,13 +6,13 @@
  * (`/simulador/partida/:matchId`, SimulatorMatchPage). O bot joga sozinho — o
  * worker `services/sim-bot/` processa cada turno dele fora do web server.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { Bot, Loader2, Swords, User, ShieldCheck, ArrowLeft, CircleCheck, CircleX } from "lucide-react";
 
 import { api, type SimulatorTrainingLevel } from "@/lib/api";
-import { SIMULATOR_DECK_PRESETS } from "@/modules/simulator/content/simulatorDeckPresets";
+import { SIMULATOR_DECK_PRESETS, STARTER_DECK_PRESETS } from "@/modules/simulator/content/simulatorDeckPresets";
 import { useMySimulatorDecks } from "@/modules/simulator/ui/useMySimulatorDecks";
 import { SimulatorDeckCoverageNotice } from "@/modules/simulator/ui/SimulatorDeckCoverageNotice";
 import { PublicShell } from "@/components/layout/PublicShell";
@@ -42,12 +42,25 @@ function errorMessage(err: unknown, fallback: string): string {
 export default function SimulatorTrainingPage() {
   const { tr } = useSiteLanguage();
   const [, navigate] = useLocation();
-  const starters = SIMULATOR_DECK_PRESETS;
-  const { decks: myDecks } = useMySimulatorDecks();
+  const starters = STARTER_DECK_PRESETS;
+  const nonStarterPresets = SIMULATOR_DECK_PRESETS.filter((d) => !d.key.startsWith("ST"));
+  const { decks: myDecks, loading: myDecksLoading } = useMySimulatorDecks();
+  const urlDeckParam = new URLSearchParams(window.location.search).get("deck");
   // `?deck=<id>` vem do atalho "Treinar com este deck" do deckbuilder (roteamento por hash: a query fica em location.search).
   const [playerDeckId, setPlayerDeckId] = useState<string>(
-    () => new URLSearchParams(window.location.search).get("deck") || (starters[0]?.key ?? "ST01"),
+    () => urlDeckParam || (starters[0]?.key ?? "ST01"),
   );
+  const defaultedFromMyDecksRef = useRef(Boolean(urlDeckParam));
+
+  useEffect(() => {
+    if (defaultedFromMyDecksRef.current || myDecksLoading) return;
+    defaultedFromMyDecksRef.current = true;
+    const firstValid = myDecks.find((d) => d.simulatorValid);
+    if (firstValid) {
+      setPlayerDeckId(firstValid.id);
+    }
+  }, [myDecks, myDecksLoading]);
+
   const [botDeckId, setBotDeckId] = useState<string>("SAME");
   const [level, setLevel] = useState<SimulatorTrainingLevel>("normal");
   const [starting, setStarting] = useState(false);
@@ -94,7 +107,7 @@ export default function SimulatorTrainingPage() {
   };
 
   return (
-    <PublicShell breadcrumbs={[{ label: tr("Simulador", "Simulator"), href: "/simulador" }, { label: tr("Simulação de Treinamento", "Practice Simulation") }]}>
+    <PublicShell breadcrumbs={[{ label: tr("Simulador", "Simulator"), href: "/simulador" }, { label: tr("Treinamento no Simulador", "Simulator Training") }]}>
       <div className="relative mx-auto w-full container-ultrawide overflow-hidden rounded-2xl border border-primary/30 bg-slate-950 shadow-[0_0_60px_rgba(6,182,212,0.25)]">
         {/* Imagem de Fundo Cockpit de Treino com Instrumentos de Medição em alta visibilidade */}
         <div className="pointer-events-none absolute inset-0">
@@ -117,9 +130,9 @@ export default function SimulatorTrainingPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-xs uppercase tracking-[0.24em] text-primary font-semibold">{tr("Simulador · Treino", "Simulator · Practice")}</p>
-                    <h1 className="mt-2 font-heading text-4xl uppercase heading-portal">{tr("Simulação de Treinamento", "Practice Simulation")}</h1>
+                    <h1 className="mt-2 font-heading text-4xl uppercase heading-portal">{tr("Treinamento no Simulador", "Simulator Training")}</h1>
                     <p className="mt-3 text-sm leading-7 text-soft">
-                      {tr("Treine contra o bot com qualquer Starter Deck oficial ou com os seus próprios decks.", "Practice against the bot with any official Starter Deck or your own decks.")}
+                      {tr("Treine contra o bot com os seus próprios decks ou com qualquer Starter Deck oficial.", "Practice against the bot with your own decks or any official Starter Deck.")}
                     </p>
                   </div>
                   <Button
@@ -149,16 +162,6 @@ export default function SimulatorTrainingPage() {
                         <SelectValue placeholder={tr("Selecione seu deck", "Select your deck")} />
                       </SelectTrigger>
                       <SelectContent className="border border-white/15 bg-slate-950/98 text-white dark:bg-slate-950 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 shadow-2xl z-50">
-                        <SelectGroup>
-                          <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
-                            {tr("Starter Decks Oficiais", "Official Starter Decks")}
-                          </SelectLabel>
-                          {starters.map((deck) => (
-                            <SelectItem key={deck.key} value={deck.key} className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
-                              {deck.label}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
                         {myDecks.length > 0 && (
                           <SelectGroup>
                             <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
@@ -178,6 +181,16 @@ export default function SimulatorTrainingPage() {
                             ))}
                           </SelectGroup>
                         )}
+                        <SelectGroup>
+                          <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
+                            {tr("Starter Decks Oficiais", "Official Starter Decks")}
+                          </SelectLabel>
+                          {starters.map((deck) => (
+                            <SelectItem key={deck.key} value={deck.key} className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
+                              {deck.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
                       </SelectContent>
                     </Select>
                   </div>
@@ -199,16 +212,6 @@ export default function SimulatorTrainingPage() {
                         <SelectItem value="SAME" className="cursor-pointer py-2 px-3 text-xs font-semibold uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
                           {tr("Mesmo deck que o seu (Espelho)", "Same deck as yours (Mirror)")}
                         </SelectItem>
-                        <SelectGroup>
-                          <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
-                            {tr("Starter Decks Oficiais", "Official Starter Decks")}
-                          </SelectLabel>
-                          {starters.map((deck) => (
-                            <SelectItem key={deck.key} value={deck.key} className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
-                              {deck.label}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
                         {myDecks.length > 0 && (
                           <SelectGroup>
                             <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
@@ -224,6 +227,28 @@ export default function SimulatorTrainingPage() {
                                   )}
                                   {deck.name}
                                 </span>
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        )}
+                        <SelectGroup>
+                          <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
+                            {tr("Starter Decks Oficiais", "Official Starter Decks")}
+                          </SelectLabel>
+                          {starters.map((deck) => (
+                            <SelectItem key={deck.key} value={deck.key} className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
+                              {deck.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                        {nonStarterPresets.length > 0 && (
+                          <SelectGroup>
+                            <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
+                              {tr("Decks Meta e de Expansão", "Meta & Expansion Decks")}
+                            </SelectLabel>
+                            {nonStarterPresets.map((deck) => (
+                              <SelectItem key={deck.key} value={deck.key} className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
+                                {deck.label}
                               </SelectItem>
                             ))}
                           </SelectGroup>

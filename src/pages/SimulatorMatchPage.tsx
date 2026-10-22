@@ -326,6 +326,8 @@ export function buildTurnStagedViews(
             ...incomingActivePlayer.counts,
             hand: prevActivePlayer.counts.hand,
             deck: prevActivePlayer.counts.deck,
+            resourceDeck: prevActivePlayer.counts.resourceDeck,
+            resourceArea: prevActivePlayer.counts.resourceArea,
           },
         },
       },
@@ -351,6 +353,8 @@ export function buildTurnStagedViews(
             ...incomingActivePlayer.counts,
             hand: prevActivePlayer.counts.hand,
             deck: prevActivePlayer.counts.deck,
+            resourceDeck: prevActivePlayer.counts.resourceDeck,
+            resourceArea: prevActivePlayer.counts.resourceArea,
           },
         },
       },
@@ -372,7 +376,11 @@ export function buildTurnStagedViews(
           resourceArea: prevActivePlayer.resourceArea.map((c) => (isHidden(c) ? c : { ...c, rested: false })),
           hand: incomingActivePlayer.hand,
           deck: incomingActivePlayer.deck,
-          counts: incomingActivePlayer.counts,
+          counts: {
+            ...incomingActivePlayer.counts,
+            resourceDeck: prevActivePlayer.counts.resourceDeck,
+            resourceArea: prevActivePlayer.counts.resourceArea,
+          },
         },
       },
     },
@@ -947,15 +955,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
       if (isTurnChange) {
         const staged = buildTurnStagedViews(prevView, incoming);
+        // Fecha o turno anterior ANTES de armar turnStagedViewsRef e mostrar a mesa do novo turno.
+        enqueuePhaseBanners(endOfTurnBanners(prevView));
+        await waitForPhaseBanners();
         turnStagedViewsRef.current = {
           actingPlayer: incoming.view.activePlayer,
           viewRecovery: staged.viewRecovery,
           viewDraw: staged.viewDraw,
           viewMain: staged.viewMain,
         };
-        // Fecha o turno anterior ANTES de mostrar a mesa do novo turno.
-        enqueuePhaseBanners(endOfTurnBanners(prevView));
-        await waitForPhaseBanners();
         setMatchView(staged.viewAnnounced);
         const isMyTurn = incoming.view.activePlayer === incoming.seat;
         if (isMyTurn) sfx.playNewtypeFlash();
@@ -966,6 +974,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           "FASE PRINCIPAL",
         ]);
         await waitForPhaseBanners();
+        turnStagedViewsRef.current = null;
+        setMatchView(incoming);
       } else {
         setMatchView((prev) => {
           if (prev && prev.matchId === incoming.matchId && incoming.version < prev.version) return prev;

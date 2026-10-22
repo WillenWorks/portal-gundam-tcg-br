@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Database, ExternalLink, Info, ShieldCheck, Users } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +65,10 @@ export function DataSourceNote({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedTier, setSelectedTier] = useState<string>("ALL");
+  const [filterMode, setFilterMode] = useState<"all" | "latest2">("latest2");
+  const [pageSize, setPageSize] = useState<number>(12);
+  const [visibleCount, setVisibleCount] = useState<number>(12);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const decksCount = provenance?.totalDecks ?? directDecks ?? 0;
   const tourneysList = provenance?.tournaments ?? directTournamentsList ?? [];
@@ -73,9 +77,29 @@ export function DataSourceNote({
   const end = provenance?.endDate ?? directEnd ?? null;
   const periodText = formatPeriod(start, end);
 
+  // Ordena por data decrescente (mais recentes primeiro)
+  const sortedTournaments = useMemo(() => {
+    return [...tourneysList].sort((a, b) => {
+      const dateA = a.date ? new Date(a.date).getTime() : 0;
+      const dateB = b.date ? new Date(b.date).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, [tourneysList]);
+
+  // Aplica filtro por loja (últimos 2 por loja/organizador), tier e busca
   const filteredTournaments = useMemo(() => {
-    return tourneysList.filter((t) => {
+    const storeCount = new Map<string, number>();
+
+    return sortedTournaments.filter((t) => {
       if (selectedTier !== "ALL" && t.tier !== selectedTier) return false;
+
+      if (filterMode === "latest2") {
+        const key = (t.organizer || t.name || "geral").toLowerCase().trim();
+        const current = storeCount.get(key) || 0;
+        if (current >= 2) return false;
+        storeCount.set(key, current + 1);
+      }
+
       if (!search.trim()) return true;
       const term = search.toLowerCase();
       const name = (t.name || "").toLowerCase();
@@ -83,7 +107,36 @@ export function DataSourceNote({
       const tier = tierLabel(t.tier).toLowerCase();
       return name.includes(term) || org.includes(term) || tier.includes(term);
     });
-  }, [tourneysList, search, selectedTier]);
+  }, [sortedTournaments, search, selectedTier, filterMode]);
+
+  // Reseta a paginação ao mudar filtros
+  useEffect(() => {
+    setVisibleCount(pageSize);
+  }, [search, selectedTier, filterMode, pageSize]);
+
+  // Infinite Scroll via IntersectionObserver
+  useEffect(() => {
+    if (!open) return;
+    if (typeof IntersectionObserver === "undefined") return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => Math.min(prev + pageSize, filteredTournaments.length));
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [open, pageSize, filteredTournaments.length]);
+
+  const displayedTournaments = useMemo(() => {
+    return filteredTournaments.slice(0, visibleCount);
+  }, [filteredTournaments, visibleCount]);
 
   const summaryText = useMemo(() => {
     if (decksCount === 0 && tournamentsCount === 0) {
@@ -207,9 +260,52 @@ export function DataSourceNote({
             </p>
           </div>
 
-          {/* Filtro e Busca nos Torneios */}
+          {/* Filtro, Agrupamento e Busca nos Torneios */}
           {tourneysList.length > 2 && (
-            <div className="space-y-2 pt-2 border-t dark:border-white/10 light:border-slate-200">
+            <div className="space-y-2.5 pt-2 border-t dark:border-white/10 light:border-slate-200 font-mono text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] uppercase tracking-wider dark:text-slate-400 light:text-slate-600">Visualização:</span>
+                  <div className="inline-flex border dark:border-white/15 light:border-slate-300 panel-cut p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setFilterMode("latest2")}
+                      className={`px-2 py-1 text-[10px] uppercase font-bold transition-colors ${
+                        filterMode === "latest2"
+                          ? "bg-primary text-slate-950 font-bold"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      Últimos 2 por loja
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFilterMode("all")}
+                      className={`px-2 py-1 text-[10px] uppercase font-bold transition-colors ${
+                        filterMode === "all"
+                          ? "bg-primary text-slate-950 font-bold"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      Todos por data
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 ml-auto">
+                  <span className="text-[11px] uppercase tracking-wider dark:text-slate-400 light:text-slate-600">Por página:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="h-7 border dark:border-white/15 dark:bg-slate-900 px-2 text-[11px] rounded-none text-primary font-bold"
+                  >
+                    <option value={12}>12</option>
+                    <option value={24}>24</option>
+                    <option value={48}>48</option>
+                  </select>
+                </div>
+              </div>
+
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative flex-1 min-w-[200px]">
                   <Input
@@ -247,14 +343,14 @@ export function DataSourceNote({
             </div>
           )}
 
-          {/* Lista de Torneios */}
-          <div className="space-y-2.5 max-h-[40vh] overflow-y-auto pr-1">
-            {filteredTournaments.length === 0 ? (
+          {/* Lista de Torneios com Carregamento Híbrido (Infinite Scroll + manual) */}
+          <div className="space-y-2.5 max-h-[42vh] overflow-y-auto pr-1">
+            {displayedTournaments.length === 0 ? (
               <p className="py-6 text-center text-xs dark:text-slate-500 light:text-slate-500 font-mono">
                 Nenhum torneio encontrado com os filtros atuais.
               </p>
             ) : (
-              filteredTournaments.map((t, idx) => (
+              displayedTournaments.map((t, idx) => (
                 <div
                   key={t.id || idx}
                   className="panel-cut border dark:border-white/10 dark:bg-slate-900/60 light:border-slate-200 light:bg-slate-50 p-3 transition-colors hover:border-primary/40 dark:hover:bg-slate-900/90 light:hover:bg-slate-100"
@@ -311,6 +407,20 @@ export function DataSourceNote({
                 </div>
               ))
             )}
+            {displayedTournaments.length < filteredTournaments.length && (
+              <div className="pt-2 text-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setVisibleCount((prev) => Math.min(prev + pageSize, filteredTournaments.length))}
+                  className="rounded-none text-xs font-mono uppercase border-primary/40 text-primary hover:bg-primary/20"
+                >
+                  Carregar mais torneios ({displayedTournaments.length} de {filteredTournaments.length})
+                </Button>
+              </div>
+            )}
+            <div ref={sentinelRef} className="h-4 w-full" />
           </div>
 
           <div className="flex justify-end pt-3 border-t dark:border-white/10 light:border-slate-200">

@@ -207,6 +207,7 @@ function topColors(centroid: Record<string, number>, catalog: CatalogLookup): st
   }
   return [...byColor]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .filter(([, count], idx) => idx === 0 || (idx === 1 && count / ([...byColor.values()].reduce((s, v) => s + v, 0) || 1) >= 0.15))
     .slice(0, 2)
     .map(([c]) => c)
     .sort();

@@ -24,7 +24,7 @@ import { VedaSourceCredit } from "@/components/veda/VedaSourceCredit";
 import { VedaErrorView, VedaLoadingView } from "@/components/veda/VedaStateViews";
 import { vedaApi } from "@/lib/veda/api";
 import type { VedaDeckCard, VedaDecklist } from "@/lib/veda/types";
-import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX } from "@/lib/gundam-catalog";
+import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX, normalizeDeckColors, resolveGameColorHex, resolveGameColorLabelPt } from "@/lib/gundam-catalog";
 
 function formatDatePtBr(raw?: string | null): string {
   if (!raw) return "Data não informada";
@@ -146,8 +146,8 @@ export default function VedaDecklistPage() {
         { label: decklist.tournament.name, href: `/torneios/${decklist.tournament.id}` },
         { label: `Deck de ${decklist.player.name}` },
       ]}
-      source={decklist.source}
-      sourceUrl={decklist.sourceUrl}
+
+
     >
       <div className="space-y-6">
         {/* Painel de Cabeçalho da Decklist */}
@@ -287,16 +287,16 @@ export default function VedaDecklistPage() {
 
             <div className="space-y-2 pt-2">
               {decklist.colors && decklist.colors.length > 0 ? (
-                decklist.colors.map((color) => {
-                  const hex = GAME_COLOR_HEX[color] || "#3b82f6";
+                normalizeDeckColors(decklist.colors).map((color) => {
+                  const hex = resolveGameColorHex(color, "#3b82f6");
                   return (
                     <div
                       key={color}
                       className="flex items-center justify-between p-2 border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.02]"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="size-3 rounded-full" style={{ backgroundColor: hex }} />
-                        <span className="text-xs font-mono uppercase text-slate-900 dark:text-white">{color}</span>
+                        <span className="size-3 rounded-full border border-slate-400/80 dark:border-white/40" style={{ backgroundColor: hex }} />
+                        <span className="text-xs font-mono uppercase text-slate-900 dark:text-white">{resolveGameColorLabelPt(color) || color}</span>
                       </div>
                       <Badge variant="outline" className="text-[10px] font-mono border-slate-300 dark:border-white/15 text-slate-700 dark:text-slate-300">
                         Cor de Jogo

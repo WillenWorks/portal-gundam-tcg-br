@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { api, type WeeklyTrendsResponse } from "@/lib/api";
-import { GAME_COLOR_HEX, GAME_COLOR_LABEL_PT, TOURNAMENT_TIER_OPTIONS } from "@/lib/gundam-catalog";
+import { GAME_COLOR_HEX, GAME_COLOR_LABEL_PT, TOURNAMENT_TIER_OPTIONS, normalizeDeckColors, resolveGameColorHex, resolveGameColorLabelPt } from "@/lib/gundam-catalog";
 import { DataSourceNote } from "@/components/stats/DataSourceNote";
 
 const FALLBACK_COLOR = "#94a3b8";
@@ -256,12 +256,12 @@ export function WeeklyTrendsPanel({ seasonId }: { seasonId?: string }) {
                           <div>
                             <div className="flex items-center justify-between gap-1.5 mb-1.5">
                               <div className="flex items-center gap-1">
-                                {arch.colors.map((c) => (
+                                {normalizeDeckColors(arch.colors).map((c) => (
                                   <span
                                     key={c}
-                                    title={GAME_COLOR_LABEL_PT[c] || c}
-                                    className="size-2 rounded-full"
-                                    style={{ backgroundColor: GAME_COLOR_HEX[c] || FALLBACK_COLOR }}
+                                    title={resolveGameColorLabelPt(c)}
+                                    className="size-2 rounded-full border border-white/30 dark:border-white/25 light:border-slate-400"
+                                    style={{ backgroundColor: resolveGameColorHex(c, FALLBACK_COLOR) }}
                                   />
                                 ))}
                                 <span className="font-heading text-sm uppercase dark:text-white light:text-slate-900 truncate max-w-[140px]">

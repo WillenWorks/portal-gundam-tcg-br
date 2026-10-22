@@ -3,27 +3,6 @@
  * travado num resultado real (TournamentEntry ou HostedEventParticipant já finalizado),
  * nunca de Deck/DeckItem público. Ver comentário original em server/index.ts sobre por
  * que essa é a única fonte tratada como "resultado real".
- *
- * Métricas cobertas (pedido do usuário, inspirado em Wingtable/Egman Events/MTGGoldfish):
- *   - Presença por carta (Meta Share / Inclusion Rate) -- já existia.
- *   - Winrate por carta: mesma leitura de GET /api/cards/:id/stats (wins/losses/draws
- *     do resultado do deck que carrega a carta), generalizada em lote pra todas as
- *     cartas do recorte de uma vez (1 passada pelos snapshots, não 1 por carta).
- *   - Cópias médias por carta (avgCopies) -- consistência de build.
- *   - Tendência (rising/declining): divide os decks elegíveis em dois períodos pela
- *     DATA DO EVENTO (Tournament.dateStart / HostedEvent.dateStart, não a data da
- *     snapshot) usando um corte pela MEDIANA de contagem, não uma janela de calendário
- *     fixa -- com poucos decks cadastrados uma janela fixa (ex: 30 dias) resultaria
- *     quase sempre em 0 de um lado. O corte por mediana sempre produz dois grupos
- *     não-vazios (a partir de uma amostra mínima), e a leitura fica mais precisa à
- *     medida que mais eventos são cadastrados -- exatamente o "quanto mais se
- *     cadastre, mais acurado" pedido.
- *   - Distribuição por trait e por série/obra de origem, mesmo critério "por deck"
- *     (não por cópia) já usado em colorDistribution.
- *
- * Filtros: seasonId/setId (já existiam) + color, trait, series (deck elegível = tem
- * >=1 carta batendo o filtro, mesmo critério de setId) + startDate/endDate (recorta
- * pela data do evento antes de qualquer cálculo).
  */
 import { HostedEventStatus, HostedEventMatchResult, type PrismaClient } from "@prisma/client";
 import { NON_STATS_SECTIONS, NON_STATS_CARD_TYPES } from "../src/lib/deck-legality.ts";
@@ -64,12 +43,17 @@ export interface MetagameStatsParams {
 
 type CardFields = {
   id: string;
+  code: string;
   cardModelId: string | null;
   nameEn: string;
   namePt: string | null;
   color: string | null;
   setId: string | null;
   cardType: string;
+  rarity?: string | null;
+  isPrimaryPrint?: boolean | null;
+  imageUrl?: string | null;
+  imageMediumUrl?: string | null;
   trait: string | null;
   traits: string[];
   series: string | null;
@@ -87,6 +71,18 @@ type SnapshotEventInfo = {
   tier: string;
   sourceUrl: string | null;
 };
+
+function isRegularOfficialPrint(card: {
+  nameEn?: string | null;
+  rarity?: string | null;
+  isPrimaryPrint?: boolean | null;
+}): boolean {
+  const name = card.nameEn || "";
+  const rarity = card.rarity || "";
+  if (name.includes("(")) return false;
+  if (rarity.includes("+") || /beta|promo|judge|winner/i.test(rarity)) return false;
+  return true;
+}
 
 function cardMatchesTrait(card: CardFields, trait: string) {
   return card.trait === trait || card.traits.includes(trait);
@@ -142,8 +138,6 @@ export async function getMetagameStats(prisma: PrismaClient, params: MetagameSta
     }),
   ]);
 
-  // Resultado (wins/losses/draws) e dados de evento por snapshot -- só a PRIMEIRA
-  // ocorrência conta (um snapshot normalmente vincula a um único resultado histórico).
   const snapshotOutcome = new Map<string, { wins: number; losses: number; draws: number; eventDate: Date | null }>();
   const snapshotEventMap = new Map<string, SnapshotEventInfo>();
 
@@ -210,7 +204,6 @@ export async function getMetagameStats(prisma: PrismaClient, params: MetagameSta
     endDate: null,
     tournaments: [],
   };
-  // `never[]` (não `unknown[]`): no retorno união com os arrays reais, o tipo do item é preservado.
   const empty = {
     setId: setId ?? null,
     totalDecks: 0,
@@ -231,7 +224,26 @@ export async function getMetagameStats(prisma: PrismaClient, params: MetagameSta
     select: {
       deckSnapshotId: true,
       quantity: true,
-      card: { select: { id: true, cardModelId: true, nameEn: true, namePt: true, color: true, setId: true, cardType: true, trait: true, traits: true, series: true, sourceTitle: true } },
+      card: {
+        select: {
+          id: true,
+          code: true,
+          cardModelId: true,
+          nameEn: true,
+          namePt: true,
+          color: true,
+          setId: true,
+          cardType: true,
+          rarity: true,
+          isPrimaryPrint: true,
+          imageUrl: true,
+          imageMediumUrl: true,
+          trait: true,
+          traits: true,
+          series: true,
+          sourceTitle: true,
+        },
+      },
     },
   });
 
@@ -261,7 +273,19 @@ export async function getMetagameStats(prisma: PrismaClient, params: MetagameSta
 
   const presenceRate = (decks: number) => (totalDecks > 0 ? Number(((decks / totalDecks) * 100).toFixed(1)) : null);
 
-  type CardAgg = { key: string; name: string; color: string | null; decks: number; totalCopies: number; wins: number; losses: number; draws: number };
+  type CardAgg = {
+    key: string;
+    code: string;
+    name: string;
+    color: string | null;
+    imageUrl: string | null;
+    isRegular: boolean;
+    decks: number;
+    totalCopies: number;
+    wins: number;
+    losses: number;
+    draws: number;
+  };
   const cardCount = new Map<string, CardAgg>();
   const colorCount = new Map<string, number>();
   const comboCount = new Map<string, number>();
@@ -278,7 +302,26 @@ export async function getMetagameStats(prisma: PrismaClient, params: MetagameSta
         const card = entry.card;
         if (!card || NON_STATS_CARD_TYPES.includes(card.cardType)) continue;
         const key = card.cardModelId || card.id;
-        const agg = localCardCount.get(key) || { key, name: card.namePt || card.nameEn, color: card.color, decks: 0, totalCopies: 0, wins: 0, losses: 0, draws: 0 };
+        const reg = isRegularOfficialPrint(card);
+        const img = card.imageMediumUrl || card.imageUrl || null;
+        const agg = localCardCount.get(key) || {
+          key,
+          code: card.code || key,
+          name: card.namePt || card.nameEn,
+          color: card.color,
+          imageUrl: img,
+          isRegular: reg,
+          decks: 0,
+          totalCopies: 0,
+          wins: 0,
+          losses: 0,
+          draws: 0,
+        };
+        if (reg && (!agg.isRegular || !agg.imageUrl) && img) {
+          agg.imageUrl = img;
+          agg.isRegular = true;
+          if (card.code) agg.code = card.code;
+        }
         agg.totalCopies += entry.quantity;
         if (!seen.has(key)) {
           seen.add(key);
@@ -304,14 +347,33 @@ export async function getMetagameStats(prisma: PrismaClient, params: MetagameSta
     for (const entry of list) {
       const card = entry.card;
       if (!card || NON_STATS_CARD_TYPES.includes(card.cardType)) continue;
-      if (card.color) deckColors.add(card.color);
+      if (card.color && card.color !== "-") deckColors.add(card.color);
       if (card.trait) deckTraits.add(card.trait);
       card.traits.forEach((t) => deckTraits.add(t));
       const seriesLabel = card.series || card.sourceTitle;
       if (seriesLabel) deckSeries.add(seriesLabel);
 
       const key = card.cardModelId || card.id;
-      const agg = cardCount.get(key) || { key, name: card.namePt || card.nameEn, color: card.color, decks: 0, totalCopies: 0, wins: 0, losses: 0, draws: 0 };
+      const reg = isRegularOfficialPrint(card);
+      const img = card.imageMediumUrl || card.imageUrl || null;
+      const agg = cardCount.get(key) || {
+        key,
+        code: card.code || key,
+        name: card.namePt || card.nameEn,
+        color: card.color,
+        imageUrl: img,
+        isRegular: reg,
+        decks: 0,
+        totalCopies: 0,
+        wins: 0,
+        losses: 0,
+        draws: 0,
+      };
+      if (reg && (!agg.isRegular || !agg.imageUrl) && img) {
+        agg.imageUrl = img;
+        agg.isRegular = true;
+        if (card.code) agg.code = card.code;
+      }
       agg.totalCopies += entry.quantity;
       if (!seenCards.has(key)) {
         seenCards.add(key);
@@ -334,13 +396,15 @@ export async function getMetagameStats(prisma: PrismaClient, params: MetagameSta
     return total > 0 ? Number(((agg.wins / total) * 100).toFixed(1)) : null;
   };
 
-  const topCards = Array.from(cardCount.values())
+  let topCards = Array.from(cardCount.values())
     .sort((a, b) => b.decks - a.decks)
     .slice(0, TOP_CARDS_LIMIT)
     .map((entry) => ({
       cardModelId: entry.key,
+      code: entry.code,
       name: entry.name,
       color: entry.color,
+      imageUrl: entry.imageUrl,
       appearances: entry.decks,
       presenceRate: presenceRate(entry.decks),
       avgCopies: entry.decks > 0 ? Number((entry.totalCopies / entry.decks).toFixed(2)) : null,
@@ -353,10 +417,17 @@ export async function getMetagameStats(prisma: PrismaClient, params: MetagameSta
   const traitDistribution = Array.from(traitCount.entries()).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([t, decks]) => ({ trait: t, decks, presenceRate: presenceRate(decks) }));
   const seriesDistribution = Array.from(seriesCount.entries()).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([s, decks]) => ({ series: s, decks, presenceRate: presenceRate(decks) }));
 
-  // Tendência: corte por MEDIANA de contagem de decks elegíveis (ordenados pela data
-  // real do evento), não janela de calendário fixa -- ver comentário no topo do arquivo.
   let trend: typeof empty.trend = null;
-  type CardTrend = { cardModelId: string; name: string; color: string | null; priorPresenceRate: number; recentPresenceRate: number; trendDelta: number };
+  type CardTrend = {
+    cardModelId: string;
+    code: string;
+    name: string;
+    color: string | null;
+    imageUrl: string | null;
+    priorPresenceRate: number;
+    recentPresenceRate: number;
+    trendDelta: number;
+  };
   let risingCards: CardTrend[] = [];
   let decliningCards: CardTrend[] = [];
 
@@ -383,7 +454,17 @@ export async function getMetagameStats(prisma: PrismaClient, params: MetagameSta
         const priorRate = priorTotal > 0 ? ((priorAgg.get(key)?.decks ?? 0) / priorTotal) * 100 : 0;
         const recentRate = recentTotal > 0 ? ((recentAgg.get(key)?.decks ?? 0) / recentTotal) * 100 : 0;
         const sample = recentAgg.get(key) || priorAgg.get(key)!;
-        return { cardModelId: key, name: sample.name, color: sample.color, priorPresenceRate: Number(priorRate.toFixed(1)), recentPresenceRate: Number(recentRate.toFixed(1)), trendDelta: Number((recentRate - priorRate).toFixed(1)) };
+        const globalSample = cardCount.get(key);
+        return {
+          cardModelId: key,
+          code: globalSample?.code || sample.code,
+          name: sample.name,
+          color: sample.color,
+          imageUrl: globalSample?.imageUrl || sample.imageUrl,
+          priorPresenceRate: Number(priorRate.toFixed(1)),
+          recentPresenceRate: Number(recentRate.toFixed(1)),
+          trendDelta: Number((recentRate - priorRate).toFixed(1)),
+        };
       });
 
       risingCards = deltas.filter((d) => d.trendDelta > 0).sort((a, b) => b.trendDelta - a.trendDelta).slice(0, TREND_LIMIT);
@@ -396,6 +477,83 @@ export async function getMetagameStats(prisma: PrismaClient, params: MetagameSta
         priorCount: priorTotal,
         recentCount: recentTotal,
       };
+    }
+  }
+
+  // Garante a estampa regular oficial (isPrimaryPrint, sem sufixo +/Beta/Promo) para topCards, risingCards e decliningCards
+  if ((prisma as any).card?.findMany) {
+    const targetModelIds = Array.from(
+      new Set([
+        ...topCards.map((c) => c.cardModelId),
+        ...risingCards.map((c) => c.cardModelId),
+        ...decliningCards.map((c) => c.cardModelId),
+      ]),
+    );
+    const targetCodes = Array.from(
+      new Set([
+        ...topCards.map((c) => c.code),
+        ...risingCards.map((c) => c.code),
+        ...decliningCards.map((c) => c.code),
+      ].filter(Boolean)),
+    );
+    if (targetModelIds.length > 0 || targetCodes.length > 0) {
+      const officialCards = await prisma.card.findMany({
+        where: {
+          isActive: true,
+          deletedAt: null,
+          OR: [
+            ...(targetModelIds.length ? [{ cardModelId: { in: targetModelIds } }] : []),
+            ...(targetCodes.length ? [{ code: { in: targetCodes } }] : []),
+          ],
+        },
+        orderBy: [{ isPrimaryPrint: "desc" }, { createdAt: "asc" }],
+        select: {
+          cardModelId: true,
+          code: true,
+          nameEn: true,
+          namePt: true,
+          rarity: true,
+          isPrimaryPrint: true,
+          imageUrl: true,
+          imageMediumUrl: true,
+        },
+      });
+
+      const byModelOrCode = new Map<string, { code: string; imageUrl: string | null; isRegular: boolean; isPrimaryPrint: boolean }>();
+      for (const c of officialCards) {
+        const reg = isRegularOfficialPrint(c);
+        const img = c.imageMediumUrl || c.imageUrl || null;
+        const keys = [c.cardModelId, c.code].filter((k): k is string => Boolean(k));
+        for (const k of keys) {
+          const existing = byModelOrCode.get(k);
+          if (!existing) {
+            byModelOrCode.set(k, { code: c.code, imageUrl: img, isRegular: reg, isPrimaryPrint: Boolean(c.isPrimaryPrint) });
+          } else if (!existing.isRegular && reg && img) {
+            byModelOrCode.set(k, { code: c.code, imageUrl: img, isRegular: reg, isPrimaryPrint: Boolean(c.isPrimaryPrint) });
+          } else if (!existing.isPrimaryPrint && c.isPrimaryPrint && reg && img) {
+            byModelOrCode.set(k, { code: c.code, imageUrl: img, isRegular: reg, isPrimaryPrint: Boolean(c.isPrimaryPrint) });
+          }
+        }
+      }
+
+      topCards = topCards.map((c) => {
+        const resolved = byModelOrCode.get(c.cardModelId) || byModelOrCode.get(c.code);
+        return resolved
+          ? { ...c, code: resolved.code || c.code, imageUrl: resolved.imageUrl || c.imageUrl }
+          : c;
+      });
+      risingCards = risingCards.map((c) => {
+        const resolved = byModelOrCode.get(c.cardModelId) || byModelOrCode.get(c.code);
+        return resolved
+          ? { ...c, code: resolved.code || c.code, imageUrl: resolved.imageUrl || c.imageUrl }
+          : c;
+      });
+      decliningCards = decliningCards.map((c) => {
+        const resolved = byModelOrCode.get(c.cardModelId) || byModelOrCode.get(c.code);
+        return resolved
+          ? { ...c, code: resolved.code || c.code, imageUrl: resolved.imageUrl || c.imageUrl }
+          : c;
+      });
     }
   }
 

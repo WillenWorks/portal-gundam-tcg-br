@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
-import { GAME_COLOR_HEX, GAME_COLOR_LABEL_PT, COLOR_OPTIONS, TOURNAMENT_TAB_OPTIONS, TOURNAMENT_TIER_OPTIONS } from "@/lib/gundam-catalog";
+import { GAME_COLOR_HEX, GAME_COLOR_LABEL_PT, COLOR_OPTIONS, TOURNAMENT_TAB_OPTIONS, TOURNAMENT_TIER_OPTIONS, normalizeDeckColors, resolveGameColorHex, resolveGameColorLabelPt } from "@/lib/gundam-catalog";
 import { loadDeckbuilderDraft } from "@/lib/deckbuilder-draft";
 import { normalizeTournament, normalizeHostedEvent, type NormalizedEvent } from "@/lib/tournament-normalize";
 import { TournamentDetailDialog } from "@/components/tournaments/TournamentDetailDialog";
@@ -326,7 +326,7 @@ export default function TournamentsPage() {
                           <td className="py-2 pr-3">{participant.archetype || <span className="text-slate-600">—</span>}</td>
                           <td className="py-2 pr-3">
                             <div className="flex gap-1">
-                              {participant.colors.map((c) => <span key={c} title={GAME_COLOR_LABEL_PT[c] || c} className="size-2.5 rounded-full" style={{ backgroundColor: GAME_COLOR_HEX[c] || "#94a3b8" }} />)}
+                              {normalizeDeckColors(participant.colors).map((c) => <span key={c} title={resolveGameColorLabelPt(c)} className="size-2.5 rounded-full border border-white/30 dark:border-white/25 light:border-slate-400" style={{ backgroundColor: resolveGameColorHex(c) }} />)}
                             </div>
                           </td>
                           <td className="py-2 pr-3">

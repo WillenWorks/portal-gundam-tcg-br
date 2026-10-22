@@ -12,19 +12,27 @@ export function VedaSourceCredit({
   source,
   sourceUrl,
   className = "",
-  compact: _compact = false,
+  compact = false,
 }: VedaSourceCreditProps) {
   if (!source && !sourceUrl) return null;
 
   const url = sourceUrl || source?.url || null;
-  const isDigilab = source?.id === "digilab" || (url && url.includes("digilab"));
-  const defaultAttribution = isDigilab
-    ? "Dados: DigiLab (digilab.cards)"
-    : source?.id === "egman"
-      ? "Fonte: Egman Events"
-      : source?.attribution || "Dados de Torneio";
+  const isDigilab = source?.id === "digilab" || Boolean(url && url.includes("digilab"));
+  const isEgman = source?.id === "egman" || Boolean(url && url.includes("egmanevents"));
 
-  const attributionText = source?.attribution || defaultAttribution;
+  const sourceLabel = isDigilab
+    ? compact
+      ? "DigiLab"
+      : "Fonte: DigiLab"
+    : isEgman
+      ? compact
+        ? "Egman Events"
+        : "Fonte: Egman Events"
+      : source?.name
+        ? compact
+          ? source.name
+          : `Fonte: ${source.name}`
+        : source?.attribution || "Reportado no AnaheimHub";
 
   if (url) {
     return (
@@ -33,9 +41,9 @@ export function VedaSourceCredit({
         target="_blank"
         rel="noopener noreferrer"
         className={`inline-flex items-center gap-1 font-mono text-[11px] text-slate-500 dark:text-slate-400 hover:text-primary transition-colors ${className}`}
-        title={`Abrir página oficial da fonte: ${url}`}
+        title={`Abrir página analisada da fonte: ${url}`}
       >
-        <span>{attributionText}</span>
+        <span>{sourceLabel}</span>
         <ExternalLink className="size-3 shrink-0" />
       </a>
     );
@@ -45,7 +53,7 @@ export function VedaSourceCredit({
     <span
       className={`inline-flex items-center gap-1 font-mono text-[11px] text-slate-500 dark:text-slate-400 ${className}`}
     >
-      <span>{attributionText}</span>
+      <span>{sourceLabel}</span>
     </span>
   );
 }

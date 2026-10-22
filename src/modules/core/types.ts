@@ -51,6 +51,11 @@ export interface RuleEntry {
   summaryPt: string;
   /** Pergunta (PT-BR) -- o que deve aparecer em listas/filtros, nunca a resposta. */
   questionPt: string;
+  questionEn?: string;
+  answerPt?: string;
+  answerEn?: string;
+  cardCode?: string;
+  cardId?: string;
   examplePlayPt?: string;
   originalRef: string;
   relatedCards?: string[];

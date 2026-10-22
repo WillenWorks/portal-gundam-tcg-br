@@ -34,7 +34,7 @@ describe("Veda Components", () => {
           sourceUrl="https://digilab.cards/event/123"
         />,
       );
-      const link = screen.getByRole("link", { name: /Dados: DigiLab \(digilab\.cards\)/i });
+      const link = screen.getByRole("link", { name: /Fonte: DigiLab/i });
       expect(link).toBeDefined();
       expect(link.getAttribute("href")).toBe("https://digilab.cards/event/123");
       expect(link.getAttribute("target")).toBe("_blank");

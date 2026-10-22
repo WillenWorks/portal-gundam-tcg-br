@@ -2632,7 +2632,7 @@ app.get("/api/stats/metagame", async (req, res) => {
   let season: { id: string; code: string; name: string } | null = null;
   if (seasonParam === "all") {
     seasonId = null;
-  } else if (seasonParam === "current" || seasonParam === "GD05_COMBINED") {
+  } else if (seasonParam === "current" || seasonParam === "GD05_COMBINED" || seasonParam === "GD05" || seasonParam === "GD05.5") {
     const current = (await prisma.season.findFirst({ where: { isCurrent: true } })) ||
       (await prisma.season.findFirst({ where: { code: { in: ["GD05", "GD05.5"] } } }));
     seasonId = current?.id ?? null;
@@ -2654,7 +2654,7 @@ app.get("/api/stats/metagame", async (req, res) => {
 // centralizado aqui pra Power Rankings e Matriz de Confrontos usarem o mesmo critério.
 async function resolveSeasonFilter(seasonParam: string): Promise<{ seasonId: string | null; season: { id: string; code: string; name: string } | null } | null> {
   if (seasonParam === "all") return { seasonId: null, season: null };
-  if (seasonParam === "current" || seasonParam === "GD05_COMBINED") {
+  if (seasonParam === "current" || seasonParam === "GD05_COMBINED" || seasonParam === "GD05" || seasonParam === "GD05.5") {
     const current = (await prisma.season.findFirst({ where: { isCurrent: true } })) ||
       (await prisma.season.findFirst({ where: { code: { in: ["GD05", "GD05.5"] } } }));
     return { seasonId: current?.id ?? null, season: current ? { id: current.id, code: current.code, name: current.name } : null };

@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import { META_CORES } from "../src/modules/simulator/fixtures/metaCores.ts";
+import { normalizeDeckColors } from "../src/lib/gundam-catalog.ts";
 import type { MetagameProvenance } from "./metagameTrendsService.ts";
 
 export interface FormatCardDetail {
@@ -40,7 +41,7 @@ export interface FormatArchetypeSummary {
 }
 
 export interface FormatMetaResponse {
-  format: string; // e.g. "GD01", "GD02", "GD03", "GD04", "GD05"
+  format: string; // e.g. "GD01", "GD02", "GD03", "GD04", "GD05", "ALL"
   totalLists: number;
   totalEvents: number;
   generatedAt: string;
@@ -74,11 +75,25 @@ export interface ArchetypeEvolution {
 
 let cachedCardMap: Map<string, any> | null = null;
 
+function isRegularOfficialPrint(card: {
+  nameEn?: string | null;
+  rarity?: string | null;
+  isPrimaryPrint?: boolean | null;
+}): boolean {
+  const name = card.nameEn || "";
+  const rarity = card.rarity || "";
+  if (name.includes("(")) return false;
+  if (rarity.includes("+") || /beta|promo|judge|winner/i.test(rarity)) return false;
+  return true;
+}
+
 async function getCardMap(prisma: PrismaClient): Promise<Map<string, any>> {
   if (cachedCardMap && cachedCardMap.size > 0) {
     return cachedCardMap;
   }
   const cards = await prisma.card.findMany({
+    where: { isActive: true, deletedAt: null },
+    orderBy: [{ isPrimaryPrint: "desc" }, { createdAt: "asc" }],
     select: {
       code: true,
       nameEn: true,
@@ -89,18 +104,27 @@ async function getCardMap(prisma: PrismaClient): Promise<Map<string, any>> {
       cardType: true,
       cost: true,
       level: true,
+      rarity: true,
+      isPrimaryPrint: true,
     },
   });
   const map = new Map<string, any>();
   for (const c of cards) {
-    map.set(c.code, c);
+    const existing = map.get(c.code);
+    if (!existing) {
+      map.set(c.code, c);
+    } else if (!isRegularOfficialPrint(existing) && isRegularOfficialPrint(c)) {
+      map.set(c.code, c);
+    } else if (!existing.isPrimaryPrint && c.isPrimaryPrint && isRegularOfficialPrint(c)) {
+      map.set(c.code, c);
+    }
   }
   cachedCardMap = map;
   return map;
 }
 
 /**
- * Agrega matematicamente múltiplos formatos (ex: GD05 + GD05.5 ou Todas as Temporadas)
+ * Agrega matematicamente múltiplos formatos (ex: GD05 ou Todas as Temporadas)
  * sem inventar dados, ponderando taxas de inclusão, shares, top8 e pontos pelas listas reais.
  */
 function aggregateFormatData(formatKeys: string[]): {
@@ -148,7 +172,7 @@ function aggregateFormatData(formatKeys: string[]): {
         existing = {
           id: a.id,
           name: a.name,
-          colors: [...a.colors],
+          colors: normalizeDeckColors(a.colors),
           keyCard: a.keyCard,
           lists: 0,
           top8Weighted: 0,
@@ -228,7 +252,7 @@ function aggregateFormatData(formatKeys: string[]): {
     return {
       id: arch.id,
       name: arch.name,
-      colors: arch.colors,
+      colors: normalizeDeckColors(arch.colors),
       keyCard: arch.keyCard,
       lists: arch.lists,
       share,
@@ -249,33 +273,18 @@ function aggregateFormatData(formatKeys: string[]): {
 }
 
 /**
- * Lista todos os formatos disponíveis em metaCores, ordenando a Temporada Atual (GD05 / GD05.5)
+ * Lista todos os formatos disponíveis em metaCores, ordenando a Temporada Atual (GD05)
  * no topo, seguida pelos formatos em ordem decrescente e pela opção de histórico geral (ALL).
+ * GD05.5 foi unificado dentro de GD05 para evitar duplicidade de filtro.
  */
-// GD05.5 é um recorte por data do GD05 (listas desde o ST11–ST14, ver scripts/gundam-meta-cores.mjs), não uma
-// temporada à parte: somar os dois contaria essas listas duas vezes. A temporada atual é o próprio GD05.
 const CURRENT_SEASON_KEYS = ["GD05"];
 const ALL_SEASON_KEYS = ["GD01", "GD02", "GD03", "GD04", "GD05"];
 
 export function getAvailableFormats(): FormatOverviewItem[] {
   const result: FormatOverviewItem[] = [];
 
-  // 1. Temporada Atual Combinada: GD05 + GD05.5
-  const currentSeason = aggregateFormatData(CURRENT_SEASON_KEYS);
-  result.push({
-    format: "GD05_COMBINED",
-    totalLists: currentSeason.lists,
-    totalEvents: currentSeason.events,
-    archetypeCount: currentSeason.archetypes.length,
-    topArchetypes: currentSeason.archetypes.slice(0, 3).map((a) => ({
-      name: a.name,
-      share: a.share,
-      colors: a.colors,
-    })),
-  });
-
-  // 2. Formatos individuais em ordem decrescente (mais recente para mais antigo)
-  const orderedKeys = ["GD05.5", "GD05", "GD04", "GD03", "GD02", "GD01"];
+  // 1. Formatos individuais em ordem decrescente (Temporada Atual GD05 no topo, sem GD05.5 separado)
+  const orderedKeys = ["GD05", "GD04", "GD03", "GD02", "GD01"];
   for (const formatKey of orderedKeys) {
     const formatData = META_CORES.formats[formatKey as keyof typeof META_CORES.formats];
     if (!formatData) continue;
@@ -288,12 +297,12 @@ export function getAvailableFormats(): FormatOverviewItem[] {
       topArchetypes: archetypes.slice(0, 3).map((a) => ({
         name: a.name,
         share: a.share,
-        colors: a.colors,
+        colors: normalizeDeckColors(a.colors),
       })),
     });
   }
 
-  // 3. Histórico Geral (Todas as Temporadas)
+  // 2. Histórico Geral (Todas as Temporadas)
   const allSeasons = aggregateFormatData(ALL_SEASON_KEYS);
   result.push({
     format: "ALL",
@@ -303,7 +312,7 @@ export function getAvailableFormats(): FormatOverviewItem[] {
     topArchetypes: allSeasons.archetypes.slice(0, 3).map((a) => ({
       name: a.name,
       share: a.share,
-      colors: a.colors,
+      colors: normalizeDeckColors(a.colors),
     })),
   });
 
@@ -326,15 +335,17 @@ export async function getFormatMetaBreakdown(
   let tournamentLabel = `Torneios Competitivos Formato ${format} (Egman Events + DigiLab)`;
 
   if (
+    normalizedKey === "GD05" ||
+    normalizedKey === "GD05.5" ||
     normalizedKey === "GD05_COMBINED" ||
     normalizedKey === "CURRENT" ||
     normalizedKey === "GD05/GD05.5" ||
     normalizedKey === "GD05_GD05.5" ||
     normalizedKey === "GD05+GD05.5"
   ) {
-    formatKey = "GD05_COMBINED";
+    formatKey = "GD05";
     formatData = aggregateFormatData(CURRENT_SEASON_KEYS);
-    tournamentLabel = "Torneios Competitivos Temporada Atual GD05 & GD05.5 (Egman Events + DigiLab)";
+    tournamentLabel = "Torneios Competitivos Temporada Atual GD05 (Egman Events + DigiLab)";
   } else if (normalizedKey === "ALL" || normalizedKey === "TODAS") {
     formatKey = "ALL";
     formatData = aggregateFormatData(ALL_SEASON_KEYS);
@@ -355,7 +366,8 @@ export async function getFormatMetaBreakdown(
   const rawArchetypes = formatData.archetypes || [];
   const filtered = rawArchetypes.filter((arch) => {
     if (arch.lists < minLists) return false;
-    if (colorFilter && !arch.colors.some((c) => c.toLowerCase() === colorFilter)) {
+    const normColors = normalizeDeckColors(arch.colors);
+    if (colorFilter && !normColors.some((c) => c.toLowerCase() === colorFilter)) {
       return false;
     }
     return true;
@@ -421,7 +433,7 @@ export async function getFormatMetaBreakdown(
     return {
       id: arch.id,
       name: arch.name,
-      colors: arch.colors,
+      colors: normalizeDeckColors(arch.colors),
       keyCard: arch.keyCard,
       keyCardDetail,
       lists: arch.lists,
@@ -478,6 +490,7 @@ export function getFormatsEvolution(): ArchetypeEvolution[] {
   const evolutionMap = new Map<string, { name: string; colors: string[]; points: ArchetypeEvolutionPoint[] }>();
 
   for (const [formatKey, formatData] of Object.entries(META_CORES.formats)) {
+    if (formatKey === "GD05.5") continue;
     for (const arch of formatData.archetypes || []) {
       // Agrupa por nome de arquétipo normalizado
       const key = arch.name.toLowerCase().trim();
@@ -496,7 +509,7 @@ export function getFormatsEvolution(): ArchetypeEvolution[] {
       } else {
         evolutionMap.set(key, {
           name: arch.name,
-          colors: arch.colors,
+          colors: normalizeDeckColors(arch.colors),
           points: [point],
         });
       }

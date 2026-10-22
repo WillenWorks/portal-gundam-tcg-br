@@ -29,6 +29,16 @@ export const GAME_COLOR_HEX: Record<string, string> = {
   Red: "#ef4444",
   Purple: "#a855f7",
   White: "#e2e8f0",
+  blue: "#3b82f6",
+  green: "#22c55e",
+  red: "#ef4444",
+  purple: "#a855f7",
+  white: "#e2e8f0",
+  BLUE: "#3b82f6",
+  GREEN: "#22c55e",
+  RED: "#ef4444",
+  PURPLE: "#a855f7",
+  WHITE: "#e2e8f0",
 };
 
 // Rótulo PT-BR de cada cor de jogo -- usado nos chips de filtro da Central de Eventos
@@ -40,6 +50,55 @@ export const GAME_COLOR_LABEL_PT: Record<string, string> = {
   Red: "Vermelho",
   Purple: "Roxo",
   White: "Branco",
+  blue: "Azul",
+  green: "Verde",
+  red: "Vermelho",
+  purple: "Roxo",
+  white: "Branco",
+  BLUE: "Azul",
+  GREEN: "Verde",
+  RED: "Vermelho",
+  PURPLE: "Roxo",
+  WHITE: "Branco",
+};
+
+const VALID_COLOR_KEYS = new Set(["blue", "green", "red", "purple", "white"]);
+
+export function resolveGameColorHex(color: string | null | undefined, fallback = "#94a3b8"): string {
+  if (!color) return fallback;
+  const trimmed = color.trim();
+  return GAME_COLOR_HEX[trimmed] ?? GAME_COLOR_HEX[trimmed.toLowerCase()] ?? fallback;
+}
+
+export function resolveGameColorLabelPt(color: string | null | undefined): string {
+  if (!color) return "";
+  const trimmed = color.trim();
+  return GAME_COLOR_LABEL_PT[trimmed] ?? GAME_COLOR_LABEL_PT[trimmed.toLowerCase()] ?? trimmed;
+}
+
+export const normalizeDeckColors = (colors: readonly (string | null | undefined)[] | null | undefined): string[] => {
+  if (!colors || !Array.isArray(colors)) return [];
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const raw of colors) {
+    if (!raw) continue;
+    const parts = String(raw).split(/[\/,]/);
+    for (const part of parts) {
+      const trimmed = part.trim();
+      if (!trimmed || trimmed === "-") continue;
+      const lower = trimmed.toLowerCase();
+      if (!VALID_COLOR_KEYS.has(lower)) continue;
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        result.push(trimmed);
+      }
+    }
+  }
+  return result.slice(0, 2);
+};
+
+const _IGNORE_CLOSING = {
+  _x: ""
 };
 
 // Classificação tática de evento -- abas da Central de Eventos (TournamentsPage) e

@@ -260,7 +260,7 @@ describe("SimulatorMatchPage — Fases de Turno e Sincronização de Draw e Recu
   }
 
   it(
-    "buildTurnStagedViews segura rests até viewRecovery e draw até viewDraw (Turno do Player)",
+    "buildTurnStagedViews segura rests até viewRecovery, draw até viewDraw e resource até viewMain (BUG-Y8AWZX)",
     () => {
 
     const restedUnit: CardInstance = {
@@ -285,12 +285,39 @@ describe("SimulatorMatchPage — Fases de Turno e Sincronização de Draw e Recu
       },
     };
 
+    const prevResource: CardInstance = {
+      instanceId: "r-1",
+      owner: "A",
+      zone: "resourceArea",
+      rested: true,
+      damage: 0,
+      statModifiers: [],
+      keywordGrants: [],
+      usedKeywordsThisTurn: [],
+      enteredZoneOnTurn: 1,
+      def: {
+        code: "R-001",
+        nameEn: "Resource",
+        cardType: "RESOURCE",
+        color: "blue",
+        cost: 0,
+      },
+    };
+
+    const newResource: CardInstance = {
+      ...prevResource,
+      instanceId: "r-2",
+      rested: false,
+      enteredZoneOnTurn: 3,
+    };
+
     const prevView = createView({
-      turnNumber: 1,
+      turnNumber: 2,
       activePlayer: "B",
     });
-    // Jogador A tinha a unidade virada/rested no turno anterior e 4 cartas na mão
+    // Jogador A tinha a unidade virada/rested no turno anterior, 1 recurso virado (9 no resourceDeck) e 4 cartas na mão
     prevView.players.A.battleArea = [restedUnit];
+    prevView.players.A.resourceArea = [prevResource];
     prevView.players.A.hand = [
       { instanceId: "h1", owner: "A", zone: "hand" } as CardInstance,
       { instanceId: "h2", owner: "A", zone: "hand" } as CardInstance,
@@ -299,15 +326,18 @@ describe("SimulatorMatchPage — Fases de Turno e Sincronização de Draw e Recu
     ];
     prevView.players.A.counts.hand = 4;
     prevView.players.A.counts.deck = 40;
+    prevView.players.A.counts.resourceDeck = 9;
+    prevView.players.A.counts.resourceArea = 1;
 
     // IncomingView (motor processou recuperação + compra + recursos + main):
     const incomingGameState = createView({
-      turnNumber: 2,
+      turnNumber: 3,
       activePlayer: "A",
       phase: "main",
     });
-    // No motor, unidade já estaria destombada:
+    // No motor, unidade já estaria destombada e 2º recurso adicionado:
     incomingGameState.players.A.battleArea = [{ ...restedUnit, rested: false }];
+    incomingGameState.players.A.resourceArea = [{ ...prevResource, rested: false }, newResource];
     // Mão recebeu 5ª carta (draw):
     incomingGameState.players.A.hand = [
       ...prevView.players.A.hand,
@@ -315,6 +345,8 @@ describe("SimulatorMatchPage — Fases de Turno e Sincronização de Draw e Recu
     ];
     incomingGameState.players.A.counts.hand = 5;
     incomingGameState.players.A.counts.deck = 39;
+    incomingGameState.players.A.counts.resourceDeck = 8;
+    incomingGameState.players.A.counts.resourceArea = 2;
 
     const incomingMatchView = createMatchView(incomingGameState);
 
@@ -324,38 +356,54 @@ describe("SimulatorMatchPage — Fases de Turno e Sincronização de Draw e Recu
     // - Unidade AINDA VIRADA (rested = true)
     // - Mão AINDA com 4 cartas (draw NÃO aconteceu)
     // - Deck AINDA com 40 cartas
+    // - ResourceArea AINDA com 1 recurso (virado) e ResourceDeck AINDA com 9
     const announcedP = staged.viewAnnounced.view.players.A;
     expect(staged.viewAnnounced.view.phase).toBe("start");
     expect((announcedP.battleArea[0] as CardInstance).rested).toBe(true);
     expect(announcedP.hand.length).toBe(4);
     expect(announcedP.counts.hand).toBe(4);
     expect(announcedP.counts.deck).toBe(40);
+    expect(announcedP.resourceArea.length).toBe(1);
+    expect((announcedP.resourceArea[0] as CardInstance).rested).toBe(true);
+    expect(announcedP.counts.resourceDeck).toBe(9);
+    expect(announcedP.counts.resourceArea).toBe(1);
 
     // 2. viewRecovery ("FASE DE RECUPERAÇÃO"):
-    // - Unidade DESVIRA (rested = false)
+    // - Unidade e Recurso DESVIRAM (rested = false)
     // - Mão AINDA com 4 cartas (draw continua NÃO acontecendo)
-    // - Deck AINDA com 40 cartas
+    // - ResourceArea continua com 1 recurso e ResourceDeck com 9
     const recoveryP = staged.viewRecovery.view.players.A;
     expect(staged.viewRecovery.view.phase).toBe("start");
     expect((recoveryP.battleArea[0] as CardInstance).rested).toBe(false);
     expect(recoveryP.hand.length).toBe(4);
     expect(recoveryP.counts.hand).toBe(4);
     expect(recoveryP.counts.deck).toBe(40);
+    expect(recoveryP.resourceArea.length).toBe(1);
+    expect((recoveryP.resourceArea[0] as CardInstance).rested).toBe(false);
+    expect(recoveryP.counts.resourceDeck).toBe(9);
+    expect(recoveryP.counts.resourceArea).toBe(1);
 
     // 3. viewDraw ("FASE DE COMPRA"):
     // - Unidade permanece desvirada
-    // - Mão agora tem 5 cartas (draw aconteceu!)
-    // - Deck agora tem 39 cartas
+    // - Mão agora tem 5 cartas (draw aconteceu!) e Deck tem 39 cartas
+    // - ResourceArea AINDA com 1 recurso e ResourceDeck com 9 (entra na mesa na viewMain)
     const drawP = staged.viewDraw.view.players.A;
     expect(staged.viewDraw.view.phase).toBe("draw");
     expect((drawP.battleArea[0] as CardInstance).rested).toBe(false);
     expect(drawP.hand.length).toBe(5);
     expect(drawP.counts.hand).toBe(5);
     expect(drawP.counts.deck).toBe(39);
+    expect(drawP.resourceArea.length).toBe(1);
+    expect(drawP.counts.resourceDeck).toBe(9);
+    expect(drawP.counts.resourceArea).toBe(1);
 
     // 4. viewMain ("FASE PRINCIPAL"):
-    // - Fase = "main"
+    // - Fase = "main", 2 recursos ativos na mesa e 8 no resourceDeck
+    const mainP = staged.viewMain.view.players.A;
     expect(staged.viewMain.view.phase).toBe("main");
+    expect(mainP.resourceArea.length).toBe(2);
+    expect(mainP.counts.resourceDeck).toBe(8);
+    expect(mainP.counts.resourceArea).toBe(2);
   }, 15000);
 
   it(
@@ -397,6 +445,8 @@ describe("SimulatorMatchPage — Fases de Turno e Sincronização de Draw e Recu
     ];
     prevView.players.B.counts.hand = 3;
     prevView.players.B.counts.deck = 42;
+    prevView.players.B.counts.resourceDeck = 9;
+    prevView.players.B.counts.resourceArea = 1;
 
     // Turno passa para o bot (B):
     const incomingGameState = createView({
@@ -411,6 +461,8 @@ describe("SimulatorMatchPage — Fases de Turno e Sincronização de Draw e Recu
     ];
     incomingGameState.players.B.counts.hand = 4;
     incomingGameState.players.B.counts.deck = 41;
+    incomingGameState.players.B.counts.resourceDeck = 8;
+    incomingGameState.players.B.counts.resourceArea = 2;
 
     const incomingMatchView = createMatchView(incomingGameState); // viewer = humano A
 
@@ -422,18 +474,29 @@ describe("SimulatorMatchPage — Fases de Turno e Sincronização de Draw e Recu
     expect(announcedB.hand.length).toBe(3);
     expect(announcedB.counts.hand).toBe(3);
     expect(announcedB.counts.deck).toBe(42);
+    expect(announcedB.counts.resourceDeck).toBe(9);
+    expect(announcedB.counts.resourceArea).toBe(1);
 
     // 2. viewRecovery ("FASE DE RECUPERAÇÃO"):
     const recoveryB = staged.viewRecovery.view.players.B;
     expect((recoveryB.battleArea[0] as CardInstance).rested).toBe(false);
     expect(recoveryB.hand.length).toBe(3);
     expect(recoveryB.counts.hand).toBe(3);
+    expect(recoveryB.counts.resourceDeck).toBe(9);
+    expect(recoveryB.counts.resourceArea).toBe(1);
 
     // 3. viewDraw ("FASE DE COMPRA"):
     const drawB = staged.viewDraw.view.players.B;
     expect(drawB.hand.length).toBe(4);
     expect(drawB.counts.hand).toBe(4);
     expect(drawB.counts.deck).toBe(41);
+    expect(drawB.counts.resourceDeck).toBe(9);
+    expect(drawB.counts.resourceArea).toBe(1);
+
+    // 4. viewMain ("FASE PRINCIPAL"):
+    const mainB = staged.viewMain.view.players.B;
+    expect(mainB.counts.resourceDeck).toBe(8);
+    expect(mainB.counts.resourceArea).toBe(2);
   }, 15000);
 
   it(
@@ -478,5 +541,3 @@ describe("SimulatorMatchPage — Fases de Turno e Sincronização de Draw e Recu
     expect(staged.viewDraw.view.phase).toBe("draw");
   }, 15000);
 });
-
-

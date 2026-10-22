@@ -35,7 +35,15 @@ export function planModelFaq(code, entries, existing) {
     if (!e.question || !e.answer || urls.has(url) || questions.has(key)) continue;
     urls.add(url);
     questions.add(key);
-    out.push({ url, question: e.question.trim(), answer: e.answer.trim(), date: parseOfficialDate(e.date), id: e.id });
+    out.push({
+      url,
+      question: e.question.trim(),
+      answer: e.answer.trim(),
+      questionPt: e.questionPt?.trim() || null,
+      answerPt: e.answerPt?.trim() || null,
+      date: parseOfficialDate(e.date),
+      id: e.id,
+    });
   }
   return out;
 }
@@ -92,8 +100,10 @@ async function main() {
           questionEn: p.question,
           answerEn: p.answer,
           originalUrl: p.url,
+          questionPt: p.questionPt || null,
+          answerPt: p.answerPt || null,
           officialUpdatedAt: p.date,
-          translationStatus: "pending",
+          translationStatus: p.questionPt && p.answerPt ? "complete" : "pending",
           cardId: model.prints[0]?.id ?? null,
           cardModelId: model.id,
         })),

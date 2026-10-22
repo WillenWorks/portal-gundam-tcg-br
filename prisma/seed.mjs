@@ -258,6 +258,7 @@ async function upsertRulings(rulings) {
         title: ruling.title,
         originalUrl: ruling.originalUrl || null,
         cardId: card?.id || null,
+      cardModelId: card?.cardModelId || null,
       },
     });
 
@@ -275,6 +276,7 @@ async function upsertRulings(rulings) {
       officialUpdatedAt: toDateOrNull(ruling.officialUpdatedAt),
       translationStatus: ruling.translationStatus || "reviewed",
       cardId: card?.id || null,
+      cardModelId: card?.cardModelId || null,
     };
 
     if (existing) await prisma.ruling.update({ where: { id: existing.id }, data });

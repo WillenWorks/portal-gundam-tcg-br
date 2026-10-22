@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { api, type MetagameStatsResponse } from "@/lib/api";
 import {
   NON_STATS_SECTIONS,
@@ -44,14 +45,13 @@ const chartConfig = {
 const FALLBACK_SLICE_COLOR = "#94a3b8";
 const typeLabel = (raw: string) => CARD_TYPE_OPTIONS.find((opt) => opt.value === raw)?.label || raw;
 const ALL_VALUE = "__all__";
-const DEFAULT_FORMAT = "GD05_COMBINED";
+const DEFAULT_FORMAT = "GD05";
 
 export default function StatsPage() {
   const [health, setHealth] = useState<{ userCount: number; cardCount: number; deckCount: number } | null>(null);
   const [sets, setSets] = useState<any[]>([]);
   const [cards, setCards] = useState<any[]>([]);
   const [publicDecks, setPublicDecks] = useState<any[]>([]);
-  const [events, setEvents] = useState<any[]>([]);
 
   // Filtro de formato / temporada (padrão oficial: GD05_COMBINED = GD05 / GD05.5)
   const [selectedFormat, setSelectedFormat] = useState<string>(DEFAULT_FORMAT);
@@ -81,14 +81,12 @@ export default function StatsPage() {
       api.listSets(),
       api.listCards(),
       api.listPublicDecks(),
-      api.listTournaments(),
     ])
-      .then(([healthRes, setsRes, cardsRes, decksRes, eventsRes]) => {
+      .then(([healthRes, setsRes, cardsRes, decksRes]) => {
         setHealth(healthRes);
         setSets(setsRes);
         setCards(cardsRes);
         setPublicDecks(decksRes);
-        setEvents(eventsRes);
       })
       .catch(() => undefined);
   }, []);
@@ -135,10 +133,7 @@ export default function StatsPage() {
     [publicDecks, selectedSetId],
   );
 
-  const filteredEvents = useMemo(() => {
-    if (selectedFormat === "ALL") return events;
-    return events;
-  }, [events, selectedFormat]);
+  const totalEventsCount = metagame?.provenance?.totalTournaments ?? 0;
 
   const isFiltered =
     selectedFormat !== DEFAULT_FORMAT ||
@@ -198,8 +193,45 @@ export default function StatsPage() {
 
 
   return (
-    <PublicShell breadcrumbs={[{ label: "Estatísticas" }]}>
+    <PublicShell breadcrumbs={[{ label: "Sistema VEDA", href: "/torneios" }, { label: "Estatísticas & Cartas" }]}>
       <div className="space-y-6">
+        {/* Barra superior padronizada do Sistema VEDA */}
+        <div className="panel-cut border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/80 p-2 sm:p-2.5">
+          <nav className="flex flex-wrap items-center gap-1 sm:gap-2">
+            <Link
+              href="/torneios"
+              title="Eventos e súmulas na íntegra"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent"
+            >
+              <Trophy className="size-3.5 shrink-0" />
+              <span>Torneios & Reports</span>
+            </Link>
+            <Link
+              href="/arquetipos"
+              title="Tier list e listas de cada deck"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent"
+            >
+              <Layers className="size-3.5 shrink-0" />
+              <span>Arquétipos & Decks</span>
+            </Link>
+            <Link
+              href="/metagame/regional"
+              title="Recorte por estado, cidade e loja"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono uppercase tracking-wider text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent"
+            >
+              <MapPin className="size-3.5 shrink-0" />
+              <span>Metagame Regional</span>
+            </Link>
+            <Link
+              href="/stats"
+              title="Métricas de cartas, confrontos e tendências"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-primary/50 bg-primary/20 text-primary font-bold shadow-[0_0_10px_rgba(59,130,246,0.15)]"
+            >
+              <BarChart className="size-3.5 shrink-0" />
+              <span>Estatísticas & Cartas</span>
+            </Link>
+          </nav>
+        </div>
         {/* HERO TÁTICO VEDA */}
         <Card className="panel-cut rounded-none border-primary/30 hero-surface">
           <CardContent className="p-6">
@@ -251,15 +283,13 @@ export default function StatsPage() {
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-xs uppercase tracking-[0.2em] dark:text-slate-400 light:text-slate-600 font-bold">Temporada:</span>
 
-                {/* Seletor de Temporada / Formato com GD05 / GD05.5 no Topo */}
+                {/* Seletor de Temporada / Formato Unificado (GD05 Atual) */}
                 <select
                   value={selectedFormat}
                   onChange={(event) => setSelectedFormat(event.target.value)}
                   className="field-shell h-9 rounded-none border border-primary/40 dark:bg-slate-950/90 light:bg-white px-3 text-sm text-primary font-bold shadow-[0_0_10px_rgba(20,184,166,0.2)]"
                 >
-                  <option value="GD05_COMBINED">Temporada Atual (GD05 / GD05.5) — Padrão Oficial</option>
-                  <option value="GD05.5">Formato GD05.5 (Mini-expansão)</option>
-                  <option value="GD05">Formato GD05 (Lançamento)</option>
+                  <option value="GD05">Formato GD05 (Temporada Atual)</option>
                   <option value="GD04">Formato GD04</option>
                   <option value="GD03">Formato GD03</option>
                   <option value="GD02">Formato GD02</option>
@@ -287,7 +317,7 @@ export default function StatsPage() {
                     className="flex items-center gap-1 text-xs uppercase tracking-[0.16em] text-primary hover:underline ml-auto"
                   >
                     <RotateCcw className="size-3" />
-                    Restaurar Padrão (GD05 / GD05.5)
+                    Restaurar Padrão (GD05)
                   </button>
                 )}
               </div>
@@ -350,7 +380,7 @@ export default function StatsPage() {
               className="panel-cut rounded-none border border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/20 dark:data-[state=active]:text-white light:data-[state=active]:text-primary data-[state=active]:font-bold dark:text-slate-400 dark:hover:text-white light:text-slate-600 light:hover:text-slate-900 px-4 py-2.5 text-xs uppercase font-mono tracking-wider transition-all flex items-center gap-2"
             >
               <Swords className="size-4 text-accent" />
-              1. Metagame Competitivo ({selectedFormat === "GD05_COMBINED" ? "GD05 / GD05.5" : selectedFormat})
+              1. Metagame Competitivo ({selectedFormat === "GD05_COMBINED" || selectedFormat === "GD05" ? "GD05" : selectedFormat})
             </TabsTrigger>
 
             <TabsTrigger
@@ -379,7 +409,7 @@ export default function StatsPage() {
           </TabsList>
 
           {/* ========================================================================= */}
-          {/* ABA 1: METAGAME COMPETITIVO (TEMPORADA ATUAL GD05 / GD05.5)              */}
+          {/* ABA 1: METAGAME COMPETITIVO (TEMPORADA ATUAL GD05)              */}
           {/* ========================================================================= */}
           <TabsContent value="competitive" className="space-y-6 focus-visible:outline-none">
             {/* Painel de Núcleos de Arquétipo com seletor sincronizado */}
@@ -417,7 +447,7 @@ export default function StatsPage() {
                 ["Cartas no Banco", String(isFiltered ? filteredCards.length : (health?.cardCount ?? 0))],
                 ["Decks da Comunidade", String(filteredDecks.length)],
                 ["Decks de Metagame", String(metagame?.totalDecks ?? 0)],
-                ["Campeonatos", String(filteredEvents.length)],
+                ["Campeonatos", String(totalEventsCount)],
                 ["Coleções", String(sets.length)],
               ].map(([label, value]) => (
                 <Card key={label} className="panel-cut rounded-none surface-panel">
@@ -528,7 +558,32 @@ export default function StatsPage() {
                       <tbody>
                         {metagame?.topCards?.slice(0, 10).map((card) => (
                           <tr key={card.cardModelId} className="border-b dark:border-white/5 light:border-slate-100 dark:text-slate-300 light:text-slate-700">
-                            <td className="py-2 pr-3 dark:text-white light:text-slate-900 font-medium">{card.name}</td>
+                            <td className="py-2 pr-3 dark:text-white light:text-slate-900 font-medium">
+                              <HoverCard openDelay={150}>
+                                <HoverCardTrigger asChild>
+                                  <Link
+                                    href={card.code ? `/cards/${card.code}` : "#"}
+                                    className="hover:text-primary hover:underline transition-colors cursor-pointer"
+                                  >
+                                    {card.name}
+                                  </Link>
+                                </HoverCardTrigger>
+                                <HoverCardContent side="right" className="w-56 p-2 bg-slate-950 border border-primary/30 panel-cut">
+                                  {card.imageUrl ? (
+                                    <img
+                                      src={card.imageUrl}
+                                      alt={card.name}
+                                      className="w-full h-auto rounded border border-white/10 object-contain"
+                                    />
+                                  ) : (
+                                    <p className="text-xs text-slate-400 font-mono text-center py-4">Sem imagem regular</p>
+                                  )}
+                                  <div className="mt-2 text-center font-mono text-[11px] text-primary font-bold">
+                                    {card.code || "Print Regular Oficial"}
+                                  </div>
+                                </HoverCardContent>
+                              </HoverCard>
+                            </td>
                             <td className="py-2 pr-3">
                               {card.color ? (
                                 <span className="inline-flex items-center gap-1.5">
@@ -574,7 +629,30 @@ export default function StatsPage() {
                           key={card.cardModelId}
                           className="flex items-center justify-between gap-3 panel-cut border dark:border-emerald-500/20 dark:bg-emerald-950/10 light:border-emerald-300 light:bg-emerald-50 px-3 py-2 text-xs"
                         >
-                          <span className="dark:text-white light:text-slate-900 font-medium">{card.name}</span>
+                          <HoverCard openDelay={150}>
+                            <HoverCardTrigger asChild>
+                              <Link
+                                href={card.code ? `/cards/${card.code}` : "#"}
+                                className="dark:text-white light:text-slate-900 font-medium hover:text-emerald-400 hover:underline transition-colors truncate max-w-[220px]"
+                              >
+                                {card.name}
+                              </Link>
+                            </HoverCardTrigger>
+                            <HoverCardContent side="top" className="w-56 p-2 bg-slate-950 border border-emerald-500/40 panel-cut">
+                              {card.imageUrl ? (
+                                <img
+                                  src={card.imageUrl}
+                                  alt={card.name}
+                                  className="w-full h-auto rounded border border-white/10 object-contain"
+                                />
+                              ) : (
+                                <p className="text-xs text-slate-400 font-mono text-center py-4">Sem imagem regular</p>
+                              )}
+                              <div className="mt-2 text-center font-mono text-[11px] text-emerald-400 font-bold">
+                                {card.code || "Print Regular Oficial"}
+                              </div>
+                            </HoverCardContent>
+                          </HoverCard>
                           <span className="whitespace-nowrap font-semibold dark:text-emerald-400 light:text-emerald-700">
                             +{card.trendDelta}pp{" "}
                             <span className="dark:text-slate-500 light:text-slate-500 font-normal">
@@ -605,7 +683,30 @@ export default function StatsPage() {
                           key={card.cardModelId}
                           className="flex items-center justify-between gap-3 panel-cut border dark:border-red-500/20 dark:bg-red-950/10 light:border-red-300 light:bg-red-50 px-3 py-2 text-xs"
                         >
-                          <span className="dark:text-white light:text-slate-900 font-medium">{card.name}</span>
+                          <HoverCard openDelay={150}>
+                            <HoverCardTrigger asChild>
+                              <Link
+                                href={card.code ? `/cards/${card.code}` : "#"}
+                                className="dark:text-white light:text-slate-900 font-medium hover:text-red-400 hover:underline transition-colors truncate max-w-[220px]"
+                              >
+                                {card.name}
+                              </Link>
+                            </HoverCardTrigger>
+                            <HoverCardContent side="top" className="w-56 p-2 bg-slate-950 border border-red-500/40 panel-cut">
+                              {card.imageUrl ? (
+                                <img
+                                  src={card.imageUrl}
+                                  alt={card.name}
+                                  className="w-full h-auto rounded border border-white/10 object-contain"
+                                />
+                              ) : (
+                                <p className="text-xs text-slate-400 font-mono text-center py-4">Sem imagem regular</p>
+                              )}
+                              <div className="mt-2 text-center font-mono text-[11px] text-red-400 font-bold">
+                                {card.code || "Print Regular Oficial"}
+                              </div>
+                            </HoverCardContent>
+                          </HoverCard>
                           <span className="whitespace-nowrap font-semibold dark:text-red-400 light:text-red-700">
                             {card.trendDelta}pp{" "}
                             <span className="dark:text-slate-500 light:text-slate-500 font-normal">
@@ -629,6 +730,25 @@ export default function StatsPage() {
           {/* ABA 4: TELEMETRIA AVANÇADA & CONFRONTOS (SISTEMA VEDA)                     */}
           {/* ========================================================================= */}
           <TabsContent value="telemetry" className="space-y-6 focus-visible:outline-none">
+            {/* Banner de Clareza de Fontes e Dados */}
+            <div className="panel-cut border border-primary/30 hero-surface p-4 sm:p-5 font-mono text-xs">
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-bold text-primary uppercase tracking-wider">Origem dos Dados Táticos VEDA:</span>
+                  <Badge className="rounded-none border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 text-[10px] uppercase">
+                    Torneios Oficiais via API
+                  </Badge>
+                  <span className="text-slate-400">vs</span>
+                  <Badge className="rounded-none border border-sky-500/40 bg-sky-500/10 text-sky-400 text-[10px] uppercase">
+                    Torneios na Plataforma
+                  </Badge>
+                </div>
+                <p className="text-slate-300 leading-relaxed font-sans text-xs">
+                  A <strong>Evolução Semanal</strong> e a <strong>Inteligência de Listas (ATMI)</strong> processam os torneios competitivos oficiais sincronizados (DigiLab / Egman Events), que registram as colocações finais e listas dos jogadores. Já a <strong>Matriz de Confrontos Diretos (Head-to-Head)</strong> calcula os embates específicos entre arquétipos e dados de iniciativa a partir das rodadas Swiss disputadas nos torneios sediados dentro do AnaheimHub.
+                </p>
+              </div>
+            </div>
+
             {/* Matriz de Confrontos Diretos */}
             <MatchupMatrixPanel seasonId={selectedFormat === "ALL" ? "all" : selectedFormat} />
 

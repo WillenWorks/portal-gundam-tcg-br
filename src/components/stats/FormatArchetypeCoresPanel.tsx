@@ -23,7 +23,7 @@ import {
   type FormatCardDetail,
   type ArchetypeEvolution,
 } from "@/lib/api";
-import { COLOR_OPTIONS, GAME_COLOR_HEX, GAME_COLOR_LABEL_PT } from "@/lib/gundam-catalog";
+import { COLOR_OPTIONS, GAME_COLOR_HEX, GAME_COLOR_LABEL_PT, normalizeDeckColors, resolveGameColorHex, resolveGameColorLabelPt } from "@/lib/gundam-catalog";
 import { DataSourceNote } from "@/components/stats/DataSourceNote";
 import gundamCardBack from "@/assets/gundam-card-back.png";
 
@@ -105,7 +105,7 @@ export function FormatArchetypeCoresPanel({
                   Formato & Temporada · Inteligência de Núcleos
                 </p>
                 <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary text-[10px] font-mono uppercase">
-                  GD01 a GD05.5
+                  GD01 a GD05
                 </Badge>
               </div>
               <h2 className="mt-2 font-heading text-3xl sm:text-4xl uppercase tracking-wider dark:text-white light:text-slate-900">
@@ -222,7 +222,7 @@ export function FormatArchetypeCoresPanel({
         {viewMode === "archetypes" && formatMeta?.provenance && (
           <DataSourceNote
             provenance={formatMeta.provenance}
-            labelPrefix={`Formato ${formatMeta.format === "GD05_COMBINED" ? "GD05 / GD05.5" : formatMeta.format} consolidado a partir de`}
+            labelPrefix={`Formato ${formatMeta.format === "GD05_COMBINED" || formatMeta.format === "GD05" ? "GD05" : formatMeta.format} consolidado a partir de`}
             weightNote="Regionais e torneios de grande porte possuem ponderação superior no cálculo de conversão e vitórias."
             className="mt-4"
           />
@@ -257,12 +257,12 @@ export function FormatArchetypeCoresPanel({
                               #{idx + 1}
                             </span>
                             <div className="flex items-center gap-1">
-                              {arch.colors.map((c) => (
+                              {normalizeDeckColors(arch.colors).map((c) => (
                                 <span
                                   key={c}
-                                  title={GAME_COLOR_LABEL_PT[c] || c}
-                                  className="size-2.5 rounded-full"
-                                  style={{ backgroundColor: GAME_COLOR_HEX[c] || FALLBACK_COLOR }}
+                                  title={resolveGameColorLabelPt(c)}
+                                  className="size-2.5 rounded-full border border-white/30 dark:border-white/25 light:border-slate-400"
+                                  style={{ backgroundColor: resolveGameColorHex(c) }}
                                 />
                               ))}
                             </div>
@@ -429,11 +429,12 @@ export function FormatArchetypeCoresPanel({
                   <div key={arch.name} className="panel-cut border dark:border-white/10 dark:bg-slate-950/70 light:border-slate-300 light:bg-white light:shadow-sm p-4">
                     <div className="flex items-center justify-between gap-2 mb-3">
                       <div className="flex items-center gap-1.5">
-                        {arch.colors.map((c) => (
+                        {normalizeDeckColors(arch.colors).map((c) => (
                           <span
                             key={c}
-                            className="size-2.5 rounded-full"
-                            style={{ backgroundColor: GAME_COLOR_HEX[c] || FALLBACK_COLOR }}
+                            title={resolveGameColorLabelPt(c)}
+                            className="size-2.5 rounded-full border border-white/30 dark:border-white/25 light:border-slate-400"
+                            style={{ backgroundColor: resolveGameColorHex(c) }}
                           />
                         ))}
                         <h4 className="font-heading text-lg uppercase dark:text-white light:text-slate-900 truncate max-w-[180px]">
@@ -485,11 +486,12 @@ export function FormatArchetypeCoresPanel({
               <DialogTitle className="mt-1 font-heading text-3xl uppercase dark:text-white light:text-slate-900 flex items-center gap-3">
                 <span>{inspectingArchetype.name}</span>
                 <span className="flex items-center gap-1">
-                  {inspectingArchetype.colors.map((c) => (
+                  {normalizeDeckColors(inspectingArchetype.colors).map((c) => (
                     <span
                       key={c}
-                      className="size-3.5 rounded-full"
-                      style={{ backgroundColor: GAME_COLOR_HEX[c] || FALLBACK_COLOR }}
+                      title={resolveGameColorLabelPt(c)}
+                      className="size-3.5 rounded-full border border-white/30 dark:border-white/25 light:border-slate-400"
+                      style={{ backgroundColor: resolveGameColorHex(c) }}
                     />
                   ))}
                 </span>

@@ -1,13 +1,23 @@
 /* Modal de Seleção de Deck para Partida Rápida (Quick Match Deck Select Modal)
  * Exibida na tela de ambos os pilotos após o aceite da partida rápida.
- * Permite selecionar o deck (Presets oficiais ou Decks válidos do jogador) e envia ao servidor. */
-import { useState } from "react";
-import { Swords, Check, Loader2 } from "lucide-react";
+ * Permite selecionar apenas os decks cadastrados pelo jogador e envia ao servidor. */
+import { useEffect, useState } from "react";
+import { Link } from "wouter";
+import { Swords, Check, Loader2, CircleCheck, CircleX, PlusCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { SIMULATOR_DECK_PRESETS } from "@/modules/simulator/content/simulatorDeckPresets";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useMySimulatorDecks } from "@/modules/simulator/ui/useMySimulatorDecks";
+import { SimulatorDeckCoverageNotice } from "@/modules/simulator/ui/SimulatorDeckCoverageNotice";
 
 interface QuickMatchDeckSelectModalProps {
   open: boolean;
@@ -28,15 +38,27 @@ export function QuickMatchDeckSelectModal({
   submitting,
   waitingForOpponent,
 }: QuickMatchDeckSelectModalProps) {
-  const [selectedDeckKey, setSelectedDeckKey] = useState<string>("ST01");
-  const { decks: myDecks } = useMySimulatorDecks();
+  const [selectedDeckKey, setSelectedDeckKey] = useState<string>("");
+  const { decks: myDecks, loading: myDecksLoading } = useMySimulatorDecks();
 
-  const presets = SIMULATOR_DECK_PRESETS;
-  const validCustomDecks = myDecks.filter((d) => d.simulatorValid);
+  useEffect(() => {
+    if (!open || myDecksLoading) return;
+    if (myDecks.length === 0) {
+      setSelectedDeckKey("");
+      return;
+    }
+    if (!selectedDeckKey || !myDecks.some((d) => d.id === selectedDeckKey)) {
+      const firstValid = myDecks.find((d) => d.simulatorValid) ?? myDecks[0];
+      if (firstValid) setSelectedDeckKey(firstValid.id);
+    }
+  }, [open, myDecks, myDecksLoading, selectedDeckKey]);
+
+  const selectedDeck = myDecks.find((d) => d.id === selectedDeckKey);
+  const isSelectedValid = Boolean(selectedDeck && selectedDeck.simulatorValid);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedDeckKey) return;
+    if (!selectedDeckKey || !isSelectedValid) return;
     onConfirmDeck(selectedDeckKey);
   };
 
@@ -65,72 +87,65 @@ export function QuickMatchDeckSelectModal({
             Duelo contra <strong className="text-white">{opponentDisplayName || `@${opponentUsername}`}</strong>. Escolha sua lista para iniciar a partida:
           </p>
 
-          <div className="max-h-64 overflow-y-auto space-y-3 pr-1">
-            {/* Presets Oficiais */}
-            <div className="space-y-1.5">
-              <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400 block">
-                Decks de Demonstração Oficiais
-              </span>
-              <div className="grid grid-cols-2 gap-2">
-                {presets.map((preset) => {
-                  const isSelected = selectedDeckKey === preset.key;
-                  return (
-                    <button
-                      key={preset.key}
-                      type="button"
-                      disabled={waitingForOpponent || submitting}
-                      onClick={() => setSelectedDeckKey(preset.key)}
-                      className={`p-2.5 text-left border rounded-none transition flex flex-col justify-between ${
-                        isSelected
-                          ? "border-primary bg-primary/20 text-white shadow-[0_0_15px_rgba(6,182,212,0.2)]"
-                          : "border-white/10 bg-slate-900/60 hover:bg-white/5 text-slate-300"
-                      }`}
-                    >
-                      <span className="font-heading text-xs uppercase tracking-wide truncate block">
-                        {preset.label}
-                      </span>
-                      <span className="text-[10px] font-mono text-primary mt-1 block">
-                        {preset.key}
-                      </span>
-                    </button>
-                  );
-                })}
+          <div className="space-y-3">
+            {myDecksLoading ? (
+              <p className="text-xs text-slate-400 py-2">Carregando seus decks…</p>
+            ) : myDecks.length === 0 ? (
+              <div className="rounded-none border border-primary/30 bg-slate-900/60 p-4 space-y-2.5 text-xs text-slate-300">
+                <p>Você ainda não possui nenhum deck cadastrado no seu Hangar para jogar partidas PvP.</p>
+                <Link
+                  href="/deckbuilder"
+                  className="inline-flex items-center gap-1.5 font-semibold uppercase tracking-wider text-primary hover:underline"
+                >
+                  <PlusCircle className="size-3.5" />
+                  Montar um deck no Deckbuilder
+                </Link>
               </div>
-            </div>
-
-            {/* Meus Decks Salvos */}
-            {validCustomDecks.length > 0 && (
-              <div className="space-y-1.5 pt-2">
+            ) : (
+              <div className="space-y-1.5">
                 <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400 block">
-                  Meus Decks Salvos (Validados no Simulador)
+                  Meus Decks Salvos
                 </span>
-                <div className="grid grid-cols-2 gap-2">
-                  {validCustomDecks.map((deck) => {
-                    const isSelected = selectedDeckKey === deck.id;
-                    return (
-                      <button
-                        key={deck.id}
-                        type="button"
-                        disabled={waitingForOpponent || submitting}
-                        onClick={() => setSelectedDeckKey(deck.id)}
-                        className={`p-2.5 text-left border rounded-none transition flex flex-col justify-between ${
-                          isSelected
-                            ? "border-primary bg-primary/20 text-white shadow-[0_0_15px_rgba(6,182,212,0.2)]"
-                            : "border-white/10 bg-slate-900/60 hover:bg-white/5 text-slate-300"
-                        }`}
-                      >
-                        <span className="font-heading text-xs uppercase tracking-wide truncate block">
-                          {deck.name}
-                        </span>
-                        <span className="text-[10px] font-mono text-emerald-400 mt-1 block">
-                          {deck.format} · Válido
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                <Select
+                  value={selectedDeckKey}
+                  onValueChange={setSelectedDeckKey}
+                  disabled={waitingForOpponent || submitting}
+                >
+                  <SelectTrigger className="w-full h-11 border border-white/15 bg-slate-900/80 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white focus:border-primary focus:ring-1 focus:ring-primary rounded-none">
+                    <SelectValue placeholder="Selecione seu deck" />
+                  </SelectTrigger>
+                  <SelectContent className="border border-white/15 bg-slate-950/98 text-white shadow-2xl z-50">
+                    <SelectGroup>
+                      <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
+                        Meus Decks Salvos
+                      </SelectLabel>
+                      {myDecks.map((deck) => (
+                        <SelectItem
+                          key={deck.id}
+                          value={deck.id}
+                          disabled={!deck.simulatorValid}
+                          className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            {deck.simulatorValid ? (
+                              <CircleCheck className="size-3 shrink-0 text-emerald-400" />
+                            ) : (
+                              <CircleX className="size-3 shrink-0 text-red-400" />
+                            )}
+                            <span>{deck.name}</span>
+                            <span className="text-[10px] font-mono text-slate-400">
+                              ({deck.format}{!deck.simulatorValid ? " · Sem cobertura" : ""})
+                            </span>
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </div>
             )}
+
+            {selectedDeck && !selectedDeck.simulatorValid ? <SimulatorDeckCoverageNotice deck={selectedDeck} /> : null}
           </div>
 
           <div className="flex items-center justify-between pt-3 border-t border-white/10">
@@ -148,7 +163,7 @@ export function QuickMatchDeckSelectModal({
 
             <Button
               type="submit"
-              disabled={submitting || waitingForOpponent || !selectedDeckKey}
+              disabled={submitting || waitingForOpponent || !isSelectedValid}
               className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90 text-xs uppercase tracking-wider font-semibold px-4"
             >
               {submitting ? (

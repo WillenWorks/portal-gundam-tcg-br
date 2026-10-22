@@ -1,5 +1,6 @@
 import { HostedEventMatchResult, HostedEventStatus, type PrismaClient } from "@prisma/client";
 import { NON_STATS_CARD_TYPES } from "../src/lib/deck-legality.ts";
+import { normalizeDeckColors } from "../src/lib/gundam-catalog.ts";
 import type { MetagameProvenance, TournamentProvenanceItem } from "./metagameTrendsService.ts";
 
 export interface PowerRankingSignatureCard {
@@ -84,10 +85,31 @@ type ArchetypeEntryRow = {
   } | null;
 };
 
+/** Extrai cores a partir do rótulo do arquétipo ou da contagem ponderada de cartas (>=15% para 2ª cor). */
+function resolveArchetypeColors(
+  archetypeLabel: string | null | undefined,
+  colorWeights: Map<string, number>,
+): string[] {
+  const lead = String(archetypeLabel ?? "").match(
+    /^\s*((?:blue|green|red|white|purple)(?:\s*\/\s*(?:blue|green|red|white|purple))*)\b/i,
+  );
+  if (lead) {
+    return normalizeDeckColors(lead[1].split("/"));
+  }
+  const entries = [...colorWeights.entries()].filter(([c]) => c && c !== "-");
+  if (!entries.length) return [];
+  const total = entries.reduce((acc, [, qty]) => acc + qty, 0);
+  const chosen = entries
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .filter(([, qty], idx) => idx === 0 || (idx === 1 && total > 0 && qty / total >= 0.15))
+    .slice(0, 2)
+    .map(([c]) => c)
+    .sort();
+  return normalizeDeckColors(chosen);
+}
+
 /** Escolhe a carta-assinatura de uma decklist congelada: prioriza unidade LR/Rare de
- *  maior custo, mesma heurística usada em identifyDeckArchetype (metaAnalyticsService) --
- *  reimplementada aqui (não exportada de lá) pra evitar acoplar os dois motores de
- *  arquétipo, que respondem a perguntas diferentes (deck público vs. resultado real). */
+ *  maior custo e estampa regular oficial. */
 function pickSignatureCard(items: NonNullable<ArchetypeEntryRow["deckSnapshot"]>["items"]): PowerRankingSignatureCard | null {
   const units = items
     .filter((item) => item.card.cardType === "UNIT")
@@ -99,7 +121,13 @@ function pickSignatureCard(items: NonNullable<ArchetypeEntryRow["deckSnapshot"]>
       const rA = (a.card.rarity || "").includes("R") ? 2 : 1;
       const rB = (b.card.rarity || "").includes("R") ? 2 : 1;
       if (rA !== rB) return rB - rA;
-      return (b.card.cost ?? 0) - (a.card.cost ?? 0) || b.quantity - a.quantity;
+      const costDiff = (b.card.cost ?? 0) - (a.card.cost ?? 0) || b.quantity - a.quantity;
+      if (costDiff !== 0) return costDiff;
+      const isRegA = !(a.card.nameEn || "").includes("(") && !(a.card.rarity || "").includes("+");
+      const isRegB = !(b.card.nameEn || "").includes("(") && !(b.card.rarity || "").includes("+");
+      if (isRegA && !isRegB) return -1;
+      if (!isRegA && isRegB) return 1;
+      return 0;
     });
   const best = units[0] || items[0];
   if (!best) return null;
@@ -114,15 +142,6 @@ function pickSignatureCard(items: NonNullable<ArchetypeEntryRow["deckSnapshot"]>
   };
 }
 
-/**
- * Power Rankings semanal (ver PLANO_METAGAME_TORNEIOS_TELEMETRIA.md §2.3): agrupa os
- * TournamentEntry com arquétipo declarado (dado real de torneio reportado, nunca deck
- * público) e calcula Meta Share + Winrate + escore composto por arquétipo.
- *
- * Winrate usa suavização Laplace (wins+1)/(jogos+2) pra evitar que um único resultado
- * isolado (1 vitória, 0 derrotas) dispare pro topo do ranking -- mesmo critério de
- * resiliência estatística já usado no motor VEDA pra amostras pequenas.
- */
 export async function getPowerRankingsWithProvenance(
   prisma: PrismaClient,
   params: {
@@ -222,7 +241,13 @@ export async function getPowerRankingsWithProvenance(
     const adjustedWinRate = (wins + 1) / (recordedMatches + 2);
 
     const relevantItems = bestEntryForSignature?.deckSnapshot?.items.filter((item) => !NON_STATS_CARD_TYPES.includes(item.card.cardType as any)) || [];
-    const colors = Array.from(new Set(relevantItems.map((item) => item.card.color).filter((c): c is string => Boolean(c)))).sort();
+    const colorWeights = new Map<string, number>();
+    for (const item of relevantItems) {
+      if (item.card.color && item.card.color !== "-") {
+        colorWeights.set(item.card.color, (colorWeights.get(item.card.color) ?? 0) + (item.quantity || 1));
+      }
+    }
+    const colors = resolveArchetypeColors(archetype, colorWeights);
     const signatureCard = relevantItems.length ? pickSignatureCard(relevantItems) : null;
 
     const tournamentPlacements: PowerRankingTournamentPlacement[] = entries
@@ -288,7 +313,6 @@ export async function getPowerRankingsWithProvenance(
     }))
     .sort((a, b) => b.powerRankingScore - a.powerRankingScore || b.metaShare - a.metaShare);
 
-  // Proveniência global dos torneios que alimentam o Power Rankings
   const globalTournaments = new Map<string, TournamentProvenanceItem>();
   let earliestDate: Date | null = null;
   let latestDate: Date | null = null;
@@ -406,10 +430,6 @@ function getWeekKeyAndRange(d: Date): { weekKey: string; weekLabel: string; star
   return { weekKey, weekLabel, start: monday, end: sunday };
 }
 
-/**
- * Fase 3 -- Evolução Temporal Semanal e Sinalização de Amostra Pequena
- * Agrupa os resultados competitivos reais por semana ISO e calcula a trajetória de Meta Share e Winrate.
- */
 export async function getWeeklyTrends(
   prisma: PrismaClient,
   params: {
@@ -454,6 +474,7 @@ export async function getWeeklyTrends(
         select: {
           items: {
             select: {
+              quantity: true,
               card: {
                 select: {
                   color: true,
@@ -466,7 +487,6 @@ export async function getWeeklyTrends(
     },
   });
 
-  // Agrupamento por semana
   type WeekBucket = {
     weekKey: string;
     weekLabel: string;
@@ -505,7 +525,6 @@ export async function getWeeklyTrends(
     if (!earliestDate || rawDate.getTime() < earliestDate.getTime()) earliestDate = rawDate;
     if (!latestDate || rawDate.getTime() > latestDate.getTime()) latestDate = rawDate;
 
-    // Registra evento global
     const evId = row.tournament.id;
     const existingEv = allEventsMap.get(evId);
     if (existingEv) {
@@ -555,7 +574,6 @@ export async function getWeeklyTrends(
     }
   }
 
-  // Ordena semanas cronologicamente
   const sortedWeeks = Array.from(weekBuckets.values()).sort((a, b) => a.start.getTime() - b.start.getTime());
 
   const globalArchetypeCounts = new Map<string, number>();
@@ -567,10 +585,9 @@ export async function getWeeklyTrends(
       ? `Amostra semanal reduzida (${totalLists} listas) — flutuações podem ser pontuais.`
       : null;
 
-    // Agrupa arquétipos da semana
     const archMap = new Map<string, {
       name: string;
-      colors: Set<string>;
+      colorWeights: Map<string, number>;
       lists: number;
       wins: number;
       losses: number;
@@ -585,7 +602,7 @@ export async function getWeeklyTrends(
       if (!archItem) {
         archItem = {
           name: archName,
-          colors: new Set(),
+          colorWeights: new Map(),
           lists: 0,
           wins: 0,
           losses: 0,
@@ -600,7 +617,10 @@ export async function getWeeklyTrends(
       archItem.draws += entry.draws ?? 0;
 
       for (const item of entry.deckSnapshot?.items || []) {
-        if (item.card?.color) archItem.colors.add(item.card.color);
+        const c = item.card?.color;
+        if (c && c !== "-") {
+          archItem.colorWeights.set(c, (archItem.colorWeights.get(c) ?? 0) + ((item as any).quantity || 1));
+        }
       }
     }
 
@@ -610,7 +630,7 @@ export async function getWeeklyTrends(
         const winRate = matches > 0 ? Number(((a.wins + 1) / (matches + 2)).toFixed(4)) : null;
         return {
           name: a.name,
-          colors: Array.from(a.colors).sort(),
+          colors: resolveArchetypeColors(a.name, a.colorWeights),
           lists: a.lists,
           share: totalLists > 0 ? Number((a.lists / totalLists).toFixed(4)) : 0,
           winRate,
@@ -680,14 +700,6 @@ export interface MatchupMatrixResult {
   hasData: boolean;
 }
 
-/**
- * Matriz de Confrontos (Fase 3, ver §2.4 do plano) -- SCAFFOLD. Lê HostedEventMatch de
- * eventos concluídos cruzando o arquétipo declarado de cada HostedEventParticipant
- * (campo novo, ver schema) e a telemetria de iniciativa (firstPlayerParticipantId /
- * diceWinnerParticipantId, também novos). Hoje não existe nenhuma UI que preencha esses
- * três campos -- o resultado normal é hasData=false até esse fluxo existir. A função em
- * si já está correta e pronta pra quando essa captura for implementada.
- */
 export async function getMatchupMatrix(
   prisma: PrismaClient,
   params: { seasonId?: string | null; sinceDate?: Date | null },
