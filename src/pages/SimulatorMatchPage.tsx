@@ -3231,6 +3231,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       {myPendingDecision?.kind === "abilityResolution" ? (
         <AbilityResolutionModal
           decision={myPendingDecision}
+          art={art}
           // V0 (docs/25): a lista de opções (já filtrada por HP/nível/descansada/
           // etc.) vem pronta em `decision.queue[i].legalTargets`, calculada no
           // servidor — aqui só resolve o RÓTULO pra mostrar, nunca decide quem

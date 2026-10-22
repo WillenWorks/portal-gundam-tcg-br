@@ -22,6 +22,8 @@
  * exatamente como antes (pills aqui dentro, sem equivalente de glow). */
 import { type Dispatch, type ReactNode, type SetStateAction, useState } from "react";
 import { ArrowDown, ArrowUp, Sparkles } from "lucide-react";
+import type { ArtLookup } from "./cardArt";
+import { CardFace } from "./CardFace";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { PendingDecision } from "@/modules/simulator/engine/types";
@@ -125,6 +127,8 @@ interface AbilityResolutionModalProps {
   cardLookup?: (code: string) => CardTextInput | null | undefined;
   /** Quantidade de cartas (G Generation) disponíveis no trash para Development N */
   devTrashCount?: number;
+  /** Opcional: lookup de arte das cartas para renderização visual (ex: deckReorder, deckTopReveal) */
+  art?: ArtLookup;
 }
 
 /**
@@ -172,6 +176,7 @@ export function AbilityResolutionModal({
   onResolve,
   cardLookup,
   devTrashCount,
+  art = {},
 }: AbilityResolutionModalProps) {
   const { language } = useCardLanguage();
   const strings = getDecisionModalStrings(language);
@@ -288,13 +293,13 @@ export function AbilityResolutionModal({
     <div className="fixed top-2 inset-x-0 z-[75] pointer-events-none flex justify-center px-2 animate-in slide-in-from-top-2 fade-in duration-200 motion-reduce:animate-none">
       <div
         className={cn(
-          "pointer-events-auto panel-cut hero-surface mx-auto overflow-y-auto border border-amber-400/70 bg-slate-950/95 shadow-2xl backdrop-blur-md transition-all duration-200",
+          "pointer-events-auto panel-cut hero-surface mx-auto flex flex-col border border-amber-400/70 bg-slate-950/95 shadow-2xl backdrop-blur-md transition-all duration-200",
           isSingle
-            ? "w-[min(96vw,50rem)] max-h-[24vh] py-1.5 px-3"
-            : "w-[min(96vw,44rem)] max-h-[38vh] p-3",
+            ? "w-[min(96vw,50rem)] max-h-[min(54vh,540px)] p-3"
+            : "w-[min(96vw,44rem)] max-h-[min(65vh,620px)] p-3",
         )}
       >
-        <div className={cn("flex items-center justify-between gap-2 border-b border-white/10", isSingle ? "pb-1" : "pb-1.5")}>
+        <div className={cn("flex items-center justify-between gap-2 border-b border-white/10 shrink-0", isSingle ? "pb-1.5" : "pb-2")}>
           <div className="flex items-center gap-1.5 min-w-0">
             <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.16em] text-amber-300 truncate">
               <Sparkles className="size-3.5 shrink-0" /> {triggerTitle}
@@ -305,25 +310,12 @@ export function AbilityResolutionModal({
               </span>
             ) : null}
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {!isSingle ? (
-              <span className="text-[10px] text-muted-portal">{strings.orderAndChoose}</span>
-            ) : null}
-            <Button
-              size="sm"
-              className={cn(
-                "rounded-arena bg-amber-400 font-bold text-black hover:bg-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.4)]",
-                isSingle ? "min-h-11 px-2.5 text-[11px] sm:h-6 sm:min-h-0" : "min-h-11 px-3 text-xs sm:h-7 sm:min-h-0",
-              )}
-              disabled={busy || !canConfirm}
-              onClick={confirm}
-            >
-              {strings.confirm}
-            </Button>
-          </div>
+          {!isSingle ? (
+            <span className="text-[10px] text-muted-portal shrink-0">{strings.orderAndChoose}</span>
+          ) : null}
         </div>
 
-        <ol className={cn(isSingle ? "mt-1 space-y-1" : "mt-2 space-y-1.5")}>
+        <ol className={cn("overflow-y-auto min-h-0 flex-1 space-y-1.5 pr-0.5", isSingle ? "mt-1.5" : "mt-2")}>
           {order.map((specId, i) => {
             const q = itemFor(specId);
             const on = Boolean(activate[specId]);
@@ -498,29 +490,73 @@ export function AbilityResolutionModal({
                 ) : null}
 
                 {q.deckTopReveal ? (
-                  <div className={cn(isSingle ? "mt-1 space-y-0.5" : "mt-2 space-y-1")}>
-                    <p className="text-[10px] text-muted-portal">
+                  <div className={cn(isSingle ? "mt-1.5 space-y-1" : "mt-2 space-y-1.5")}>
+                    <p className="text-[11px] font-medium text-amber-200/90">
                       {strings.deckTopRevealPrompt(q.deckTopReveal.count)}
                     </p>
-                    <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
+                    <div className="scrollbar-ghost flex items-stretch gap-2 overflow-x-auto pb-1">
                       {q.deckTopReveal.topCards.map((card) => {
                         const revealable = q.deckTopReveal!.revealableIds.includes(card.instanceId);
+                        const isSelected = (targets[specId] ?? []).includes(card.instanceId);
                         return (
-                          <Toggle
+                          <button
                             key={card.instanceId}
-                            compact={isSingle}
-                            active={(targets[specId] ?? []).includes(card.instanceId)}
+                            type="button"
                             disabled={!revealable}
+                            aria-label={revealable ? card.def.nameEn : `${card.def.nameEn} ${strings.notRevealable}`}
+                            aria-pressed={isSelected}
                             onClick={() => pickSingle(specId, card.instanceId)}
+                            className={cn(
+                              "group relative flex w-24 shrink-0 flex-col items-center rounded-arena border p-1 text-center transition-all",
+                              isSelected
+                                ? "border-amber-400 bg-amber-400/20 shadow-[0_0_12px_rgba(251,191,36,0.35)] ring-1 ring-amber-400"
+                                : "border-white/10 bg-black/50 hover:border-amber-400/60 hover:bg-black/70",
+                              !revealable && "cursor-not-allowed opacity-40 hover:border-white/10 hover:bg-black/50",
+                            )}
                           >
-                            {card.def.nameEn}
-                            {revealable ? "" : strings.notRevealable}
-                          </Toggle>
+                            <div className="relative aspect-[63/88] w-full overflow-hidden rounded border border-white/10 bg-black/60 shadow-sm">
+                              <CardFace
+                                nameEn={card.def.nameEn}
+                                code={card.def.code}
+                                art={art}
+                                size="sm"
+                                className="h-full w-full object-cover"
+                              />
+                              {isSelected ? (
+                                <div className="absolute inset-0 flex items-center justify-center bg-amber-400/25 backdrop-blur-[0.5px]">
+                                  <span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[9px] font-black text-black shadow-md">
+                                    ✓
+                                  </span>
+                                </div>
+                              ) : null}
+                            </div>
+                            <span className="mt-1 line-clamp-1 w-full text-[10px] font-bold text-slate-100 group-hover:text-amber-200">
+                              {card.def.nameEn}
+                            </span>
+                            <span className="font-mono text-[9px] text-amber-300/80">
+                              {card.def.code}
+                            </span>
+                            {!revealable ? (
+                              <span className="mt-0.5 rounded bg-rose-500/20 px-1 text-[8px] font-semibold text-rose-300">
+                                {strings.notRevealable}
+                              </span>
+                            ) : null}
+                          </button>
                         );
                       })}
-                      <Toggle compact={isSingle} active={(targets[specId] ?? []).length === 0} onClick={() => setTargets((s) => ({ ...s, [specId]: [] }))}>
-                        {strings.doNotReveal}
-                      </Toggle>
+                      <button
+                        type="button"
+                        aria-pressed={(targets[specId] ?? []).length === 0}
+                        onClick={() => setTargets((s) => ({ ...s, [specId]: [] }))}
+                        className={cn(
+                          "flex w-24 shrink-0 flex-col items-center justify-center rounded-arena border p-2 text-center transition-all",
+                          (targets[specId] ?? []).length === 0
+                            ? "border-amber-400 bg-amber-400/20 text-amber-200 shadow-[0_0_8px_rgba(251,191,36,0.3)] ring-1 ring-amber-400"
+                            : "border-white/10 bg-black/40 text-slate-400 hover:border-amber-400/50 hover:text-slate-200",
+                        )}
+                      >
+                        <span className="text-xs font-bold leading-tight">{strings.doNotReveal}</span>
+                      </button>
                     </div>
                   </div>
                 ) : null}
@@ -548,26 +584,73 @@ export function AbilityResolutionModal({
                 ) : null}
 
                 {q.deckReorder ? (
-                  <div className={cn(isSingle ? "mt-1 space-y-0.5" : "mt-2 space-y-1")}>
-                    <p className="text-[10px] text-muted-portal">
+                  <div className={cn(isSingle ? "mt-1.5 space-y-1" : "mt-2 space-y-1.5")}>
+                    <p className="text-[11px] font-medium text-amber-200/90">
                       {strings.deckReorderPrompt}
                     </p>
-                    <div className="space-y-1">
-                      {q.deckReorder.topCards.map((card) => (
-                        <div key={card.instanceId} className="flex items-center gap-1">
-                          <span className="min-w-0 flex-1 truncate text-[10px] text-soft">{card.def.nameEn}</span>
-                          {q.deckReorder!.slots.map((slot) => (
-                            <Toggle
-                              key={slot.name}
-                              compact={isSingle}
-                              active={(reorder[specId] ?? {})[slot.name] === card.instanceId}
-                              onClick={() => assignReorder(specId, slot.name, card.instanceId)}
-                            >
-                              {slot.position === "top" ? strings.reorderTop : slot.position === "trash" ? strings.reorderTrash : strings.reorderBottom}
-                            </Toggle>
-                          ))}
-                        </div>
-                      ))}
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {q.deckReorder.topCards.map((card) => {
+                        const assignedSlot = q.deckReorder!.slots.find(
+                          (slot) => (reorder[specId] ?? {})[slot.name] === card.instanceId,
+                        );
+                        return (
+                          <div
+                            key={card.instanceId}
+                            className={cn(
+                              "flex items-center gap-2.5 rounded-arena border p-1.5 transition-colors",
+                              assignedSlot
+                                ? "border-amber-400/80 bg-amber-500/10 shadow-[0_0_10px_rgba(251,191,36,0.15)]"
+                                : "border-white/10 bg-black/50 hover:border-white/20",
+                            )}
+                          >
+                            <div className="h-16 w-11 shrink-0 overflow-hidden rounded border border-white/15 bg-black/60 shadow-md">
+                              <CardFace
+                                nameEn={card.def.nameEn}
+                                code={card.def.code}
+                                art={art}
+                                size="sm"
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
+                            <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="rounded bg-white/10 px-1 py-0.2 text-[9px] font-mono font-bold text-amber-300">
+                                    {card.def.code}
+                                  </span>
+                                  {card.def.cardType ? (
+                                    <span className="text-[9px] uppercase tracking-wider text-slate-400">
+                                      {card.def.cardType}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <p className="truncate text-xs font-bold text-slate-100" title={card.def.nameEn}>
+                                  {card.def.nameEn}
+                                </p>
+                              </div>
+                              <div className="mt-1.5 flex flex-wrap gap-1">
+                                {q.deckReorder!.slots.map((slot) => {
+                                  const isActive = (reorder[specId] ?? {})[slot.name] === card.instanceId;
+                                  return (
+                                    <Toggle
+                                      key={slot.name}
+                                      compact={isSingle}
+                                      active={isActive}
+                                      onClick={() => assignReorder(specId, slot.name, card.instanceId)}
+                                    >
+                                      {slot.position === "top"
+                                        ? strings.reorderTop
+                                        : slot.position === "trash"
+                                        ? strings.reorderTrash
+                                        : strings.reorderBottom}
+                                    </Toggle>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 ) : null}
@@ -661,6 +744,22 @@ export function AbilityResolutionModal({
             );
           })}
         </ol>
+
+        <div className={cn("flex items-center justify-between gap-2 border-t border-white/10 shrink-0", isSingle ? "pt-2 mt-1.5" : "pt-2 mt-2")}>
+          <div className="flex items-center gap-2 min-w-0 text-[10px] text-muted-portal truncate">
+            {!isSingle ? (
+              <span>{order.length} {order.length === 1 ? "efeito" : "efeitos"}</span>
+            ) : null}
+          </div>
+          <Button
+            size="sm"
+            className="rounded-arena bg-amber-400 font-bold text-black hover:bg-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.4)] ml-auto transition-all min-h-9 px-4 text-xs font-black"
+            disabled={busy || !canConfirm}
+            onClick={confirm}
+          >
+            {strings.confirm}
+          </Button>
+        </div>
       </div>
     </div>
   );
