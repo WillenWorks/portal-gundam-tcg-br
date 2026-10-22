@@ -1,383 +1,393 @@
-/* Detalhe de carta v10 — relações editoriais confirmadas separadas de recomendações automáticas. */
-import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, Expand, ExternalLink } from "lucide-react";
-import { Link, useRoute } from "wouter";
-
-import { PublicShell } from "@/components/layout/PublicShell";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { api } from "@/lib/api";
-import { formatCardText } from "@/lib/utils";
-import { translateRuleTitle } from "@/lib/ruleLabels";
-import { normalizeRarityLabel } from "@/lib/rarityLabels";
-import { useCardLanguage, cardText, KeywordTooltip, getTranslationPendingBadge } from "@/i18n";
-import type { CardLanguage } from "@/i18n/types";
-import { CardPlayabilityBadge } from "@/components/catalog/CardPlayabilityBadge";
-import { CardTournamentUsageSection } from "@/components/veda/CardTournamentUsageSection";
-import { usePageMeta } from "@/lib/pageMeta";
-import { useSiteLanguage, type Localized } from "@/i18n/siteLanguage";
-
-const RELATION_LABELS: Record<string, Localized> = {
-  PILOT_OF: { pt: "Piloto", en: "Pilot of" },
-  SUPPORTS: { pt: "Dá suporte a", en: "Supports" },
-  UPGRADE_OF: { pt: "Upgrade de", en: "Upgrade of" },
-  SAME_ARCHETYPE: { pt: "Mesmo arquétipo", en: "Same archetype" },
-  STORY_RELATED: { pt: "Relacionado na história", en: "Story related" },
-};
-const TYPE_LABELS: Record<string, string> = { UNIT: "Unidade", PILOT: "Piloto", COMMAND: "Comando", COMMAND_PILOT: "Comando", BASE: "Base", RESOURCE: "Recurso", EX_BASE: "Base EX", EX_RESOURCE: "Recurso EX" };
-/** tipos com o texto das cartas em inglês */
-const TYPE_LABELS_EN: Record<string, string> = { UNIT: "Unit", PILOT: "Pilot", COMMAND: "Command", COMMAND_PILOT: "Command", BASE: "Base", RESOURCE: "Resource", EX_BASE: "EX Base", EX_RESOURCE: "EX Resource" };
-
-type CardDetail = any;
-
-function MiniCard({ item, eyebrow, detail, isEffectivePt }: { item: any; eyebrow?: string; detail?: string; isEffectivePt?: boolean }) {
-  const { tr } = useSiteLanguage();
-  if (!item) return null;
-  const name = isEffectivePt !== false ? (item.namePt || item.nameEn) : (item.nameEn || item.namePt);
-  return <Link href={`/cards/${item.id}`} className="group block panel-cut border surface-strong p-3 transition hover:border-primary/60 hover:bg-primary/[0.06]">
-    <div className="grid grid-cols-[58px_1fr] gap-3">
-      <div className="aspect-[3/4] overflow-hidden border border-white/10 bg-slate-950/60">{item.imageSmallUrl || item.thumbUrl || item.imageUrl ? <img loading="lazy" decoding="async" src={item.imageSmallUrl || item.thumbUrl || item.imageUrl} alt={name} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" /> : null}</div>
-      <div className="min-w-0">{eyebrow ? <p className="text-[10px] uppercase tracking-[0.18em] text-primary">{eyebrow}</p> : null}<p className="mt-1 truncate text-xs uppercase tracking-[0.14em] text-slate-500">{item.code}</p><p className="mt-1 text-sm font-medium dark:text-white light:text-slate-900">{name}</p>{detail ? <p className="mt-1 line-clamp-2 text-xs text-slate-400">{detail}</p> : <p className="mt-1 text-xs text-slate-400">{(isEffectivePt ? TYPE_LABELS : TYPE_LABELS_EN)[item.cardType] || item.cardType} · {item.set?.code || tr("sem coleção", "no set")}</p>}</div>
-    </div>
-  </Link>;
-}
-
-export default function CardDetailPage() {
-  const { tr } = useSiteLanguage();
-  const [, params] = useRoute<{ id: string }>("/cards/:id");
-  const [card, setCard] = useState<CardDetail | null>(null);
-  const [relations, setRelations] = useState<{ outgoing: any[]; incoming: any[] }>({ outgoing: [], incoming: [] });
-  const [recommendations, setRecommendations] = useState<CardDetail[]>([]);
-  const [error, setError] = useState("");
-  const [zoomOpen, setZoomOpen] = useState(false);
-  const [selectedPrintId, setSelectedPrintId] = useState<string | null>(null);
-  const [cardStats, setCardStats] = useState<Awaited<ReturnType<typeof api.getCardStats>> | null>(null);
-  const [statsOpen, setStatsOpen] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    async function load() {
-      if (!params?.id) return;
-      setCard(null); setRelations({ outgoing: [], incoming: [] }); setRecommendations([]); setError(""); setSelectedPrintId(null); setCardStats(null);
-      try {
-        const detail = await api.getCard(params.id);
-        if (!active) return;
-        setCard(detail);
-        setSelectedPrintId(detail.printId ?? null);
-        const relationRequest = api.getCardRelations(params.id).catch(() => ({ outgoing: [], incoming: [] }));
-        // Estatísticas competitivas são "best effort" -- se a rota falhar (ou a carta não
-        // tiver amostra), a seção simplesmente não aparece, não é motivo pra bloquear a
-        // página inteira (ver getCard acima, que é a única request que realmente importa).
-        api.getCardStats(params.id).then((result) => { if (active) setCardStats(result); }).catch(() => { if (active) setCardStats(null); });
-        const primaryTrait = detail.traits?.[0] || detail.trait;
-        const suggestionRequests: Promise<any[]>[] = [];
-        if (primaryTrait) suggestionRequests.push(api.listCards({ trait: primaryTrait, sort: "code_asc" }));
-        if (detail.sourceTitle || detail.series) suggestionRequests.push(api.listCards({ media: detail.sourceTitle || detail.series, sort: "code_asc" }));
-        if (detail.set?.code) suggestionRequests.push(api.listCards({ setCode: detail.set.code, sort: "code_asc" }));
-        const [relationData, ...suggestionData] = await Promise.all([relationRequest, ...suggestionRequests]);
-        if (!active) return;
-        setRelations(relationData as { outgoing: any[]; incoming: any[] });
-        const seen = new Set<string>([detail.id]);
-        const uniqueRecs = (suggestionData as any[][]).flat().filter((item) => {
-          if (seen.has(item.id)) return false;
-          seen.add(item.id);
-          return true;
-        });
-        setRecommendations(uniqueRecs.slice(0, 6));
-      } catch (err: any) { if (active) setError(err.message || tr("Falha ao carregar a carta.", "Couldn't load the card.")); }
-    }
-    load(); return () => { active = false; };
-  }, [params?.id]);
-
-  const prints: any[] = card?.prints || [];
-  const selectedPrint = prints.find((p) => p.id === selectedPrintId) || prints[0] || card;
-  const artUrl = selectedPrint?.imageLargeUrl || selectedPrint?.imageMediumUrl || selectedPrint?.imageUrl || "";
-  const selectedPrintIndex = Math.max(0, prints.findIndex((p) => p.id === selectedPrint?.id));
-  const goToPrint = (offset: number) => {
-    if (!prints.length) return;
-    const next = (selectedPrintIndex + offset + prints.length) % prints.length;
-    setSelectedPrintId(prints[next].id);
-  };
-
-  const { language } = useCardLanguage();
-  const [langOverride, setLangOverride] = useState<CardLanguage | null>(null);
-  const activeLang: CardLanguage = langOverride ?? language;
-  const isEffectivePt = activeLang === "PT_BR";
-  const displayName = isEffectivePt ? (card?.namePt || card?.nameEn) : (card?.nameEn || card?.namePt);
-  const secondaryName = isEffectivePt ? card?.nameEn : (card?.namePt || "");
-  const resolvedEffect = useMemo(() => {
-    return cardText(card, undefined, activeLang);
-  }, [card, activeLang]);
-
-  // Relação agora é 1 linha por par de CardModel (sem broadcast por impressão) e o
-  // back-end já devolve `relatedCard` pronto (a impressão primária da carta relacionada)
-  // — só precisa juntar as duas direções, sem remapear nada.
-  const editorialRelations = useMemo(() => [...relations.outgoing, ...relations.incoming].filter((relation) => relation.relatedCard).slice(0, 8), [relations]);
-  const breadcrumbs = useMemo(() => [{ label: "Cartas", href: "/cards" }, ...(selectedPrint?.set?.code ? [{ label: selectedPrint.set.code, href: `/sets/${selectedPrint.set.code}` }] : []), { label: displayName || selectedPrint?.code || "Detalhe" }], [selectedPrint, displayName]);
-  const traitList: string[] = card?.traits?.length ? card.traits : (card?.trait ? [card.trait] : []);
-  const mediaValue: string = card?.sourceTitle || card?.series || "";
-  // Mesma lógica de agregação de keywords usada no card list (CardsPage) -- trigger +
-  // effect + flags booleanos de tipo de habilidade -- pra manter os links consistentes
-  // com o que aparece na busca do catálogo.
-  const cardKeywords = useMemo(() => {
-    if (!card) return [] as string[];
-    const flags = [card.hasBurst && "Burst", card.hasMain && "Main", card.hasAction && "Action", card.oncePerTurn && "Once per turn"].filter(Boolean) as string[];
-    return Array.from(new Set([...(card.triggerKeywords || []), ...(card.effectKeywords || []), ...flags]));
-  }, [card]);
-
-  const metaName = card ? (card.namePt || card.nameEn || card.code) : "";
-  usePageMeta(card ? {
-    title: `${metaName} (${card.code})`,
-    description: `${card.code} · ${metaName}${card.nameEn && card.nameEn !== metaName ? ` (${card.nameEn})` : ""} — carta de Gundam Card Game. ${typeof resolvedEffect === "string" ? resolvedEffect : ""}`.slice(0, 300),
-    image: artUrl || null,
-  } : null);
-
-  return <PublicShell breadcrumbs={breadcrumbs}>
-    <div className="space-y-6">
-      {error ? <Card className="panel-cut border-red-400/40"><CardContent className="p-6 text-red-300">{error}</CardContent></Card> : null}
-      {!card && !error ? <Card className="panel-cut surface-panel"><CardContent className="p-6 text-slate-400">{tr("Carregando detalhe da carta…", "Loading card details…")}</CardContent></Card> : null}
-      {card ? <>
-        <section className="grid gap-6 lg:grid-cols-[minmax(320px,0.7fr)_minmax(0,1.3fr)] 2xl:grid-cols-[480px_1fr] 3xl:grid-cols-[540px_1fr]">
-          <div className="mx-auto w-full max-w-[460px] 2xl:max-w-[480px] 3xl:max-w-[540px] space-y-3">
-            <button type="button" onClick={() => artUrl && setZoomOpen(true)} className="group relative block w-full overflow-hidden border border-primary/30 bg-slate-950/60 text-left" aria-label={tr("Ampliar imagem da carta", "Enlarge card image")}>
-              <div className="aspect-[63/88]">{artUrl ? <img decoding="async" fetchPriority="high" src={artUrl} alt={displayName} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]" /> : <div className="flex h-full items-center justify-center text-sm text-slate-500">{tr("Sem arte vinculada", "No art linked")}</div>}</div>
-              {artUrl ? <span className="absolute bottom-3 right-3 inline-flex items-center gap-2 border border-white/20 bg-slate-950/85 px-3 py-2 text-xs uppercase tracking-[0.14em] text-white"><Expand className="size-4" />{tr("Ampliar", "Enlarge")}</span> : null}
-            </button>
-            {prints.length > 1 ? (
-              <div className="grid grid-cols-5 gap-2">
-                {prints.map((print) => {
-                  const thumb = print.imageSmallUrl || print.thumbUrl || print.imageUrl;
-                  const active = print.id === selectedPrint?.id;
-                  return (
-                    <button key={print.id} type="button" onClick={() => setSelectedPrintId(print.id)}
-                      className={`aspect-[63/88] overflow-hidden border transition ${active ? "border-primary ring-2 ring-primary/50" : "border-white/15 opacity-70 hover:opacity-100"}`}
-                      aria-label={tr(`Ver arte: ${print.printLabel || print.rarity || "impressão"}`, `View art: ${print.printLabel || print.rarity || "print"}`)} title={print.printLabel || print.rarity || undefined}>
-                      {thumb ? <img loading="lazy" decoding="async" src={thumb} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/60 text-[9px] text-slate-500">?</div>}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : null}
-          </div>
-          <Card className="panel-cut rounded-none border-primary/30 hero-surface"><CardContent className="space-y-5 p-6">
-            <div className="flex flex-wrap gap-2 items-center">
-              {card.cardType ? (
-                <Link href={`/cards?cardType=${encodeURIComponent(card.cardType === "COMMAND_PILOT" ? "COMMAND" : card.cardType)}`}>
-                  <Badge className="cursor-pointer rounded-none border border-primary/40 bg-primary/10 text-primary transition hover:bg-primary/20">{(isEffectivePt ? TYPE_LABELS : TYPE_LABELS_EN)[card.cardType] || card.cardType}</Badge>
-                </Link>
-              ) : <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{(isEffectivePt ? TYPE_LABELS : TYPE_LABELS_EN)[card.cardType] || card.cardType}</Badge>}
-              {card.color ? <Link href={`/cards?color=${encodeURIComponent(card.color)}`}><Badge variant="outline" className="cursor-pointer rounded-none border-white/20 text-slate-300 transition hover:border-primary/60 hover:text-primary">{card.color}</Badge></Link> : null}
-              {selectedPrint?.rarity ? (
-                <Link href={`/cards?rarity=${encodeURIComponent(normalizeRarityLabel(selectedPrint.rarity))}`}>
-                  <Badge variant="outline" className="cursor-pointer rounded-none border-accent/40 bg-accent/10 text-accent transition hover:border-accent hover:bg-accent/20">{normalizeRarityLabel(selectedPrint.rarity)}</Badge>
-                </Link>
-              ) : null}
-              {card.legalityStatus ? <Badge variant="outline" className="rounded-none border-emerald-400/40 bg-emerald-400/10 text-emerald-300">{card.legalityStatus}</Badge> : null}
-              {/* Selo A3: Status de jogabilidade no simulador */}
-              <CardPlayabilityBadge code={selectedPrint?.code || card.code} size="sm" asLink />
-              {prints.length > 1 ? <Badge variant="outline" className="rounded-none border-white/20 text-slate-400">{prints.length} artes</Badge> : null}
-              {card.publicDeckCount ? (
-                <Link href="/stats">
-                  <Badge variant="outline" className="cursor-pointer rounded-none border-cyan-400/40 bg-cyan-400/10 text-cyan-300 transition hover:border-cyan-400 hover:bg-cyan-400/20">{tr(`Usada em ${card.publicDeckCount} deck${card.publicDeckCount === 1 ? "" : "s"} público${card.publicDeckCount === 1 ? "" : "s"}`, `Used in ${card.publicDeckCount} public deck${card.publicDeckCount === 1 ? "" : "s"}`)}</Badge>
-                </Link>
-              ) : null}
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.26em] text-slate-400">{selectedPrint?.set?.code ? <Link href={`/sets/${selectedPrint.set.code}`} className="hover:text-primary hover:underline">{selectedPrint.set.code}</Link> : tr("Sem coleção", "No set")} · {selectedPrint?.code || card.code}</p>
-              <h1 className="mt-2 font-heading text-3xl uppercase leading-none sm:text-4xl lg:text-5xl">{displayName}</h1>
-              {secondaryName && secondaryName !== displayName ? (
-                <p className="mt-3 text-sm text-slate-400">{secondaryName}</p>
-              ) : null}
-            </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{[["Custo", card.cost], ["Level", card.level], ["AP", card.ap], ["HP", card.hp]].map(([label, value]) => <div key={String(label)} className="border border-white/10 bg-slate-950/40 p-3 light:border-slate-300/80 light:bg-slate-50"><p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{String(label)}</p><p className="mt-1 font-heading text-3xl dark:text-white light:text-slate-900">{value ?? "—"}</p></div>)}</div>
-            <div className="space-y-2 text-sm leading-7 text-slate-300">
-              <p>
-                <span className="text-slate-500">{tr("Traits:", "Traits:")}</span>{" "}
-                {traitList.length ? traitList.map((trait: string, index: number) => (
-                  <span key={trait}>
-                    {index > 0 ? " · " : ""}
-                    <Link href={`/cards?trait=${encodeURIComponent(trait)}`} className="hover:text-primary hover:underline">{trait}</Link>
-                  </span>
-                )) : "—"}
-              </p>
-              <p>
-                <span className="text-slate-500">{tr("Mídia:", "Media:")}</span>{" "}
-                {mediaValue ? <Link href={`/cards?series=${encodeURIComponent(mediaValue)}`} className="hover:text-primary hover:underline">{mediaValue}</Link> : "—"}
-              </p>
-              <p><span className="text-slate-500">{tr("Link/requisito:", "Link/requirement:")}</span> {card.linkText || "—"}</p>
-            </div>
-            {cardKeywords.length ? (
-              <div className="flex flex-wrap gap-2 border-t border-white/10 pt-4">
-                {cardKeywords.map((keyword) => (
-                  <KeywordTooltip key={keyword} keyword={keyword} showLink={true}>
-                    <Badge variant="outline" className="cursor-pointer rounded-none border-accent/40 bg-accent/10 text-accent transition hover:border-accent hover:bg-accent/20">{keyword}</Badge>
-                  </KeywordTooltip>
-                ))}
-              </div>
-            ) : null}
-            <div className="border-t border-white/10 pt-4">
-              <div className="flex items-center justify-between pb-3">
-                <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">
-                  {isEffectivePt ? "Texto da carta" : "Card text"}
-                </span>
-                <div className="flex items-center gap-2">
-                  {resolvedEffect.isPending ? (
-                    <Badge variant="outline" className="border-amber-400/40 bg-amber-500/10 text-amber-300 text-[10px] uppercase font-mono">
-                      {getTranslationPendingBadge(activeLang)}
-                    </Badge>
-                  ) : null}
-                  <div className="inline-flex rounded-none border border-white/20 p-0.5 text-[10px]">
-                    <button
-                      type="button"
-                      onClick={() => setLangOverride("PT_BR")}
-                      className={`px-2 py-0.5 transition ${activeLang === "PT_BR" ? "bg-primary font-bold text-primary-foreground" : "text-slate-400 hover:text-white"}`}
-                    >
-                      PT
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setLangOverride("EN")}
-                      className={`px-2 py-0.5 transition ${activeLang === "EN" ? "bg-primary font-bold text-primary-foreground" : "text-slate-400 hover:text-white"}`}
-                    >
-                      EN
-                    </button>
-                  </div>
-                </div>
-              </div>
-              {resolvedEffect.sections.length > 0 ? (
-                <div className="space-y-3">
-                  {resolvedEffect.sections.map((sec, idx) => (
-                    <div key={idx} className="border-l-2 border-primary/40 pl-3 py-0.5">
-                      {sec.trigger ? (
-                        <div className="mb-1">
-                          <KeywordTooltip keyword={sec.trigger} showLink={false}>
-                            <span className="inline-block font-mono text-xs font-bold text-primary mr-1.5">{sec.trigger}</span>
-                          </KeywordTooltip>
-                        </div>
-                      ) : null}
-                      <p className="whitespace-pre-line text-sm leading-6 dark:text-slate-200 light:text-slate-700">
-                        {formatCardText(sec.trigger ? sec.resolvedText.replace(sec.trigger, "").trim() : sec.resolvedText) || formatCardText(sec.resolvedText)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="whitespace-pre-line text-sm leading-7 dark:text-slate-200 light:text-slate-700">
-                  {formatCardText(resolvedEffect.text) || (isEffectivePt ? "Sem texto cadastrado." : "No text registered.")}
-                </p>
-              )}
-            </div>
-          </CardContent></Card>
-        </section>
-
-        {/* Em Torneios Competitivos (Veda System) */}
-        <section>
-          <CardTournamentUsageSection
-            cardModelId={card?.cardModelId || card?.id}
-            cardCode={selectedPrint?.code || card?.code}
-          />
-        </section>
-
-        {cardStats?.hasEnoughData ? (
-          <section>
-            <Card className="panel-cut rounded-none border-cyan-400/30 surface-panel">
-              <CardContent className="p-5">
-                <Collapsible open={statsOpen} onOpenChange={setStatsOpen}>
-                  <CollapsibleTrigger asChild>
-                    <button type="button" className="flex w-full items-center justify-between gap-4 text-left">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.24em] text-cyan-400">{tr("Estatísticas competitivas", "Competitive stats")}</p>
-                        <h2 className="mt-1 font-heading text-3xl uppercase">{tr("Uso e desempenho", "Usage and performance")}</h2>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="hidden text-right sm:block">
-                          <p className="text-2xl font-heading text-cyan-300">{cardStats.usageRate ?? "—"}%</p>
-                          <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{tr("taxa de uso", "usage rate")}</p>
-                        </div>
-                        {cardStats.winRate != null ? (
-                          <div className="hidden text-right sm:block">
-                            <p className="text-2xl font-heading text-emerald-300">{cardStats.winRate}%</p>
-                            <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{tr("taxa de vitória", "win rate")}</p>
-                          </div>
-                        ) : null}
-                        <ChevronDown className={`size-5 shrink-0 text-slate-400 transition-transform ${statsOpen ? "rotate-180" : ""}`} />
-                      </div>
-                    </button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="mt-5 space-y-4 border-t border-white/10 pt-5">
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      <div className="border border-white/10 bg-slate-950/40 p-3 light:border-slate-300/80 light:bg-slate-50">
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{tr("Taxa de uso", "Usage rate")}</p>
-                        <p className="mt-1 font-heading text-2xl text-cyan-300">{cardStats.usageRate ?? "—"}%</p>
-                      </div>
-                      <div className="border border-white/10 bg-slate-950/40 p-3 light:border-slate-300/80 light:bg-slate-50">
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{tr("Taxa de vitória", "Win rate")}</p>
-                        <p className="mt-1 font-heading text-2xl text-emerald-300">{cardStats.winRate ?? "—"}%</p>
-                      </div>
-                      <div className="border border-white/10 bg-slate-950/40 p-3 light:border-slate-300/80 light:bg-slate-50">
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{tr("Decks com a carta", "Decks with this card")}</p>
-                        <p className="mt-1 font-heading text-2xl dark:text-white light:text-slate-900">{cardStats.deckAppearances} <span className="text-sm text-slate-500">/ {cardStats.totalDecks}</span></p>
-                      </div>
-                      <div className="border border-white/10 bg-slate-950/40 p-3 light:border-slate-300/80 light:bg-slate-50">
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{tr("V / E / D", "W / D / L")}</p>
-                        <p className="mt-1 font-heading text-2xl dark:text-white light:text-slate-900">{tr(`${cardStats.wins}V ${cardStats.draws}E ${cardStats.losses}D`, `${cardStats.wins}W ${cardStats.draws}D ${cardStats.losses}L`)}</p>
-                      </div>
-                    </div>
-                    <p className="text-xs leading-6 text-slate-500">
-                      {tr(
-                        `Calculado a partir de ${cardStats.deckAppearances} decklist${cardStats.deckAppearances === 1 ? "" : "s"} reais com essa carta, entre torneios reportados e eventos ao vivo já finalizados (deste total, ${cardStats.totalMatches} partida${cardStats.totalMatches === 1 ? "" : "s"} com resultado lançado). Taxa de uso = decks com a carta / ${cardStats.totalDecks} decks registrados no total. Amostra pequena — trate como indicativo, não absoluto.`,
-                        `Based on ${cardStats.deckAppearances} real decklist${cardStats.deckAppearances === 1 ? "" : "s"} with this card, from reported tournaments and finished live events (of these, ${cardStats.totalMatches} match${cardStats.totalMatches === 1 ? "" : "es"} with a result). Usage rate = decks with the card / ${cardStats.totalDecks} decks recorded in total. Small sample — treat it as a hint, not a certainty.`,
-                      )}
-                    </p>
-                  </CollapsibleContent>
-                </Collapsible>
-              </CardContent>
-            </Card>
-          </section>
-        ) : null}
-
-        <section className="grid gap-6 lg:grid-cols-2">
-          <Card className="panel-cut rounded-none surface-panel"><CardContent className="space-y-4 p-5"><h2 className="font-heading text-3xl uppercase">{tr("Relações", "Relations")}</h2>{editorialRelations.length ? <div className="grid gap-3 sm:grid-cols-1 xl:grid-cols-2">{editorialRelations.map((relation) => <MiniCard key={relation.id} item={relation.relatedCard} eyebrow={RELATION_LABELS[relation.relationType] ? tr(RELATION_LABELS[relation.relationType]) : relation.relationType} isEffectivePt={isEffectivePt} />)}</div> : <p className="text-sm leading-7 text-slate-400">{tr("Nenhuma relação confirmada para esta carta ainda.", "No confirmed relations for this card yet.")}</p>}</CardContent></Card>
-          <Card className="panel-cut rounded-none surface-panel"><CardContent className="space-y-4 p-5"><h2 className="font-heading text-3xl uppercase">{tr("Mais para explorar", "More to explore")}</h2><p className="text-xs leading-5 text-slate-500">{tr("Sugestões por trait, mídia ou coleção.", "Suggestions by trait, media or set.")}</p>{recommendations.length ? <div className="grid gap-3 sm:grid-cols-1 xl:grid-cols-2">{recommendations.map((item) => <MiniCard key={item.id} item={item} isEffectivePt={isEffectivePt} />)}</div> : <p className="text-sm text-slate-400">{tr("Ainda não há recomendações suficientes.", "Not enough recommendations yet.")}</p>}</CardContent></Card>
-        </section>
-
-        <section>
-          <Card className="panel-cut rounded-none surface-panel"><CardContent className="space-y-4 p-5"><h2 className="font-heading text-3xl uppercase">{tr("Fontes e regras", "Sources and rules")}</h2><p className="text-sm text-slate-400">{tr("Regras vinculadas a esta impressão", "Rulings linked to this print")}: {card.rulings?.length || 0}</p>{card.officialUrl ? <a href={card.officialUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">{tr("Abrir referência oficial", "Open official reference")} <ExternalLink className="size-4" /></a> : null}{card.rulings?.length ? <div className="grid gap-2 sm:grid-cols-2">{card.rulings.slice(0, 8).map((rule: any) => {
-            const titleLabel = isEffectivePt ? translateRuleTitle(rule.title) : rule.title;
-            const questionText = isEffectivePt
-              ? (rule.questionPt || rule.questionEn || rule.title)
-              : (rule.questionEn || rule.questionPt || rule.title);
-            const answerText = isEffectivePt
-              ? (rule.answerPt || rule.examplePlayPt || rule.answerEn || "")
-              : (rule.answerEn || rule.answerPt || rule.examplePlayPt || "");
-            const showTitle = Boolean(
-              titleLabel &&
-                titleLabel.trim().toLowerCase() !== (questionText || "").trim().toLowerCase() &&
-                (rule.title || "").trim().toLowerCase() !== (questionText || "").trim().toLowerCase(),
-            );
-            return (
-              <Link key={rule.id} href={`/rules/${rule.id}`} className="block space-y-1.5 border border-white/10 p-3 text-sm hover:border-primary/50 dark:text-slate-200 light:text-slate-700">
-                {showTitle ? <span className="block text-[11px] uppercase tracking-[0.16em] text-slate-500">{titleLabel}</span> : null}
-                <p className="font-medium dark:text-white light:text-slate-900">{questionText}</p>
-                {answerText ? <p className="text-xs leading-relaxed text-slate-400">{answerText}</p> : null}
-              </Link>
-            );
-          })}</div> : <p className="text-sm text-slate-500">{tr("Nenhuma regra vinculada.", "No linked rulings.")}</p>}</CardContent></Card>
-        </section>
-      </> : null}
-    </div>
-    <Dialog open={zoomOpen} onOpenChange={setZoomOpen}><DialogContent aria-describedby={undefined} className="max-h-[96vh] max-w-5xl overflow-auto border-white/10 bg-slate-950 p-3 text-white">
-      <DialogTitle className="sr-only">{tr(`Arte ampliada: ${displayName || "Carta"}`, `Enlarged art: ${displayName || "Card"}`)}</DialogTitle>
-      <div className="relative">
-        {artUrl ? <img loading="lazy" decoding="async" src={artUrl} alt={displayName || "Carta"} className="mx-auto max-h-[84vh] w-auto" /> : null}
-        {prints.length > 1 ? <>
-          <button type="button" onClick={() => goToPrint(-1)} aria-label={tr("Arte anterior", "Previous art")} className="absolute left-2 top-1/2 -translate-y-1/2 border border-white/20 bg-slate-950/80 p-2 hover:bg-slate-900"><ChevronLeft className="size-5" /></button>
-          <button type="button" onClick={() => goToPrint(1)} aria-label={tr("Próxima arte", "Next art")} className="absolute right-2 top-1/2 -translate-y-1/2 border border-white/20 bg-slate-950/80 p-2 hover:bg-slate-900"><ChevronRight className="size-5" /></button>
-          <p className="mt-2 text-center text-xs uppercase tracking-[0.18em] text-slate-400">{selectedPrint?.printLabel || selectedPrint?.rarity || "—"} · {selectedPrintIndex + 1}/{prints.length}</p>
-        </> : null}
-      </div>
-    </DialogContent></Dialog>
-  </PublicShell>;
-}
+/* Detalhe de carta v10 — relações editoriais confirmadas separadas de recomendações automáticas. */
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, ChevronLeft, ChevronRight, Expand, ExternalLink } from "lucide-react";
+import { Link, useRoute } from "wouter";
+
+import { PublicShell } from "@/components/layout/PublicShell";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { api } from "@/lib/api";
+import { formatCardText } from "@/lib/utils";
+import { translateRuleTitle } from "@/lib/ruleLabels";
+import { normalizeRarityLabel } from "@/lib/rarityLabels";
+import { useCardLanguage, cardText, KeywordTooltip, getTranslationPendingBadge } from "@/i18n";
+import type { CardLanguage } from "@/i18n/types";
+import { CardPlayabilityBadge } from "@/components/catalog/CardPlayabilityBadge";
+import { CardTournamentUsageSection } from "@/components/veda/CardTournamentUsageSection";
+import { CardMarketplaceWidget } from "@/components/marketplace/CardMarketplaceWidget";
+import { AdSlot } from "@/components/ads/AdSlot";
+import { usePageMeta } from "@/lib/pageMeta";
+import { useSiteLanguage, type Localized } from "@/i18n/siteLanguage";
+
+const RELATION_LABELS: Record<string, Localized> = {
+  PILOT_OF: { pt: "Piloto", en: "Pilot of" },
+  SUPPORTS: { pt: "Dá suporte a", en: "Supports" },
+  UPGRADE_OF: { pt: "Upgrade de", en: "Upgrade of" },
+  SAME_ARCHETYPE: { pt: "Mesmo arquétipo", en: "Same archetype" },
+  STORY_RELATED: { pt: "Relacionado na história", en: "Story related" },
+};
+const TYPE_LABELS: Record<string, string> = { UNIT: "Unidade", PILOT: "Piloto", COMMAND: "Comando", COMMAND_PILOT: "Comando", BASE: "Base", RESOURCE: "Recurso", EX_BASE: "Base EX", EX_RESOURCE: "Recurso EX" };
+/** tipos com o texto das cartas em inglês */
+const TYPE_LABELS_EN: Record<string, string> = { UNIT: "Unit", PILOT: "Pilot", COMMAND: "Command", COMMAND_PILOT: "Command", BASE: "Base", RESOURCE: "Resource", EX_BASE: "EX Base", EX_RESOURCE: "EX Resource" };
+
+type CardDetail = any;
+
+function MiniCard({ item, eyebrow, detail, isEffectivePt }: { item: any; eyebrow?: string; detail?: string; isEffectivePt?: boolean }) {
+  const { tr } = useSiteLanguage();
+  if (!item) return null;
+  const name = isEffectivePt !== false ? (item.namePt || item.nameEn) : (item.nameEn || item.namePt);
+  return <Link href={`/cards/${item.id}`} className="group block panel-cut border surface-strong p-3 transition hover:border-primary/60 hover:bg-primary/[0.06]">
+    <div className="grid grid-cols-[58px_1fr] gap-3">
+      <div className="aspect-[3/4] overflow-hidden border border-white/10 bg-slate-950/60">{item.imageSmallUrl || item.thumbUrl || item.imageUrl ? <img loading="lazy" decoding="async" src={item.imageSmallUrl || item.thumbUrl || item.imageUrl} alt={name} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" /> : null}</div>
+      <div className="min-w-0">{eyebrow ? <p className="text-[10px] uppercase tracking-[0.18em] text-primary">{eyebrow}</p> : null}<p className="mt-1 truncate text-xs uppercase tracking-[0.14em] text-slate-500">{item.code}</p><p className="mt-1 text-sm font-medium dark:text-white light:text-slate-900">{name}</p>{detail ? <p className="mt-1 line-clamp-2 text-xs text-slate-400">{detail}</p> : <p className="mt-1 text-xs text-slate-400">{(isEffectivePt ? TYPE_LABELS : TYPE_LABELS_EN)[item.cardType] || item.cardType} · {item.set?.code || tr("sem coleção", "no set")}</p>}</div>
+    </div>
+  </Link>;
+}
+
+export default function CardDetailPage() {
+  const { tr } = useSiteLanguage();
+  const [, params] = useRoute<{ id: string }>("/cards/:id");
+  const [card, setCard] = useState<CardDetail | null>(null);
+  const [relations, setRelations] = useState<{ outgoing: any[]; incoming: any[] }>({ outgoing: [], incoming: [] });
+  const [recommendations, setRecommendations] = useState<CardDetail[]>([]);
+  const [error, setError] = useState("");
+  const [zoomOpen, setZoomOpen] = useState(false);
+  const [selectedPrintId, setSelectedPrintId] = useState<string | null>(null);
+  const [cardStats, setCardStats] = useState<Awaited<ReturnType<typeof api.getCardStats>> | null>(null);
+  const [statsOpen, setStatsOpen] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      if (!params?.id) return;
+      setCard(null); setRelations({ outgoing: [], incoming: [] }); setRecommendations([]); setError(""); setSelectedPrintId(null); setCardStats(null);
+      try {
+        const detail = await api.getCard(params.id);
+        if (!active) return;
+        setCard(detail);
+        setSelectedPrintId(detail.printId ?? null);
+        const relationRequest = api.getCardRelations(params.id).catch(() => ({ outgoing: [], incoming: [] }));
+        // Estatísticas competitivas são "best effort" -- se a rota falhar (ou a carta não
+        // tiver amostra), a seção simplesmente não aparece, não é motivo pra bloquear a
+        // página inteira (ver getCard acima, que é a única request que realmente importa).
+        api.getCardStats(params.id).then((result) => { if (active) setCardStats(result); }).catch(() => { if (active) setCardStats(null); });
+        const primaryTrait = detail.traits?.[0] || detail.trait;
+        const suggestionRequests: Promise<any[]>[] = [];
+        if (primaryTrait) suggestionRequests.push(api.listCards({ trait: primaryTrait, sort: "code_asc" }));
+        if (detail.sourceTitle || detail.series) suggestionRequests.push(api.listCards({ media: detail.sourceTitle || detail.series, sort: "code_asc" }));
+        if (detail.set?.code) suggestionRequests.push(api.listCards({ setCode: detail.set.code, sort: "code_asc" }));
+        const [relationData, ...suggestionData] = await Promise.all([relationRequest, ...suggestionRequests]);
+        if (!active) return;
+        setRelations(relationData as { outgoing: any[]; incoming: any[] });
+        const seen = new Set<string>([detail.id]);
+        const uniqueRecs = (suggestionData as any[][]).flat().filter((item) => {
+          if (seen.has(item.id)) return false;
+          seen.add(item.id);
+          return true;
+        });
+        setRecommendations(uniqueRecs.slice(0, 6));
+      } catch (err: any) { if (active) setError(err.message || tr("Falha ao carregar a carta.", "Couldn't load the card.")); }
+    }
+    load(); return () => { active = false; };
+  }, [params?.id]);
+
+  const prints: any[] = card?.prints || [];
+  const selectedPrint = prints.find((p) => p.id === selectedPrintId) || prints[0] || card;
+  const artUrl = selectedPrint?.imageLargeUrl || selectedPrint?.imageMediumUrl || selectedPrint?.imageUrl || "";
+  const selectedPrintIndex = Math.max(0, prints.findIndex((p) => p.id === selectedPrint?.id));
+  const goToPrint = (offset: number) => {
+    if (!prints.length) return;
+    const next = (selectedPrintIndex + offset + prints.length) % prints.length;
+    setSelectedPrintId(prints[next].id);
+  };
+
+  const { language } = useCardLanguage();
+  const [langOverride, setLangOverride] = useState<CardLanguage | null>(null);
+  const activeLang: CardLanguage = langOverride ?? language;
+  const isEffectivePt = activeLang === "PT_BR";
+  const displayName = isEffectivePt ? (card?.namePt || card?.nameEn) : (card?.nameEn || card?.namePt);
+  const secondaryName = isEffectivePt ? card?.nameEn : (card?.namePt || "");
+  const resolvedEffect = useMemo(() => {
+    return cardText(card, undefined, activeLang);
+  }, [card, activeLang]);
+
+  // Relação agora é 1 linha por par de CardModel (sem broadcast por impressão) e o
+  // back-end já devolve `relatedCard` pronto (a impressão primária da carta relacionada)
+  // — só precisa juntar as duas direções, sem remapear nada.
+  const editorialRelations = useMemo(() => [...relations.outgoing, ...relations.incoming].filter((relation) => relation.relatedCard).slice(0, 8), [relations]);
+  const breadcrumbs = useMemo(() => [{ label: "Cartas", href: "/cards" }, ...(selectedPrint?.set?.code ? [{ label: selectedPrint.set.code, href: `/sets/${selectedPrint.set.code}` }] : []), { label: displayName || selectedPrint?.code || "Detalhe" }], [selectedPrint, displayName]);
+  const traitList: string[] = card?.traits?.length ? card.traits : (card?.trait ? [card.trait] : []);
+  const mediaValue: string = card?.sourceTitle || card?.series || "";
+  // Mesma lógica de agregação de keywords usada no card list (CardsPage) -- trigger +
+  // effect + flags booleanos de tipo de habilidade -- pra manter os links consistentes
+  // com o que aparece na busca do catálogo.
+  const cardKeywords = useMemo(() => {
+    if (!card) return [] as string[];
+    const flags = [card.hasBurst && "Burst", card.hasMain && "Main", card.hasAction && "Action", card.oncePerTurn && "Once per turn"].filter(Boolean) as string[];
+    return Array.from(new Set([...(card.triggerKeywords || []), ...(card.effectKeywords || []), ...flags]));
+  }, [card]);
+
+  const metaName = card ? (card.namePt || card.nameEn || card.code) : "";
+  usePageMeta(card ? {
+    title: `${metaName} (${card.code})`,
+    description: `${card.code} · ${metaName}${card.nameEn && card.nameEn !== metaName ? ` (${card.nameEn})` : ""} — carta de Gundam Card Game. ${typeof resolvedEffect === "string" ? resolvedEffect : ""}`.slice(0, 300),
+    image: artUrl || null,
+  } : null);
+
+  return <PublicShell breadcrumbs={breadcrumbs}>
+    <div className="space-y-6">
+      {error ? <Card className="panel-cut border-red-400/40"><CardContent className="p-6 text-red-300">{error}</CardContent></Card> : null}
+      {!card && !error ? <Card className="panel-cut surface-panel"><CardContent className="p-6 text-slate-400">{tr("Carregando detalhe da carta…", "Loading card details…")}</CardContent></Card> : null}
+      {card ? <>
+        <section className="grid gap-6 lg:grid-cols-[minmax(320px,0.7fr)_minmax(0,1.3fr)] 2xl:grid-cols-[480px_1fr] 3xl:grid-cols-[540px_1fr]">
+          <div className="mx-auto w-full max-w-[460px] 2xl:max-w-[480px] 3xl:max-w-[540px] space-y-3">
+            <button type="button" onClick={() => artUrl && setZoomOpen(true)} className="group relative block w-full overflow-hidden border border-primary/30 bg-slate-950/60 text-left" aria-label={tr("Ampliar imagem da carta", "Enlarge card image")}>
+              <div className="aspect-[63/88]">{artUrl ? <img decoding="async" fetchPriority="high" src={artUrl} alt={displayName} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]" /> : <div className="flex h-full items-center justify-center text-sm text-slate-500">{tr("Sem arte vinculada", "No art linked")}</div>}</div>
+              {artUrl ? <span className="absolute bottom-3 right-3 inline-flex items-center gap-2 border border-white/20 bg-slate-950/85 px-3 py-2 text-xs uppercase tracking-[0.14em] text-white"><Expand className="size-4" />{tr("Ampliar", "Enlarge")}</span> : null}
+            </button>
+            {prints.length > 1 ? (
+              <div className="grid grid-cols-5 gap-2">
+                {prints.map((print) => {
+                  const thumb = print.imageSmallUrl || print.thumbUrl || print.imageUrl;
+                  const active = print.id === selectedPrint?.id;
+                  return (
+                    <button key={print.id} type="button" onClick={() => setSelectedPrintId(print.id)}
+                      className={`aspect-[63/88] overflow-hidden border transition ${active ? "border-primary ring-2 ring-primary/50" : "border-white/15 opacity-70 hover:opacity-100"}`}
+                      aria-label={tr(`Ver arte: ${print.printLabel || print.rarity || "impressão"}`, `View art: ${print.printLabel || print.rarity || "print"}`)} title={print.printLabel || print.rarity || undefined}>
+                      {thumb ? <img loading="lazy" decoding="async" src={thumb} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/60 text-[9px] text-slate-500">?</div>}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
+          <Card className="panel-cut rounded-none border-primary/30 hero-surface"><CardContent className="space-y-5 p-6">
+            <div className="flex flex-wrap gap-2 items-center">
+              {card.cardType ? (
+                <Link href={`/cards?cardType=${encodeURIComponent(card.cardType === "COMMAND_PILOT" ? "COMMAND" : card.cardType)}`}>
+                  <Badge className="cursor-pointer rounded-none border border-primary/40 bg-primary/10 text-primary transition hover:bg-primary/20">{(isEffectivePt ? TYPE_LABELS : TYPE_LABELS_EN)[card.cardType] || card.cardType}</Badge>
+                </Link>
+              ) : <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{(isEffectivePt ? TYPE_LABELS : TYPE_LABELS_EN)[card.cardType] || card.cardType}</Badge>}
+              {card.color ? <Link href={`/cards?color=${encodeURIComponent(card.color)}`}><Badge variant="outline" className="cursor-pointer rounded-none border-white/20 text-slate-300 transition hover:border-primary/60 hover:text-primary">{card.color}</Badge></Link> : null}
+              {selectedPrint?.rarity ? (
+                <Link href={`/cards?rarity=${encodeURIComponent(normalizeRarityLabel(selectedPrint.rarity))}`}>
+                  <Badge variant="outline" className="cursor-pointer rounded-none border-accent/40 bg-accent/10 text-accent transition hover:border-accent hover:bg-accent/20">{normalizeRarityLabel(selectedPrint.rarity)}</Badge>
+                </Link>
+              ) : null}
+              {card.legalityStatus ? <Badge variant="outline" className="rounded-none border-emerald-400/40 bg-emerald-400/10 text-emerald-300">{card.legalityStatus}</Badge> : null}
+              {/* Selo A3: Status de jogabilidade no simulador */}
+              <CardPlayabilityBadge code={selectedPrint?.code || card.code} size="sm" asLink />
+              {prints.length > 1 ? <Badge variant="outline" className="rounded-none border-white/20 text-slate-400">{prints.length} artes</Badge> : null}
+              {card.publicDeckCount ? (
+                <Link href="/stats">
+                  <Badge variant="outline" className="cursor-pointer rounded-none border-cyan-400/40 bg-cyan-400/10 text-cyan-300 transition hover:border-cyan-400 hover:bg-cyan-400/20">{tr(`Usada em ${card.publicDeckCount} deck${card.publicDeckCount === 1 ? "" : "s"} público${card.publicDeckCount === 1 ? "" : "s"}`, `Used in ${card.publicDeckCount} public deck${card.publicDeckCount === 1 ? "" : "s"}`)}</Badge>
+                </Link>
+              ) : null}
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.26em] text-slate-400">{selectedPrint?.set?.code ? <Link href={`/sets/${selectedPrint.set.code}`} className="hover:text-primary hover:underline">{selectedPrint.set.code}</Link> : tr("Sem coleção", "No set")} · {selectedPrint?.code || card.code}</p>
+              <h1 className="mt-2 font-heading text-3xl uppercase leading-none sm:text-4xl lg:text-5xl">{displayName}</h1>
+              {secondaryName && secondaryName !== displayName ? (
+                <p className="mt-3 text-sm text-slate-400">{secondaryName}</p>
+              ) : null}
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{[["Custo", card.cost], ["Level", card.level], ["AP", card.ap], ["HP", card.hp]].map(([label, value]) => <div key={String(label)} className="border border-white/10 bg-slate-950/40 p-3 light:border-slate-300/80 light:bg-slate-50"><p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{String(label)}</p><p className="mt-1 font-heading text-3xl dark:text-white light:text-slate-900">{value ?? "—"}</p></div>)}</div>
+            <div className="space-y-2 text-sm leading-7 text-slate-300">
+              <p>
+                <span className="text-slate-500">{tr("Traits:", "Traits:")}</span>{" "}
+                {traitList.length ? traitList.map((trait: string, index: number) => (
+                  <span key={trait}>
+                    {index > 0 ? " · " : ""}
+                    <Link href={`/cards?trait=${encodeURIComponent(trait)}`} className="hover:text-primary hover:underline">{trait}</Link>
+                  </span>
+                )) : "—"}
+              </p>
+              <p>
+                <span className="text-slate-500">{tr("Mídia:", "Media:")}</span>{" "}
+                {mediaValue ? <Link href={`/cards?series=${encodeURIComponent(mediaValue)}`} className="hover:text-primary hover:underline">{mediaValue}</Link> : "—"}
+              </p>
+              <p><span className="text-slate-500">{tr("Link/requisito:", "Link/requirement:")}</span> {card.linkText || "—"}</p>
+            </div>
+            {cardKeywords.length ? (
+              <div className="flex flex-wrap gap-2 border-t border-white/10 pt-4">
+                {cardKeywords.map((keyword) => (
+                  <KeywordTooltip key={keyword} keyword={keyword} showLink={true}>
+                    <Badge variant="outline" className="cursor-pointer rounded-none border-accent/40 bg-accent/10 text-accent transition hover:border-accent hover:bg-accent/20">{keyword}</Badge>
+                  </KeywordTooltip>
+                ))}
+              </div>
+            ) : null}
+            <div className="border-t border-white/10 pt-4">
+              <div className="flex items-center justify-between pb-3">
+                <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">
+                  {isEffectivePt ? "Texto da carta" : "Card text"}
+                </span>
+                <div className="flex items-center gap-2">
+                  {resolvedEffect.isPending ? (
+                    <Badge variant="outline" className="border-amber-400/40 bg-amber-500/10 text-amber-300 text-[10px] uppercase font-mono">
+                      {getTranslationPendingBadge(activeLang)}
+                    </Badge>
+                  ) : null}
+                  <div className="inline-flex rounded-none border border-white/20 p-0.5 text-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => setLangOverride("PT_BR")}
+                      className={`px-2 py-0.5 transition ${activeLang === "PT_BR" ? "bg-primary font-bold text-primary-foreground" : "text-slate-400 hover:text-white"}`}
+                    >
+                      PT
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLangOverride("EN")}
+                      className={`px-2 py-0.5 transition ${activeLang === "EN" ? "bg-primary font-bold text-primary-foreground" : "text-slate-400 hover:text-white"}`}
+                    >
+                      EN
+                    </button>
+                  </div>
+                </div>
+              </div>
+              {resolvedEffect.sections.length > 0 ? (
+                <div className="space-y-3">
+                  {resolvedEffect.sections.map((sec, idx) => (
+                    <div key={idx} className="border-l-2 border-primary/40 pl-3 py-0.5">
+                      {sec.trigger ? (
+                        <div className="mb-1">
+                          <KeywordTooltip keyword={sec.trigger} showLink={false}>
+                            <span className="inline-block font-mono text-xs font-bold text-primary mr-1.5">{sec.trigger}</span>
+                          </KeywordTooltip>
+                        </div>
+                      ) : null}
+                      <p className="whitespace-pre-line text-sm leading-6 dark:text-slate-200 light:text-slate-700">
+                        {formatCardText(sec.trigger ? sec.resolvedText.replace(sec.trigger, "").trim() : sec.resolvedText) || formatCardText(sec.resolvedText)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="whitespace-pre-line text-sm leading-7 dark:text-slate-200 light:text-slate-700">
+                  {formatCardText(resolvedEffect.text) || (isEffectivePt ? "Sem texto cadastrado." : "No text registered.")}
+                </p>
+              )}
+            </div>
+          </CardContent></Card>
+        </section>
+
+        {/* Mercado, Onde Comprar & Comparação de Preços (Liga Gundam, MyPcards, ML, Amazon) */}
+        <section>
+          <CardMarketplaceWidget card={selectedPrint || card} />
+        </section>
+
+        {/* Em Torneios Competitivos (Veda System) */}
+        <section>
+          <CardTournamentUsageSection
+            cardModelId={card?.cardModelId || card?.id}
+            cardCode={selectedPrint?.code || card?.code}
+          />
+        </section>
+
+        {cardStats?.hasEnoughData ? (
+          <section>
+            <Card className="panel-cut rounded-none border-cyan-400/30 surface-panel">
+              <CardContent className="p-5">
+                <Collapsible open={statsOpen} onOpenChange={setStatsOpen}>
+                  <CollapsibleTrigger asChild>
+                    <button type="button" className="flex w-full items-center justify-between gap-4 text-left">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.24em] text-cyan-400">{tr("Estatísticas competitivas", "Competitive stats")}</p>
+                        <h2 className="mt-1 font-heading text-3xl uppercase">{tr("Uso e desempenho", "Usage and performance")}</h2>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="hidden text-right sm:block">
+                          <p className="text-2xl font-heading text-cyan-300">{cardStats.usageRate ?? "—"}%</p>
+                          <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{tr("taxa de uso", "usage rate")}</p>
+                        </div>
+                        {cardStats.winRate != null ? (
+                          <div className="hidden text-right sm:block">
+                            <p className="text-2xl font-heading text-emerald-300">{cardStats.winRate}%</p>
+                            <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{tr("taxa de vitória", "win rate")}</p>
+                          </div>
+                        ) : null}
+                        <ChevronDown className={`size-5 shrink-0 text-slate-400 transition-transform ${statsOpen ? "rotate-180" : ""}`} />
+                      </div>
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-5 space-y-4 border-t border-white/10 pt-5">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      <div className="border border-white/10 bg-slate-950/40 p-3 light:border-slate-300/80 light:bg-slate-50">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{tr("Taxa de uso", "Usage rate")}</p>
+                        <p className="mt-1 font-heading text-2xl text-cyan-300">{cardStats.usageRate ?? "—"}%</p>
+                      </div>
+                      <div className="border border-white/10 bg-slate-950/40 p-3 light:border-slate-300/80 light:bg-slate-50">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{tr("Taxa de vitória", "Win rate")}</p>
+                        <p className="mt-1 font-heading text-2xl text-emerald-300">{cardStats.winRate ?? "—"}%</p>
+                      </div>
+                      <div className="border border-white/10 bg-slate-950/40 p-3 light:border-slate-300/80 light:bg-slate-50">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{tr("Decks com a carta", "Decks with this card")}</p>
+                        <p className="mt-1 font-heading text-2xl dark:text-white light:text-slate-900">{cardStats.deckAppearances} <span className="text-sm text-slate-500">/ {cardStats.totalDecks}</span></p>
+                      </div>
+                      <div className="border border-white/10 bg-slate-950/40 p-3 light:border-slate-300/80 light:bg-slate-50">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{tr("V / E / D", "W / D / L")}</p>
+                        <p className="mt-1 font-heading text-2xl dark:text-white light:text-slate-900">{tr(`${cardStats.wins}V ${cardStats.draws}E ${cardStats.losses}D`, `${cardStats.wins}W ${cardStats.draws}D ${cardStats.losses}L`)}</p>
+                      </div>
+                    </div>
+                    <p className="text-xs leading-6 text-slate-500">
+                      {tr(
+                        `Calculado a partir de ${cardStats.deckAppearances} decklist${cardStats.deckAppearances === 1 ? "" : "s"} reais com essa carta, entre torneios reportados e eventos ao vivo já finalizados (deste total, ${cardStats.totalMatches} partida${cardStats.totalMatches === 1 ? "" : "s"} com resultado lançado). Taxa de uso = decks com a carta / ${cardStats.totalDecks} decks registrados no total. Amostra pequena — trate como indicativo, não absoluto.`,
+                        `Based on ${cardStats.deckAppearances} real decklist${cardStats.deckAppearances === 1 ? "" : "s"} with this card, from reported tournaments and finished live events (of these, ${cardStats.totalMatches} match${cardStats.totalMatches === 1 ? "" : "es"} with a result). Usage rate = decks with the card / ${cardStats.totalDecks} decks recorded in total. Small sample — treat it as a hint, not a certainty.`,
+                      )}
+                    </p>
+                  </CollapsibleContent>
+                </Collapsible>
+              </CardContent>
+            </Card>
+          </section>
+        ) : null}
+
+        <section className="grid gap-6 lg:grid-cols-2">
+          <Card className="panel-cut rounded-none surface-panel"><CardContent className="space-y-4 p-5"><h2 className="font-heading text-3xl uppercase">{tr("Relações", "Relations")}</h2>{editorialRelations.length ? <div className="grid gap-3 sm:grid-cols-1 xl:grid-cols-2">{editorialRelations.map((relation) => <MiniCard key={relation.id} item={relation.relatedCard} eyebrow={RELATION_LABELS[relation.relationType] ? tr(RELATION_LABELS[relation.relationType]) : relation.relationType} isEffectivePt={isEffectivePt} />)}</div> : <p className="text-sm leading-7 text-slate-400">{tr("Nenhuma relação confirmada para esta carta ainda.", "No confirmed relations for this card yet.")}</p>}</CardContent></Card>
+          <Card className="panel-cut rounded-none surface-panel"><CardContent className="space-y-4 p-5"><h2 className="font-heading text-3xl uppercase">{tr("Mais para explorar", "More to explore")}</h2><p className="text-xs leading-5 text-slate-500">{tr("Sugestões por trait, mídia ou coleção.", "Suggestions by trait, media or set.")}</p>{recommendations.length ? <div className="grid gap-3 sm:grid-cols-1 xl:grid-cols-2">{recommendations.map((item) => <MiniCard key={item.id} item={item} isEffectivePt={isEffectivePt} />)}</div> : <p className="text-sm text-slate-400">{tr("Ainda não há recomendações suficientes.", "Not enough recommendations yet.")}</p>}</CardContent></Card>
+        </section>
+
+        <section>
+          <Card className="panel-cut rounded-none surface-panel"><CardContent className="space-y-4 p-5"><h2 className="font-heading text-3xl uppercase">{tr("Fontes e regras", "Sources and rules")}</h2><p className="text-sm text-slate-400">{tr("Regras vinculadas a esta impressão", "Rulings linked to this print")}: {card.rulings?.length || 0}</p>{card.officialUrl ? <a href={card.officialUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">{tr("Abrir referência oficial", "Open official reference")} <ExternalLink className="size-4" /></a> : null}{card.rulings?.length ? <div className="grid gap-2 sm:grid-cols-2">{card.rulings.slice(0, 8).map((rule: any) => {
+            const titleLabel = isEffectivePt ? translateRuleTitle(rule.title) : rule.title;
+            const questionText = isEffectivePt
+              ? (rule.questionPt || rule.questionEn || rule.title)
+              : (rule.questionEn || rule.questionPt || rule.title);
+            const answerText = isEffectivePt
+              ? (rule.answerPt || rule.examplePlayPt || rule.answerEn || "")
+              : (rule.answerEn || rule.answerPt || rule.examplePlayPt || "");
+            const showTitle = Boolean(
+              titleLabel &&
+                titleLabel.trim().toLowerCase() !== (questionText || "").trim().toLowerCase() &&
+                (rule.title || "").trim().toLowerCase() !== (questionText || "").trim().toLowerCase(),
+            );
+            return (
+              <Link key={rule.id} href={`/rules/${rule.id}`} className="block space-y-1.5 border border-white/10 p-3 text-sm hover:border-primary/50 dark:text-slate-200 light:text-slate-700">
+                {showTitle ? <span className="block text-[11px] uppercase tracking-[0.16em] text-slate-500">{titleLabel}</span> : null}
+                <p className="font-medium dark:text-white light:text-slate-900">{questionText}</p>
+                {answerText ? <p className="text-xs leading-relaxed text-slate-400">{answerText}</p> : null}
+              </Link>
+            );
+          })}</div> : <p className="text-sm text-slate-500">{tr("Nenhuma regra vinculada.", "No linked rulings.")}</p>}</CardContent></Card>
+        </section>
+
+        {/* Bloco de Publicidade / Parcerias */}
+        <AdSlot format="leaderboard" className="my-4" />
+      </> : null}
+    </div>
+    <Dialog open={zoomOpen} onOpenChange={setZoomOpen}><DialogContent aria-describedby={undefined} className="max-h-[96vh] max-w-5xl overflow-auto border-white/10 bg-slate-950 p-3 text-white">
+      <DialogTitle className="sr-only">{tr(`Arte ampliada: ${displayName || "Carta"}`, `Enlarged art: ${displayName || "Card"}`)}</DialogTitle>
+      <div className="relative">
+        {artUrl ? <img loading="lazy" decoding="async" src={artUrl} alt={displayName || "Carta"} className="mx-auto max-h-[84vh] w-auto" /> : null}
+        {prints.length > 1 ? <>
+          <button type="button" onClick={() => goToPrint(-1)} aria-label={tr("Arte anterior", "Previous art")} className="absolute left-2 top-1/2 -translate-y-1/2 border border-white/20 bg-slate-950/80 p-2 hover:bg-slate-900"><ChevronLeft className="size-5" /></button>
+          <button type="button" onClick={() => goToPrint(1)} aria-label={tr("Próxima arte", "Next art")} className="absolute right-2 top-1/2 -translate-y-1/2 border border-white/20 bg-slate-950/80 p-2 hover:bg-slate-900"><ChevronRight className="size-5" /></button>
+          <p className="mt-2 text-center text-xs uppercase tracking-[0.18em] text-slate-400">{selectedPrint?.printLabel || selectedPrint?.rarity || "—"} · {selectedPrintIndex + 1}/{prints.length}</p>
+        </> : null}
+      </div>
+    </DialogContent></Dialog>
+  </PublicShell>;
+}

@@ -1,0 +1,4 @@
+# Anaheim Hub (https://anaheimhub.com) - ads.txt
+# Substitua pelo seu ID de publicador do Google AdSense quando a conta for aprovada:
+# Formato: google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
+google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
