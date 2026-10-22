@@ -37,7 +37,7 @@ export function RecentTournamentsSection() {
 
   useEffect(() => {
     api
-      .listTournaments({ resumo: true })
+      .listTournaments({ resumo: true, limit: 50 })
       .then((data: any[]) => {
         if (Array.isArray(data) && data.length > 0) {
           const formatted: TournamentDisplay[] = data.map((t) => {

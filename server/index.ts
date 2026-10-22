@@ -3167,7 +3167,7 @@ const tournamentSummaryInclude = {
   entries: { include: { ...tournamentEntryUserDeck, deckSnapshot: { select: { id: true, name: true, format: true } } } },
 } as const;
 const TOURNAMENTS_LIST_CACHE_MS = 5 * 60_000;
-const tournamentsListCache = new Map<"full" | "resumo", { at: number; data: Promise<unknown[]> }>();
+const tournamentsListCache = new Map<string, { at: number; data: Promise<unknown[]> }>();
 app.use((req, _res, next) => {
   if (req.method !== "GET" && req.method !== "HEAD" && /^\/api\/(tournaments|seasons|admin|import|veda)/.test(req.path)) tournamentsListCache.clear();
   next();
@@ -3176,18 +3176,22 @@ app.use((req, _res, next) => {
 app.get("/api/tournaments", async (req, res) => {
   setPublicCache(res, 60, 300);
   const variant = req.query.resumo === "1" || req.query.resumo === "true" ? "resumo" : "full";
-  const cached = tournamentsListCache.get(variant);
+  const rawLimit = req.query.limit ? Number(req.query.limit) : undefined;
+  const limit = rawLimit && !Number.isNaN(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 200) : undefined;
+  const cacheKey = `${variant}:${limit ?? "all"}`;
+  const cached = tournamentsListCache.get(cacheKey);
   if (cached && Date.now() - cached.at < TOURNAMENTS_LIST_CACHE_MS) return res.json(await cached.data);
   const data = prisma.tournament.findMany({
     where: { isActive: true },
     include: variant === "resumo" ? tournamentSummaryInclude : tournamentListInclude,
     orderBy: [{ dateStart: "desc" }],
+    ...(limit ? { take: limit } : {}),
   }) as Promise<unknown[]>;
-  tournamentsListCache.set(variant, { at: Date.now(), data });
+  tournamentsListCache.set(cacheKey, { at: Date.now(), data });
   try {
     res.json(await data);
   } catch (err) {
-    tournamentsListCache.delete(variant);
+    tournamentsListCache.delete(cacheKey);
     throw err;
   }
 });

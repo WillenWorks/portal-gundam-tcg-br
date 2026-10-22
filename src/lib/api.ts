@@ -11,6 +11,7 @@ const TOKEN_KEY = "portal-gundam-tcg-br:token";
 const USER_KEY = "portal-gundam-tcg-br:user";
 const API_CACHE_PREFIX = "portal-gundam-tcg-br:api-cache:";
 const apiMemoryCache = new Map<string, { expiresAt: number; data: unknown }>();
+const inFlightRequests = new Map<string, Promise<unknown>>();
 
 export type AuthUser = {
   id: string;
@@ -760,6 +761,9 @@ export function invalidateApiCache(prefixes: string[]) {
   Array.from(apiMemoryCache.keys()).forEach((key) => {
     if (absolutePrefixes.some((prefix) => key.startsWith(prefix))) apiMemoryCache.delete(key);
   });
+  Array.from(inFlightRequests.keys()).forEach((key) => {
+    if (absolutePrefixes.some((prefix) => key.startsWith(prefix))) inFlightRequests.delete(key);
+  });
 
   if (typeof window === "undefined") return;
   const storageKeys: string[] = [];
@@ -809,15 +813,31 @@ async function request<T>(path: string, init?: RequestInit, options?: RequestOpt
   // próprio cache com invalidação correta (ttlMs + invalidateApiCache), o cache HTTP do
   // navegador é só redundante e vira fonte de inconsistência — desligado sempre, não só
   // quando bypassCache está ligado.
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, cache: "no-store" });
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    throw new ApiError(data.error || "Falha na API.", response.status);
+  // Deduplica requisições GET em voo idênticas (evita disparos paralelos redundantes)
+  const canDedupe = method === "GET" && !options?.bypassCache && !init?.signal;
+  if (canDedupe && inFlightRequests.has(cacheKey)) {
+    return inFlightRequests.get(cacheKey) as Promise<T>;
   }
-  if (response.status === 204) return undefined as T;
-  const data = (await response.json()) as T;
-  if (ttlMs > 0) writeCachedValue(cacheKey, data, ttlMs);
-  return data;
+
+  const executeFetch = async (): Promise<T> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, cache: "no-store" });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new ApiError(data.error || "Falha na API.", response.status);
+      }
+      if (response.status === 204) return undefined as T;
+      const data = (await response.json()) as T;
+      if (ttlMs > 0) writeCachedValue(cacheKey, data, ttlMs);
+      return data;
+    } finally {
+      if (canDedupe) inFlightRequests.delete(cacheKey);
+    }
+  };
+
+  const promise = executeFetch();
+  if (canDedupe) inFlightRequests.set(cacheKey, promise);
+  return promise;
 }
 
 async function mutate<T>(path: string, init: RequestInit, invalidatePrefixes: string[]): Promise<T> {
@@ -1452,8 +1472,13 @@ export const api = {
   deleteRuling: (id: string) => mutate<void>(`/rulings/${id}`, { method: "DELETE" }, ["/rulings", "/rulings/filters"]),
   importRulings: (payload: any) => mutate<{ imported: number }>("/import/rulings", { method: "POST", body: JSON.stringify(payload) }, ["/rulings", "/rulings/filters"]),
   /** `resumo`: sem as listas de cartas das participações (bem mais leve — a home só mostra pódio e arquétipo) */
-  listTournaments: (opts: { resumo?: boolean } = {}) =>
-    request<any[]>(opts.resumo ? "/tournaments?resumo=1" : "/tournaments", undefined, { ttlMs: 60_000 }),
+  listTournaments: (opts: { resumo?: boolean; limit?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (opts.resumo) params.set("resumo", "1");
+    if (opts.limit) params.set("limit", String(opts.limit));
+    const qs = params.toString();
+    return request<any[]>(qs ? `/tournaments?${qs}` : "/tournaments", undefined, { ttlMs: 60_000 });
+  },
   getTournament: (id: string) => request<any>(`/tournaments/${id}`, undefined, { ttlMs: 20_000 }),
   createTournament: (payload: any) => mutate<any>("/tournaments", { method: "POST", body: JSON.stringify(payload) }, ["/tournaments", "/stats"]),
   updateTournament: (id: string, payload: any) => mutate<any>(`/tournaments/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/tournaments", "/stats"]),

@@ -70,18 +70,39 @@ export function CockpitRegistrationSection() {
       });
     };
 
-    if (document.getElementById(scriptId)) {
-      initialize();
-      return;
-    }
+    const loadScript = () => {
+      if (document.getElementById(scriptId)) {
+        initialize();
+        return;
+      }
 
-    const script = document.createElement("script");
-    script.id = scriptId;
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    script.onload = initialize;
-    document.head.appendChild(script);
+      const script = document.createElement("script");
+      script.id = scriptId;
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      script.onload = initialize;
+      document.head.appendChild(script);
+    };
+
+    const target = googleButtonRef.current;
+    if (!target) return;
+
+    if (typeof IntersectionObserver !== "undefined") {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries[0]?.isIntersecting) {
+            observer.disconnect();
+            loadScript();
+          }
+        },
+        { rootMargin: "300px" }
+      );
+      observer.observe(target);
+      return () => observer.disconnect();
+    } else {
+      loadScript();
+    }
   }, [isAuthenticated, loginWithGoogle]);
 
   // Cálculo de Força da Senha

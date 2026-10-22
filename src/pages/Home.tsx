@@ -204,7 +204,10 @@ export default function Home({ targetSection }: HomeProps) {
                       )}
                     >
                       {/* Imagem de Fundo da Notícia */}
-                      <img decoding="async"
+                      <img
+                        loading={idx === 0 ? "eager" : "lazy"}
+                        fetchPriority={idx === 0 ? "high" : "low"}
+                        decoding={idx === 0 ? "sync" : "async"}
                         src={slide.image}
                         alt={isEn ? slide.titleEn : slide.title}
                         className="size-full object-cover object-center transform transition-transform duration-1000 group-hover:scale-105"
@@ -474,7 +477,7 @@ export default function Home({ targetSection }: HomeProps) {
         </section>
 
         {/* ── CARROSSEL EM LINHA DE CARTAS RECENTES (DATABASE) ──────────── */}
-        <LatestCardsCarousel limit={30} />
+        <LatestCardsCarousel limit={16} />
 
         {/* ── ÁREA INSTITUCIONAL: GRATIDÃO, MÉTRICAS, RULINGS & LINKS OFICIAIS ── */}
         <HomeDirectivesSection />
