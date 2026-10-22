@@ -29,7 +29,13 @@ export function decodeEntities(s) {
 
 /** texto de um bloco HTML do jeito do dataset: `<br>` vira quebra, tags somem, sem espaço nas pontas das linhas */
 export function htmlText(html) {
-  const text = decodeEntities(html.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, ""));
+  let cleaned = html.replace(/<br\s*\/?>/gi, "\n");
+  let prev = "";
+  while (cleaned !== prev) {
+    prev = cleaned;
+    cleaned = cleaned.replace(/<[^>]*>/g, "");
+  }
+  const text = decodeEntities(cleaned);
   return text
     .split("\n")
     .map((l) => l.trim())

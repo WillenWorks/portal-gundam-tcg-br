@@ -23,11 +23,11 @@ const USER_AGENT = "AnaheimHub/1.0 (+https://anaheimhub.com; copia unica de torn
 
 const decode = (s) =>
   String(s ?? "")
-    .replace(/&amp;/g, "&")
     .replace(/&#39;|&#039;/g, "'")
     .replace(/&quot;/g, '"')
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
     .replace(/\s+/g, " ")
     .trim();
 

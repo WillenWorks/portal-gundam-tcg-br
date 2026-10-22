@@ -20,7 +20,11 @@ export type PublicUrlOptions = {
 };
 
 const isLocal = (url: string) => url.includes("localhost") || url.includes("127.0.0.1");
-const trim = (url: string) => url.replace(/\/+$/, "");
+const trim = (url: string) => {
+  let s = url;
+  while (s.endsWith("/")) s = s.slice(0, -1);
+  return s;
+};
 
 export function resolvePublicAppUrl(req: PublicUrlRequest | undefined, options: PublicUrlOptions): string {
   const { allowedOrigins, envUrl, isRemote, productionUrl = "https://anaheimhub.com", localUrl = "http://localhost:8787" } = options;

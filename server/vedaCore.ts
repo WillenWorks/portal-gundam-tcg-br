@@ -131,8 +131,14 @@ const SOURCES: Record<VedaSourceId, VedaSource> = {
 };
 
 export function sourceOf(sourceUrl: string | null): VedaSource {
-  if (sourceUrl?.includes("egmanevents.com")) return SOURCES.egman;
-  if (sourceUrl?.includes("digilab.cards")) return SOURCES.digilab;
+  if (!sourceUrl) return SOURCES.manual;
+  try {
+    const host = new URL(sourceUrl).hostname.toLowerCase();
+    if (host === "egmanevents.com" || host.endsWith(".egmanevents.com")) return SOURCES.egman;
+    if (host === "digilab.cards" || host.endsWith(".digilab.cards")) return SOURCES.digilab;
+  } catch {
+    // URL inválida cai no padrão manual
+  }
   return SOURCES.manual;
 }
 

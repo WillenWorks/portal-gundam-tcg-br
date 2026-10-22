@@ -181,7 +181,11 @@ export function splitClauses(effect: string): Clause[] {
     const keywords = [...body.matchAll(/<([A-Za-z][A-Za-z -]*?)(?:\s+\d+)?>/g)].map((k) => k[1].trim());
     let kind: ClauseKind = "bespoke";
     if (pilotName && !body) kind = "pilotMode";
-    else if (keywords.length && !body.replace(/<[^>]+>/g, "").replace(/[\s.,]/g, "") && !qualifiers.some((q) => q !== "Once per Turn")) {
+    else if (keywords.length && !(() => {
+      let b = body, p = "";
+      while (b !== p) { p = b; b = b.replace(/<[^>]*>/g, ""); }
+      return b.replace(/[\s.,]/g, "");
+    })() && !qualifiers.some((q) => q !== "Once per Turn")) {
       // keyword pura; com During Pair/Link ou condição de piloto é regra condicional (bespoke)
       kind = "keyword";
     }

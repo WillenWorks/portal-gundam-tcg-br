@@ -1168,7 +1168,7 @@ app.get("/api/image-proxy", async (req, res) => {
     return res.status(403).json({ error: "Domínio não permitido no proxy de imagem." });
   }
   try {
-    const upstream = await fetch(parsed.toString());
+    const upstream = await fetch(parsed.toString(), { redirect: "error" });
     if (!upstream.ok || !upstream.body) return res.status(upstream.status).json({ error: "Não consegui buscar a imagem de origem." });
     res.setHeader("Content-Type", upstream.headers.get("content-type") || "image/jpeg");
     setPublicCache(res, 3600, 86400); // imagem de carta é estável, cacheia agressivo
@@ -1247,8 +1247,8 @@ app.post("/api/auth/register", async (req, res) => {
 
   // 3. Formato de e-mail
   const normalizedEmail = email.trim().toLowerCase();
-  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!EMAIL_REGEX.test(normalizedEmail)) {
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
+  if (normalizedEmail.length > 254 || !EMAIL_REGEX.test(normalizedEmail)) {
     return res.status(400).json({ error: "Informe um endereço de e-mail válido." });
   }
 
@@ -1335,7 +1335,7 @@ function authRateLimitKey(req: Request, identifier?: string): string {
 const isRemoteEnv = Boolean(
   process.env.NODE_ENV === "production" ||
     process.env.SMTP_HOST?.includes("hostinger") ||
-    process.env.MAIL_FROM?.includes("anaheimhub.com") ||
+    (process.env.MAIL_FROM && /@anaheimhub\.com$/i.test(process.env.MAIL_FROM.trim())) ||
     process.env.PM2_HOME ||
     process.env.PWD?.includes("/root/") ||
     process.env.HOME?.includes("/root") ||

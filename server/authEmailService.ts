@@ -86,6 +86,16 @@ export async function consumeToken(
 
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c);
 
+function stripTags(text: string): string {
+  let clean = text;
+  let prev = "";
+  while (clean !== prev) {
+    prev = clean;
+    clean = clean.replace(/<[^>]*>/g, "");
+  }
+  return clean;
+}
+
 function layout(title: string, intro: string, buttonLabel: string, link: string, outro: string): { html: string; text: string } {
   const html = `<!doctype html><html lang="pt-BR"><body style="margin:0;background:#0b1220;font-family:Arial,Helvetica,sans-serif;color:#e5e7eb">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0b1220;padding:32px 16px"><tr><td align="center">
@@ -99,7 +109,7 @@ function layout(title: string, intro: string, buttonLabel: string, link: string,
 </table>
 <p style="font-size:12px;color:#64748b;margin-top:16px">Este é um e-mail automático. Não responda a esta mensagem.</p>
 </td></tr></table></body></html>`;
-  const text = `AnaheimHub — ${title}\n\n${intro.replace(/<[^>]+>/g, "")}\n\n${buttonLabel}: ${link}\n\n${outro.replace(/<[^>]+>/g, "")}\n\nEste é um e-mail automático. Não responda a esta mensagem.`;
+  const text = `AnaheimHub — ${title}\n\n${stripTags(intro)}\n\n${buttonLabel}: ${link}\n\n${stripTags(outro)}\n\nEste é um e-mail automático. Não responda a esta mensagem.`;
   return { html, text };
 }
 

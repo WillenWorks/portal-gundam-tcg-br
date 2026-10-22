@@ -408,7 +408,7 @@ export async function loadMatch(matchId: string): Promise<MatchRecord | undefine
   try {
     stored = await persistence.load(matchId);
   } catch (err) {
-    console.warn(`[SIMULADOR] falha ao carregar a partida ${matchId}:`, err instanceof Error ? err.message : err);
+    console.warn("[SIMULADOR] falha ao carregar a partida:", matchId, err instanceof Error ? err.message : err);
     return undefined;
   }
   if (!stored) return undefined;
@@ -695,7 +695,7 @@ export function generateBugShortCode(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(6));
   let code = "";
   for (const byte of bytes) {
-    code += BUG_CODE_ALPHABET[byte % BUG_CODE_ALPHABET.length];
+    code += BUG_CODE_ALPHABET[byte & 31];
   }
   return `BUG-${code}`;
 }
@@ -1404,7 +1404,7 @@ export function deleteMatch(matchId: string): void {
   gameOverLogged.delete(matchId);
   if (persistence) {
     void persistence.remove(matchId).catch((err) => {
-      console.warn(`[SIMULADOR] falha ao apagar a partida ${matchId} do banco:`, err instanceof Error ? err.message : err);
+      console.warn("[SIMULADOR] falha ao apagar a partida do banco:", matchId, err instanceof Error ? err.message : err);
     });
   }
   // Não deixa `pendingMatches` apontando pra uma partida que não existe mais —

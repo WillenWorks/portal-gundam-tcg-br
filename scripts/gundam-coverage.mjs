@@ -380,7 +380,7 @@ for (const set of sets) {
       ...a.clauses.filter((c) => c.by === "missing").map((c) => `${c.missingTriggers ? `falta ${c.missingTriggers.join("/")}: ` : ""}${c.text.slice(0, 80)}`),
       ...a.errors,
     ];
-    if (issues.length) clauseLines.push(`| ${a.code} | ${a.status} | ${issues.join("<br>").replace(/\|/g, "\\|")} |`);
+    if (issues.length) { const safeIssues = issues.join("<br>").replace(/\\/g, "\\\\").replace(/\|/g, "\\|"); clauseLines.push(`| ${a.code} | ${a.status} | ${safeIssues} |`); }
   }
 }
 writeFileSync(path.join(REPO_ROOT, outFile), `${report}\n${clauseLines.join("\n")}\n`, "utf8");

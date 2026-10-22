@@ -45,7 +45,7 @@ function generate() {
 function mdCountsFor(md, set) {
   const line = md.split("\n").find((l) => l.startsWith(`**${set}:**`));
   if (!line) throw new Error(`resumo de ${set} não encontrado no coverage.md`);
-  const n = (label) => Number(new RegExp(`(\\d+) ${label.replace("*", "\\*")}(?: |$)`).exec(line)?.[1]);
+  const n = (label) => Number(new RegExp(`(\\d+) ${label.replaceAll("*", "\\*")}(?: |$)`).exec(line)?.[1]);
   return {
     impl: n("implementada"),
     implStar: n("implementada*"),

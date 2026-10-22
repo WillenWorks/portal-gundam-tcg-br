@@ -16,7 +16,7 @@ const DEFAULT_SENTRY_DSN =
 type SentryNode = typeof import("@sentry/node");
 let sentry: SentryNode | null = null;
 
-const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+const EMAIL = /[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}/g;
 const SECRET_PARAM = /([?&#](?:token|access_token|code|key|senha|password)=)[^&#\s]+/gi;
 const BEARER = /Bearer\s+[A-Za-z0-9._~+/=-]+/g;
 

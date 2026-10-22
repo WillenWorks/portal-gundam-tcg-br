@@ -410,8 +410,8 @@ export function registerAdminDashboardRoutes(
     const ghRepo = process.env.GH_DISPATCH_REPO || "WillenWorks/portal-gundam-tcg-br";
     const ghToken = process.env.GH_DISPATCH_TOKEN;
 
-    if (!workflowFile) {
-      return res.status(400).json({ error: "Nome do workflow não especificado." });
+    if (!workflowFile || !/^[a-zA-Z0-9_-]+\.ya?ml$/.test(workflowFile)) {
+      return res.status(400).json({ error: "Nome do workflow não especificado ou formato inválido." });
     }
 
     if (!ghToken) {
@@ -426,7 +426,7 @@ export function registerAdminDashboardRoutes(
     }
 
     try {
-      const response = await fetch(`https://api.github.com/repos/${ghRepo}/actions/workflows/${workflowFile}/dispatches`, {
+      const response = await fetch(`https://api.github.com/repos/${ghRepo}/actions/workflows/${encodeURIComponent(workflowFile)}/dispatches`, {
         method: "POST",
         headers: {
           Accept: "application/vnd.github.v3+json",
