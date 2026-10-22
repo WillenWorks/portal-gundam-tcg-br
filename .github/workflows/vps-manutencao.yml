@@ -454,15 +454,17 @@ jobs:
             }
 
             bug_reports() {
-              secao "bug-reports em disco"
+              secao "bug-reports em disco (antes)"
               find "$APP/bug-reports" -maxdepth 2 2>/dev/null || echo "sem pasta bug-reports"
+              secao "marcando BUG-8STNFY e BUG-CVKER1 como fixed no banco"
+              sudo -u postgres psql -d gundam_portal -c "UPDATE \"SimulatorBugReport\" SET status = 'fixed', \"prUrl\" = 'https://github.com/WillenWorks/portal-gundam-tcg-br/pull/161', note = 'Corrigido no PR #161 e deploy em produção efetuado.' WHERE \"shortCode\" IN ('BUG-8STNFY', 'BUG-CVKER1');" || true
+              sudo -u postgres psql -d gundam_portal -c "SELECT \"shortCode\", status, \"prUrl\", note, \"createdAt\" FROM \"SimulatorBugReport\" WHERE \"shortCode\" IN ('BUG-8STNFY', 'BUG-CVKER1');" || true
+              secao "removendo pastas dos relatos corrigidos do disco"
               for code in BUG-8STNFY BUG-CVKER1; do
-                secao "=== RELATO $code (DISCO) ==="
-                D=$(find "$APP/bug-reports" -name "*${code}*" 2>/dev/null | head -1)
-                if [ -n "$D" ] && [ -d "$D" ]; then
-                  cat "$D/report.md" 2>/dev/null || true
-                fi
+                rm -rf $APP/bug-reports/*${code}* 2>/dev/null || true
               done
+              secao "bug-reports em disco (depois)"
+              find "$APP/bug-reports" -maxdepth 2 2>/dev/null || echo "sem pasta bug-reports"
             }
 
             case "$TAREFA" in
