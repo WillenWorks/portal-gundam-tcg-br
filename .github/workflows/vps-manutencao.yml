@@ -461,11 +461,7 @@ jobs:
                 D=$(find "$APP/bug-reports" -name "*${code}*" 2>/dev/null | head -1)
                 if [ -n "$D" ] && [ -d "$D" ]; then
                   cat "$D/report.md" 2>/dev/null || true
-                  echo "--- gameState.json ---"
-                  cat "$D/gameState.json" 2>/dev/null || true
                 fi
-                secao "=== RELATO $code (BANCO) ==="
-                runuser -u postgres -- psql -d gundam_portal -Atc "select json_build_object('shortCode', \"shortCode\", 'note', \"note\", 'seat', \"seat\", 'cardsInvolved', \"cardsInvolved\", 'status', \"status\", 'createdAt', \"createdAt\", 'clientSnapshot', \"clientSnapshot\", 'gameState', \"gameState\") from \"SimulatorBugReport\" where \"shortCode\" = '$code'" 2>/dev/null || true
               done
             }
 
