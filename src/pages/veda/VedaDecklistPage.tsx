@@ -24,7 +24,7 @@ import { VedaSourceCredit } from "@/components/veda/VedaSourceCredit";
 import { VedaErrorView, VedaLoadingView } from "@/components/veda/VedaStateViews";
 import { vedaApi } from "@/lib/veda/api";
 import type { VedaDeckCard, VedaDecklist } from "@/lib/veda/types";
-import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX, normalizeDeckColors, resolveGameColorHex, resolveGameColorLabelPt } from "@/lib/gundam-catalog";
+import { CARD_TYPE_OPTIONS, normalizeDeckColors, resolveGameColorHex, resolveGameColorLabelPt } from "@/lib/gundam-catalog";
 
 function formatDatePtBr(raw?: string | null): string {
   if (!raw) return "Data não informada";

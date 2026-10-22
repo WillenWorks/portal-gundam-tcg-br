@@ -12,7 +12,7 @@ import { VedaArchetypeBadge } from "@/components/veda/VedaArchetypeBadge";
 import { VedaEmptyView, VedaErrorView, VedaLoadingView } from "@/components/veda/VedaStateViews";
 import { vedaApi, type VedaArchetypesQueryParams } from "@/lib/veda/api";
 import type { VedaArchetypeRow, VedaFilters } from "@/lib/veda/types";
-import { GAME_COLOR_HEX, resolveGameColorHex, TOURNAMENT_TIER_OPTIONS } from "@/lib/gundam-catalog";
+import { resolveGameColorHex, TOURNAMENT_TIER_OPTIONS } from "@/lib/gundam-catalog";
 
 const DEFAULT_SEASON = "GD05";
 

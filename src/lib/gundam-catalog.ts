@@ -82,7 +82,7 @@ export const normalizeDeckColors = (colors: readonly (string | null | undefined)
   const result: string[] = [];
   for (const raw of colors) {
     if (!raw) continue;
-    const parts = String(raw).split(/[\/,]/);
+    const parts = String(raw).split(/[/,]/);
     for (const part of parts) {
       const trimmed = part.trim();
       if (!trimmed || trimmed === "-") continue;
