@@ -21,6 +21,8 @@ name: Manutenção da VPS
 #   backup-externo-configurar  grava o token do Google Drive e a senha (segredos RCLONE_DRIVE_TOKEN e
 #                     BACKUP_PASSPHRASE), agenda o backup diário criptografado no Drive e roda o primeiro
 #   backup-externo-testar      baixa o backup mais recente do Drive, descriptografa e confere
+#   social-conferir   só leitura: variáveis do agente do Instagram (sim/não), navegador do Playwright, espaço
+#   social-navegador  instala o Chromium do Playwright (arte dos posts) e testa se abre
 
 on:
   workflow_dispatch:
@@ -28,7 +30,7 @@ on:
       tarefa:
         description: "O que fazer"
         type: choice
-        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, postgres-18, fail2ban-instalar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar, bug-reports]
+        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, postgres-18, fail2ban-instalar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar, bug-reports, social-conferir, social-navegador]
         default: diagnostico
 
 # nunca junto com um deploy ou outra manutenção
@@ -467,8 +469,40 @@ jobs:
               find "$APP/bug-reports" -maxdepth 2 2>/dev/null || echo "sem pasta bug-reports"
             }
 
+            sim_nao() { if [ -n "$1" ]; then echo sim; else echo não; fi; }
+
+            social_conferir() {
+              secao "agente do Instagram: variáveis no .env (só sim/não)"
+              for v in GEMINI_API_KEY DISCORD_WEBHOOK_URL INSTAGRAM_USER_ID INSTAGRAM_ACCESS_TOKEN SOCIAL_SCHEDULER_ENABLED SOCIAL_CHROMIUM_PATH; do
+                echo "$v: $(sim_nao "$(grep -E "^${v}=.+" "$APP/.env" 2>/dev/null | head -1)")"
+              done
+              secao "navegador do Playwright"
+              cd "$APP" && node -e 'import("playwright").then(({chromium})=>{const fs=require("fs");console.log("instalado:", fs.existsSync(chromium.executablePath())?"sim":"não")}).catch(()=>console.log("pacote playwright: não"))'
+              secao "pasta de imagens dos posts"
+              du -sh "$APP/public/uploads/social" 2>/dev/null || echo "ainda não existe"
+              df -h / | tail -1
+            }
+
+            social_navegador() {
+              secao "instalando o Chromium do Playwright (só para gerar a arte dos posts)"
+              df -h / | tail -1
+              cd "$APP"
+              if ! pnpm exec playwright install --with-deps chromium >/tmp/pw-install.log 2>&1; then
+                echo "instalação com dependências do sistema falhou; tentando só o navegador"
+                tail -5 /tmp/pw-install.log | sed -E 's#/root[^ ]*#[caminho]#g'
+                pnpm exec playwright install chromium >/tmp/pw-install.log 2>&1 || { echo "falhou"; tail -5 /tmp/pw-install.log | sed -E 's#/root[^ ]*#[caminho]#g'; }
+              fi
+              rm -f /tmp/pw-install.log
+              social_conferir
+              secao "teste: abre e fecha o navegador"
+              node -e 'import("playwright").then(async({chromium})=>{const b=await chromium.launch({args:["--no-sandbox"]});await b.close();console.log("abriu: sim")}).catch(e=>console.log("abriu: não -", String(e.message).split("\n")[0].slice(0,160)))'
+              saude
+            }
+
             case "$TAREFA" in
               bug-reports) bug_reports ;;
+              social-conferir) social_conferir ;;
+              social-navegador) social_navegador ;;
               diagnostico) diagnostico ;;
               seguranca-conferir) seguranca_conferir ;;
               upgrade-preparar) upgrade_preparar ;;

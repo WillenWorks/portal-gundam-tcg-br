@@ -10,6 +10,9 @@ import {
   Bot,
   MessageSquare,
   Eye,
+  Send,
+  CalendarClock,
+  ExternalLink,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,7 +34,7 @@ function InstagramIcon({ className = "size-4" }: { className?: string }) {
 export interface SocialMediaPost {
   id: string;
   type: "CARD_SPOTLIGHT" | "DECK_FEATURE" | "META_INSIGHT" | "PRODUCT_AFFILIATE";
-  status: "DRAFT" | "PENDING_APPROVAL" | "APPROVED" | "PUBLISHED" | "REJECTED" | "FAILED";
+  status: "DRAFT" | "PENDING_APPROVAL" | "APPROVED" | "PUBLISHING" | "PUBLISHED" | "REJECTED" | "FAILED";
   title: string | null;
   caption: string;
   cardCode: string | null;
@@ -39,10 +42,42 @@ export interface SocialMediaPost {
   imageUrl: string | null;
   discordMessageId: string | null;
   instagramPostId: string | null;
+  instagramPermalink: string | null;
+  scheduledFor: string | null;
+  approvedAt: string | null;
   publishedAt: string | null;
+  publishError: string | null;
   rejectedReason: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+interface SocialStatus {
+  gemini: boolean;
+  discord: boolean;
+  instagram: boolean;
+  renderer: boolean;
+  scheduler: boolean;
+  instagramTokenExpiresAt: string | null;
+  schedule: { days: number[]; hour: number; minute: number; leadHours: number; next: string | null };
+}
+
+const CAPTION_MAX = 2200;
+const HASHTAG_MAX = 30;
+const WEEKDAYS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+const countHashtags = (text: string) => (text.match(/(^|\s)#[\p{L}\p{N}_]+/gu) || []).length;
+const formatWhen = (iso: string) =>
+  new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+
+function IntegrationRow({ label, ok, okText, offText }: { label: string; ok: boolean; okText: string; offText: string }) {
+  return (
+    <div className="flex items-center justify-between gap-2 p-2.5 bg-white/[0.02] border border-white/10">
+      <span className="text-slate-200 font-semibold">{label}</span>
+      <Badge variant="outline" className={ok ? "border-emerald-400/40 text-emerald-300" : "border-amber-400/40 text-amber-300"}>
+        {ok ? okText : offText}
+      </Badge>
+    </div>
+  );
 }
 
 export function AdminSocialTab() {
@@ -56,6 +91,13 @@ export function AdminSocialTab() {
   const [editTitle, setEditTitle] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [integrations, setIntegrations] = useState<SocialStatus | null>(null);
+
+  useEffect(() => {
+    apiFetch<SocialStatus>("/admin/social/status")
+      .then(setIntegrations)
+      .catch(() => setIntegrations(null));
+  }, []);
 
   const selectPost = (post: SocialMediaPost) => {
     setSelectedPost(post);
@@ -132,12 +174,31 @@ export function AdminSocialTab() {
       setSavingId(post.id);
       const res = await apiFetch<{ ok: boolean; post: SocialMediaPost }>(`/admin/social/posts/${post.id}/approve`, {
         method: "POST",
+        body: JSON.stringify({ title: editTitle, caption: editCaption }),
       });
-      toast.success("Post aprovado e agendado com sucesso!");
+      if (res.post.status === "PUBLISHED") toast.success("Aprovado e publicado no Instagram!");
+      else if (res.post.status === "FAILED") toast.error(res.post.publishError || "Aprovado, mas a publicação falhou.");
+      else if (res.post.scheduledFor && new Date(res.post.scheduledFor).getTime() > Date.now()) toast.success(`Aprovado. Sai ${formatWhen(res.post.scheduledFor)}.`);
+      else toast.success("Aprovado. Configure o Instagram no servidor para publicar automaticamente.");
       setPosts((prev) => prev.map((p) => (p.id === post.id ? res.post : p)));
       if (selectedPost?.id === post.id) setSelectedPost(res.post);
     } catch (err: any) {
       toast.error(err?.message || "Erro ao aprovar post.");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const handlePublishNow = async (post: SocialMediaPost) => {
+    try {
+      setSavingId(post.id);
+      const res = await apiFetch<{ ok: boolean; post: SocialMediaPost }>(`/admin/social/posts/${post.id}/publish`, { method: "POST" });
+      if (res.ok) toast.success("Publicado no Instagram!");
+      else toast.error(res.post.publishError || "A publicação falhou.");
+      setPosts((prev) => prev.map((p) => (p.id === post.id ? res.post : p)));
+      if (selectedPost?.id === post.id) setSelectedPost(res.post);
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao publicar.");
     } finally {
       setSavingId(null);
     }
@@ -186,6 +247,10 @@ export function AdminSocialTab() {
         return <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40">Publicado</Badge>;
       case "REJECTED":
         return <Badge className="bg-red-500/20 text-red-300 border-red-500/40">Descartado</Badge>;
+      case "PUBLISHING":
+        return <Badge className="bg-sky-500/20 text-sky-300 border-sky-500/40">Publicando…</Badge>;
+      case "FAILED":
+        return <Badge className="bg-red-500/20 text-red-300 border-red-500/40">Falhou</Badge>;
       default:
         return <Badge className="bg-slate-500/20 text-slate-300">{status}</Badge>;
     }
@@ -222,7 +287,7 @@ export function AdminSocialTab() {
                   className="rounded-none font-mono text-sm bg-slate-950/60"
                 />
                 <span className="text-[11px] text-slate-500 mt-1 block">
-                  Se vazio, o agente escolhe uma carta relevante que não foi postada nos últimos 30 dias.
+                  Se vazio, o agente sorteia uma carta (impressão principal, com imagem) que não saiu nos últimos 60 posts.
                 </span>
               </div>
 
@@ -245,7 +310,7 @@ export function AdminSocialTab() {
             <div className="flex items-center justify-between pt-2">
               <div className="flex items-center gap-2 text-xs text-slate-400">
                 <span className="inline-block size-2 rounded-full bg-emerald-400" />
-                Motor: Gemini 3.8 Flash + Playwright Headless (1080x1350)
+                Legenda: {integrations?.gemini ? "Gemini" : "modelo fixo (sem GEMINI_API_KEY)"} · Arte: {integrations?.renderer ? "JPEG 1080x1350" : "navegador não instalado no servidor"}
               </div>
               <Button
                 onClick={handleGenerate}
@@ -276,31 +341,35 @@ export function AdminSocialTab() {
               Canais Conectados
             </h3>
 
-            <div className="space-y-3 text-xs">
-              <div className="flex items-center justify-between p-2.5 bg-white/[0.02] border border-white/10">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="size-4 text-indigo-400" />
-                  <span className="text-slate-200 font-semibold">Discord Webhook</span>
+            {integrations ? (
+              <div className="space-y-2 text-xs">
+                <IntegrationRow label="Discord (avisos)" ok={integrations.discord} okText="Configurado" offText="Sem DISCORD_WEBHOOK_URL" />
+                <IntegrationRow label="Gemini (legenda)" ok={integrations.gemini} okText="Configurado" offText="Usando modelo fixo" />
+                <IntegrationRow label="Navegador (arte)" ok={integrations.renderer} okText="Instalado" offText="Não instalado" />
+                <div className="flex items-center justify-between gap-2 p-2.5 bg-white/[0.02] border border-white/10">
+                  <span className="flex items-center gap-2 text-slate-200 font-semibold">
+                    <InstagramIcon className="size-4 text-pink-400" /> Instagram
+                  </span>
+                  <Badge variant="outline" className={integrations.instagram ? "border-emerald-400/40 text-emerald-300" : "border-amber-400/40 text-amber-300"}>
+                    {integrations.instagram ? "Publicação ligada" : "Não configurado"}
+                  </Badge>
                 </div>
-                <Badge variant="outline" className="border-indigo-400/40 text-indigo-300">
-                  Notificações Ativas
-                </Badge>
-              </div>
-
-              <div className="flex items-center justify-between p-2.5 bg-white/[0.02] border border-white/10">
-                <div className="flex items-center gap-2">
-                  <InstagramIcon className="size-4 text-pink-400" />
-                  <span className="text-slate-200 font-semibold">Instagram Graph API</span>
+                {integrations.instagramTokenExpiresAt && (
+                  <p className="text-[11px] text-slate-400">Token renovado; vale até {formatWhen(integrations.instagramTokenExpiresAt)}.</p>
+                )}
+                <div className="p-3 bg-sky-500/10 border-l-2 border-sky-400 text-[11px] text-sky-200 leading-relaxed flex gap-2">
+                  <CalendarClock className="size-4 shrink-0" />
+                  <span>
+                    {integrations.scheduler
+                      ? `Agenda ligada: ${integrations.schedule.days.map((d) => WEEKDAYS[d]).join(", ")} às ${String(integrations.schedule.hour).padStart(2, "0")}:${String(integrations.schedule.minute).padStart(2, "0")} (Brasília). O rascunho chega ${integrations.schedule.leadHours} h antes.${integrations.schedule.next ? ` Próximo: ${formatWhen(integrations.schedule.next)}.` : ""}`
+                      : "Agenda desligada (SOCIAL_SCHEDULER_ENABLED). Os rascunhos só são gerados pelo botão."}{" "}
+                    Nada vai ao ar sem a sua aprovação.
+                  </span>
                 </div>
-                <Badge variant="outline" className="border-slate-500 text-slate-400">
-                  Pronto para Vincular
-                </Badge>
               </div>
-
-              <div className="p-3 bg-sky-500/10 border-l-2 border-sky-400 text-[11px] text-sky-200 leading-relaxed">
-                Quando um post é gerado, o Discord recebe uma prévia imediata com link direto para aprovar ou editar por aqui.
-              </div>
-            </div>
+            ) : (
+              <p className="text-xs text-slate-400">Carregando situação das integrações…</p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -323,6 +392,7 @@ export function AdminSocialTab() {
                 <option value="PENDING_APPROVAL">Aguardando Aprovação</option>
                 <option value="APPROVED">Aprovados</option>
                 <option value="PUBLISHED">Publicados</option>
+                <option value="FAILED">Com falha</option>
                 <option value="REJECTED">Descartados</option>
               </select>
               <Button
@@ -473,8 +543,8 @@ export function AdminSocialTab() {
                         <label className="text-xs uppercase font-mono text-slate-300">
                           Legenda Completa (com Hashtags)
                         </label>
-                        <span className="text-[11px] font-mono text-slate-400">
-                          {editCaption.length} caracteres
+                        <span className={`text-[11px] font-mono ${editCaption.length > CAPTION_MAX || countHashtags(editCaption) > HASHTAG_MAX ? "text-red-400" : "text-slate-400"}`}>
+                          {editCaption.length}/{CAPTION_MAX} caracteres · {countHashtags(editCaption)}/{HASHTAG_MAX} hashtags
                         </span>
                       </div>
                       <Textarea
@@ -487,13 +557,31 @@ export function AdminSocialTab() {
                   </div>
                 </div>
 
+                {(selectedPost.scheduledFor || selectedPost.publishError || selectedPost.instagramPermalink) && (
+                  <div className="space-y-2 text-xs">
+                    {selectedPost.scheduledFor && selectedPost.status !== "PUBLISHED" && (
+                      <p className="flex items-center gap-2 text-slate-300">
+                        <CalendarClock className="size-3.5 text-sky-400" /> Horário marcado: {formatWhen(selectedPost.scheduledFor)} (Brasília)
+                      </p>
+                    )}
+                    {selectedPost.publishError && selectedPost.status === "FAILED" && (
+                      <p className="border-l-2 border-red-400 bg-red-500/10 p-2 text-red-200">{selectedPost.publishError}</p>
+                    )}
+                    {selectedPost.instagramPermalink && (
+                      <a href={selectedPost.instagramPermalink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-pink-300 hover:text-pink-200">
+                        <ExternalLink className="size-3.5" /> Ver no Instagram
+                      </a>
+                    )}
+                  </div>
+                )}
+
                 {/* Barra de Ações Inferior */}
                 <div className="border-t border-white/10 pt-4 flex flex-wrap items-center justify-between gap-3">
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => handleSaveEdit(selectedPost)}
-                    disabled={savingId === selectedPost.id}
+                    disabled={savingId === selectedPost.id || selectedPost.status === "PUBLISHED" || selectedPost.status === "PUBLISHING"}
                     className="rounded-none text-xs"
                   >
                     <Save className="size-3.5 mr-1.5" />
@@ -501,7 +589,20 @@ export function AdminSocialTab() {
                   </Button>
 
                   <div className="flex items-center gap-2">
-                    {selectedPost.status !== "REJECTED" && (
+                    {(selectedPost.status === "APPROVED" || selectedPost.status === "FAILED") && integrations?.instagram && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handlePublishNow(selectedPost)}
+                        disabled={savingId === selectedPost.id}
+                        className="rounded-none border-pink-500/40 text-pink-300 hover:bg-pink-500/10 text-xs"
+                      >
+                        <Send className="size-3.5 mr-1.5" />
+                        {selectedPost.status === "FAILED" ? "Tentar de novo" : "Publicar agora"}
+                      </Button>
+                    )}
+
+                    {selectedPost.status !== "REJECTED" && selectedPost.status !== "PUBLISHED" && selectedPost.status !== "PUBLISHING" && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -514,7 +615,7 @@ export function AdminSocialTab() {
                       </Button>
                     )}
 
-                    {selectedPost.status !== "APPROVED" && selectedPost.status !== "PUBLISHED" && (
+                    {selectedPost.status !== "APPROVED" && selectedPost.status !== "PUBLISHED" && selectedPost.status !== "PUBLISHING" && selectedPost.status !== "FAILED" && (
                       <Button
                         size="sm"
                         onClick={() => handleApprove(selectedPost)}
@@ -522,7 +623,11 @@ export function AdminSocialTab() {
                         className="rounded-none bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold uppercase tracking-wider text-xs px-4"
                       >
                         <CheckCircle2 className="size-3.5 mr-1.5" />
-                        Aprovar e Agendar Publicação
+                        {selectedPost.scheduledFor && new Date(selectedPost.scheduledFor).getTime() > Date.now()
+                          ? `Aprovar (sai ${formatWhen(selectedPost.scheduledFor)})`
+                          : integrations?.instagram
+                            ? "Aprovar e publicar agora"
+                            : "Aprovar"}
                       </Button>
                     )}
                   </div>

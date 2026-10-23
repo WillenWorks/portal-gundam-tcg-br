@@ -1,0 +1,194 @@
+/* Publicação no Instagram pela API oficial (Instagram API with Instagram Login, graph.instagram.com).
+ *
+ * Não precisa de Página do Facebook nem de App Review quando o app só publica na própria conta
+ * (acesso padrão). Configuração no .env do servidor:
+ *   INSTAGRAM_USER_ID       id da conta profissional (Business ou Creator) no Instagram
+ *   INSTAGRAM_ACCESS_TOKEN  token de longa duração (60 dias) gerado no painel do app da Meta
+ *   INSTAGRAM_API_VERSION   opcional (padrão v26.0)
+ *
+ * O token é renovado sozinho (a cada 7 dias) e o novo valor fica no banco, criptografado com uma chave
+ * derivada de SOCIAL_TOKEN_SECRET (ou do JWT_SECRET). O token nunca vai para log nem para mensagem de erro.
+ *
+ * Regras da Meta que valem aqui: só JPEG, a imagem precisa estar num endereço público na hora da publicação,
+ * legenda até 2.200 caracteres e 30 hashtags, até 100 posts pela API a cada 24 h. */
+import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:crypto";
+import type { PrismaClient } from "@prisma/client";
+
+const PROVIDER = "instagram";
+const GRAPH_HOST = "https://graph.instagram.com";
+const REFRESH_EVERY_MS = 7 * 24 * 3600_000;
+const TOKEN_TTL_MS = 60 * 24 * 3600_000;
+
+export const INSTAGRAM_CAPTION_MAX = 2200;
+export const INSTAGRAM_HASHTAG_MAX = 30;
+
+export type InstagramConfig = { userId: string; envToken: string; version: string };
+
+export function readInstagramConfig(env: NodeJS.ProcessEnv = process.env): InstagramConfig | null {
+  const userId = (env.INSTAGRAM_USER_ID || "").trim();
+  const envToken = (env.INSTAGRAM_ACCESS_TOKEN || "").trim();
+  if (!/^\d{5,25}$/.test(userId) || !envToken) return null;
+  const version = /^v\d{1,3}\.\d$/.test(env.INSTAGRAM_API_VERSION || "") ? String(env.INSTAGRAM_API_VERSION) : "v26.0";
+  return { userId, envToken, version };
+}
+
+/* ---------- token criptografado no banco ---------- */
+
+function tokenKey(env: NodeJS.ProcessEnv = process.env): Buffer {
+  const secret = env.SOCIAL_TOKEN_SECRET || env.JWT_SECRET || "";
+  if (!secret) throw new Error("Defina SOCIAL_TOKEN_SECRET (ou JWT_SECRET) para guardar o token do Instagram.");
+  return Buffer.from(hkdfSync("sha256", secret, "anaheimhub-social", "instagram-token", 32));
+}
+
+export function encryptToken(token: string, env: NodeJS.ProcessEnv = process.env): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", tokenKey(env), iv);
+  const enc = Buffer.concat([cipher.update(token, "utf8"), cipher.final()]);
+  return [iv, cipher.getAuthTag(), enc].map((b) => b.toString("base64url")).join(".");
+}
+
+export function decryptToken(payload: string, env: NodeJS.ProcessEnv = process.env): string {
+  const [iv, tag, enc] = payload.split(".").map((p) => Buffer.from(p, "base64url"));
+  if (!iv || !tag || !enc) throw new Error("Token do Instagram salvo em formato inválido.");
+  const decipher = createDecipheriv("aes-256-gcm", tokenKey(env), iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(enc), decipher.final()]).toString("utf8");
+}
+
+type TokenRow = { tokenEnc: string; expiresAt: Date | null; refreshedAt: Date };
+
+async function loadStoredToken(prisma: PrismaClient): Promise<TokenRow | null> {
+  return prisma.socialIntegrationToken.findUnique({ where: { provider: PROVIDER } }).catch(() => null);
+}
+
+/** Token em uso: o renovado (banco) ou, na primeira vez, o do .env. */
+export async function getInstagramToken(prisma: PrismaClient, config: InstagramConfig): Promise<{ token: string; expiresAt: Date | null; refreshedAt: Date | null; source: "db" | "env" }> {
+  const stored = await loadStoredToken(prisma);
+  if (stored) {
+    try {
+      return { token: decryptToken(stored.tokenEnc), expiresAt: stored.expiresAt, refreshedAt: stored.refreshedAt, source: "db" };
+    } catch {
+      /* chave trocada: volta para o token do .env */
+    }
+  }
+  return { token: config.envToken, expiresAt: null, refreshedAt: null, source: "env" };
+}
+
+/* ---------- chamadas à API ---------- */
+
+export class InstagramApiError extends Error {}
+
+type FetchLike = typeof fetch;
+
+/** Mensagem de erro da Graph API, sem nada que possa conter o token. */
+async function graphError(res: Response, step: string): Promise<InstagramApiError> {
+  const body = (await res.json().catch(() => null)) as { error?: { message?: string; code?: number } } | null;
+  const msg = String(body?.error?.message || `HTTP ${res.status}`).replace(/access_token=[^&\s]+/gi, "access_token=[removido]").slice(0, 300);
+  return new InstagramApiError(`Instagram (${step}): ${msg}${body?.error?.code ? ` [código ${body.error.code}]` : ""}`);
+}
+
+async function graphPost(fetchFn: FetchLike, url: string, params: Record<string, string>, step: string) {
+  const res = await fetchFn(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(params).toString(),
+    redirect: "error",
+  });
+  if (!res.ok) throw await graphError(res, step);
+  return (await res.json()) as Record<string, unknown>;
+}
+
+async function graphGet(fetchFn: FetchLike, url: string, params: Record<string, string>, step: string) {
+  const res = await fetchFn(`${url}?${new URLSearchParams(params).toString()}`, { redirect: "error" });
+  if (!res.ok) throw await graphError(res, step);
+  return (await res.json()) as Record<string, unknown>;
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+export type PublishResult = { mediaId: string; permalink: string | null };
+
+/** Publica uma imagem (JPEG em endereço público) com legenda. Cria o contêiner, espera ficar pronto e publica. */
+export async function publishInstagramImage(
+  prisma: PrismaClient,
+  input: { imageUrl: string; caption: string },
+  deps: { config?: InstagramConfig | null; fetchFn?: FetchLike; pollDelayMs?: number; maxPolls?: number } = {},
+): Promise<PublishResult> {
+  const config = deps.config === undefined ? readInstagramConfig() : deps.config;
+  if (!config) throw new InstagramApiError("Instagram não configurado (INSTAGRAM_USER_ID e INSTAGRAM_ACCESS_TOKEN).");
+  if (!/^https:\/\/[^/]+\/.+\.jpe?g$/i.test(input.imageUrl)) throw new InstagramApiError("A imagem precisa ser um JPEG em endereço https público.");
+  const caption = normalizeInstagramCaption(input.caption);
+  const fetchFn = deps.fetchFn ?? fetch;
+  const pollDelayMs = deps.pollDelayMs ?? 5000;
+  const maxPolls = deps.maxPolls ?? 12;
+  const { token } = await getInstagramToken(prisma, config);
+  const base = `${GRAPH_HOST}/${config.version}`;
+
+  const container = await graphPost(fetchFn, `${base}/${config.userId}/media`, { image_url: input.imageUrl, caption, access_token: token }, "criar contêiner");
+  const containerId = String(container.id || "");
+  if (!/^\d+$/.test(containerId)) throw new InstagramApiError("Instagram não devolveu o id do contêiner.");
+
+  for (let i = 0; i < maxPolls; i += 1) {
+    const status = await graphGet(fetchFn, `${base}/${containerId}`, { fields: "status_code", access_token: token }, "status do contêiner");
+    const code = String(status.status_code || "");
+    if (code === "FINISHED") break;
+    if (code === "ERROR" || code === "EXPIRED") throw new InstagramApiError(`Instagram recusou a mídia (status ${code}).`);
+    if (i === maxPolls - 1) throw new InstagramApiError("Instagram não terminou de processar a imagem a tempo; tente publicar de novo.");
+    await sleep(pollDelayMs);
+  }
+
+  const published = await graphPost(fetchFn, `${base}/${config.userId}/media_publish`, { creation_id: containerId, access_token: token }, "publicar");
+  const mediaId = String(published.id || "");
+  if (!/^\d+$/.test(mediaId)) throw new InstagramApiError("Instagram não devolveu o id do post publicado.");
+
+  let permalink: string | null = null;
+  try {
+    const info = await graphGet(fetchFn, `${base}/${mediaId}`, { fields: "permalink", access_token: token }, "link do post");
+    permalink = typeof info.permalink === "string" && info.permalink.startsWith("https://") ? info.permalink : null;
+  } catch {
+    /* o post já saiu; o link é só conveniência */
+  }
+  return { mediaId, permalink };
+}
+
+/** Renova o token de longa duração (vale mais 60 dias) quando a última renovação tem mais de 7 dias. */
+export async function refreshInstagramTokenIfNeeded(
+  prisma: PrismaClient,
+  deps: { config?: InstagramConfig | null; fetchFn?: FetchLike; now?: Date } = {},
+): Promise<"refreshed" | "fresh" | "not-configured"> {
+  const config = deps.config === undefined ? readInstagramConfig() : deps.config;
+  if (!config) return "not-configured";
+  const now = deps.now ?? new Date();
+  const current = await getInstagramToken(prisma, config);
+  if (current.refreshedAt && now.getTime() - current.refreshedAt.getTime() < REFRESH_EVERY_MS) return "fresh";
+  const data = await graphGet(deps.fetchFn ?? fetch, `${GRAPH_HOST}/refresh_access_token`, { grant_type: "ig_refresh_token", access_token: current.token }, "renovar token");
+  const token = String(data.access_token || "");
+  if (!token) throw new InstagramApiError("Instagram não devolveu o token renovado.");
+  const expiresIn = Number(data.expires_in);
+  const expiresAt = new Date(now.getTime() + (Number.isFinite(expiresIn) && expiresIn > 0 ? expiresIn * 1000 : TOKEN_TTL_MS));
+  const tokenEnc = encryptToken(token);
+  await prisma.socialIntegrationToken.upsert({
+    where: { provider: PROVIDER },
+    create: { provider: PROVIDER, tokenEnc, expiresAt, refreshedAt: now },
+    update: { tokenEnc, expiresAt, refreshedAt: now },
+  });
+  return "refreshed";
+}
+
+/* ---------- legenda ---------- */
+
+/** Garante os limites do Instagram: no máximo 30 hashtags (as excedentes saem) e 2.200 caracteres. */
+export function normalizeInstagramCaption(caption: string): string {
+  let count = 0;
+  let text = caption.replace(/\r\n/g, "\n").replace(/(^|\s)#([\p{L}\p{N}_]+)/gu, (match, lead: string) => {
+    count += 1;
+    return count <= INSTAGRAM_HASHTAG_MAX ? match : lead;
+  });
+  text = text.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  if (text.length > INSTAGRAM_CAPTION_MAX) text = `${text.slice(0, INSTAGRAM_CAPTION_MAX - 1).trimEnd()}…`;
+  return text;
+}
+
+export function countHashtags(caption: string): number {
+  return (caption.match(/(^|\s)#[\p{L}\p{N}_]+/gu) || []).length;
+}
