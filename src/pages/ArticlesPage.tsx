@@ -44,7 +44,7 @@ export default function ArticlesPage() {
   }, [page, location]);
 
   return (
-    <PublicShell
+    <PublicShell ad
       breadcrumbs={[{ label: "Artigos" }]}
       heroBanner={
         <ParallaxHeroBanner

@@ -2,6 +2,7 @@
 import { type ReactNode } from "react";
 import { Link } from "wouter";
 
+import { AdSlot } from "@/components/ads/AdSlot";
 import { AppTopNav } from "@/components/layout/shared/AppTopNav";
 import { AppFooter } from "@/components/layout/shared/AppFooter";
 import { SiteAnnouncementBanner } from "@/components/layout/shared/SiteAnnouncementBanner";
@@ -18,7 +19,12 @@ import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 type Crumb = { label: string; href?: string };
 
-export function PublicShell({ children, breadcrumbs, title, description, heroBanner }: { children: ReactNode; breadcrumbs?: Crumb[]; title?: string; description?: string; heroBanner?: ReactNode }) {
+/**
+ * `ad`: bloco do AdSense depois do conteúdo — só em páginas de leitura (cartas, coleções, artigos, regras, decks
+ * públicos, Veda). Fica de fora onde há botão de jogo ou formulário (simulador, deckbuilder, login, perfil): anúncio
+ * perto de controle gera clique acidental, e o AdSense pune isso.
+ */
+export function PublicShell({ children, breadcrumbs, title, description, heroBanner, ad = false }: { children: ReactNode; breadcrumbs?: Crumb[]; title?: string; description?: string; heroBanner?: ReactNode; ad?: boolean }) {
   const { tr } = useSiteLanguage();
   const trail = breadcrumbs?.length ? breadcrumbs : [{ label: title || tr("Página pública", "Public page") }];
 
@@ -74,6 +80,8 @@ export function PublicShell({ children, breadcrumbs, title, description, heroBan
           ) : null}
 
           {children}
+
+          {ad ? <AdSlot format="responsive" className="mt-4" /> : null}
         </div>
       </main>
 

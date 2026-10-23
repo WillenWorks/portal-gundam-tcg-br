@@ -168,7 +168,7 @@ export default function CardsPage() {
   const rarityOptions = useMemo(() => Array.from(rarityGroups.keys()).sort(), [rarityGroups]);
 
   return (
-    <PublicShell
+    <PublicShell ad={total > 0}
       breadcrumbs={[{ label: tr("Cartas", "Cards") }]}
       heroBanner={
         <ParallaxHeroBanner

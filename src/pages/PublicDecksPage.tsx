@@ -227,7 +227,7 @@ export default function PublicDecksPage() {
   };
 
   return (
-    <PublicShell breadcrumbs={[{ label: "Decks" }]}>
+    <PublicShell ad breadcrumbs={[{ label: "Decks" }]}>
       {/* BANNER PRINCIPAL: HANGAR DE CRIAÇÃO DE DECKS DA OZ */}
       <section className="relative mb-8 min-h-[300px] overflow-hidden border border-primary/40 bg-slate-950 shadow-2xl shadow-primary/15">
         {/* Background Hangar com Tallgeese na Escala Canônica */}

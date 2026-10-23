@@ -472,7 +472,7 @@ export default function RulesPage() {
   }, [allRules]);
 
   return (
-    <PublicShell title="Regras" description="Explicação mecânica em português das keywords, fases e situações de jogo — a keyword em si sempre fica em inglês, como aparece na carta. Baseado nas regras e FAQs oficiais, redigido do zero.">
+    <PublicShell ad title="Regras" description="Explicação mecânica em português das keywords, fases e situações de jogo — a keyword em si sempre fica em inglês, como aparece na carta. Baseado nas regras e FAQs oficiais, redigido do zero.">
       <div className="space-y-6">
         {/* Painel Superior de Navegação & Filtros */}
         <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">

@@ -42,7 +42,7 @@ export default function SetDetailPage() {
   const closed = isClosedSet(setData?.setType);
 
   return (
-    <PublicShell breadcrumbs={[{ label: "Coleções", href: "/sets" }, { label: setData?.code || params?.code || "Coleção" }]}>
+    <PublicShell ad={Boolean(setData)} breadcrumbs={[{ label: "Coleções", href: "/sets" }, { label: setData?.code || params?.code || "Coleção" }]}>
       <div className="space-y-6">
         <Card className="panel-cut rounded-none border-primary/30 hero-surface">
           <CardContent className="p-6">
