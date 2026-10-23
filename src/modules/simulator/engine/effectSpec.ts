@@ -467,6 +467,7 @@ export type PrimitiveCall =
       maxLevel?: number;
       maxAp?: number;
       apAtMostSelf?: boolean;
+      levelAtMostSelf?: boolean;
       unpairedOnly?: boolean;
       damagedOnly?: boolean;
       /** W11 — EB01-066 "an active enemy Unit with <Blocker>" */
@@ -1156,6 +1157,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
           maxLevel: call.maxLevel,
           maxAp: call.maxAp,
           apAtMostSelf: call.apAtMostSelf,
+          levelAtMostSelf: call.levelAtMostSelf,
           unpairedOnly: call.unpairedOnly,
           damagedOnly: call.damagedOnly,
           keyword: call.keyword,

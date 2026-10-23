@@ -644,6 +644,7 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
         maxLevel: event.maxLevel,
         maxAp: event.maxAp,
         apAtMostSelf: event.apAtMostSelf,
+        levelAtMostSelf: event.levelAtMostSelf,
         unpairedOnly: event.unpairedOnly,
         damagedOnly: event.damagedOnly,
         keyword: event.keyword,

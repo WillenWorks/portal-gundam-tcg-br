@@ -3,7 +3,8 @@
  * Suporta tanto pt-BR (padrão do portal) quanto EN (para contas com preferência em inglês).
  */
 
-import type { GameEvent, PlayerId } from "@/modules/simulator/engine/types";
+import type { AttackTargetRelaxCriteria, GameEvent, PlayerId } from "@/modules/simulator/engine/types";
+import { isUnconditionalAttackRelax } from "@/modules/simulator/engine/types";
 import type { ViewGameState, ViewCardInstance } from "@/modules/simulator/engine/viewState";
 import type { CardLanguage } from "./types";
 import { getPhaseStepLabel } from "./keywords";
@@ -14,6 +15,24 @@ export interface BattleLogEntry {
   seq: number;
   kind: BattleLogKind;
   text: string;
+}
+
+/** o critério vem de UM dos campos (Lv., AP, keyword…) — o texto antigo assumia sempre Lv. e saía "Lv.undefined" */
+export function describeAttackTargetRelax(name: string, c: AttackTargetRelaxCriteria, lang: CardLanguage): string {
+  const isPt = lang === "PT_BR";
+  if (isUnconditionalAttackRelax(c)) {
+    return isPt ? `${name} pode mirar qualquer Unit inimiga ativa neste turno` : `${name} can target any active enemy Unit this turn`;
+  }
+  const conds: string[] = [];
+  if (c.maxLevel !== undefined) conds.push(isPt ? `Lv.${c.maxLevel} ou menos` : `Lv.${c.maxLevel} or lower`);
+  if (c.maxAp !== undefined) conds.push(isPt ? `com AP ${c.maxAp} ou menos` : `with ${c.maxAp} or less AP`);
+  if (c.apAtMostSelf) conds.push(isPt ? "com AP igual ou menor que o dela" : "with AP equal to or less than its own");
+  if (c.levelAtMostSelf) conds.push(isPt ? "com Lv. igual ou menor que o dela" : "with Lv. equal to or lower than its own");
+  if (c.unpairedOnly) conds.push(isPt ? "sem Piloto pareado" : "with no paired Pilot");
+  if (c.damagedOnly) conds.push(isPt ? "com dano" : "that are damaged");
+  if (c.keyword) conds.push(isPt ? `com <${c.keyword}>` : `with <${c.keyword}>`);
+  const cond = conds.join(isPt ? " ou " : " or ");
+  return isPt ? `${name} pode mirar Unit inimiga ativa ${cond} neste turno` : `${name} can target active enemy Units ${cond} this turn`;
 }
 
 function playerLabel(id: PlayerId, lang: CardLanguage): string {
@@ -230,12 +249,7 @@ export function describeEventI18n(
       );
 
     case "GRANT_ATTACK_TARGET_RELAX":
-      return entry(
-        "effect",
-        isPt
-          ? `${nameOf(event.instanceId)} pode mirar Unit inimiga ativa Lv.${event.maxLevel} ou menos neste turno`
-          : `${nameOf(event.instanceId)} can target active enemy Units Lv.${event.maxLevel} or less this turn`,
-      );
+      return entry("effect", describeAttackTargetRelax(nameOf(event.instanceId), event, lang));
 
     case "SET_CANNOT_ATTACK":
       return entry(

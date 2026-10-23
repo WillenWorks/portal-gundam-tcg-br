@@ -109,12 +109,11 @@ export const HATHAWAY_WHEN_PAIRED: EffectSpec = {
   id: "ST08-010-WhenPaired",
   cardCode: "ST08-010",
   trigger: "When Paired",
-  actions: [
-    {
-      op: "grantAttackTargetRelax",
-      target: { kind: "named", name: "target" },
-    },
-  ],
+  condition: {
+    predicate: "selfHasTrait:Mafty",
+    then: [{ op: "grantAttackTargetRelax", target: { kind: "named", name: "target" }, damagedOnly: true }],
+  },
+  actions: [],
   targetScope: "friendlyUnit",
   targetFilter: "trait:Mafty",
   sourceText: "【When Paired】If this is a (Mafty) Unit, choose 1 of your (Mafty) Units. During this turn, it may choose a damaged active enemy Unit as its attack target.",
