@@ -5,7 +5,7 @@
  * não aparecem no feed. */
 import type { GameEvent, PlayerId } from "@/modules/simulator/engine/types";
 import type { ViewGameState, ViewCardInstance } from "@/modules/simulator/engine/viewState";
-import { describeEventI18n } from "@/i18n/battleLogI18n";
+import { describeAttackTargetRelax, describeEventI18n } from "@/i18n/battleLogI18n";
 import type { CardLanguage } from "@/i18n/types";
 
 export type BattleLogKind = "turn" | "phase" | "play" | "combat" | "damage" | "effect" | "system";
@@ -123,7 +123,7 @@ export function describeEvent(event: GameEvent, seq: number, nameOf: (id: string
     case "SET_UNIT_DAMAGE_PROTECTION":
       return entry("effect", `${nameOf(event.instanceId)} não recebe dano de batalha de Units com AP ${event.maxAttackerAp} ou menos nesta batalha`);
     case "GRANT_ATTACK_TARGET_RELAX":
-      return entry("effect", `${nameOf(event.instanceId)} pode mirar Unit inimiga ativa Lv.${event.maxLevel} ou menos neste turno`);
+      return entry("effect", describeAttackTargetRelax(nameOf(event.instanceId), event, "PT_BR"));
     case "SET_CANNOT_ATTACK":
       return entry("effect", `${nameOf(event.instanceId)} não pode atacar neste turno`);
     case "DISCARD_TO_HAND_LIMIT":

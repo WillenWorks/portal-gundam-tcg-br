@@ -114,12 +114,11 @@ export const LOCKON_WHEN_PAIRED: EffectSpec = {
   id: "ST07-011-WhenPaired",
   cardCode: "ST07-011",
   trigger: "When Paired",
-  actions: [
-    {
-      op: "grantAttackTargetRelax",
-      target: { kind: "pairedUnit" },
-    },
-  ],
+  condition: {
+    predicate: "selfHasTrait:CB",
+    then: [{ op: "grantAttackTargetRelax", target: { kind: "pairedUnit" }, levelAtMostSelf: true }],
+  },
+  actions: [],
   sourceText: "【When Paired】If this is a (CB) Unit, it may choose an active enemy Unit whose Lv. is equal to or lower than this Unit as its attack target during this turn.",
 };
 
