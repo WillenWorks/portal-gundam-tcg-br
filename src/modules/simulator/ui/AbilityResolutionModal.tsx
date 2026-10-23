@@ -26,7 +26,7 @@ import type { ArtLookup } from "./cardArt";
 import { CardFace } from "./CardFace";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { PendingDecision } from "@/modules/simulator/engine/types";
+import type { CardInstance, PendingDecision } from "@/modules/simulator/engine/types";
 import { useCardLanguage } from "@/i18n/useCardLanguage";
 import { getDecisionModalStrings, getTriggerModalLabel, resolveDecisionText } from "@/i18n/decisionText";
 import type { CardTextInput } from "@/i18n/types";
@@ -236,7 +236,7 @@ export function AbilityResolutionModal({
     const chosen = targets[specId] ?? [];
     if (q.trashExile && exileActive(specId) && (exiles[specId] ?? []).length !== q.trashExile.count) return false;
     if (q.deckTopReveal) return true; // revelar 1 ou nenhuma — sempre válido
-    if (q.handDiscard) return q.handDiscard.legalHandIds.length === 0 || chosen.length > 0;
+    if (q.handDiscard) return chosen.length === Math.min(q.handDiscard.n, q.handDiscard.legalHandIds.length);
     if (q.deckReorder) {
       const want = Math.min(q.deckReorder.slots.length, q.deckReorder.topCards.length);
       return Object.keys(reorder[specId] ?? {}).length === want;
@@ -565,17 +565,22 @@ export function AbilityResolutionModal({
                   q.handDiscard.legalHandIds.length > 0 ? (
                     <div className={cn(isSingle ? "mt-1 space-y-0.5" : "mt-2 space-y-1")}>
                       <p className="text-[10px] text-muted-portal">{strings.handDiscardPrompt}</p>
-                      <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
-                        {q.handDiscard.legalHandIds.map((instanceId) => (
-                          <Toggle
-                            key={instanceId}
-                            compact={isSingle}
-                            active={(targets[specId] ?? []).includes(instanceId)}
-                            onClick={() => pickSingle(specId, instanceId)}
-                          >
-                            {resolveHandLabel?.(instanceId) ?? strings.unnamedCard}
-                          </Toggle>
-                        ))}
+                      <div className="scrollbar-ghost flex items-stretch gap-2 overflow-x-auto pb-1">
+                        {q.handDiscard.legalHandIds.map((instanceId) => {
+                          const n = q.handDiscard!.n;
+                          const selected = (targets[specId] ?? []).includes(instanceId);
+                          const pick = () => (n > 1 ? toggleMulti(specId, instanceId, n) : pickSingle(specId, instanceId));
+                          // BUG-HA26D8 — o servidor manda as cartas ao dono (viewState); só o nome não
+                          // distingue cópias nem cartas de nome igual (ex. 2 "Banagher Links").
+                          const card = q.handDiscard!.cards?.find((c) => c.instanceId === instanceId);
+                          return card ? (
+                            <CardChoiceTile key={instanceId} card={card} art={art} selected={selected} onClick={pick} />
+                          ) : (
+                            <Toggle key={instanceId} compact={isSingle} active={selected} onClick={pick}>
+                              {resolveHandLabel?.(instanceId) ?? strings.unnamedCard}
+                            </Toggle>
+                          );
+                        })}
                       </div>
                     </div>
                   ) : (
@@ -817,6 +822,35 @@ function BoardTargetHint({
         </span>
       ) : null}
     </span>
+  );
+}
+
+/** carta escolhível mostrada com arte + nome + código (mesmo visual das cartas do `deckTopReveal`) */
+function CardChoiceTile({ card, art, selected, onClick }: { card: CardInstance; art: ArtLookup; selected: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label={`${card.def.nameEn} ${card.def.code}`}
+      aria-pressed={selected}
+      onClick={onClick}
+      className={cn(
+        "group relative flex w-24 shrink-0 flex-col items-center rounded-arena border p-1 text-center transition-all",
+        selected
+          ? "border-amber-400 bg-amber-400/20 shadow-[0_0_12px_rgba(251,191,36,0.35)] ring-1 ring-amber-400"
+          : "border-white/10 bg-black/50 hover:border-amber-400/60 hover:bg-black/70",
+      )}
+    >
+      <div className="relative aspect-[63/88] w-full overflow-hidden rounded border border-white/10 bg-black/60 shadow-sm">
+        <CardFace nameEn={card.def.nameEn} code={card.def.code} art={art} size="sm" className="h-full w-full object-cover" />
+        {selected ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-amber-400/25 backdrop-blur-[0.5px]">
+            <span className="rounded-full bg-amber-400 px-1.5 py-0.5 text-[9px] font-black text-black shadow-md">✓</span>
+          </div>
+        ) : null}
+      </div>
+      <span className="mt-1 line-clamp-1 w-full text-[10px] font-bold text-slate-100 group-hover:text-amber-200">{card.def.nameEn}</span>
+      <span className="font-mono text-[9px] text-amber-300/80">{card.def.code}</span>
+    </button>
   );
 }
 

@@ -15,6 +15,7 @@ import {
   PEACEFUL_TIMBRE_ACTION,
   SAINT_GABRIEL_INSTITUTE_BURST,
   SAINT_GABRIEL_INSTITUTE_DEPLOY,
+  SAINT_GABRIEL_INSTITUTE_THEN,
   SIEGE_PLOY_ACTION,
   SIEGE_PLOY_BURST,
   SIEGE_PLOY_MAIN,
@@ -42,9 +43,9 @@ function stripBase(state: GameState, player: PlayerId): GameState {
 }
 
 describe("EffectSpecs reais do ST02 (docs/18 passo 3)", () => {
-  it("13 EffectSpecs cadastrados, cobrindo 9 das 16 cartas únicas", () => {
+  it("14 EffectSpecs cadastrados (ST02-015 tem a continuação Then:1), cobrindo 9 das 16 cartas únicas", () => {
     const codes = new Set(ST02_EFFECT_SPECS.map((s) => s.cardCode));
-    expect(ST02_EFFECT_SPECS).toHaveLength(13);
+    expect(ST02_EFFECT_SPECS).toHaveLength(14);
     expect(codes.size).toBe(9);
   });
 
@@ -214,7 +215,10 @@ describe("EffectSpecs reais do ST02 (docs/18 passo 3)", () => {
         targets: { shield: [shieldId], toTop: [top2.instanceId], toBottom: [top1.instanceId] },
       };
 
-      const next = applyEvents(state, resolveEffectSpec(SAINT_GABRIEL_INSTITUTE_DEPLOY, ctx));
+      // BUG-NHDK4F — Deploy (escudo) e a continuação Then:1 (reordenação) são specs separados
+      const afterShield = applyEvents(state, resolveEffectSpec(SAINT_GABRIEL_INSTITUTE_DEPLOY, ctx));
+      expect(findCard(afterShield, shieldId).zone).toBe("hand");
+      const next = applyEvents(afterShield, resolveEffectSpec(SAINT_GABRIEL_INSTITUTE_THEN, { ...ctx, state: afterShield }));
 
       expect(findCard(next, shieldId).zone).toBe("hand");
       expect(next.players.A.deck).toHaveLength(deckSizeBefore);

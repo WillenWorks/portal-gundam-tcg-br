@@ -670,7 +670,8 @@
               ],
               "by": "spec",
               "refs": [
-                "ST02-015-Deploy"
+                "ST02-015-Deploy",
+                "ST02-015-Then"
               ],
               "text": "【Deploy】Add 1 of your Shields to your hand. Then, look at the top 2 cards of your deck and return 1 to the top and 1 to the bottom."
             }

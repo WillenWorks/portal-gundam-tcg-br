@@ -125,6 +125,11 @@ describe("ST02-015 Saint Gabriel — 【Deploy】...look at the top 2 and return
     });
     const decision = paused.pendingDecision.A;
     const q = decision?.kind === "abilityResolution" ? decision.queue[0] : undefined;
+    // BUG-NHDK4F — "Add 1 of your Shields to your hand. Then, look at…": o escudo vai pra mão
+    // ANTES da pausa; a reordenação é a continuação (Then:1).
+    expect(paused.players.A.shields.length).toBe(shieldsBefore - 1);
+    expect(decision?.kind === "abilityResolution" ? decision.trigger : undefined).toBe("Then:1");
+    expect(q?.specId).toBe("ST02-015-Then");
     expect(q?.deckReorder?.slots.map((s) => s.position)).toEqual(["top", "bottom"]);
     expect(q?.deckReorder?.topCards.map((c) => c.instanceId)).toEqual([top1, top2]);
 
@@ -133,7 +138,7 @@ describe("ST02-015 Saint Gabriel — 【Deploy】...look at the top 2 and return
       kind: "resolveAbility",
       resolutions: [{ specId: q!.specId, activate: true, targetIds: [top2, top1] }],
     });
-    expect(next.players.A.shields.length).toBe(shieldsBefore - 1); // Add 1 Shield rodou no resolve
+    expect(next.players.A.shields.length).toBe(shieldsBefore - 1); // só 1 escudo, não 2
     expect(next.players.A.deck[0].instanceId).toBe(top2);
     expect(next.players.A.deck[next.players.A.deck.length - 1].instanceId).toBe(top1);
     expect(next.pendingDecision.A).toBeNull();

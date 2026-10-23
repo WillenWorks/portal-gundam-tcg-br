@@ -110,6 +110,9 @@ function movePilotAlong(player: PlayerState, pilotId: string, zone: Zone, turnNu
   player[zone].push(pilot);
 }
 
+/** zonas onde `rested` tem significado — fora delas a carta está sempre active */
+const IN_PLAY_ZONES: ReadonlySet<Zone> = new Set<Zone>(["battleArea", "baseSection", "resourceArea"]);
+
 function removeFromZone(player: PlayerState, instanceId: string): CardInstance | null {
   const zones: Zone[] = [
     "deck",
@@ -237,7 +240,9 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       card.enteredZoneOnTurn = state.turnNumber;
       // W4 — "If you deploy this Unit from your trash" (GD04-060, GD03-062)
       card.enteredFromZone = targetZone === "battleArea" ? fromZone : undefined;
-      // W5 (C12) — GD04-022 "… are deployed rested" (a carta já está na zona nova pra checagem)
+      // BUG-G0HZHQ — carta que entra em campo vinda de fora de jogo (mão, trash…) entra active; antes herdava o
+      // `rested` de quando saiu de campo. W5 (C12) — GD04-022 "… are deployed rested" (a carta já está na zona nova pra checagem)
+      if ((targetZone === "battleArea" || targetZone === "baseSection") && !IN_PLAY_ZONES.has(fromZone)) card.rested = false;
       if (targetZone === "battleArea" && fromZone !== "battleArea" && entersRestedByRule(state, card)) card.rested = true;
       // CR 3-3-6 — Unit pareada que sai da Battle Area leva o Piloto para o MESMO lugar (mão, deck, trash…).
       // Antes o par era desfeito e o Piloto ficava sozinho na Battle Area (violando 3-3-3).
@@ -257,7 +262,7 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
         card.damageModifiers = undefined;
         card.battleDamageRedirect = undefined;
       }
-      if (targetZone === "shields" || targetZone === "deck" || targetZone === "resourceDeck") {
+      if (!IN_PLAY_ZONES.has(targetZone)) {
         card.rested = false;
       }
       player[targetZone].push(card);

@@ -82,7 +82,7 @@ describe("【Burst】Deploy this card — encadeia o 【Deploy】 da Base (docs/
     expect(state.players.A.hand.length).toBe(handBefore + 1);
   });
 
-  it("ST02-015 Saint Gabriel: Base em campo + PAUSA pra reordenação (deckReorder) via Burst — resolver aplica Add 1 Shield + reorder juntos (docs/47 Fase 4, deferred.ts fechado)", () => {
+  it("ST02-015 Saint Gabriel: Base em campo + Add 1 Shield na hora + PAUSA pra reordenação (deckReorder, continuação Then:1) via Burst (BUG-NHDK4F)", () => {
     let state = freshGame();
     place(state, "A", ST01_CARD_DEFS.RESOURCE, "shields");
     const handBefore = state.players.A.hand.length;
@@ -90,11 +90,12 @@ describe("【Burst】Deploy this card — encadeia o 【Deploy】 da Base (docs/
     const [top1, top2] = state.players.A.deck.slice(0, 2).map((c) => c.instanceId);
     state = burst(state, "A", ST02_CARD_DEFS.SAINT_GABRIEL_INSTITUTE);
     expect(state.players.A.baseSection.some((c) => c.def.code === "ST02-015")).toBe(true);
-    // pausou: shield e reorder resolvem JUNTOS (mesmo spec) na resolução da decisão, não antes.
-    expect(state.players.A.hand.length).toBe(handBefore);
+    // BUG-NHDK4F — o escudo vai pra mão ANTES da escolha de topo/fundo (texto: "Add 1 … Then, look at…")
+    expect(state.players.A.hand.length).toBe(handBefore + 1);
+    expect(state.players.A.shields.length).toBe(shieldsBefore - 1);
     const decision = state.pendingDecision.A;
     const q = decision?.kind === "abilityResolution" ? decision.queue[0] : undefined;
-    expect(q?.specId).toBe("ST02-015-Deploy");
+    expect(q?.specId).toBe("ST02-015-Then");
     expect(q?.deckReorder?.slots.map((s) => s.position)).toEqual(["top", "bottom"]);
     expect(q?.deckReorder?.topCards.map((c) => c.instanceId)).toEqual([top1, top2]);
 
@@ -107,7 +108,7 @@ describe("【Burst】Deploy this card — encadeia o 【Deploy】 da Base (docs/
       defaultPredicateResolver,
       defaultTargetFilterResolver,
     );
-    expect(resolved.players.A.hand.length).toBe(handBefore + 1); // Add 1 Shield rodou no resolve
+    expect(resolved.players.A.hand.length).toBe(handBefore + 1); // só 1 escudo, não 2
     expect(resolved.players.A.shields.length).toBe(shieldsBefore - 1);
     expect(resolved.players.A.deck[0].instanceId).toBe(top2);
     expect(resolved.players.A.deck[resolved.players.A.deck.length - 1].instanceId).toBe(top1);
