@@ -1,4 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
+
+const genai = vi.hoisted(() => ({ generateContent: vi.fn() }));
+vi.mock("@google/genai", () => ({
+  GoogleGenAI: class {
+    models = { generateContent: genai.generateContent };
+  },
+}));
 import {
   buildSocialCardHtml,
   captionProblems,
@@ -57,6 +64,29 @@ describe("socialPublisherService", () => {
     expect(content.fullCaption).toContain("CARTA DO DIA");
     expect(content.fullCaption).toContain("#GundamCardGame");
     expect(content.fullCaption).toContain("Unidade");
+  });
+
+  it("Gemini sobrecarregado (503) num modelo: tenta o próximo antes de cair no texto fixo", async () => {
+    genai.generateContent.mockReset();
+    genai.generateContent
+      .mockRejectedValueOnce(new Error('{"error":{"code":503,"status":"UNAVAILABLE"}}'))
+      .mockResolvedValueOnce({ text: JSON.stringify({ title: "Gundam em foco", fullCaption: "Legenda do Gemini #GundamCardGame" }) });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const content = await generateSocialContentWithGemini({ code: "ST01-001", name: "Gundam", color: "blue", type: "UNIT", text: "efeito" }, undefined, "chave");
+    warn.mockRestore();
+    expect(content.fullCaption).toContain("Legenda do Gemini");
+    const models = genai.generateContent.mock.calls.map(([req]) => req.model);
+    expect(models).toHaveLength(2);
+    expect(models[0]).not.toBe(models[1]);
+  });
+
+  it("todos os modelos do Gemini falhando: usa o texto fixo", async () => {
+    genai.generateContent.mockReset();
+    genai.generateContent.mockRejectedValue(new Error("503"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const content = await generateSocialContentWithGemini({ code: "ST01-001", name: "Gundam", color: "blue", type: "UNIT", text: "efeito" }, undefined, "chave");
+    warn.mockRestore();
+    expect(content.fullCaption).toContain("CARTA DO DIA");
   });
 
   it("arte: palavras-chave entre < > aparecem escapadas (antes sumiam como tag HTML)", () => {

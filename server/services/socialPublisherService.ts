@@ -179,6 +179,15 @@ function templateContent(card: SocialCard): GeneratedPostContent {
   };
 }
 
+// sobrecarga (503) e cota (429) do Gemini são por modelo e passageiras: antes de cair no texto fixo, tenta os
+// próximos da lista (do mais novo ao mais estável). GEMINI_SOCIAL_MODEL, se definido, vai na frente.
+export const GEMINI_SOCIAL_MODELS = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-2.5-flash"];
+
+function geminiSocialModels(): string[] {
+  const custom = process.env.GEMINI_SOCIAL_MODEL?.trim();
+  return custom ? [custom, ...GEMINI_SOCIAL_MODELS.filter((model) => model !== custom)] : GEMINI_SOCIAL_MODELS;
+}
+
 /** Gera a legenda com o Gemini; sem chave ou com falha, usa um modelo fixo só com os dados da carta. */
 export async function generateSocialContentWithGemini(card: SocialCard, customTopic?: string, apiKey?: string): Promise<GeneratedPostContent> {
   const resolvedKey = apiKey !== undefined ? apiKey : process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
@@ -208,26 +217,30 @@ Regras:
 Responda APENAS com JSON válido:
 {"title": "...", "hook": "...", "strategy": "...", "cta": "...", "hashtags": ["..."], "fullCaption": "..."}`;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: process.env.GEMINI_SOCIAL_MODEL || "gemini-3.8-flash",
-      contents: prompt,
-      config: { responseMimeType: "application/json" },
-    });
-    const parsed = JSON.parse(response.text?.trim() || "{}") as Partial<GeneratedPostContent>;
-    if (typeof parsed.fullCaption === "string" && parsed.fullCaption.trim()) {
-      return {
-        title: String(parsed.title || `Carta do Dia: ${card.name} (${card.code})`).slice(0, 140),
-        hook: String(parsed.hook || ""),
-        strategy: String(parsed.strategy || ""),
-        cta: String(parsed.cta || ""),
-        hashtags: Array.isArray(parsed.hashtags) ? parsed.hashtags.map(String).slice(0, INSTAGRAM_HASHTAG_MAX) : [],
-        fullCaption: normalizeInstagramCaption(parsed.fullCaption),
-      };
+  for (const model of geminiSocialModels()) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: { responseMimeType: "application/json" },
+      });
+      const parsed = JSON.parse(response.text?.trim() || "{}") as Partial<GeneratedPostContent>;
+      if (typeof parsed.fullCaption === "string" && parsed.fullCaption.trim()) {
+        return {
+          title: String(parsed.title || `Carta do Dia: ${card.name} (${card.code})`).slice(0, 140),
+          hook: String(parsed.hook || ""),
+          strategy: String(parsed.strategy || ""),
+          cta: String(parsed.cta || ""),
+          hashtags: Array.isArray(parsed.hashtags) ? parsed.hashtags.map(String).slice(0, INSTAGRAM_HASHTAG_MAX) : [],
+          fullCaption: normalizeInstagramCaption(parsed.fullCaption),
+        };
+      }
+      console.warn(`[socialPublisher] Gemini (${model}) respondeu sem legenda, tentando o próximo modelo`);
+    } catch (err) {
+      console.warn(`[socialPublisher] Gemini (${model}) falhou na geração do texto:`, err instanceof Error ? err.message : err);
     }
-  } catch (err) {
-    console.warn("[socialPublisher] Gemini falhou na geração do texto, usando o modelo fixo:", err instanceof Error ? err.message : err);
   }
+  console.warn("[socialPublisher] nenhum modelo do Gemini respondeu, usando o modelo fixo");
   return templateContent(card);
 }
 
