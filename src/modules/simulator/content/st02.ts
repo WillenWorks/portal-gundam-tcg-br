@@ -153,16 +153,28 @@ export const SAINT_GABRIEL_INSTITUTE_BURST: EffectSpec = {
 // montar `ctx.targets.toTop`/`ctx.targets.toBottom` com a escolha de quem
 // controla — o `EffectSpec` em si só compila a reordenação já decidida,
 // igual ao padrão "named" já usado por "target"/"shield").
+// BUG-NHDK4F — o escudo vai pra mão ANTES da escolha de topo/fundo: num spec só, a
+// escolha pausava o efeito inteiro e o escudo só saía na resolução. A reordenação
+// é a continuação `Then:1` (mesmo padrão de GD02-094).
 export const SAINT_GABRIEL_INSTITUTE_DEPLOY: EffectSpec = {
   id: "ST02-015-Deploy",
   cardCode: "ST02-015",
   trigger: "Deploy",
   actions: [
     { op: "addShieldToHand", player: "controller", count: 1 },
+    { op: "thenTrigger", trigger: "Then:1" },
+  ],
+  sourceText: "【Deploy】Add 1 of your Shields to your hand.",
+};
+export const SAINT_GABRIEL_INSTITUTE_THEN: EffectSpec = {
+  id: "ST02-015-Then",
+  cardCode: "ST02-015",
+  trigger: "Then:1",
+  actions: [
     { op: "moveWithinDeck", target: { kind: "named", name: "toTop" }, position: "top" },
     { op: "moveWithinDeck", target: { kind: "named", name: "toBottom" }, position: "bottom" },
   ],
-  sourceText: "【Deploy】Add 1 of your Shields to your hand. Then, look at the top 2 cards of your deck and return 1 to the top and 1 to the bottom.",
+  sourceText: "Then, look at the top 2 cards of your deck and return 1 to the top and 1 to the bottom.",
 };
 
 // ST02-016 Corsica Base — 【Burst】Deploy this card.
@@ -207,6 +219,7 @@ export const ST02_EFFECT_SPECS: EffectSpec[] = [
   SIEGE_PLOY_ACTION,
   SAINT_GABRIEL_INSTITUTE_BURST,
   SAINT_GABRIEL_INSTITUTE_DEPLOY,
+  SAINT_GABRIEL_INSTITUTE_THEN,
   CORSICA_BASE_BURST,
   CORSICA_BASE_DEPLOY,
 ];

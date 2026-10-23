@@ -10,7 +10,7 @@ import { applyPlayerAction } from "./actions";
 import { buildSt01DeckList, ST01_CARD_DEFS } from "../fixtures/st01Deck";
 import { AMURO_RAY_WHEN_PAIRED, GUNDAM_MA_FORM_WHEN_PAIRED, ST01_EFFECT_SPECS } from "../content/st01";
 import { defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
-import { findCard } from "./events";
+import { applyEvents, findCard } from "./events";
 import { TOKEN_EX_RESOURCE_CODE } from "./setup";
 import { GD01_CARD_DEFS, GD01_EFFECT_SPECS } from "../content/gd01";
 
@@ -287,6 +287,31 @@ describe("deployCard — jogar Unit/Pilot/Base da mão (docs/18)", () => {
 
       const secondPilotId = place(afterFirst, "A", VANILLA_CARD_DEFS.PILOT_01, "hand");
       expect(() => deployCard(afterFirst, "A", secondPilotId, { pairWithUnitId: unitId })).toThrow(/já tem um Pilot/);
+    });
+  });
+
+  describe("BUG-G0HZHQ — Unit que voltou pra mão rested entrava em campo rested", () => {
+    it("rested em campo → volta pra mão por efeito → jogada de novo entra active", () => {
+      const state = freshMainPhase();
+      giveResources(state, "A", 2);
+      const unitId = place(state, "A", VANILLA_CARD_DEFS.VANILLA_02, "battleArea");
+      const bounced = applyEvents(state, [
+        { type: "REST_CARD", instanceId: unitId },
+        { type: "MOVE_CARD", instanceId: unitId, toZone: "hand" },
+      ]);
+      expect(findCard(bounced, unitId).rested).toBe(false);
+
+      const next = deployCard(bounced, "A", unitId);
+      expect(findCard(next, unitId).zone).toBe("battleArea");
+      expect(findCard(next, unitId).rested).toBe(false);
+    });
+
+    it("partida salva antes da correção (carta já rested na mão) também entra active", () => {
+      const state = freshMainPhase();
+      giveResources(state, "A", 2);
+      const unitId = place(state, "A", VANILLA_CARD_DEFS.VANILLA_02, "hand", { rested: true });
+      const next = deployCard(state, "A", unitId);
+      expect(findCard(next, unitId).rested).toBe(false);
     });
   });
 });

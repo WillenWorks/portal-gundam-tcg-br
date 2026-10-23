@@ -827,3 +827,62 @@ describe("BUG-8STNFY & BUG-CVKER1 (posicionamento do botão Confirmar e imagens 
     expect(screen.getByText("ST03-002")).toBeInTheDocument();
   });
 });
+
+describe("BUG-HA26D8 (descarte mostrava só o nome da carta)", () => {
+  const handCard = (instanceId: string, code: string, name: string, cardType: "UNIT" | "PILOT" = "UNIT"): CardInstance =>
+    ({ instanceId, def: { code, nameEn: name, cardType, color: "blue" }, owner: "A", zone: "hand", rested: false, damage: 0, statModifiers: [], keywordGrants: [], usedKeywordsThisTurn: [], enteredZoneOnTurn: 0 }) as CardInstance;
+
+  const discardDecision = (n: number, cards: CardInstance[]): AR => ({
+    kind: "abilityResolution",
+    trigger: "Destroyed",
+    queue: [
+      {
+        sourceInstanceId: "u1",
+        specId: "GD01-005-Destroyed",
+        label: "Return this Unit's paired Pilot to its owner's hand. Then, discard 1.",
+        optional: false,
+        needsTarget: false,
+        targetScope: "enemyUnit",
+        legalTargets: [],
+        handDiscard: { n, legalHandIds: cards.map((c) => c.instanceId), cards, label: "discard" },
+      },
+    ],
+  });
+
+  it("renderiza a carta (arte + código) em vez de só o nome — cópias do mesmo nome ficam distinguíveis", () => {
+    const cards = [
+      handCard("A-1", "ST01-001", "Gundam"),
+      handCard("A-2", "GD01-088", "Banagher Links", "PILOT"),
+      handCard("A-3", "ST14-012", "Banagher Links", "PILOT"),
+    ];
+    const art: ArtLookup = {
+      "ST01-001": { imageUrl: "https://img.com/gundam.png" },
+      "GD01-088": { imageUrl: "https://img.com/banagher-gd01.png" },
+      "ST14-012": { imageUrl: "https://img.com/banagher-st14.png" },
+    };
+    const onResolve = vi.fn();
+    render(<Harness decision={discardDecision(1, cards)} art={art} onResolve={onResolve} />);
+    expect(screen.getByRole("img", { name: "Gundam" })).toHaveAttribute("src", "https://img.com/gundam.png");
+    expect(screen.getByText("GD01-088")).toBeInTheDocument();
+    expect(screen.getByText("ST14-012")).toBeInTheDocument();
+
+    const confirm = screen.getByRole("button", { name: "Confirmar" });
+    expect(confirm).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Banagher Links ST14-012" }));
+    fireEvent.click(confirm);
+    expect(onResolve).toHaveBeenCalledWith([{ specId: "GD01-005-Destroyed", activate: true, targetIds: ["A-3"] }]);
+  });
+
+  it("descarte de N > 1 (GD02-117 'discard 2'): deixa escolher N cartas e só confirma com exatamente N", () => {
+    const cards = [handCard("A-1", "ST01-001", "Gundam"), handCard("A-2", "ST01-002", "Guncannon"), handCard("A-3", "ST01-003", "Guntank")];
+    const onResolve = vi.fn();
+    render(<Harness decision={discardDecision(2, cards)} onResolve={onResolve} />);
+    const confirm = screen.getByRole("button", { name: "Confirmar" });
+    fireEvent.click(screen.getByRole("button", { name: "Gundam ST01-001" }));
+    expect(confirm).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Guntank ST01-003" }));
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+    expect(onResolve).toHaveBeenCalledWith([{ specId: "GD01-005-Destroyed", activate: true, targetIds: ["A-1", "A-3"] }]);
+  });
+});
