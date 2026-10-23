@@ -164,7 +164,7 @@ export function getKeywordStyle(base: string, delimiter: "angle" | "square") {
 }
 
 function extractKeywordsFromText(text: string): ParsedKeyword[] {
-  const matches = Array.from(text.matchAll(/<([^<>]+)>|\[([^\[\]]+)\]|【([^【】]+)】/g));
+  const matches = Array.from(text.matchAll(/<([^<>]+)>|\[([^[\]]+)\]|【([^【】]+)】/g));
 
   return matches
     .map((match) => {

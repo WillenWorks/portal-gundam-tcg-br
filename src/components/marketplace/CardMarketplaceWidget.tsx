@@ -36,7 +36,7 @@ export function CardMarketplaceWidget({ card, compact = false }: CardMarketplace
         </div>
 
         <span className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-xs">
-          <TrendingDown className="size-3" /> {tr("Menor Preço", "Best Price")}
+          <TrendingDown className="size-3" /> {tr("Compare preços", "Compare prices")}
         </span>
       </div>
 
@@ -46,7 +46,7 @@ export function CardMarketplaceWidget({ card, compact = false }: CardMarketplace
         <a
           href={links.ligaGundamUrl}
           target="_blank"
-          rel="noopener noreferrer"
+          rel="sponsored nofollow noopener noreferrer"
           className="group flex flex-col justify-between border dark:border-white/10 light:border-slate-300 dark:bg-slate-950/70 light:bg-slate-50 p-3 transition hover:border-emerald-500/60 hover:bg-emerald-500/[0.04]"
         >
           <div className="flex items-center justify-between mb-1.5">
@@ -64,7 +64,7 @@ export function CardMarketplaceWidget({ card, compact = false }: CardMarketplace
         <a
           href={links.myPcardsUrl}
           target="_blank"
-          rel="noopener noreferrer"
+          rel="sponsored nofollow noopener noreferrer"
           className="group flex flex-col justify-between border dark:border-white/10 light:border-slate-300 dark:bg-slate-950/70 light:bg-slate-50 p-3 transition hover:border-purple-500/60 hover:bg-purple-500/[0.04]"
         >
           <div className="flex items-center justify-between mb-1.5">
@@ -82,7 +82,7 @@ export function CardMarketplaceWidget({ card, compact = false }: CardMarketplace
         <a
           href={links.mercadoLivreUrl}
           target="_blank"
-          rel="noopener noreferrer"
+          rel="sponsored nofollow noopener noreferrer"
           className="group flex flex-col justify-between border dark:border-white/10 light:border-slate-300 dark:bg-slate-950/70 light:bg-slate-50 p-3 transition hover:border-amber-400/60 hover:bg-amber-400/[0.04]"
         >
           <div className="flex items-center justify-between mb-1.5">
@@ -100,7 +100,7 @@ export function CardMarketplaceWidget({ card, compact = false }: CardMarketplace
         <a
           href={links.amazonUrl}
           target="_blank"
-          rel="noopener noreferrer"
+          rel="sponsored nofollow noopener noreferrer"
           className="group flex flex-col justify-between border dark:border-white/10 light:border-slate-300 dark:bg-slate-950/70 light:bg-slate-50 p-3 transition hover:border-sky-400/60 hover:bg-sky-400/[0.04]"
         >
           <div className="flex items-center justify-between mb-1.5">

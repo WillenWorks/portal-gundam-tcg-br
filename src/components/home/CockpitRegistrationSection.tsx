@@ -208,7 +208,7 @@ export function CockpitRegistrationSection() {
                   </span>
                   <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 font-mono text-[10px] text-emerald-400 backdrop-blur-md">
                     <span className="size-1.5 rounded-full bg-emerald-400 animate-ping" />
-                    CABINE DISPONÍVEL
+                    {tr("CABINE DISPONÍVEL", "COCKPIT AVAILABLE")}
                   </span>
                 </div>
 

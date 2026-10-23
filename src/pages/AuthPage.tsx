@@ -399,7 +399,7 @@ export default function AuthPage() {
                     <Input
                       value={confirmEmail}
                       onChange={(event) => { setConfirmEmail(event.target.value); setErrorMessage(null); }}
-                      placeholder="Repita o seu e-mail"
+                      placeholder={tr("Repita o seu e-mail", "Repeat your email")}
                       className="field-shell"
                       type="email"
                       disabled={loading}

@@ -7,8 +7,6 @@ import {
   XCircle,
   Trash2,
   Save,
-  Send,
-  ExternalLink,
   Bot,
   MessageSquare,
   Eye,
@@ -58,7 +56,12 @@ export function AdminSocialTab() {
   const [editTitle, setEditTitle] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [savingId, setSavingId] = useState<string | null>(null);
-  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+
+  const selectPost = (post: SocialMediaPost) => {
+    setSelectedPost(post);
+    setEditTitle(post.title || "");
+    setEditCaption(post.caption || "");
+  };
 
   const fetchPosts = async () => {
     try {
@@ -79,12 +82,6 @@ export function AdminSocialTab() {
   useEffect(() => {
     fetchPosts();
   }, [statusFilter]);
-
-  const selectPost = (post: SocialMediaPost) => {
-    setSelectedPost(post);
-    setEditTitle(post.title || "");
-    setEditCaption(post.caption || "");
-  };
 
   const handleGenerate = async () => {
     try {
