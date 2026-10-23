@@ -495,7 +495,7 @@ jobs:
               fi
               secao "removendo os pacotes do PostgreSQL 17 (sem autoremove)"
               PKGS=$(dpkg -l 'postgresql-17*' 'postgresql-client-17*' 2>/dev/null | awk '/^ii/{print $2}' | tr '\n' ' ')
-              if [ -n "$PKGS" ]; then DEBIAN_FRONTEND=noninteractive apt-get purge -y $PKGS >/dev/null && echo "removidos: $PKGS"; else echo "nenhum pacote do 17 instalado"; fi
+              if [ -n "$PKGS" ]; then DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=600 purge -y $PKGS >/dev/null && echo "removidos: $PKGS" || echo "não consegui remover agora (apt ocupado?) — rode de novo"; else echo "nenhum pacote do 17 instalado"; fi
               secao "depois"
               df -h / | tail -1
               saude
