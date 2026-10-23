@@ -4,7 +4,7 @@
  *  1. em dia de post (padrão seg/qua/sex), a partir de SOCIAL_DRAFT_LEAD_HOURS antes do horário, gera o rascunho
  *     do dia (uma vez só: o dia fica gravado em slotKey, único no banco) e avisa no Discord;
  *  2. publica os posts APROVADOS cujo horário já chegou;
- *  3. uma vez por dia, renova o token do Instagram (vale 60 dias).
+ *  3. uma vez por dia, renova o token do Instagram (vale 60 dias) e apaga imagens de posts excluídos.
  * Nada é publicado sem aprovação: rascunho não aprovado fica esperando no painel.
  *
  * Por que aqui e não num cron do GitHub: o agendamento do GitHub Actions atrasa de 3 a 7 horas. */
@@ -53,6 +53,10 @@ export async function runSocialSchedulerTick(prisma: PrismaClient, deps: Deps = 
       }
     }
 
+    // limpeza diária das imagens de posts excluídos (com ou sem Instagram configurado)
+    const daily = now.getTime() - lastTokenCheck >= TOKEN_CHECK_MS;
+    if (daily && service) await service.cleanupOrphanSocialImages(prisma, now).catch(() => 0);
+
     // 2. aprovados cujo horário chegou
     if (instagramConfigured()) {
       const due = await prisma.socialMediaPost.findMany({
@@ -67,11 +71,9 @@ export async function runSocialSchedulerTick(prisma: PrismaClient, deps: Deps = 
       }
 
       // 3. token
-      if (now.getTime() - lastTokenCheck >= TOKEN_CHECK_MS) {
-        lastTokenCheck = now.getTime();
-        await (deps.refreshToken ?? ig!.refreshInstagramTokenIfNeeded)(prisma);
-      }
+      if (daily) await (deps.refreshToken ?? ig!.refreshInstagramTokenIfNeeded)(prisma);
     }
+    if (daily) lastTokenCheck = now.getTime();
   } finally {
     running = false;
   }

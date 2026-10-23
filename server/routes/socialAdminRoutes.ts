@@ -1,6 +1,5 @@
 /* Rotas do admin para os posts do Instagram (rascunho → revisão → aprovação → publicação).
  * O serviço (Gemini, Playwright) só é carregado quando uma rota é usada, para não pesar na subida da API. */
-import fs from "node:fs";
 import type { Express, Request, Response, RequestHandler } from "express";
 import { Prisma, PrismaClient, SocialPostStatus, SocialPostType } from "@prisma/client";
 
@@ -139,10 +138,8 @@ export function registerSocialRoutes(app: Express, prisma: PrismaClient, authReq
   app.delete("/api/admin/social/posts/:id", authRequired, adminOnly, async (req: Request, res: Response) => {
     const id = String(req.params.id);
     try {
-      const { socialImageFilePath } = await loadService();
-      const post = await prisma.socialMediaPost.delete({ where: { id } });
-      const file = socialImageFilePath(post.imageUrl);
-      if (file) fs.promises.unlink(file).catch(() => {});
+      // a imagem fica no disco até a limpeza diária da agenda (cleanupOrphanSocialImages)
+      await prisma.socialMediaPost.delete({ where: { id } });
       res.json({ ok: true });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") return res.status(404).json({ error: "Post não encontrado." });

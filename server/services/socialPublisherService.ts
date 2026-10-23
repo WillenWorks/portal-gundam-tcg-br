@@ -346,11 +346,30 @@ function socialUploadDir(): string {
   return path.join(path.resolve(process.cwd(), process.env.LOCAL_UPLOAD_DIR || "public/uploads"), "social");
 }
 
-/** Caminho do arquivo de um post a partir do imageUrl salvo, sem sair da pasta social. */
-export function socialImageFilePath(imageUrl: string | null | undefined): string | null {
-  const match = /^\/uploads\/social\/([A-Za-z0-9-]+\.(?:jpg|png))$/.exec(imageUrl || "");
-  if (!match) return null;
-  return path.join(socialUploadDir(), match[1]);
+/** Apaga imagens de posts que não existem mais (excluídos no painel) com mais de 1 dia. */
+export async function cleanupOrphanSocialImages(prisma: PrismaClient, now = new Date()): Promise<number> {
+  const dir = socialUploadDir();
+  let names: string[];
+  try {
+    names = await fs.promises.readdir(dir);
+  } catch {
+    return 0;
+  }
+  const candidates = names.filter((n) => /^social-[A-Za-z0-9-]+\.(?:jpg|png)$/.test(n));
+  if (!candidates.length) return 0;
+  const used = new Set(
+    (await prisma.socialMediaPost.findMany({ where: { imageUrl: { not: null } }, select: { imageUrl: true } })).map((p) => p.imageUrl),
+  );
+  let removed = 0;
+  for (const name of candidates) {
+    if (used.has(`/uploads/social/${name}`)) continue;
+    const file = path.join(dir, name);
+    const stat = await fs.promises.stat(file).catch(() => null);
+    if (!stat || now.getTime() - stat.mtimeMs < 24 * 3600_000) continue;
+    await fs.promises.unlink(file).catch(() => {});
+    removed += 1;
+  }
+  return removed;
 }
 
 /** Notifica o canal do Discord com a prévia e o link para revisar. */

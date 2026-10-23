@@ -8,7 +8,6 @@ import {
   publishApprovedPost,
   safeFileStem,
   sendDiscordSocialNotification,
-  socialImageFilePath,
 } from "./socialPublisherService";
 
 const cardRow = {
@@ -68,10 +67,9 @@ describe("socialPublisherService", () => {
     expect(html).toContain("sem vínculo com a Bandai");
   });
 
-  it("nome do arquivo e caminho da imagem nunca saem da pasta", () => {
+  it("nome do arquivo nunca sai da pasta", () => {
     expect(safeFileStem("../../x/GD01-001")).toBe("xGD01-001");
-    expect(socialImageFilePath("/uploads/social/social-GD01-001-1.jpg")).toMatch(/social[\\/]social-GD01-001-1\.jpg$/);
-    expect(socialImageFilePath("/uploads/social/../../.env")).toBeNull();
+    expect(safeFileStem("///")).toBe("carta");
   });
 
   it("valida limites da legenda e a identificação de publicidade", () => {
