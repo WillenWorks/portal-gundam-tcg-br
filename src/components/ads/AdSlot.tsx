@@ -44,9 +44,14 @@ export function AdSlot({
   }[format];
 
   const isConfigured = Boolean(clientId && slotId) || Boolean(carbonPlacement);
+  // Sem bloco de anúncio configurado: em produção não mostra nada (o aviso "espaço de patrocínio" é só
+  // para desenvolvimento); o AdSense automático do index.html continua decidindo onde exibir anúncios.
+  const showPlaceholder = !isConfigured && import.meta.env.DEV;
 
   useEffect(() => {
     if (!isConfigured || !containerRef.current || adLoaded) return;
+    // navegador sem IntersectionObserver (antigo) ou ambiente de teste: não carrega o anúncio, mas não quebra a página
+    if (typeof IntersectionObserver === "undefined") return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -101,6 +106,8 @@ export function AdSlot({
     observer.observe(containerRef.current);
     return () => observer.disconnect();
   }, [clientId, slotId, carbonPlacement, isConfigured, adLoaded]);
+
+  if (!isConfigured && !showPlaceholder) return null;
 
   return (
     <aside

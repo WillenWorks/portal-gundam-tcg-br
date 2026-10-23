@@ -15,6 +15,9 @@ interface CardMarketplaceWidgetProps {
 export function CardMarketplaceWidget({ card, compact = false }: CardMarketplaceWidgetProps) {
   const { tr } = useSiteLanguage();
   const links = getCardMarketLinks(card);
+  // "sponsored" só onde há comissão de verdade; o resto é link comum de comparação de preço
+  const plainRel = "nofollow noopener noreferrer";
+  const amazonRel = links.sponsored.amazon ? "sponsored nofollow noopener noreferrer" : plainRel;
 
   return (
     <div className="relative overflow-hidden border dark:border-white/10 dark:bg-slate-900/50 light:border-slate-300 light:bg-white p-4 sm:p-5 backdrop-blur-sm">
@@ -36,7 +39,7 @@ export function CardMarketplaceWidget({ card, compact = false }: CardMarketplace
         </div>
 
         <span className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-xs">
-          <TrendingDown className="size-3" /> {tr("Menor Preço", "Best Price")}
+          <TrendingDown className="size-3" /> {tr("Compare preços", "Compare prices")}
         </span>
       </div>
 
@@ -46,7 +49,7 @@ export function CardMarketplaceWidget({ card, compact = false }: CardMarketplace
         <a
           href={links.ligaGundamUrl}
           target="_blank"
-          rel="noopener noreferrer"
+          rel={plainRel}
           className="group flex flex-col justify-between border dark:border-white/10 light:border-slate-300 dark:bg-slate-950/70 light:bg-slate-50 p-3 transition hover:border-emerald-500/60 hover:bg-emerald-500/[0.04]"
         >
           <div className="flex items-center justify-between mb-1.5">
@@ -64,7 +67,7 @@ export function CardMarketplaceWidget({ card, compact = false }: CardMarketplace
         <a
           href={links.myPcardsUrl}
           target="_blank"
-          rel="noopener noreferrer"
+          rel={plainRel}
           className="group flex flex-col justify-between border dark:border-white/10 light:border-slate-300 dark:bg-slate-950/70 light:bg-slate-50 p-3 transition hover:border-purple-500/60 hover:bg-purple-500/[0.04]"
         >
           <div className="flex items-center justify-between mb-1.5">
@@ -74,7 +77,9 @@ export function CardMarketplaceWidget({ card, compact = false }: CardMarketplace
             <ExternalLink className="size-3 text-slate-400 group-hover:text-purple-400 transition-colors" />
           </div>
           <p className="text-[10px] text-slate-400 line-clamp-1">
-            {tr("Buscar anúncios de jogadores", "Browse player listings")}
+            {links.mypCoupon
+              ? tr(`Cupom ${links.mypCoupon}: R$ 10 off acima de R$ 300`, `Coupon ${links.mypCoupon}: R$ 10 off over R$ 300`)
+              : tr("Buscar anúncios de jogadores", "Browse player listings")}
           </p>
         </a>
 
@@ -82,7 +87,7 @@ export function CardMarketplaceWidget({ card, compact = false }: CardMarketplace
         <a
           href={links.mercadoLivreUrl}
           target="_blank"
-          rel="noopener noreferrer"
+          rel={plainRel}
           className="group flex flex-col justify-between border dark:border-white/10 light:border-slate-300 dark:bg-slate-950/70 light:bg-slate-50 p-3 transition hover:border-amber-400/60 hover:bg-amber-400/[0.04]"
         >
           <div className="flex items-center justify-between mb-1.5">
@@ -100,7 +105,7 @@ export function CardMarketplaceWidget({ card, compact = false }: CardMarketplace
         <a
           href={links.amazonUrl}
           target="_blank"
-          rel="noopener noreferrer"
+          rel={amazonRel}
           className="group flex flex-col justify-between border dark:border-white/10 light:border-slate-300 dark:bg-slate-950/70 light:bg-slate-50 p-3 transition hover:border-sky-400/60 hover:bg-sky-400/[0.04]"
         >
           <div className="flex items-center justify-between mb-1.5">
@@ -119,7 +124,12 @@ export function CardMarketplaceWidget({ card, compact = false }: CardMarketplace
       <div className="mt-3 flex items-center justify-between text-[10px] text-slate-500 pt-2 border-t dark:border-white/5 light:border-slate-200">
         <span className="flex items-center gap-1">
           <Tag className="size-3" />
-          {tr("Links de parceiros oficiais e marketplaces de TCG.", "Official partners and TCG marketplace links.")}
+          {links.sponsored.amazon || links.mypCoupon
+            ? [
+                tr("Alguns links e cupons geram comissão para o Anaheim Hub, sem custo extra para você.", "Some links and coupons earn the Anaheim Hub a commission at no extra cost to you."),
+                links.sponsored.amazon ? tr("Como Associado da Amazon, ganhamos com compras qualificadas.", "As an Amazon Associate we earn from qualifying purchases.") : "",
+              ].filter(Boolean).join(" ")
+            : tr("Links de busca em lojas e marketplaces de TCG.", "Search links to TCG stores and marketplaces.")}
         </span>
         <span className="hidden sm:inline">
           {tr("Preços e disponibilidade definidos pelos lojistas.", "Prices and availability set by sellers.")}

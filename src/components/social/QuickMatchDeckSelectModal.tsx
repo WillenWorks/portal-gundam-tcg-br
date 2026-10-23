@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { useMySimulatorDecks } from "@/modules/simulator/ui/useMySimulatorDecks";
 import { SimulatorDeckCoverageNotice } from "@/modules/simulator/ui/SimulatorDeckCoverageNotice";
+import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 interface QuickMatchDeckSelectModalProps {
   open: boolean;
@@ -38,6 +39,7 @@ export function QuickMatchDeckSelectModal({
   submitting,
   waitingForOpponent,
 }: QuickMatchDeckSelectModalProps) {
+  const { tr } = useSiteLanguage();
   const [selectedDeckKey, setSelectedDeckKey] = useState<string>("");
   const { decks: myDecks, loading: myDecksLoading } = useMySimulatorDecks();
 
@@ -72,11 +74,11 @@ export function QuickMatchDeckSelectModal({
         <DialogHeader>
           <DialogTitle className="font-heading text-lg uppercase tracking-wider text-primary flex items-center justify-between">
             <span className="flex items-center gap-2">
-              <Swords className="size-5 text-primary" /> Selecione seu Deck de Combate
+              <Swords className="size-5 text-primary" /> {tr("Selecione seu Deck de Combate", "Choose your Deck")}
             </span>
             {opponentConfirmed && (
               <Badge className="rounded-none bg-emerald-500/20 border border-emerald-400 text-emerald-300 font-mono text-[9px] uppercase px-1.5 py-0.5">
-                Oponente Pronto
+                {tr("Oponente Pronto", "Opponent Ready")}
               </Badge>
             )}
           </DialogTitle>
@@ -84,27 +86,27 @@ export function QuickMatchDeckSelectModal({
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <p className="text-xs text-slate-300">
-            Duelo contra <strong className="text-white">{opponentDisplayName || `@${opponentUsername}`}</strong>. Escolha sua lista para iniciar a partida:
+            {tr("Duelo contra", "Duel against")} <strong className="text-white">{opponentDisplayName || `@${opponentUsername}`}</strong>. {tr("Escolha sua lista para iniciar a partida:", "Pick your list to start the match:")}
           </p>
 
           <div className="space-y-3">
             {myDecksLoading ? (
-              <p className="text-xs text-slate-400 py-2">Carregando seus decks…</p>
+              <p className="text-xs text-slate-400 py-2">{tr("Carregando seus decks…", "Loading your decks…")}</p>
             ) : myDecks.length === 0 ? (
               <div className="rounded-none border border-primary/30 bg-slate-900/60 p-4 space-y-2.5 text-xs text-slate-300">
-                <p>Você ainda não possui nenhum deck cadastrado no seu Hangar para jogar partidas PvP.</p>
+                <p>{tr("Você ainda não possui nenhum deck cadastrado no seu Hangar para jogar partidas PvP.", "You don't have any saved decks for PvP matches yet.")}</p>
                 <Link
                   href="/deckbuilder"
                   className="inline-flex items-center gap-1.5 font-semibold uppercase tracking-wider text-primary hover:underline"
                 >
                   <PlusCircle className="size-3.5" />
-                  Montar um deck no Deckbuilder
+                  {tr("Montar um deck no Deckbuilder", "Build a deck in the Deckbuilder")}
                 </Link>
               </div>
             ) : (
               <div className="space-y-1.5">
                 <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400 block">
-                  Meus Decks Salvos
+                  {tr("Meus Decks Salvos", "My Saved Decks")}
                 </span>
                 <Select
                   value={selectedDeckKey}
@@ -112,12 +114,12 @@ export function QuickMatchDeckSelectModal({
                   disabled={waitingForOpponent || submitting}
                 >
                   <SelectTrigger className="w-full h-11 border border-white/15 bg-slate-900/80 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white focus:border-primary focus:ring-1 focus:ring-primary rounded-none">
-                    <SelectValue placeholder="Selecione seu deck" />
+                    <SelectValue placeholder={tr("Selecione seu deck", "Select your deck")} />
                   </SelectTrigger>
                   <SelectContent className="border border-white/15 bg-slate-950/98 text-white shadow-2xl z-50">
                     <SelectGroup>
                       <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
-                        Meus Decks Salvos
+                        {tr("Meus Decks Salvos", "My Saved Decks")}
                       </SelectLabel>
                       {myDecks.map((deck) => (
                         <SelectItem
@@ -134,7 +136,7 @@ export function QuickMatchDeckSelectModal({
                             )}
                             <span>{deck.name}</span>
                             <span className="text-[10px] font-mono text-slate-400">
-                              ({deck.format}{!deck.simulatorValid ? " · Sem cobertura" : ""})
+                              ({deck.format}{!deck.simulatorValid ? tr(" · Sem cobertura", " · Not supported") : ""})
                             </span>
                           </span>
                         </SelectItem>
@@ -152,12 +154,12 @@ export function QuickMatchDeckSelectModal({
             <div className="text-xs text-slate-400 font-mono">
               {waitingForOpponent ? (
                 <span className="flex items-center gap-1.5 text-primary animate-pulse">
-                  <Loader2 className="size-3.5 animate-spin" /> Aguardando oponente confirmar deck...
+                  <Loader2 className="size-3.5 animate-spin" /> {tr("Aguardando oponente confirmar deck...", "Waiting for the opponent to confirm their deck...")}
                 </span>
               ) : opponentConfirmed ? (
-                <span className="text-emerald-400">Oponente já confirmou o deck!</span>
+                <span className="text-emerald-400">{tr("Oponente já confirmou o deck!", "Opponent confirmed their deck!")}</span>
               ) : (
-                <span>Ambos devem confirmar para iniciar.</span>
+                <span>{tr("Ambos devem confirmar para iniciar.", "Both players must confirm to start.")}</span>
               )}
             </div>
 
@@ -168,13 +170,13 @@ export function QuickMatchDeckSelectModal({
             >
               {submitting ? (
                 <>
-                  <Loader2 className="size-3.5 mr-1.5 animate-spin" /> Confirmando...
+                  <Loader2 className="size-3.5 mr-1.5 animate-spin" /> {tr("Confirmando...", "Confirming...")}
                 </>
               ) : waitingForOpponent ? (
-                "Deck Confirmado"
+                tr("Deck Confirmado", "Deck Confirmed")
               ) : (
                 <>
-                  <Check className="size-3.5 mr-1.5" /> Confirmar Deck
+                  <Check className="size-3.5 mr-1.5" /> {tr("Confirmar Deck", "Confirm Deck")}
                 </>
               )}
             </Button>

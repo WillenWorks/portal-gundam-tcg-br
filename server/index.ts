@@ -1164,11 +1164,14 @@ app.get("/api/image-proxy", async (req, res) => {
   } catch {
     return res.status(400).json({ error: "URL inválida." });
   }
-  if (parsed.protocol !== "https:" || !IMAGE_PROXY_ALLOWED_HOSTS.includes(parsed.host)) {
+  const allowedHost = IMAGE_PROXY_ALLOWED_HOSTS.find((host) => host === parsed.host);
+  if (parsed.protocol !== "https:" || !allowedHost || parsed.username || parsed.password) {
     return res.status(403).json({ error: "Domínio não permitido no proxy de imagem." });
   }
+  // endereço remontado a partir do host da lista (não do texto recebido): só o caminho vem do pedido
+  const target = `https://${allowedHost}${parsed.pathname}${parsed.search}`;
   try {
-    const upstream = await fetch(parsed.toString(), { redirect: "error" });
+    const upstream = await fetch(target, { redirect: "error" });
     if (!upstream.ok || !upstream.body) return res.status(upstream.status).json({ error: "Não consegui buscar a imagem de origem." });
     res.setHeader("Content-Type", upstream.headers.get("content-type") || "image/jpeg");
     setPublicCache(res, 3600, 86400); // imagem de carta é estável, cacheia agressivo
@@ -5877,6 +5880,10 @@ async function boot() {
   };
   void purgeMatches();
   setInterval(() => void purgeMatches(), SIMULATOR_MATCH_PURGE_INTERVAL_MS).unref();
+  // agenda do Instagram (seg/qua/sex), só com SOCIAL_SCHEDULER_ENABLED=true
+  if (process.env.SOCIAL_SCHEDULER_ENABLED === "true") {
+    void import("./services/socialScheduler.ts").then(({ startSocialScheduler }) => startSocialScheduler(prisma));
+  }
 }
 
 boot();

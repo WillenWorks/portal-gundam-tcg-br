@@ -1127,6 +1127,7 @@ enum SocialPostStatus {
   DRAFT
   PENDING_APPROVAL
   APPROVED
+  PUBLISHING
   PUBLISHED
   REJECTED
   FAILED
@@ -1151,7 +1152,16 @@ model SocialMediaPost {
   imageUrl         String?
   discordMessageId String?
   instagramPostId  String?
+  /// link público do post no Instagram, depois de publicado
+  instagramPermalink String?
+  /// horário em que o post deve ir ao ar (aprovado antes disso, espera; aprovado depois, sai na hora)
+  scheduledFor     DateTime?
+  /// dia da agenda (AAAA-MM-DD, horário de Brasília) que gerou o rascunho; impede rascunho duplicado no mesmo dia
+  slotKey          String?          @unique
+  approvedAt       DateTime?
   publishedAt      DateTime?
+  /// último erro ao publicar (mensagem da API do Instagram, sem token)
+  publishError     String?
   rejectedReason   String?
   metadata         String?          @db.Text
   createdAt        DateTime         @default(now())
@@ -1159,4 +1169,15 @@ model SocialMediaPost {
 
   @@index([status])
   @@index([createdAt])
+  @@index([status, scheduledFor])
+}
+
+/// Token de acesso de integrações sociais (Instagram), criptografado com AES-256-GCM.
+/// O token do Instagram vale 60 dias e é renovado sozinho; por isso fica no banco e não só no .env.
+model SocialIntegrationToken {
+  provider    String    @id
+  tokenEnc    String    @db.Text
+  expiresAt   DateTime?
+  refreshedAt DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }

@@ -112,11 +112,11 @@ function normalizeKeywordToken(raw: string) {
 
 function splitKeywordValueAndQualifier(normalized: string): { base: string; value: number | null; qualifier: string | null } {
   const patterns = [
-    /^(Repair)\s+([1-9])(?:\s*·\s*([^·\n]+))?$/i,
-    /^(Breach)\s+([1-9])(?:\s*·\s*([^·\n]+))?$/i,
-    /^(Once per Turn)\s+([1-9])(?:\s*·\s*([^·\n]+))?$/i,
-    /^(Activate Main)\s+([1-9])(?:\s*·\s*([^·\n]+))?$/i,
-    /^(Activate Action)\s+([1-9])(?:\s*·\s*([^·\n]+))?$/i,
+    /^(Repair)\s+([1-9])(?:\s*·([^·\n]+))?$/i,
+    /^(Breach)\s+([1-9])(?:\s*·([^·\n]+))?$/i,
+    /^(Once per Turn)\s+([1-9])(?:\s*·([^·\n]+))?$/i,
+    /^(Activate Main)\s+([1-9])(?:\s*·([^·\n]+))?$/i,
+    /^(Activate Action)\s+([1-9])(?:\s*·([^·\n]+))?$/i,
   ];
 
   for (const pattern of patterns) {
@@ -164,7 +164,7 @@ export function getKeywordStyle(base: string, delimiter: "angle" | "square") {
 }
 
 function extractKeywordsFromText(text: string): ParsedKeyword[] {
-  const matches = Array.from(text.matchAll(/<([^<>]+)>|\[([^\[\]]+)\]|【([^【】]+)】/g));
+  const matches = Array.from(text.matchAll(/<([^<>]+)>|\[([^[\]]+)\]|【([^【】]+)】/g));
 
   return matches
     .map((match) => {
