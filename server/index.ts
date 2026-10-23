@@ -3,6 +3,7 @@ import "dotenv/config";
 import bcrypt from "bcryptjs";
 import cors from "cors";
 import express, { type NextFunction, type Request, type RequestHandler, type Response } from "express";
+import { rateLimit } from "express-rate-limit";
 import crypto from "node:crypto";
 import { createServer } from "node:http";
 import fs from "node:fs";
@@ -11,6 +12,7 @@ import multer from "multer";
 import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType, HostedEventStatus, HostedEventRoundStatus, HostedEventMatchResult, TournamentTier, PostStatus, BinderItemTag } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
 import { resolvePublicAppUrl as resolvePublicAppUrlFrom } from "./publicAppUrl.ts";
+import { apiRateLimitOptions } from "./apiRateLimit.ts";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, NON_STATS_SECTIONS, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
 import { buildSt01DeckList } from "../src/modules/simulator/fixtures/st01Deck.ts";
@@ -357,6 +359,8 @@ const app = express();
 // site inteiro.
 app.set("trust proxy", "loopback");
 app.disable("x-powered-by");
+// limite por IP de toda a /api, antes de qualquer rota (ver apiRateLimit.ts)
+app.use(rateLimit(apiRateLimitOptions()));
 
 // Log das requisições da API que valem olhar: erro 5xx ou mais de 1,5 s. Uma linha JSON por requisição,
 // com um id que também vai no cabeçalho X-Request-Id (dá para casar a reclamação de alguém com o log).
