@@ -167,6 +167,7 @@
     "dotenv": "^18.0.5",
     "embla-carousel-react": "^8.6.0",
     "express": "^5.2.1",
+    "express-rate-limit": "8.7.1",
     "framer-motion": "^14.0.0",
     "google-auth-library": "^11.1.0",
     "html2canvas-pro": "2.4.5",
