@@ -16,7 +16,7 @@ import { EX_RESOURCE_TOKEN } from "../engine/setup";
 import { advanceToMainPhase } from "../engine/phases";
 import { enumerateLegalActions } from "../engine/legalActions";
 import { applyPlayerAction } from "../engine/actions";
-import { declareAttack, passAction, proceedToBlockStep, resolveDamageStep, skipBlock } from "../engine/combat";
+import { attackTargetError, declareAttack, passAction, proceedToBlockStep, resolveDamageStep, skipBlock } from "../engine/combat";
 import { ALL_EFFECT_SPECS } from "./index";
 
 function freshGame(): GameState {
@@ -156,13 +156,17 @@ describe("GD03 — correções W0.3 (texto oficial)", () => {
     const sourceId = placeCard(state, "A", GD03_CARD_DEFS["GD03-021"], "battleArea");
     const gTeamId = placeCard(state, "A", GD03_CARD_DEFS["GD03-025"], "battleArea");
     const otherId = placeCard(state, "A", GD03_CARD_DEFS["GD03-001"], "battleArea");
-    placeCard(state, "B", GD03_CARD_DEFS["GD03-004"], "battleArea");
+    const enemyId = placeCard(state, "B", GD03_CARD_DEFS["GD03-004"], "battleArea");
     const legal = computeLegalTargets(state, specOf("GD03-021-Deploy"), "A", defaultTargetFilterResolver, sourceId);
     expect(legal).toContain(gTeamId);
     expect(legal).toContain(sourceId); // ela mesma é (G Team)
     expect(legal).not.toContain(otherId);
     state = run(state, "GD03-021-Deploy", sourceId, { target: [gTeamId] });
     expect(findCard(state, gTeamId).attackTargetRelaxUntilTurn?.turn).toBe(state.turnNumber);
+    // "may choose an active enemy Unit" sem critério de Lv./AP: a concessão sozinha libera o alvo ativo
+    expect(findCard(state, enemyId).rested).toBe(false);
+    expect(attackTargetError(state, findCard(state, gTeamId), { unitId: enemyId })).toBeNull();
+    expect(attackTargetError(state, findCard(state, otherId), { unitId: enemyId })).not.toBeNull();
   });
 
   it("GD03-023 não tem 【Deploy】; ao colocar EX Resource, uma Unit (AGE System) ganha <High-Maneuver>", () => {

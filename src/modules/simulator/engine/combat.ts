@@ -6,6 +6,7 @@ import {
   hasKeyword,
   isBoardConditionMet,
   isStaticAbilityActive,
+  isUnconditionalAttackRelax,
   keywordValue,
   otherPlayer,
   pairedPilotFollowEvents,
@@ -159,11 +160,14 @@ export function attackTargetError(state: GameState, attacker: CardInstance, targ
       const allowedByAp = granted?.maxAp !== undefined && effectiveAp(targetUnit, state) <= granted.maxAp;
       // W2b — GD03-035 (AP <= o desta Unit) / GD03-105 (inimiga sem Piloto pareado)
       const allowedBySelfAp = !!granted?.apAtMostSelf && effectiveAp(targetUnit, state) <= effectiveAp(attacker, state);
+      const allowedBySelfLevel = !!granted?.levelAtMostSelf && (targetUnit.def.level ?? 0) <= (attacker.def.level ?? 0);
       const allowedUnpaired = !!granted?.unpairedOnly && !targetUnit.pairedPilotId;
       // W4 — GD04-045 "a damaged active enemy Unit"
       const allowedDamaged = !!granted?.damagedOnly && targetUnit.damage > 0;
       // W11 — EB01-066 "an active enemy Unit with <Blocker>"
       const allowedGrantedKeyword = !!granted?.keyword && hasKeyword(targetUnit, granted.keyword, state);
+      // GD03-021/EB01-080 "may choose an active enemy Unit" sem nenhum critério — antes nada liberava
+      const allowedUnconditional = !!granted && isUnconditionalAttackRelax(granted);
       // W5 — GD04-051 "an active enemy Unit with a keyword effect" (Piloto com trait + trash N+)
       const kwRule = attacker.def.attackTargetRules?.mayTargetActiveEnemyWithKeyword;
       const kwPilot = attacker.pairedPilotId ? findCard(state, attacker.pairedPilotId) : undefined;
@@ -174,7 +178,15 @@ export function attackTargetError(state: GameState, attacker: CardInstance, targ
         (kwRule.trashAtLeast === undefined || state.players[attacker.owner].trash.length >= kwRule.trashAtLeast) &&
         KEYWORD_EFFECTS.some((k) => hasKeyword(targetUnit, k, state));
       const allowed =
-        allowedByLevel || allowedByAp || allowedBySelfAp || allowedUnpaired || allowedDamaged || allowedKeyword || allowedGrantedKeyword;
+        allowedByLevel ||
+        allowedByAp ||
+        allowedBySelfAp ||
+        allowedBySelfLevel ||
+        allowedUnpaired ||
+        allowedDamaged ||
+        allowedKeyword ||
+        allowedGrantedKeyword ||
+        allowedUnconditional;
       if (!allowed) {
         return "Só é possível declarar ataque contra Unit inimiga rested (exceto keyword que relaxe essa regra)";
       }

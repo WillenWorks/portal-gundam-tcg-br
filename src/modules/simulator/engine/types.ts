@@ -719,6 +719,8 @@ export interface CardInstance {
     maxAp?: number;
     /** GD03-035 — "an active enemy Unit with AP equal to or less than this Unit" (AP de agora, na declaração) */
     apAtMostSelf?: boolean;
+    /** ST07-011 — "an active enemy Unit whose Lv. is equal to or lower than this Unit" */
+    levelAtMostSelf?: boolean;
     /** GD03-105 — "an active enemy Unit that has no Pilot paired with it" */
     unpairedOnly?: boolean;
     /** W4 — GD04-045 "a damaged active enemy Unit" */
@@ -878,6 +880,13 @@ export function pilotStatModifier(pilot: CardInstance, stat: StatKey): number {
     return (stat === "ap" ? pilot.def.ap : pilot.def.hp) ?? 0;
   }
   return 0;
+}
+
+export type AttackTargetRelaxCriteria = Omit<NonNullable<CardInstance["attackTargetRelaxUntilTurn"]>, "turn">;
+
+/** concessão "may choose an active enemy Unit" sem nenhum critério (GD03-021, EB01-080) */
+export function isUnconditionalAttackRelax(c: AttackTargetRelaxCriteria): boolean {
+  return c.maxLevel === undefined && c.maxAp === undefined && !c.apAtMostSelf && !c.levelAtMostSelf && !c.unpairedOnly && !c.damagedOnly && !c.keyword;
 }
 
 export function satisfiesLinkCondition(pilotDef: CardDef, unitDef: CardDef): boolean {
@@ -1907,6 +1916,7 @@ export type GameEvent =
       maxLevel?: number;
       maxAp?: number;
       apAtMostSelf?: boolean;
+      levelAtMostSelf?: boolean;
       unpairedOnly?: boolean;
       damagedOnly?: boolean;
       keyword?: string;

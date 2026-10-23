@@ -95,4 +95,28 @@ describe("battleLogI18n", () => {
     expect(describeEventI18n(go, 0, nameOf, "PT_BR")?.text).toBe("FIM DE JOGO — vitória de Jogador A (dano sem shields)");
     expect(describeEventI18n(go, 0, nameOf, "EN")?.text).toBe("GAME OVER — Player A won (no shields battle damage)");
   });
+
+  it("GRANT_ATTACK_TARGET_RELAX descreve o critério concedido (antes saía 'Lv.undefined' quando era por AP)", () => {
+    const relax = (extra: Partial<Extract<GameEvent, { type: "GRANT_ATTACK_TARGET_RELAX" }>>): GameEvent => ({
+      type: "GRANT_ATTACK_TARGET_RELAX",
+      instanceId: "unit-1",
+      turn: 3,
+      ...extra,
+    });
+    const pt = (e: GameEvent) => describeEventI18n(e, 0, nameOf, "PT_BR")?.text;
+    const en = (e: GameEvent) => describeEventI18n(e, 0, nameOf, "EN")?.text;
+
+    expect(pt(relax({ maxLevel: 4 }))).toBe("Gundam pode mirar Unit inimiga ativa Lv.4 ou menos neste turno");
+    expect(en(relax({ maxLevel: 4 }))).toBe("Gundam can target active enemy Units Lv.4 or lower this turn");
+    expect(pt(relax({ maxAp: 5 }))).toBe("Gundam pode mirar Unit inimiga ativa com AP 5 ou menos neste turno");
+    expect(en(relax({ maxAp: 5 }))).toBe("Gundam can target active enemy Units with 5 or less AP this turn");
+    expect(pt(relax({ apAtMostSelf: true }))).toBe("Gundam pode mirar Unit inimiga ativa com AP igual ou menor que o dela neste turno");
+    expect(pt(relax({ levelAtMostSelf: true }))).toBe("Gundam pode mirar Unit inimiga ativa com Lv. igual ou menor que o dela neste turno");
+    expect(pt(relax({ unpairedOnly: true }))).toBe("Gundam pode mirar Unit inimiga ativa sem Piloto pareado neste turno");
+    expect(pt(relax({ damagedOnly: true }))).toBe("Gundam pode mirar Unit inimiga ativa com dano neste turno");
+    expect(pt(relax({ keyword: "Blocker" }))).toBe("Gundam pode mirar Unit inimiga ativa com <Blocker> neste turno");
+    expect(en(relax({ keyword: "Blocker" }))).toBe("Gundam can target active enemy Units with <Blocker> this turn");
+    expect(pt(relax({}))).toBe("Gundam pode mirar qualquer Unit inimiga ativa neste turno");
+    expect(en(relax({}))).toBe("Gundam can target any active enemy Unit this turn");
+  });
 });
