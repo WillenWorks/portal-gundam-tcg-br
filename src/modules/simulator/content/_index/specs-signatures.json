@@ -10738,13 +10738,25 @@
     "trigger": "Deploy",
     "ops": [
       "addShieldToHand",
+      "thenTrigger"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "ST02-015-Then",
+    "cardCode": "ST02-015",
+    "trigger": "Then:1",
+    "ops": [
       "moveWithinDeck",
       "moveWithinDeck"
     ],
     "targetScope": null,
     "targetFilter": null,
     "predicate": null,
-    "sourceText": "【Deploy】Add 1 of your Shields to your hand. Then, look at the top 2 cards of your deck and return 1 to the top and 1 to the bottom."
+    "sourceText": "Then, look at the top 2 cards of your deck and return 1 to the top and 1 to the bottom."
   },
   {
     "id": "ST02-016-Burst",

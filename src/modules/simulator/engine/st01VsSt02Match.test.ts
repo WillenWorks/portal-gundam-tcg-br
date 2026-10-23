@@ -8,6 +8,7 @@ import { activateBlocker, declareAttack, proceedToBlockStep, resolveBattleEndSte
 import { deployCard, playCommand } from "./deploy";
 import { dispatchBurstForNewlyTrashedShields, dispatchTrigger, type BurstChoiceFn } from "./dispatcher";
 import { findCard } from "./events";
+import { applyPlayerAction } from "./actions";
 import { GUNDAM_MA_FORM_WHEN_PAIRED, ST01_EFFECT_SPECS } from "../content/st01";
 import { ST02_EFFECT_SPECS } from "../content/st02";
 import { defaultPredicateResolver, defaultTargetFilterResolver } from "../content/predicates";
@@ -473,6 +474,8 @@ describe("partida real ST01 vs ST02 (docs/18, motor de jogo real + gaps document
     mkInstance(state, "B", ST02_CARD_DEFS.RESOURCE, "shields");
     mkInstance(state, "B", ST02_CARD_DEFS.RESOURCE, "shields");
 
+    // o motor não dispara continuações (Then:1 do Saint Gabriel) com a partida encerrada — reabre pro fixture
+    state = { ...state, gameOver: null };
     const saintGabrielId = mkInstance(state, "B", ST02_CARD_DEFS.SAINT_GABRIEL_INSTITUTE, "hand");
     giveResources(state, "B", 5);
     state.activePlayer = "B";
@@ -492,12 +495,35 @@ describe("partida real ST01 vs ST02 (docs/18, motor de jogo real + gaps document
     });
     expect(state.players.B.baseSection.some((c) => c.instanceId === saintGabrielId)).toBe(true); // SAINT_GABRIEL_INSTITUTE_DEPLOY
     if (bShieldToMoveId) expect(findCard(state, bShieldToMoveId).zone).toBe("hand");
+    // BUG-NHDK4F — a reordenação é a continuação Then:1 (pausa depois do escudo ir pra mão)
+    const reorderDecision = state.pendingDecision.B;
+    expect(reorderDecision?.kind === "abilityResolution" ? reorderDecision.trigger : undefined).toBe("Then:1");
+    state = applyPlayerAction(
+      state,
+      "B",
+      { kind: "resolveAbility", resolutions: [{ specId: "ST02-015-Then", activate: true, targetIds: [bTop1.instanceId, bTop2.instanceId] }] },
+      ALL_SPECS,
+      predicateResolver,
+      defaultTargetFilterResolver,
+    );
+    expect(state.pendingDecision.B).toBeNull();
     expect(state.players.B.deck[0].instanceId).toBe(bTop1.instanceId);
     expect(state.players.B.deck[state.players.B.deck.length - 1].instanceId).toBe(bTop2.instanceId);
 
     const saintGabrielShieldId = mkInstance(state, "B", ST02_CARD_DEFS.SAINT_GABRIEL_INSTITUTE, "shields");
     state = dispatchTrigger(state, saintGabrielShieldId, "Burst", ALL_SPECS, { predicateResolver, targetFilterResolver: defaultTargetFilterResolver, allSpecs: ALL_SPECS });
     expect(findCard(state, saintGabrielShieldId).zone).toBe("baseSection"); // SAINT_GABRIEL_INSTITUTE_BURST (deployThisCard)
+    // o 【Deploy】 encadeado pausa na reordenação (Then:1) — mantém a ordem do topo
+    const [burstTop1, burstTop2] = state.players.B.deck.slice(0, 2).map((c) => c.instanceId);
+    state = applyPlayerAction(
+      state,
+      "B",
+      { kind: "resolveAbility", resolutions: [{ specId: "ST02-015-Then", activate: true, targetIds: [burstTop1, burstTop2] }] },
+      ALL_SPECS,
+      predicateResolver,
+      defaultTargetFilterResolver,
+    );
+    expect(state.pendingDecision.B).toBeNull();
     // Esvazia antes do próximo Deploy só pra isolar o teste de CORSICA_BASE_DEPLOY.
     state.players.B.baseSection = [];
 
