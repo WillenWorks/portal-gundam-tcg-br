@@ -487,4 +487,99 @@ export function registerAdminDashboardRoutes(
       res.status(400).json({ error: err?.message || "Erro ao atualizar bug report." });
     }
   });
+
+  // 10. Listar postagens de redes sociais
+  app.get("/api/admin/social/posts", authRequired, adminOnly, async (req: Request, res: Response) => {
+    try {
+      const status = req.query.status ? (String(req.query.status) as any) : undefined;
+      const posts = await prisma.socialMediaPost.findMany({
+        where: status ? { status } : undefined,
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      });
+      res.json(posts);
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || "Erro ao listar posts sociais." });
+    }
+  });
+
+  // 11. Gerar novo rascunho de postagem com IA
+  app.post("/api/admin/social/generate", authRequired, adminOnly, async (req: Request, res: Response) => {
+    try {
+      const { cardCode, customTopic, type } = req.body as { cardCode?: string; customTopic?: string; type?: any };
+      const { createSocialPostDraft } = await import("../services/socialPublisherService.ts");
+      const post = await createSocialPostDraft(prisma, { cardCode, customTopic, type });
+      res.json(post);
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || "Erro ao gerar post com IA." });
+    }
+  });
+
+  // 12. Atualizar rascunho de postagem (edição no admin)
+  app.put("/api/admin/social/posts/:id", authRequired, adminOnly, async (req: Request, res: Response) => {
+    try {
+      const id = String(req.params.id);
+      const { title, caption, status } = req.body as { title?: string; caption?: string; status?: any };
+      const updated = await prisma.socialMediaPost.update({
+        where: { id },
+        data: {
+          title: title !== undefined ? title : undefined,
+          caption: caption !== undefined ? caption : undefined,
+          status: status !== undefined ? status : undefined,
+        },
+      });
+      res.json(updated);
+    } catch (err: any) {
+      res.status(400).json({ error: err?.message || "Erro ao atualizar post." });
+    }
+  });
+
+  // 13. Aprovar postagem (com disparo de publicação)
+  app.post("/api/admin/social/posts/:id/approve", authRequired, adminOnly, async (req: Request, res: Response) => {
+    try {
+      const id = String(req.params.id);
+      const existing = await prisma.socialMediaPost.findUnique({ where: { id } });
+      if (!existing) return res.status(404).json({ error: "Post não encontrado." });
+
+      const updated = await prisma.socialMediaPost.update({
+        where: { id },
+        data: {
+          status: "APPROVED",
+          publishedAt: new Date(),
+        },
+      });
+      res.json({ ok: true, post: updated });
+    } catch (err: any) {
+      res.status(400).json({ error: err?.message || "Erro ao aprovar post." });
+    }
+  });
+
+  // 14. Rejeitar postagem
+  app.post("/api/admin/social/posts/:id/reject", authRequired, adminOnly, async (req: Request, res: Response) => {
+    try {
+      const id = String(req.params.id);
+      const { reason } = req.body as { reason?: string };
+      const updated = await prisma.socialMediaPost.update({
+        where: { id },
+        data: {
+          status: "REJECTED",
+          rejectedReason: reason || "Rejeitado pelo moderador",
+        },
+      });
+      res.json({ ok: true, post: updated });
+    } catch (err: any) {
+      res.status(400).json({ error: err?.message || "Erro ao rejeitar post." });
+    }
+  });
+
+  // 15. Excluir postagem
+  app.delete("/api/admin/social/posts/:id", authRequired, adminOnly, async (req: Request, res: Response) => {
+    try {
+      const id = String(req.params.id);
+      await prisma.socialMediaPost.delete({ where: { id } });
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(400).json({ error: err?.message || "Erro ao excluir post." });
+    }
+  });
 }

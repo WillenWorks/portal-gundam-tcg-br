@@ -6,8 +6,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { toast } from "sonner";
+import { AdminSocialTab } from "@/components/admin/AdminSocialTab";
 import {
   ArrowRight,
+  Share2,
   BarChart3,
   Bug,
   CheckCircle2,
@@ -77,7 +79,7 @@ export default function AdminDashboardPage() {
   const { user } = useAuth();
 
   // Estados principais
-  const [activeTab, setActiveTab] = useState<"overview" | "marketing" | "dynamic" | "actions" | "workflows" | "bugs">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "marketing" | "social" | "dynamic" | "actions" | "workflows" | "bugs">("overview");
   const [refreshing, setRefreshing] = useState(false);
   const [metrics, setMetrics] = useState<AdminMetricsData | null>(null);
   const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null);
@@ -504,22 +506,26 @@ export default function AdminDashboardPage() {
               <DollarSign className="size-3.5 mr-1.5" />
               2. Google Ads & SEO
             </TabsTrigger>
+            <TabsTrigger value="social" className="rounded-none text-xs uppercase tracking-wider py-2 px-3.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Share2 className="size-3.5 mr-1.5" />
+              3. Redes Sociais & IA
+            </TabsTrigger>
             <TabsTrigger value="dynamic" className="rounded-none text-xs uppercase tracking-wider py-2 px-3.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Megaphone className="size-3.5 mr-1.5" />
-              3. Informações Dinâmicas
+              4. Informações Dinâmicas
             </TabsTrigger>
             <TabsTrigger value="actions" className="rounded-none text-xs uppercase tracking-wider py-2 px-3.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Compass className="size-3.5 mr-1.5" />
-              4. Ações do Sistema
+              5. Ações do Sistema
             </TabsTrigger>
             <TabsTrigger value="workflows" className="rounded-none text-xs uppercase tracking-wider py-2 px-3.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <GitBranch className="size-3.5 mr-1.5" />
-              5. Git Workflows
+              6. Git Workflows
               {dataHealth?.stale && <span className="ml-1.5 inline-block size-2 rounded-full bg-red-500" aria-label="coleta atrasada" />}
             </TabsTrigger>
             <TabsTrigger value="bugs" className="rounded-none text-xs uppercase tracking-wider py-2 px-3.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Bug className="size-3.5 mr-1.5" />
-              6. Bug Reports ({metrics?.kpis.newBugReports ?? 0})
+              7. Bug Reports ({metrics?.kpis.newBugReports ?? 0})
             </TabsTrigger>
           </TabsList>
 
@@ -929,7 +935,14 @@ export default function AdminDashboardPage() {
           </TabsContent>
 
           {/* ────────────────────────────────────────────────────────────────
-              ABA 3: INFORMAÇÕES DINÂMICAS DO SITE (BANNER & DESTAQUES)
+              ABA 3: REDES SOCIAIS & IA (INSTAGRAM / DISCORD)
+          ──────────────────────────────────────────────────────────────── */}
+          <TabsContent value="social" className="space-y-6">
+            <AdminSocialTab />
+          </TabsContent>
+
+          {/* ────────────────────────────────────────────────────────────────
+              ABA 4: INFORMAÇÕES DINÂMICAS DO SITE (BANNER & DESTAQUES)
           ──────────────────────────────────────────────────────────────── */}
           <TabsContent value="dynamic" className="space-y-6">
             <Card className="panel-cut rounded-none surface-panel border-white/10">

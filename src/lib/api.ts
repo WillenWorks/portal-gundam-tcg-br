@@ -1933,4 +1933,9 @@ export async function getSingleCardPlayability(code: string): Promise<CardStatus
 
 export { vedaApi } from "@/lib/veda/api";
 
+export async function apiFetch<T>(path: string, init?: RequestInit, options?: RequestOptions): Promise<T> {
+  return request<T>(path, init, options);
+}
+
+
 

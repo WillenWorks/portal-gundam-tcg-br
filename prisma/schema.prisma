@@ -1121,3 +1121,42 @@ model PostCommentLike {
 
 
 
+
+
+enum SocialPostStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  PUBLISHED
+  REJECTED
+  FAILED
+}
+
+enum SocialPostType {
+  CARD_SPOTLIGHT
+  DECK_FEATURE
+  META_INSIGHT
+  PRODUCT_AFFILIATE
+}
+
+/// Fila e historico de postagens para redes sociais com Human-in-the-Loop (Instagram / Discord / Web Admin)
+model SocialMediaPost {
+  id               String           @id @default(cuid())
+  type             SocialPostType   @default(CARD_SPOTLIGHT)
+  status           SocialPostStatus @default(PENDING_APPROVAL)
+  title            String?
+  caption          String           @db.Text
+  cardCode         String?
+  deckId           String?
+  imageUrl         String?
+  discordMessageId String?
+  instagramPostId  String?
+  publishedAt      DateTime?
+  rejectedReason   String?
+  metadata         String?          @db.Text
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
