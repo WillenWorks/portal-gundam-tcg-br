@@ -23,6 +23,8 @@ name: Manutenção da VPS
 #   backup-externo-testar      baixa o backup mais recente do Drive, descriptografa e confere
 #   social-conferir   só leitura: variáveis do agente do Instagram (sim/não), navegador do Playwright, espaço
 #   social-navegador  instala o Chromium do Playwright (arte dos posts) e testa se abre
+#   pg17-remover      depois do upgrade: confere 18 online + sites, faz backup e cópia do cluster 17, remove o 17 e
+#                     os pacotes do PostgreSQL 17 (só eles, sem autoremove)
 
 on:
   workflow_dispatch:
@@ -30,7 +32,7 @@ on:
       tarefa:
         description: "O que fazer"
         type: choice
-        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, postgres-18, fail2ban-instalar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar, bug-reports, social-conferir, social-navegador]
+        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, postgres-18, fail2ban-instalar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar, bug-reports, social-conferir, social-navegador, pg17-remover]
         default: diagnostico
 
 # nunca junto com um deploy ou outra manutenção
@@ -471,6 +473,34 @@ jobs:
 
             sim_nao() { if [ -n "$1" ]; then echo sim; else echo não; fi; }
 
+            pg17_remover() {
+              # Limpeza combinada depois do upgrade de 20/10: o cluster 17 ficou parado como volta de segurança.
+              # Só remove se o 18 estiver no ar e os sites respondendo; antes faz backup e guarda uma cópia do 17.
+              secao "conferência antes"
+              pg_lsclusters
+              if ! pg_lsclusters -h | awk '$1==18 && $4=="online"' | grep -q .; then echo "cluster 18 não está online — parando"; exit 1; fi
+              if ! pg_lsclusters -h | awk '$1==17' | grep -q .; then echo "cluster 17 já não existe"; else
+                if pg_lsclusters -h | awk '$1==17 && $4=="online"' | grep -q .; then echo "cluster 17 está ONLINE — parando, não removo cluster em uso"; exit 1; fi
+                for u in https://anaheimhub.com/api/health https://anaheimhub.com/; do
+                  code=$(curl -s -o /dev/null -m 15 -w "%{http_code}" "$u" || echo 000)
+                  echo "$u → $code"; [ "$code" = 200 ] || { echo "site fora do ar — parando"; exit 1; }
+                done
+                backup
+                secao "cópia final do cluster 17 (pode apagar quando quiser: /root/backups-pg17)"
+                mkdir -p /root/backups-pg17 && chmod 700 /root/backups-pg17
+                tar czf /root/backups-pg17/pg17-main-$(date +%F).tgz /var/lib/postgresql/17/main /etc/postgresql/17 2>/dev/null
+                ls -lh /root/backups-pg17 | grep -v '^total'
+                secao "removendo o cluster 17"
+                pg_dropcluster 17 main && echo "cluster 17 removido"
+              fi
+              secao "removendo os pacotes do PostgreSQL 17 (sem autoremove)"
+              PKGS=$(dpkg -l 'postgresql-17*' 'postgresql-client-17*' 2>/dev/null | awk '/^ii/{print $2}' | tr '\n' ' ')
+              if [ -n "$PKGS" ]; then DEBIAN_FRONTEND=noninteractive apt-get purge -y $PKGS >/dev/null && echo "removidos: $PKGS"; else echo "nenhum pacote do 17 instalado"; fi
+              secao "depois"
+              df -h / | tail -1
+              saude
+            }
+
             social_conferir() {
               secao "agente do Instagram: variáveis no .env (só sim/não)"
               for v in GEMINI_API_KEY DISCORD_WEBHOOK_URL INSTAGRAM_USER_ID INSTAGRAM_ACCESS_TOKEN SOCIAL_SCHEDULER_ENABLED SOCIAL_CHROMIUM_PATH; do
@@ -502,6 +532,7 @@ jobs:
             case "$TAREFA" in
               bug-reports) bug_reports ;;
               social-conferir) social_conferir ;;
+              pg17-remover) pg17_remover ;;
               social-navegador) social_navegador ;;
               diagnostico) diagnostico ;;
               seguranca-conferir) seguranca_conferir ;;
