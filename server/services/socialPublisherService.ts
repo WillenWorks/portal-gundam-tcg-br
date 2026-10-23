@@ -499,10 +499,13 @@ export async function createSocialPostDraft(
   const absolutePath = path.join(localUploadDir, "social", fileName);
 
   // 4. Renderiza o PNG 1080x1350 via Playwright
+  // sem navegador na VPS (ou falha ao desenhar) o post fica sem imagem, em vez de apontar para um arquivo que não existe
+  let imageUrl: string | null = relativeUploadPath;
   try {
     await renderSocialCardImage(card, absolutePath);
   } catch (err) {
-    console.warn("[socialPublisher] Aviso ao renderizar imagem Playwright:", err);
+    imageUrl = null;
+    console.warn("[socialPublisher] Aviso ao renderizar imagem Playwright:", err instanceof Error ? err.message : err);
   }
 
   // 5. Salva no Banco de Dados
@@ -513,7 +516,7 @@ export async function createSocialPostDraft(
       title: content.title,
       caption: content.fullCaption,
       cardCode: card.code,
-      imageUrl: relativeUploadPath,
+      imageUrl,
       metadata: JSON.stringify({
         hashtags: content.hashtags,
         hook: content.hook,
