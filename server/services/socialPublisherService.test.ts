@@ -47,6 +47,13 @@ describe("socialPublisherService", () => {
     expect(prisma.card.findFirst.mock.calls[0][0].where.code).toBe("ST01-001");
   });
 
+  it("quebras <br> do texto da carta viram linha nova (saíam cruas na legenda); palavras-chave <...> ficam", async () => {
+    const row = { ...cardRow, effectPt: "[Burst] Adicione esta carta à sua mão.<br>[When Paired] <Blocker><BR/>Fim" };
+    const prisma = { card: { findFirst: vi.fn().mockResolvedValue(row) }, socialMediaPost: { findMany: vi.fn() } } as any;
+    const card = await pickCardForPost(prisma, "ST01-001");
+    expect(card.text).toBe("[Burst] Adicione esta carta à sua mão.\n[When Paired] <Blocker>\nFim");
+  });
+
   it("pickCardForPost recusa código com caracteres de caminho", async () => {
     const prisma = { card: { findFirst: vi.fn() } } as any;
     await expect(pickCardForPost(prisma, "../../etc/passwd")).rejects.toThrow(/inválido/);
