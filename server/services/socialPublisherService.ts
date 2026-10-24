@@ -330,8 +330,12 @@ function toPostContent(defaultTitle: string, parsed: Partial<GeneratedPostConten
   };
 }
 
+// Sem limite, o SDK refaz cada chamada até 5 vezes com espera crescente (até 60 s) quando o modelo responde 503; com 4
+// modelos na lista, a legenda chegava a levar minutos. Uma tentativa por modelo e 25 s de teto: a lista já é a reserva.
+export const GEMINI_HTTP_OPTIONS = { timeout: 25_000, retryOptions: { attempts: 1 } };
+
 async function generateWithGemini(defaultTitle: string, prompt: string, apiKey: string): Promise<GeneratedPostContent | null> {
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey, httpOptions: GEMINI_HTTP_OPTIONS });
   for (const model of geminiSocialModels()) {
     try {
       const response = await ai.models.generateContent({
@@ -351,7 +355,7 @@ async function generateWithGemini(defaultTitle: string, prompt: string, apiKey: 
 
 async function generateWithClaude(defaultTitle: string, prompt: string, apiKey: string): Promise<GeneratedPostContent | null> {
   try {
-    const client = new Anthropic({ apiKey });
+    const client = new Anthropic({ apiKey, timeout: 90_000, maxRetries: 1 });
     const response = await client.beta.messages.parse({
       model: CLAUDE_SOCIAL_MODEL,
       max_tokens: 8000,
@@ -841,6 +845,49 @@ export async function createSocialPostDraft(prisma: PrismaClient, input: Generat
 
   await sendDiscordSocialNotification(post, publicAppUrl, "draft", draft.notice);
   return post;
+}
+
+export type SocialGenerationState = {
+  running: boolean;
+  type: SocialPostType | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  /** post criado pela última geração (ou null, se falhou) */
+  postId: string | null;
+  error: string | null;
+};
+
+const IDLE_GENERATION: SocialGenerationState = { running: false, type: null, startedAt: null, finishedAt: null, postId: null, error: null };
+let generation: SocialGenerationState = { ...IDLE_GENERATION };
+
+export function socialGenerationState(): SocialGenerationState {
+  return { ...generation };
+}
+
+/**
+ * Gera o rascunho em segundo plano, um de cada vez. A geração leva de 20 s a alguns minutos (slides + IA) e passava do
+ * tempo do proxy: o navegador desistia, o servidor terminava mesmo assim, e um segundo clique criava um segundo post.
+ * Agora a rota responde na hora e o painel acompanha pelo estado; clique repetido enquanto gera é recusado.
+ */
+export function startSocialPostDraft(prisma: PrismaClient, input: GeneratePostInput = {}, create: typeof createSocialPostDraft = createSocialPostDraft): boolean {
+  if (generation.running) return false;
+  generation = { ...IDLE_GENERATION, running: true, type: input.type ?? SocialPostType.CARD_SPOTLIGHT, startedAt: new Date().toISOString() };
+  void create(prisma, input).then(
+    (post) => {
+      generation = { ...generation, running: false, finishedAt: new Date().toISOString(), postId: post.id };
+    },
+    (err: unknown) => {
+      const message = (err instanceof Error ? err.message : String(err)).slice(0, 300) || "Falha ao gerar o post.";
+      console.error("[socialPublisher] falha ao gerar o rascunho:", message);
+      generation = { ...generation, running: false, finishedAt: new Date().toISOString(), error: message };
+    },
+  );
+  return true;
+}
+
+/** Só para testes. */
+export function resetSocialGenerationState(): void {
+  generation = { ...IDLE_GENERATION };
 }
 
 /** Problemas que impedem publicar a legenda como está (mostrados no painel antes de aprovar). */

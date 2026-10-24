@@ -511,6 +511,16 @@ jobs:
               secao "pasta de imagens dos posts"
               du -sh "$APP/public/uploads/social" 2>/dev/null || echo "ainda não existe"
               df -h / | tail -1
+              # só metadados dos posts (sem legenda); o erro de publicação é a mensagem da API do Instagram, sem token
+              secao "últimos 12 posts (horário UTC | tipo | status | imagens | slot | erro)"
+              runuser -u postgres -- psql -d gundam_portal -Atc "select to_char(\"createdAt\",'MM-DD HH24:MI:SS'), type, status, coalesce(array_length(\"mediaUrls\",1),0) || ' img' || case when \"imageUrl\" is null then ' (sem capa)' else '' end, coalesce(\"slotKey\",'-'), left(coalesce(\"publishError\", \"rejectedReason\", ''), 300) from \"SocialMediaPost\" order by \"createdAt\" desc limit 12" 2>&1
+              secao "chamadas de gerar/aprovar/publicar no nginx (hoje; sem IP)"
+              grep -ahE '"POST /api/(admin/social/(generate|posts/[^ ]+/(approve|publish))|discord/interactions)' /var/log/nginx/access.log 2>/dev/null \
+                | awk '{print $4, $6, $7, $9, $10}' | sed -E 's#/posts/[A-Za-z0-9]+/#/posts/<id>/#' | tail -n 20 || echo "sem registros"
+              secao "erros do serviço social no log da API (últimas 40 linhas)"
+              L=$(pm2 jlist | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const p=JSON.parse(s).find(x=>x.name==="gundam-portal");console.log(p.pm2_env.pm_err_log_path+" "+p.pm2_env.pm_out_log_path)})')
+              grep -ahE "socialPublisher|socialScheduler|socialSlides|discordInteractions|Instagram" "${L%% *}" "${L##* }" 2>/dev/null \
+                | sed -E 's/(access_token|token)=[^ &"]+/\1=***/g' | cut -c1-300 | tail -n 40 || echo "sem registros"
             }
 
             social_navegador() {
