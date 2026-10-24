@@ -1526,19 +1526,6 @@ export default function DeckbuilderPage() {
   // Rascunho gravado por "Copiar deck", "Montar núcleo", "Carregar" (lista de torneio) ou pelo visitante que tentou
   // salvar sem conta. Antes ninguém lia esse rascunho e o deckbuilder abria vazio. Lido uma vez e apagado.
   const draftReadRef = useRef(false);
-  useEffect(() => {
-    if (deckId || draftReadRef.current) return;
-    draftReadRef.current = true;
-    if (new URLSearchParams(window.location.search).get("lista")) return;
-    let draft: DeckbuilderDraft | null = null;
-    try {
-      draft = parseDeckbuilderDraft(localStorage.getItem(DECKBUILDER_DRAFT_KEY));
-      localStorage.removeItem(DECKBUILDER_DRAFT_KEY);
-    } catch {
-      draft = null;
-    }
-    if (draft) applyDraft(draft).catch(() => undefined);
-  }, [deckId]);
 
   const applyDraft = async (draft: DeckbuilderDraft) => {
     setLoadingDeck(true);
@@ -1578,6 +1565,24 @@ export default function DeckbuilderPage() {
       setLoadingDeck(false);
     }
   };
+
+  const takeDraft = (): DeckbuilderDraft | null => {
+    try {
+      const draft = parseDeckbuilderDraft(localStorage.getItem(DECKBUILDER_DRAFT_KEY));
+      localStorage.removeItem(DECKBUILDER_DRAFT_KEY);
+      return draft;
+    } catch {
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    if (deckId || draftReadRef.current) return;
+    draftReadRef.current = true;
+    if (new URLSearchParams(window.location.search).get("lista")) return;
+    const draft = takeDraft();
+    if (draft) applyDraft(draft).catch(() => undefined);
+  }, [deckId]);
 
   /** Modal de Exportação de Imagem com Prévia Reativa e Toggles (Exburst style) */
   const generateDeckImage = () => {
