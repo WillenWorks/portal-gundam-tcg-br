@@ -422,14 +422,12 @@ describe("socialPublisherService", () => {
   describe("sexta: deck em destaque", () => {
     const now = new Date("2026-10-30T12:00:00Z");
     const card = (code: string) => ({ cardModelId: `m${code}`, code, nameEn: `Carta ${code}`, namePt: null, cardType: "UNIT", color: "Red", level: 2, cost: 2, imageUrl: `https://cdn/${code}.jpg` });
-    function deckIndex(arch: string, n: number) {
+    function deckIndex(arch: string, n: number, place: { country: string; city: string | null; uf: string | null } = { country: "Brasil", city: "Curitiba", uf: "PR" }) {
       const tournaments = Array.from({ length: n }, (_, i) => ({
         id: `t${i}`,
         name: `Locals @ Loja ${i} — 2026-10-20`,
         organizer: `Loja ${i}`,
-        country: "Brasil",
-        city: "Curitiba",
-        uf: "PR",
+        ...place,
         season: null,
         tier: "SMALL_OFFICIAL" as const,
         sourceUrl: null,
@@ -459,6 +457,25 @@ describe("socialPublisherService", () => {
       expect(draft.content.fullCaption).toContain("16 listas");
       expect(captionProblems(draft.content.fullCaption)).toEqual([]);
       expect(prisma.socialMediaPost.findMany.mock.calls[0][0].where).toMatchObject({ type: "DECK_FEATURE", status: { not: "REJECTED" } });
+    });
+
+    it("prompt da IA: rótulos legíveis, datas dd/mm e cartas com código (nada de nome de campo ou data crua)", async () => {
+      genai.generateContent.mockReset().mockResolvedValue({ text: JSON.stringify({ title: "Deck", fullCaption: "Legenda #GundamCardGame" }) });
+      await draftDeckFeature(prismaWith(), { apiKeyGemini: "chave" }, { index: deckIndex("Red / White MF", 16), now });
+      const prompt = genai.generateContent.mock.calls[0][0].contents as string;
+      expect(prompt).not.toMatch(/taxaTop25|listasNoBrasil|listaMostrada|cartasChave/);
+      expect(prompt).not.toContain("2026-10-20");
+      expect(prompt).toContain("20/10");
+      expect(prompt).toContain("Carta A (A)");
+      expect(prompt).toContain("Listas de torneios no Brasil: 16");
+    });
+
+    it("nenhuma lista do Brasil: o dado sai do prompt (a IA escrevia \"foram 0 listas no Brasil\")", async () => {
+      genai.generateContent.mockReset().mockResolvedValue({ text: JSON.stringify({ title: "Deck", fullCaption: "Legenda #GundamCardGame" }) });
+      await draftDeckFeature(prismaWith(), { apiKeyGemini: "chave" }, { index: deckIndex("Red / White MF", 16, { country: "Japan", city: "Tokyo", uf: null }), now });
+      const prompt = genai.generateContent.mock.calls[0][0].contents as string;
+      expect(prompt).not.toContain("Listas de torneios no Brasil");
+      expect(prompt).toMatch(/não cite números iguais a zero/i);
     });
 
     it("arquétipo destacado nas últimas semanas não repete; sem outro elegível vira carta do dia com aviso", async () => {
