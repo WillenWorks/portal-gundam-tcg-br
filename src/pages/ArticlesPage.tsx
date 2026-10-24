@@ -43,6 +43,24 @@ export default function ArticlesPage() {
       .finally(() => setLoading(false));
   }, [page, location]);
 
+  // página no endereço (?page=2): dá para compartilhar e o voltar do navegador cai na mesma página
+  const goToPage = (next: number) => {
+    const target = Math.min(Math.max(1, next), totalPages);
+    const params = new URLSearchParams(window.location.search);
+    if (target > 1) params.set("page", String(target));
+    else params.delete("page");
+    const query = params.toString();
+    window.history.pushState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
+    setPage(target);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    const onPop = () => setPage(Number(new URLSearchParams(window.location.search).get("page")) || 1);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
   return (
     <PublicShell ad
       breadcrumbs={[{ label: "Artigos" }]}
@@ -105,8 +123,8 @@ export default function ArticlesPage() {
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4 light:border-slate-300/60">
             <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Página {page} de {totalPages}</p>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="rounded-none border-white/20 light:border-slate-400/90" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>Anterior</Button>
-              <Button variant="outline" size="sm" className="rounded-none border-white/20 light:border-slate-400/90" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))}>Próxima</Button>
+              <Button variant="outline" size="sm" className="rounded-none border-white/20 light:border-slate-400/90" disabled={page <= 1} onClick={() => goToPage(page - 1)}>Anterior</Button>
+              <Button variant="outline" size="sm" className="rounded-none border-white/20 light:border-slate-400/90" disabled={page >= totalPages} onClick={() => goToPage(page + 1)}>Próxima</Button>
             </div>
           </div>
         ) : null}

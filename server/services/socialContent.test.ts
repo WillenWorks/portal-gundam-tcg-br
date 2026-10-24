@@ -1,6 +1,43 @@
 import { describe, expect, it } from "vitest";
 import { VedaIndex, type RawCard, type RawEntry, type RawTournament } from "../vedaCore";
-import { buildWeeklyReport, dayMonth, eventLabel, pickFeaturedDeck, rarityAttemptOrder, rarityTier, reportTournamentCount } from "./socialContent";
+import { articlePlainText, buildWeeklyReport, dayMonth, eventLabel, pickFeaturedDeck, rarityAttemptOrder, rarityTier, reportTournamentCount } from "./socialContent";
+
+describe("texto do artigo para a legenda", () => {
+  it("tira a marcação do markdown e fica só o texto", () => {
+    const md = [
+      "# Guia do ST01",
+      "",
+      "O **Gundam** de [[ST01-001]] é _forte_. Veja [o site](https://x.com/a).",
+      "",
+      "![capa](https://x/img.png)",
+      "",
+      "- item um",
+      "- item dois",
+      "",
+      "> citação",
+      "",
+      "```",
+      "const x = 1;",
+      "```",
+      "",
+      "<div>html</div>",
+    ].join("\n");
+    const text = articlePlainText(md);
+    expect(text).toContain("Guia do ST01");
+    expect(text).toContain("O Gundam de ST01-001 é forte. Veja o site.");
+    expect(text).toContain("item um");
+    expect(text).toContain("citação");
+    expect(text).not.toMatch(/[#*_[\]!>`<]/);
+    expect(text).not.toContain("https://");
+    expect(text).not.toContain("const x");
+  });
+
+  it("corta no limite sem partir palavra", () => {
+    const text = articlePlainText("palavra ".repeat(100), 50);
+    expect(text.length).toBeLessThanOrEqual(51);
+    expect(text).toMatch(/ palavra…$/);
+  });
+});
 
 describe("rodízio de raridade da carta do dia", () => {
   it("normaliza os dois formatos do banco e as artes alternativas", () => {

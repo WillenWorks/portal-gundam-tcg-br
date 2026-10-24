@@ -8,6 +8,7 @@ import { z } from "zod";
 import { getCardDefByCode, ALL_CARD_DEFS } from "../../src/modules/simulator/content/allCardDefs";
 import { formatSlot, previousWeekRange } from "./socialSchedule";
 import {
+  articlePlainText,
   buildWeeklyReport,
   dayMonth,
   FEATURED_DECK_NO_REPEAT_DAYS,
@@ -24,6 +25,7 @@ import {
 import {
   accentFor,
   altArtSlideHtml,
+  articleCoverHtml,
   deckCoverHtml,
   deckKeyCardsHtml,
   deckListHtml,
@@ -54,6 +56,8 @@ export { escapeHtml };
 export interface GeneratePostInput {
   cardCode?: string;
   type?: SocialPostType;
+  /** artigo do site (tipo ARTICLE); sem ele, usa o último publicado */
+  articleId?: string;
   customTopic?: string;
   apiKeyGemini?: string;
   publicAppUrl?: string;
@@ -652,6 +656,7 @@ const CAPTION_RULES = `Regras:
 4. Nomes de jogadores e lojas exatamente como estão nos dados.
 5. Não diga que o post é oficial nem fale em nome da Bandai.
 6. Legenda completa com no máximo 1.800 caracteres, de 8 a 12 hashtags no final.
+7. Não cite números iguais a zero nem copie nomes de campos dos dados (escreva em português corrido).
 
 Responda APENAS com JSON válido:
 {"title": "...", "hook": "...", "strategy": "...", "cta": "...", "hashtags": ["..."], "fullCaption": "..."}`;
@@ -756,26 +761,31 @@ function deckTemplate(deck: FeaturedDeck): GeneratedPostContent {
 }
 
 function deckPrompt(deck: FeaturedDeck, customTopic?: string): string {
-  const data = {
-    arquetipo: deck.archetype.name,
-    cores: deck.archetype.colors,
-    periodo: `${dayMonth(deck.window.from)} a ${dayMonth(deck.window.to)}`,
-    listas: deck.lists,
-    torneios: deck.tournaments,
-    titulos: deck.wins,
-    taxaTop25: percent(deck.topRate),
-    listasNoBrasil: deck.brLists,
-    listaMostrada: { jogador: deck.entry.player, colocacao: deck.entry.placement, campanha: deck.entry.record, evento: deck.entry.tournament, loja: deck.entry.store, cidade: deck.entry.city, data: deck.entry.date },
-    cartas: deck.cards.map((c) => `${c.quantity}x ${c.name} (${c.code})`),
-    cartasChave: deck.keyCards.map((c) => ({ carta: c.name, presenca: percent(c.inclusion), copias: c.copies })),
-  };
+  // texto já pronto para a legenda: com JSON cru a IA copiava nome de campo ("taxaTop25"), data do banco
+  // ("2026-10-11") e escrevia "foram 0 listas no Brasil"
+  const where = [deck.entry.tournament, deck.entry.store, deck.entry.city ? `${deck.entry.city}${deck.entry.uf ? `-${deck.entry.uf}` : ""}` : null, deck.entry.date ? dayMonth(deck.entry.date) : null].filter(Boolean).join(", ");
+  const lines = [
+    `Arquétipo: ${deck.archetype.name}`,
+    deck.archetype.colors.length ? `Cores: ${deck.archetype.colors.join(" e ")}` : null,
+    `Período: ${dayMonth(deck.window.from)} a ${dayMonth(deck.window.to)}`,
+    `Listas registradas: ${deck.lists}, em ${deck.tournaments} ${deck.tournaments === 1 ? "torneio" : "torneios"}`,
+    deck.wins ? `Títulos: ${deck.wins}` : null,
+    `Colocações no top 25% dos torneios: ${percent(deck.topRate)} das listas`,
+    deck.brLists ? `Listas de torneios no Brasil: ${deck.brLists}` : null,
+    `Lista mostrada no carrossel: ${deck.entry.player}, ${deckPlacement(deck.entry.placement)}${deck.entry.record ? ` (campanha ${deck.entry.record})` : ""}${where ? `, em ${where}` : ""}`,
+    `Cartas-chave (nome, código, em quantas listas aparece, cópias mais comuns):`,
+    ...deck.keyCards.map((c) => `- ${c.name} (${c.code}): ${percent(c.inclusion)} das listas, ${c.copies} ${c.copies === 1 ? "cópia" : "cópias"}`),
+    `Lista completa:`,
+    ...deck.cards.map((c) => `- ${c.quantity}x ${c.name} (${c.code})`),
+  ].filter((line): line is string => line !== null);
   return `Você escreve os posts do Instagram do Anaheim Hub (anaheimhub.com), um portal brasileiro feito por fãs do Gundam Card Game (Bandai). O portal não é oficial nem ligado à Bandai.
-Escreva o post de sexta-feira "Deck em destaque": o arquétipo de melhor desempenho nos torneios dos últimos 30 dias. O post é um carrossel: capa com os números, a lista completa e as cartas-chave. Dados (JSON):
+Escreva o post de sexta-feira "Deck em destaque": o arquétipo de melhor desempenho nos torneios dos últimos 30 dias. O post é um carrossel: capa com os números, a lista completa e as cartas-chave. Dados:
 
-${JSON.stringify(data, null, 1)}
+${lines.join("\n")}
 ${customTopic ? `Pedido do editor: "${customTopic.slice(0, 300)}"` : ""}
 
 Estrutura: gancho de 1–2 linhas com o desempenho (use os números exatos); de quem é a lista e onde foi; 3 a 5 cartas-chave e o papel delas, só com base nos nomes e na presença (sem inventar efeitos); uma pergunta para os comentários; convite para abrir a lista e testar no simulador do Anaheim Hub (link na bio).
+Escreva as datas como estão (dd/mm). Duas cartas com o mesmo nome são cartas diferentes: diferencie pelo código ou cite só uma.
 ${CAPTION_RULES}`;
 }
 
@@ -815,7 +825,112 @@ export async function draftDeckFeature(prisma: PrismaClient, input: GeneratePost
   };
 }
 
+const ARTICLE_HASHTAGS = ["GundamCardGame", "GundamTCG", "GundamBrasil", "TCGBrasil", "CardGame", "AnaheimHub"];
+const ARTICLE_KIND_PT: Record<string, string> = { NEWS: "Notícia", PREVIEW: "Preview", REVIEW: "Análise", GUIDE: "Guia" };
+
+type SocialArticle = { id: string; title: string; slug: string; excerpt: string | null; contentMd: string; coverImage: string | null; postType: string; status: string };
+
+/** Capa enviada no painel fica em /uploads (caminho relativo); o navegador do slide precisa do endereço completo. */
+function absoluteUrl(url: string | null, base: string): string {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  return url.startsWith("/") ? `${base.replace(/\/+$/, "")}${url}` : "";
+}
+
+const articleUrl = (article: SocialArticle, base: string) => `${base.replace(/^https?:\/\//, "").replace(/\/+$/, "")}/articles/${article.slug}`;
+
+/** O endereço do artigo precisa estar na legenda; se a IA esquecer, entra antes do bloco final de hashtags. */
+export function ensureArticleLink(caption: string, link: string): string {
+  if (caption.includes(link)) return caption;
+  const line = `📖 Leia completo em ${link} (link na bio)`;
+  const lines = caption.trimEnd().split("\n");
+  let tagStart = lines.length;
+  while (tagStart > 0 && /^\s*#[\p{L}\p{N}_]+(?:\s+#[\p{L}\p{N}_]+)*\s*$/u.test(lines[tagStart - 1])) tagStart -= 1;
+  if (tagStart === lines.length) return `${caption.trimEnd()}\n\n${line}`;
+  const body = lines.slice(0, tagStart).join("\n").trimEnd();
+  return `${body}\n\n${line}\n\n${lines.slice(tagStart).join("\n")}`;
+}
+
+function articleTemplate(article: SocialArticle, link: string): GeneratedPostContent {
+  const summary = article.excerpt?.trim() || articlePlainText(article.contentMd, 600);
+  const kind = ARTICLE_KIND_PT[article.postType] ?? "Artigo";
+  return {
+    title: article.title.slice(0, 140),
+    hook: article.title,
+    strategy: summary,
+    cta: "Leia o artigo completo no Anaheim Hub (link na bio).",
+    hashtags: ARTICLE_HASHTAGS,
+    fullCaption:
+      `📰 ${kind.toUpperCase()}: ${article.title}\n\n${summary}\n\n` +
+      `📖 Leia completo em ${link} (link na bio)\n\n` +
+      ARTICLE_HASHTAGS.map((h) => `#${h}`).join(" "),
+  };
+}
+
+function articlePrompt(article: SocialArticle, link: string, customTopic?: string): string {
+  return `Você escreve os posts do Instagram do Anaheim Hub (anaheimhub.com), um portal brasileiro feito por fãs do Gundam Card Game (Bandai). O portal não é oficial nem ligado à Bandai.
+Saiu um artigo novo no site. O post é a capa do artigo e a legenda é um resumo dele, para a pessoa querer ler o texto completo.
+
+Título: ${article.title}
+Tipo: ${ARTICLE_KIND_PT[article.postType] ?? "Artigo"}
+${article.excerpt ? `Resumo escrito pelo autor: ${article.excerpt}\n` : ""}Endereço: ${link}
+
+Texto do artigo:
+"""
+${articlePlainText(article.contentMd)}
+"""
+${customTopic ? `Pedido do editor: "${customTopic.slice(0, 300)}"` : ""}
+
+Estrutura: gancho de 1–2 linhas com o assunto do artigo; resumo de 3 a 5 linhas com os pontos principais, sem entregar tudo; convite para ler o artigo completo com o endereço ${link} (link na bio); de 8 a 12 hashtags no final.
+Regras:
+1. Português do Brasil, tom de jogador experiente falando com outros jogadores.
+2. Use SOMENTE o que está no texto do artigo. Não acrescente opiniões, números, cartas nem resultados que não estejam lá.
+3. Não traduza nomes de cartas, personagens nem palavras-chave do jogo.
+4. Não diga que o post é oficial nem fale em nome da Bandai.
+5. Legenda completa com no máximo 1.800 caracteres.
+
+Responda APENAS com JSON válido:
+{"title": "...", "hook": "...", "strategy": "...", "cta": "...", "hashtags": ["..."], "fullCaption": "..."}`;
+}
+
+/** Artigo publicado no site: a capa como imagem única e um resumo do texto na legenda. */
+export async function draftArticlePost(prisma: PrismaClient, input: GeneratePostInput = {}): Promise<DraftContent> {
+  const select = { id: true, title: true, slug: true, excerpt: true, contentMd: true, coverImage: true, postType: true, status: true } as const;
+  const article = (input.articleId
+    ? await prisma.post.findUnique({ where: { id: input.articleId }, select })
+    : await prisma.post.findFirst({ where: { status: "PUBLISHED" }, orderBy: { publishedAt: "desc" }, select })) as SocialArticle | null;
+  if (!article || article.status !== "PUBLISHED") throw new SocialActionError("Artigo não encontrado ou ainda não publicado.", 404);
+  const base = input.publicAppUrl || socialPublicAppUrl();
+  const link = articleUrl(article, base);
+  const content = await generateCaption(articlePrompt(article, link, input.customTopic), articleTemplate(article, link), input.apiKeyGemini);
+  return {
+    type: SocialPostType.ARTICLE,
+    content: { ...content, fullCaption: ensureArticleLink(content.fullCaption, link) },
+    fileStem: `artigo-${article.slug}`.slice(0, 24),
+    slides: [articleCoverHtml({ title: article.title, kind: ARTICLE_KIND_PT[article.postType] ?? "Artigo", coverUrl: absoluteUrl(article.coverImage, base) })],
+    metadata: { articleId: article.id, articleSlug: article.slug },
+  };
+}
+
+/** Chave do rascunho automático de um artigo (única no banco: publicar de novo não gera outro post). */
+export const articleSlotKey = (articleId: string) => `artigo-${articleId}`;
+
+/**
+ * Artigo acabou de ser publicado: gera o rascunho do Instagram em segundo plano (vai para aprovação no painel e no
+ * Discord). Devolve false se esse artigo já tem rascunho.
+ */
+export async function queueArticleSocialDraft(prisma: PrismaClient, articleId: string, create: typeof createSocialPostDraft = createSocialPostDraft): Promise<boolean> {
+  const slotKey = articleSlotKey(articleId);
+  const exists = await prisma.socialMediaPost.findUnique({ where: { slotKey }, select: { id: true } });
+  if (exists) return false;
+  void create(prisma, { type: SocialPostType.ARTICLE, articleId, slotKey }).catch((err: unknown) => {
+    console.error("[socialPublisher] falha ao gerar o post do artigo:", err instanceof Error ? err.message : err);
+  });
+  return true;
+}
+
 async function buildDraft(prisma: PrismaClient, input: GeneratePostInput): Promise<DraftContent> {
+  if (input.type === SocialPostType.ARTICLE) return draftArticlePost(prisma, input);
   if (input.type === SocialPostType.TOURNAMENT_REPORT) return draftTournamentReport(prisma, input);
   if (input.type === SocialPostType.DECK_FEATURE) return draftDeckFeature(prisma, input);
   return draftCardSpotlight(prisma, input);
