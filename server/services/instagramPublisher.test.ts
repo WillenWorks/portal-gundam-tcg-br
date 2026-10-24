@@ -4,6 +4,7 @@ import {
   decryptToken,
   encryptToken,
   normalizeInstagramCaption,
+  publishInstagramCarousel,
   publishInstagramImage,
   readInstagramConfig,
   refreshInstagramTokenIfNeeded,
@@ -108,6 +109,51 @@ describe("instagramPublisher", () => {
     } as any;
     const fetchFn = vi.fn();
     expect(await refreshInstagramTokenIfNeeded(prisma, { config, fetchFn: fetchFn as any, now: new Date("2026-10-23T00:00:00Z") })).toBe("fresh");
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it("carrossel: um contêiner por imagem, espera cada um, cria o pai CAROUSEL e publica", async () => {
+    const calls: { url: string; body: string }[] = [];
+    let child = 0;
+    const fetchFn = vi.fn(async (url: string, init?: RequestInit) => {
+      const body = String(init?.body ?? "");
+      calls.push({ url, body });
+      if (url.endsWith("/media") && body.includes("is_carousel_item=true")) return jsonResponse({ id: String(100 + ++child) });
+      if (url.endsWith("/media")) return jsonResponse({ id: "900" });
+      if (/\/(101|102|103|900)\?/.test(url)) return jsonResponse({ status_code: "FINISHED" });
+      if (url.endsWith("/media_publish")) return jsonResponse({ id: "222" });
+      if (url.includes("/222?")) return jsonResponse({ permalink: "https://www.instagram.com/p/car/" });
+      return jsonResponse({}, 404);
+    }) as unknown as typeof fetch;
+
+    const urls = [1, 2, 3].map((i) => `https://anaheimhub.com/uploads/social/social-x-${i}.jpg`);
+    const result = await publishInstagramCarousel(prismaWithoutStoredToken(), { imageUrls: urls, caption: "Legenda" }, { config, fetchFn, pollDelayMs: 0 });
+    expect(result).toEqual({ mediaId: "222", permalink: "https://www.instagram.com/p/car/" });
+    const posts = calls.filter((c) => c.body);
+    // filhos sem legenda, na ordem
+    expect(posts.slice(0, 3).map((c) => decodeURIComponent(c.body.match(/image_url=([^&]+)/)?.[1] ?? ""))).toEqual(urls);
+    expect(posts.slice(0, 3).every((c) => !c.body.includes("caption="))).toBe(true);
+    const parent = posts[3].body;
+    expect(parent).toContain("media_type=CAROUSEL");
+    expect(decodeURIComponent(parent)).toContain("children=101,102,103");
+    expect(parent).toContain("caption=Legenda");
+    expect(posts[4].url).toMatch(/media_publish$/);
+    expect(posts[4].body).toContain("creation_id=900");
+  });
+
+  it("carrossel: filho recusado interrompe antes de criar o pai", async () => {
+    const fetchFn = vi.fn(async (url: string) => (url.endsWith("/media") ? jsonResponse({ id: "101" }) : jsonResponse({ status_code: "ERROR" }))) as unknown as typeof fetch;
+    const urls = ["https://a.com/1.jpg", "https://a.com/2.jpg"];
+    await expect(publishInstagramCarousel(prismaWithoutStoredToken(), { imageUrls: urls, caption: "x" }, { config, fetchFn, pollDelayMs: 0 })).rejects.toThrow(/ERROR/);
+    expect((fetchFn as any).mock.calls.filter(([u]: [string]) => u.endsWith("/media")).length).toBe(1);
+  });
+
+  it("carrossel: aceita de 2 a 10 imagens JPEG em https", async () => {
+    const fetchFn = vi.fn() as any;
+    const run = (imageUrls: string[]) => publishInstagramCarousel(prismaWithoutStoredToken(), { imageUrls, caption: "x" }, { config, fetchFn });
+    await expect(run(["https://a.com/1.jpg"])).rejects.toThrow(/2 a 10/);
+    await expect(run(Array.from({ length: 11 }, (_, i) => `https://a.com/${i}.jpg`))).rejects.toThrow(/2 a 10/);
+    await expect(run(["https://a.com/1.jpg", "https://a.com/2.png"])).rejects.toThrow(/JPEG/);
     expect(fetchFn).not.toHaveBeenCalled();
   });
 });

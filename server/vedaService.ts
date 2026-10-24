@@ -94,7 +94,8 @@ export async function loadVedaData(prisma: PrismaClient): Promise<VedaData> {
   };
 }
 
-async function getIndex(prisma: PrismaClient): Promise<VedaIndex> {
+/** Índice do Veda com cache de 5 min (também usado pelos posts do Instagram). */
+export async function getVedaIndex(prisma: PrismaClient): Promise<VedaIndex> {
   if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.index;
   loading ??= loadVedaData(prisma)
     .then((data) => {
@@ -164,57 +165,57 @@ async function github(path: string, init: RequestInit = {}) {
 export function registerVedaRoutes(app: Express, prisma: PrismaClient, adminGuard: RequestHandler[]) {
   app.get("/api/veda/summary", wrap(async (_req, res) => {
     publicCache(res);
-    res.json(summary(await getIndex(prisma)));
+    res.json(summary(await getVedaIndex(prisma)));
   }));
 
   app.get("/api/veda/filters", wrap(async (_req, res) => {
     publicCache(res);
-    res.json(filters(await getIndex(prisma)));
+    res.json(filters(await getVedaIndex(prisma)));
   }));
 
   app.get("/api/veda/tournaments", wrap(async (req, res) => {
     publicCache(res);
-    const ix = await getIndex(prisma);
+    const ix = await getVedaIndex(prisma);
     const page = paginate(filterTournaments(ix, filterFrom(req)), Number(req.query.offset ?? 0), Number(req.query.limit ?? 0));
     res.json({ ...page, items: page.items.map((t) => tournamentCard(ix, t)) });
   }));
 
   app.get("/api/veda/tournaments/:id", wrap(async (req, res) => {
     publicCache(res);
-    const detail = tournamentDetail(await getIndex(prisma), String(req.params.id));
+    const detail = tournamentDetail(await getVedaIndex(prisma), String(req.params.id));
     if (!detail) return res.status(404).json({ error: "Torneio não encontrado." });
     res.json(detail);
   }));
 
   app.get("/api/veda/decklists/:entryId", wrap(async (req, res) => {
     publicCache(res);
-    const list = decklist(await getIndex(prisma), String(req.params.entryId));
+    const list = decklist(await getVedaIndex(prisma), String(req.params.entryId));
     if (!list) return res.status(404).json({ error: "Lista não encontrada ou não informada." });
     res.json(list);
   }));
 
   app.get("/api/veda/players/:slug", wrap(async (req, res) => {
     publicCache(res);
-    const p = player(await getIndex(prisma), String(req.params.slug), str(req.query.season));
+    const p = player(await getVedaIndex(prisma), String(req.params.slug), str(req.query.season));
     if (!p) return res.status(404).json({ error: "Jogador não encontrado." });
     res.json(p);
   }));
 
   app.get("/api/veda/archetypes", wrap(async (req, res) => {
     publicCache(res);
-    res.json(archetypeRows(await getIndex(prisma), filterFrom(req)));
+    res.json(archetypeRows(await getVedaIndex(prisma), filterFrom(req)));
   }));
 
   app.get("/api/veda/archetypes/:slug", wrap(async (req, res) => {
     publicCache(res);
-    const detail = archetypeDetail(await getIndex(prisma), String(req.params.slug), filterFrom(req));
+    const detail = archetypeDetail(await getVedaIndex(prisma), String(req.params.slug), filterFrom(req));
     if (!detail) return res.status(404).json({ error: "Arquétipo não encontrado." });
     res.json(detail);
   }));
 
   app.get("/api/veda/cards/:cardModelId", wrap(async (req, res) => {
     publicCache(res);
-    const usage = cardUsage(await getIndex(prisma), String(req.params.cardModelId), filterFrom(req));
+    const usage = cardUsage(await getVedaIndex(prisma), String(req.params.cardModelId), filterFrom(req));
     if (!usage) return res.status(404).json({ error: "Carta sem uso em torneios." });
     res.json(usage);
   }));
@@ -223,7 +224,7 @@ export function registerVedaRoutes(app: Express, prisma: PrismaClient, adminGuar
 
   app.get("/api/veda/export/lists", guard, wrap(async (req, res) => {
     const f = filterFrom(req);
-    const lists = exportLists(await getIndex(prisma), { ...f, season: str(req.query.format) ?? f.season, since: str(req.query.since) });
+    const lists = exportLists(await getVedaIndex(prisma), { ...f, season: str(req.query.format) ?? f.season, since: str(req.query.since) });
     res.json({ date: new Date().toISOString().slice(0, 10), source: "anaheimhub", lists });
   }));
 

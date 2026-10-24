@@ -4,29 +4,58 @@
  * antes (SOCIAL_DRAFT_LEAD_HOURS) para dar tempo de revisar e aprovar pelo celular. Aprovado antes do
  * horário, o post espera; aprovado depois, sai na hora.
  *
+ * Cada dia tem um formato: segunda = torneios do Brasil da semana anterior, quarta = carta do dia, sexta = deck em
+ * destaque.
+ *
  * Variáveis (todas opcionais):
- *   SOCIAL_POST_DAYS="1,3,5"      dias da semana (0 = domingo … 6 = sábado)
+ *   SOCIAL_POST_PLAN="1:TOURNAMENT_REPORT,3:CARD_SPOTLIGHT,5:DECK_FEATURE"  dia da semana (0 = domingo … 6 = sábado) e formato
+ *   SOCIAL_POST_DAYS="1,3,5"      só os dias (formato padrão de cada dia); ignorado quando há SOCIAL_POST_PLAN
  *   SOCIAL_POST_TIME="12:00"      horário de publicação em Brasília
  *   SOCIAL_DRAFT_LEAD_HOURS="4"   quantas horas antes o rascunho é gerado */
 
 export const SOCIAL_TIME_ZONE = "America/Sao_Paulo";
 
+export const SOCIAL_PLAN_TYPES = ["TOURNAMENT_REPORT", "CARD_SPOTLIGHT", "DECK_FEATURE"] as const;
+export type SocialPlanType = (typeof SOCIAL_PLAN_TYPES)[number];
+const DEFAULT_PLAN: Record<number, SocialPlanType> = { 1: "TOURNAMENT_REPORT", 3: "CARD_SPOTLIGHT", 5: "DECK_FEATURE" };
+
 export type SocialScheduleConfig = {
   days: number[];
+  /** formato do post de cada dia da agenda */
+  plan: Record<number, SocialPlanType>;
   hour: number;
   minute: number;
   leadHours: number;
 };
 
+const isWeekday = (d: number) => Number.isInteger(d) && d >= 0 && d <= 6;
+
+function readPlan(env: NodeJS.ProcessEnv): Record<number, SocialPlanType> | null {
+  const raw = env.SOCIAL_POST_PLAN?.trim();
+  if (!raw) return null;
+  const plan: Record<number, SocialPlanType> = {};
+  for (const item of raw.split(",")) {
+    const [day, type] = item.split(":").map((v) => v.trim());
+    const d = Number(day);
+    if (isWeekday(d) && (SOCIAL_PLAN_TYPES as readonly string[]).includes(type)) plan[d] = type as SocialPlanType;
+  }
+  return Object.keys(plan).length ? plan : null;
+}
+
 export function readSocialScheduleConfig(env: NodeJS.ProcessEnv = process.env): SocialScheduleConfig {
-  const days = String(env.SOCIAL_POST_DAYS ?? "1,3,5")
-    .split(",")
-    .map((d) => Number(d.trim()))
-    .filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+  let plan = readPlan(env);
+  if (!plan) {
+    const days = String(env.SOCIAL_POST_DAYS ?? "1,3,5")
+      .split(",")
+      .map((d) => Number(d.trim()))
+      .filter(isWeekday);
+    plan = Object.fromEntries((days.length ? days : [1, 3, 5]).map((d) => [d, DEFAULT_PLAN[d] ?? "CARD_SPOTLIGHT"]));
+  }
   const [h, m] = String(env.SOCIAL_POST_TIME ?? "12:00").split(":").map((v) => Number(v));
   const lead = Number(env.SOCIAL_DRAFT_LEAD_HOURS ?? "4");
   return {
-    days: days.length ? [...new Set(days)].sort() : [1, 3, 5],
+    days: Object.keys(plan).map(Number).sort(),
+    plan,
     hour: Number.isInteger(h) && h >= 0 && h <= 23 ? h : 12,
     minute: Number.isInteger(m) && m >= 0 && m <= 59 ? m : 0,
     leadHours: Number.isFinite(lead) && lead >= 0 && lead <= 48 ? lead : 4,
@@ -73,6 +102,21 @@ export function todaySlot(now: Date, config: SocialScheduleConfig): Date | null 
   const { year, month, day, weekday } = localParts(now);
   if (!config.days.includes(weekday)) return null;
   return localTimeToDate(year, month, day, config.hour, config.minute);
+}
+
+/** Formato do post de um horário da agenda (dia da semana em Brasília). */
+export function postTypeFor(slot: Date, config: SocialScheduleConfig): SocialPlanType {
+  return config.plan[localParts(slot).weekday] ?? "CARD_SPOTLIGHT";
+}
+
+/** Segunda a domingo da semana anterior ao horário (Brasília), como datas AAAA-MM-DD, para o relatório de torneios. */
+export function previousWeekRange(slot: Date): { from: string; to: string } {
+  const { year, month, day, weekday } = localParts(slot);
+  const today = Date.UTC(year, month - 1, day);
+  const daysSinceMonday = (weekday + 6) % 7;
+  const fmt = (t: number) => new Date(t).toISOString().slice(0, 10);
+  const thisMonday = today - daysSinceMonday * 24 * 3600_000;
+  return { from: fmt(thisMonday - 7 * 24 * 3600_000), to: fmt(thisMonday - 24 * 3600_000) };
 }
 
 /** Próximo horário de publicação a partir de agora (inclui hoje se ainda não passou). */

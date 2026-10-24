@@ -1138,6 +1138,7 @@ enum SocialPostType {
   DECK_FEATURE
   META_INSIGHT
   PRODUCT_AFFILIATE
+  TOURNAMENT_REPORT
 }
 
 /// Fila e historico de postagens para redes sociais com Human-in-the-Loop (Instagram / Discord / Web Admin)
@@ -1150,6 +1151,8 @@ model SocialMediaPost {
   cardCode         String?
   deckId           String?
   imageUrl         String?
+  /// imagens do carrossel, na ordem (a primeira é a capa = imageUrl); vazio = post de imagem única
+  mediaUrls        String[]         @default([])
   discordMessageId String?
   instagramPostId  String?
   /// link público do post no Instagram, depois de publicado
