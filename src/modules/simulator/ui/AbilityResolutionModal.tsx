@@ -662,6 +662,24 @@ export function AbilityResolutionModal({
 
                 {q.enumChoice ? (
                   <div className={cn(isSingle ? "mt-1 space-y-0.5" : "mt-2 space-y-1")}>
+                    {q.enumChoice.topCards?.length ? (
+                      <div className="space-y-1">
+                        <p className="text-[11px] font-medium text-amber-200/90">{strings.topCardSeenPrompt}</p>
+                        <div className="flex gap-1.5">
+                          {q.enumChoice.topCards.map((card) => (
+                            <div key={card.instanceId} className="flex w-24 shrink-0 flex-col items-center rounded-arena border border-white/10 bg-black/50 p-1 text-center">
+                              <div className="aspect-[63/88] w-full overflow-hidden rounded border border-white/10 bg-black/60 shadow-sm">
+                                <CardFace nameEn={card.def.nameEn} code={card.def.code} art={art} size="sm" className="h-full w-full object-cover" />
+                              </div>
+                              <span className="mt-1 line-clamp-1 w-full text-[10px] font-bold text-slate-100" title={card.def.nameEn}>
+                                {card.def.nameEn}
+                              </span>
+                              <span className="font-mono text-[9px] text-amber-300/80">{card.def.code}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                     <p className="text-[10px] text-muted-portal">{strings.choosePrompt}</p>
                     <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
                       {q.enumChoice.options.map((opt) => (
