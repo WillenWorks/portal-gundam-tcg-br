@@ -1587,7 +1587,16 @@ export type PendingDecision =
          * de uma das `options`; vira `ctx.targets[key]`. `spawnTokenChoice` no
          * `effectSpec`.
          */
-        enumChoice?: { key: string; options: Array<{ value: string; label: string }>; label: string };
+        enumChoice?: {
+          key: string;
+          options: Array<{ value: string; label: string }>;
+          label: string;
+          /**
+           * GD01-039 Dopp "look at the top card… return it to the top or bottom" — a carta vista, para o jogador
+           * decidir sabendo o que é (redigido a `[]` pro oponente pela `viewState`, igual `deckTopReveal`).
+           */
+          topCards?: CardInstance[];
+        };
         /**
          * Lote 5 (docs/debates 2026-09-13) — GD01-067 "Choose 1 Command card that
          * is Lv.5 or lower from your trash. Add it to your hand." Busca na

@@ -269,6 +269,8 @@ export interface DecisionModalStrings {
   reorderTrash: string;
   reorderBottom: string;
   choosePrompt: string;
+  /** carta vista no topo do deck (GD01-039 Dopp) antes de escolher topo/fundo */
+  topCardSeenPrompt: string;
   trashExilePrompt: (count: number, total: number, selected: number) => string;
   trashSearchPrompt: (total: number) => string;
   none: string;
@@ -304,6 +306,7 @@ export const DECISION_MODAL_STRINGS: Record<CardLanguage, DecisionModalStrings> 
     reorderTrash: "→ trash",
     reorderBottom: "↓ fundo",
     choosePrompt: "Escolha:",
+    topCardSeenPrompt: "Carta do topo do seu deck:",
     trashExilePrompt: (count, total, selected) =>
       `Exilar do trash — escolha ${count} de ${total} carta(s) (${selected}/${count}):`,
     trashSearchPrompt: (total) => `Lixeira (${total} cartas) — escolha 1 carta (ou nenhuma):`,
@@ -340,6 +343,7 @@ export const DECISION_MODAL_STRINGS: Record<CardLanguage, DecisionModalStrings> 
     reorderTrash: "→ trash",
     reorderBottom: "↓ bottom",
     choosePrompt: "Choose:",
+    topCardSeenPrompt: "Top card of your deck:",
     trashExilePrompt: (count, total, selected) =>
       `Exile from trash — choose ${count} of ${total} card(s) (${selected}/${count}):`,
     trashSearchPrompt: (total) => `Trash (${total} cards) — choose 1 card (or none):`,

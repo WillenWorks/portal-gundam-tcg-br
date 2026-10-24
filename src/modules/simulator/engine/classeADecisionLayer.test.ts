@@ -9,6 +9,7 @@ import type { CardDef, CardInstance, GameState, PlayerId, Zone } from "./types";
 import { buildSt02DeckList, ST02_CARD_DEFS } from "../fixtures/st02Deck";
 import { buildSt04DeckList, ST04_CARD_DEFS } from "../fixtures/st04Deck";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
+import { GD01_CARD_DEFS } from "../content/gd01";
 
 /**
  * docs/47 Classe A — camada de decisão pra ESCOLHA NOMEADA que não é "alvo em
@@ -200,5 +201,63 @@ describe("ST04-012 Striker Pack 【Main】 — deploy 1 Sword ou 1 Launcher (enu
     expect(afterPlay.pendingDecision.A).toBeNull();
     expect(afterPlay.players.A.battleArea.filter((c) => c.def.isToken)).toHaveLength(1); // só o Aile Strike que já estava
     expect(afterPlay.players.A.trash.some((c) => c.instanceId === cmdId)).toBe(true);
+  });
+});
+
+describe("GD01-039 Dopp — 【Deploy】Look at the top card of your deck. Return it to the top or bottom", () => {
+  function setup() {
+    const state = advanceToMainPhase(createGame(buildSt02DeckList(), buildSt02DeckList(), { seed: 11, firstPlayer: "A" }));
+    for (let i = 0; i < 2; i++) place(state, "A", RES, "resourceArea");
+    const doppId = place(state, "A", GD01_CARD_DEFS["GD01-039"], "hand");
+    const paused = deployCard(state, "A", doppId, {
+      specs: ALL_EFFECT_SPECS,
+      predicateResolver: defaultPredicateResolver,
+      targetFilterResolver: defaultTargetFilterResolver,
+    });
+    const decision = paused.pendingDecision.A;
+    const q = decision?.kind === "abilityResolution" ? decision.queue[0] : undefined;
+    return { paused, q, top: paused.players.A.deck[0] };
+  }
+
+  it("a escolha topo/fundo mostra a carta vista (report de jogador: o Dopp não mostrava a carta)", () => {
+    const { q, top } = setup();
+    expect(q?.enumChoice?.options.map((o) => o.value)).toEqual(["top", "bottom"]);
+    expect(q?.enumChoice?.topCards?.map((c) => c.instanceId)).toEqual([top.instanceId]);
+  });
+
+  it("quem joga vê a carta; o oponente não (topo do deck é zona oculta)", () => {
+    const { paused, top } = setup();
+    const own = viewStateFor(paused, "A").pendingDecision.A;
+    const opp = viewStateFor(paused, "B").pendingDecision.A;
+    const ownQ = own?.kind === "abilityResolution" ? own.queue[0] : undefined;
+    const oppQ = opp?.kind === "abilityResolution" ? opp.queue[0] : undefined;
+    expect(ownQ?.enumChoice?.topCards?.[0].def.code).toBe(top.def.code);
+    expect(oppQ?.enumChoice?.topCards).toEqual([]);
+    expect(JSON.stringify(oppQ)).not.toContain(`"code":"${top.def.code}"`);
+  });
+
+  it("'bottom' manda a carta vista para o fundo do deck", () => {
+    const { paused, q, top } = setup();
+    const next = apply(paused, "A", { kind: "resolveAbility", resolutions: [{ specId: q!.specId, activate: true, targetIds: ["bottom"] }] });
+    expect(next.players.A.deck[next.players.A.deck.length - 1].instanceId).toBe(top.instanceId);
+    expect(next.pendingDecision.A).toBeNull();
+  });
+});
+
+describe("ST02-015 Saint Gabriel — as cartas do topo não vazam para o oponente", () => {
+  it("deckReorder.topCards vem vazio na visão do oponente", () => {
+    const state = advanceToMainPhase(createGame(buildSt02DeckList(), buildSt02DeckList(), { seed: 5, firstPlayer: "A" }));
+    for (let i = 0; i < 2; i++) place(state, "A", RES, "resourceArea");
+    state.players.A.baseSection = [];
+    const sgId = place(state, "A", ST02_CARD_DEFS.SAINT_GABRIEL_INSTITUTE, "hand");
+    const paused = deployCard(state, "A", sgId, {
+      specs: ALL_EFFECT_SPECS,
+      predicateResolver: defaultPredicateResolver,
+      targetFilterResolver: defaultTargetFilterResolver,
+    });
+    const own = viewStateFor(paused, "A").pendingDecision.A;
+    const opp = viewStateFor(paused, "B").pendingDecision.A;
+    expect(own?.kind === "abilityResolution" ? own.queue[0].deckReorder?.topCards : undefined).toHaveLength(2);
+    expect(opp?.kind === "abilityResolution" ? opp.queue[0].deckReorder?.topCards : undefined).toEqual([]);
   });
 });
