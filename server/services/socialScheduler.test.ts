@@ -28,7 +28,7 @@ describe("agenda do Instagram (ciclo)", () => {
       instagramConfigured: () => false,
     });
     expect(result.drafted).toBe("2026-10-26");
-    expect(createDraft.mock.calls[0][1]).toEqual({ scheduledFor: new Date("2026-10-26T15:00:00Z"), slotKey: "2026-10-26" });
+    expect(createDraft.mock.calls[0][1]).toEqual({ scheduledFor: new Date("2026-10-26T15:00:00Z"), slotKey: "2026-10-26", type: "TOURNAMENT_REPORT" });
   });
 
   it("não gera de novo se o rascunho do dia já existe, nem em dia sem post", async () => {

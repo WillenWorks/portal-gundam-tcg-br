@@ -6,9 +6,50 @@ import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { getCardDefByCode, ALL_CARD_DEFS } from "../../src/modules/simulator/content/allCardDefs";
-import { formatSlot } from "./socialSchedule";
+import { formatSlot, previousWeekRange } from "./socialSchedule";
+import {
+  buildWeeklyReport,
+  dayMonth,
+  FEATURED_DECK_NO_REPEAT_DAYS,
+  pickFeaturedDeck,
+  PRIMARY_RARITY_VALUES,
+  rarityAttemptOrder,
+  rarityTier,
+  reportTournamentCount,
+  type FeaturedDeck,
+  type RarityTier,
+  type WeeklyReport,
+  type WeeklyTournament,
+} from "./socialContent";
+import {
+  accentFor,
+  altArtSlideHtml,
+  deckCoverHtml,
+  deckKeyCardsHtml,
+  deckListHtml,
+  escapeHtml,
+  renderSlides,
+  safeImageUrl,
+  slideDocument,
+  tournamentClosingHtml,
+  tournamentCoverHtml,
+  tournamentSlideHtml,
+  type AltArt,
+} from "./socialSlides";
+import type { VedaIndex } from "../vedaCore";
 import { postBotMessage, readDiscordBotConfig, socialButtons, type DiscordBotConfig } from "./discordBot";
-import { countHashtags, INSTAGRAM_CAPTION_MAX, INSTAGRAM_HASHTAG_MAX, normalizeInstagramCaption, publishInstagramImage, readInstagramConfig } from "./instagramPublisher";
+import {
+  countHashtags,
+  INSTAGRAM_CAPTION_MAX,
+  INSTAGRAM_CAROUSEL_MAX,
+  INSTAGRAM_HASHTAG_MAX,
+  normalizeInstagramCaption,
+  publishInstagramCarousel,
+  publishInstagramImage,
+  readInstagramConfig,
+} from "./instagramPublisher";
+
+export { escapeHtml };
 
 export interface GeneratePostInput {
   cardCode?: string;
@@ -42,17 +83,10 @@ export type SocialCard = {
   level?: number;
   text?: string;
   imageUrl?: string;
-};
-
-/** Paleta de cores oficial de Gundam Card Game */
-const COLOR_HEX: Record<string, string> = {
-  blue: "#38bdf8",
-  red: "#f87171",
-  green: "#4ade80",
-  yellow: "#facc15",
-  black: "#94a3b8",
-  white: "#f8fafc",
-  purple: "#c084fc",
+  rarity?: string;
+  cardModelId?: string;
+  /** quantas artes alternativas vão no carrossel (a legenda menciona) */
+  altArtCount?: number;
 };
 
 const CARD_TYPE_PT: Record<string, string> = {
@@ -75,15 +109,6 @@ export function safeFileStem(code: string): string {
   return code.replace(/[^A-Za-z0-9-]/g, "").slice(0, 24) || "carta";
 }
 
-export function escapeHtml(value: unknown): string {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
 const RECENT_POSTS_WINDOW = 60;
 
 type CardRow = {
@@ -99,6 +124,9 @@ type CardRow = {
   effectEn: string | null;
   effectPt: string | null;
   imageUrl: string | null;
+  imageLargeUrl?: string | null;
+  rarity?: string | null;
+  cardModelId?: string | null;
 };
 
 function fromCardRow(row: CardRow): SocialCard {
@@ -115,12 +143,67 @@ function fromCardRow(row: CardRow): SocialCard {
     // o texto explicativo vai em português quando existe (o post é para o público brasileiro). O banco guarda as
     // quebras como <br>, que saíam cruas na legenda; as palavras-chave entre < > (ex.: <Blocker>) ficam.
     text: (row.effectPt || row.effectEn || "").replace(/<br\s*\/?>/gi, "\n"),
-    imageUrl: row.imageUrl || undefined,
+    // a de 1000px quando existe: a de 400px fica borrada no slide de 1080
+    imageUrl: row.imageLargeUrl || row.imageUrl || undefined,
+    rarity: row.rarity || undefined,
+    cardModelId: row.cardModelId || undefined,
   };
 }
 
-/** Seleciona a carta do post: a pedida, ou uma sorteada entre as impressões principais com imagem que não saíram nos últimos posts. */
-export async function pickCardForPost(prisma: PrismaClient, preferredCode?: string, random: () => number = Math.random): Promise<SocialCard> {
+/** Raridade do último post de carta (não descartado), para o rodízio LR → R → U → C. */
+export async function lastSpotlightTier(prisma: PrismaClient): Promise<RarityTier | null> {
+  const last = await prisma.socialMediaPost
+    .findFirst({
+      where: { type: SocialPostType.CARD_SPOTLIGHT, cardCode: { not: null }, status: { not: SocialPostStatus.REJECTED } },
+      orderBy: { createdAt: "desc" },
+      select: { cardCode: true, metadata: true },
+    })
+    .catch(() => null);
+  if (!last) return null;
+  try {
+    const tier = rarityTier((JSON.parse(last.metadata || "{}") as { rarityTier?: string }).rarityTier);
+    if (tier) return tier;
+  } catch {
+    /* metadata antiga ou inválida: olha a carta */
+  }
+  const card = await prisma.card
+    .findFirst({ where: { code: last.cardCode ?? "", deletedAt: null }, orderBy: { isPrimaryPrint: "desc" }, select: { rarity: true } })
+    .catch(() => null);
+  return rarityTier(card?.rarity);
+}
+
+/** Outras impressões da mesma carta com imagem própria (artes alternativas), até completar o carrossel. */
+export async function findAltArts(prisma: PrismaClient, card: SocialCard): Promise<AltArt[]> {
+  if (!card.cardModelId) return [];
+  const prints = await prisma.card
+    .findMany({
+      where: { cardModelId: card.cardModelId, isPrimaryPrint: false, isActive: true, deletedAt: null, imageUrl: { not: null } },
+      orderBy: { createdAt: "asc" },
+      select: { code: true, nameEn: true, rarity: true, imageUrl: true, imageLargeUrl: true, set: { select: { code: true } } },
+    })
+    .catch(() => []);
+  const seen = new Set([card.imageUrl]);
+  const arts: AltArt[] = [];
+  for (const p of prints) {
+    const imageUrl = safeImageUrl(p.imageLargeUrl || p.imageUrl);
+    if (!imageUrl || seen.has(imageUrl)) continue;
+    seen.add(imageUrl);
+    // a fonte põe a raridade no nome da impressão alternativa ("... (LR+)"); ela já aparece à parte no slide
+    arts.push({ code: p.code, name: p.nameEn.replace(/\s*\((?:LR|SR|R|U|C|P)\+*\)\s*$/i, ""), rarity: p.rarity, setCode: p.set?.code ?? null, imageUrl });
+  }
+  return arts.slice(0, INSTAGRAM_CAROUSEL_MAX - 1);
+}
+
+/**
+ * Seleciona a carta do post: a pedida, ou uma sorteada entre as impressões principais com imagem que não saíram nos
+ * últimos posts. Com `tiers`, sorteia na primeira raridade da lista que tiver candidata (rodízio da carta do dia).
+ */
+export async function pickCardForPost(
+  prisma: PrismaClient,
+  preferredCode?: string,
+  random: () => number = Math.random,
+  opts: { tiers?: RarityTier[] } = {},
+): Promise<SocialCard> {
   if (preferredCode) {
     const code = preferredCode.trim().toUpperCase();
     if (!CARD_CODE_PATTERN.test(code)) throw new Error("Código de carta inválido.");
@@ -145,10 +228,12 @@ export async function pickCardForPost(prisma: PrismaClient, preferredCode?: stri
     cardType: { in: ["UNIT", "PILOT", "COMMAND", "COMMAND_PILOT", "BASE"] },
     ...(recentCodes.length ? { code: { notIn: recentCodes } } : {}),
   };
-  const total = await prisma.card.count({ where }).catch(() => 0);
-  if (total > 0) {
+  const attempts: Prisma.CardWhereInput[] = opts.tiers?.length ? opts.tiers.map((tier) => ({ ...where, rarity: { in: PRIMARY_RARITY_VALUES[tier] } })) : [where];
+  for (const attempt of attempts) {
+    const total = await prisma.card.count({ where: attempt }).catch(() => 0);
+    if (total <= 0) continue;
     const candidate = (await prisma.card
-      .findFirst({ where, orderBy: { id: "asc" }, skip: Math.floor(random() * total) })
+      .findFirst({ where: attempt, orderBy: { id: "asc" }, skip: Math.floor(random() * total) })
       .catch(() => null)) as CardRow | null;
     if (candidate) return fromCardRow(candidate);
   }
@@ -171,6 +256,7 @@ function templateContent(card: SocialCard): GeneratedPostContent {
     `• Custo: ${card.cost ?? "—"}${card.level !== undefined ? ` · Nível: ${card.level}` : ""}\n` +
     (card.ap !== undefined || card.hp !== undefined ? `• ${card.ap ?? "—"} AP / ${card.hp ?? "—"} HP\n` : "") +
     (card.text ? `\n📝 Efeito:\n${card.text}\n` : "") +
+    (card.altArtCount ? `\n🎨 Arraste para o lado: ${card.altArtCount === 1 ? "tem 1 arte alternativa" : `são ${card.altArtCount} artes alternativas`} no carrossel.\n` : "") +
     `\n⚔️ Em que deck você colocaria essa carta? Conta aqui nos comentários!\n\n` +
     `🔗 Monte seu deck e teste no simulador do Anaheim Hub (link na bio)\n\n` +
     DEFAULT_HASHTAGS.map((h) => `#${h}`).join(" ");
@@ -216,6 +302,8 @@ Cor: ${card.color}
 Custo: ${card.cost ?? "—"}${card.level !== undefined ? ` · Nível: ${card.level}` : ""}
 AP / HP: ${card.ap ?? "—"} / ${card.hp ?? "—"}
 Texto da carta: "${card.text || "sem efeito"}"
+${card.rarity ? `Raridade: ${card.rarity}` : ""}
+${card.altArtCount ? `O post é um carrossel: depois da carta vêm ${card.altArtCount} arte(s) alternativa(s) dela. Convide a arrastar para ver e pergunte qual arte a pessoa prefere.` : ""}
 ${customTopic ? `Pedido do editor: "${customTopic.slice(0, 300)}"` : ""}
 
 Regras:
@@ -230,10 +318,10 @@ Responda APENAS com JSON válido:
 {"title": "...", "hook": "...", "strategy": "...", "cta": "...", "hashtags": ["..."], "fullCaption": "..."}`;
 }
 
-function toPostContent(card: SocialCard, parsed: Partial<GeneratedPostContent> | null | undefined): GeneratedPostContent | null {
+function toPostContent(defaultTitle: string, parsed: Partial<GeneratedPostContent> | null | undefined): GeneratedPostContent | null {
   if (!parsed || typeof parsed.fullCaption !== "string" || !parsed.fullCaption.trim()) return null;
   return {
-    title: String(parsed.title || `Carta do Dia: ${card.name} (${card.code})`).slice(0, 140),
+    title: String(parsed.title || defaultTitle).slice(0, 140),
     hook: String(parsed.hook || ""),
     strategy: String(parsed.strategy || ""),
     cta: String(parsed.cta || ""),
@@ -242,7 +330,7 @@ function toPostContent(card: SocialCard, parsed: Partial<GeneratedPostContent> |
   };
 }
 
-async function generateWithGemini(card: SocialCard, prompt: string, apiKey: string): Promise<GeneratedPostContent | null> {
+async function generateWithGemini(defaultTitle: string, prompt: string, apiKey: string): Promise<GeneratedPostContent | null> {
   const ai = new GoogleGenAI({ apiKey });
   for (const model of geminiSocialModels()) {
     try {
@@ -251,7 +339,7 @@ async function generateWithGemini(card: SocialCard, prompt: string, apiKey: stri
         contents: prompt,
         config: { responseMimeType: "application/json" },
       });
-      const content = toPostContent(card, JSON.parse(response.text?.trim() || "{}") as Partial<GeneratedPostContent>);
+      const content = toPostContent(defaultTitle, JSON.parse(response.text?.trim() || "{}") as Partial<GeneratedPostContent>);
       if (content) return content;
       console.warn(`[socialPublisher] Gemini (${model}) respondeu sem legenda, tentando o próximo modelo`);
     } catch (err) {
@@ -261,7 +349,7 @@ async function generateWithGemini(card: SocialCard, prompt: string, apiKey: stri
   return null;
 }
 
-async function generateWithClaude(card: SocialCard, prompt: string, apiKey: string): Promise<GeneratedPostContent | null> {
+async function generateWithClaude(defaultTitle: string, prompt: string, apiKey: string): Promise<GeneratedPostContent | null> {
   try {
     const client = new Anthropic({ apiKey });
     const response = await client.beta.messages.parse({
@@ -278,7 +366,7 @@ async function generateWithClaude(card: SocialCard, prompt: string, apiKey: stri
       console.warn("[socialPublisher] Claude recusou a legenda:", response.stop_details?.category ?? "sem categoria");
       return null;
     }
-    return toPostContent(card, response.parsed_output);
+    return toPostContent(defaultTitle, response.parsed_output);
   } catch (err) {
     console.warn("[socialPublisher] Claude falhou na geração do texto:", err instanceof Error ? err.message : err);
     return null;
@@ -286,43 +374,43 @@ async function generateWithClaude(card: SocialCard, prompt: string, apiKey: stri
 }
 
 /**
- * Gera a legenda: Gemini (vários modelos) → Claude (se houver ANTHROPIC_API_KEY) → modelo fixo só com os dados da
- * carta. As chaves podem vir por parâmetro (painel admin, testes); `undefined` lê do ambiente, "" desliga.
+ * Gera a legenda: Gemini (vários modelos) → Claude (se houver ANTHROPIC_API_KEY) → texto fixo montado só com os
+ * dados do post. As chaves podem vir por parâmetro (painel admin, testes); `undefined` lê do ambiente, "" desliga.
  */
-export async function generateSocialContentWithGemini(card: SocialCard, customTopic?: string, apiKey?: string, claudeApiKey?: string): Promise<GeneratedPostContent> {
+export async function generateCaption(prompt: string, fallback: GeneratedPostContent, apiKey?: string, claudeApiKey?: string): Promise<GeneratedPostContent> {
   const geminiKey = (apiKey !== undefined ? apiKey : process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY || "").trim();
   const claudeKey = (claudeApiKey !== undefined ? claudeApiKey : process.env.ANTHROPIC_API_KEY || "").trim();
-  const prompt = buildSocialPrompt(card, customTopic);
 
-  const fromGemini = geminiKey ? await generateWithGemini(card, prompt, geminiKey) : null;
+  const fromGemini = geminiKey ? await generateWithGemini(fallback.title, prompt, geminiKey) : null;
   if (fromGemini) return fromGemini;
   if (claudeKey) {
     if (geminiKey) console.warn("[socialPublisher] nenhum modelo do Gemini respondeu, tentando o Claude");
-    const fromClaude = await generateWithClaude(card, prompt, claudeKey);
+    const fromClaude = await generateWithClaude(fallback.title, prompt, claudeKey);
     if (fromClaude) return fromClaude;
   }
   if (geminiKey || claudeKey) console.warn("[socialPublisher] nenhuma IA respondeu, usando o modelo fixo");
-  return templateContent(card);
+  return fallback;
+}
+
+/** Legenda da carta do dia (mesma cadeia de IAs de generateCaption). */
+export async function generateSocialContentWithGemini(card: SocialCard, customTopic?: string, apiKey?: string, claudeApiKey?: string): Promise<GeneratedPostContent> {
+  return generateCaption(buildSocialPrompt(card, customTopic), templateContent(card), apiKey, claudeApiKey);
 }
 
 /** HTML da arte 1080x1350 (4:5, formato retrato aceito pelo Instagram). Todo dado é escapado. */
-export function buildSocialCardHtml(card: SocialCard): string {
-  const accentColor = COLOR_HEX[card.color.toLowerCase()] || "#38bdf8";
-  const imageUrl = card.imageUrl && /^https:\/\//i.test(card.imageUrl) ? card.imageUrl : "";
+export function buildSocialCardHtml(card: SocialCard, pager?: string): string {
+  const accentColor = accentFor(card.color);
+  const imageUrl = safeImageUrl(card.imageUrl);
   const typeLabel = CARD_TYPE_PT[card.type] || card.type;
   const effect = card.text?.trim() || "Sem efeito.";
-  return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-  body { width: 1080px; height: 1350px; background: radial-gradient(circle at 50% 20%, #0f172a 0%, #020617 100%); color: #f8fafc; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; padding: 60px; position: relative; }
-  body::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(56, 189, 248, 0.04) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none; }
-  .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid rgba(255, 255, 255, 0.1); padding-bottom: 24px; z-index: 10; }
-  .brand { font-size: 32px; font-weight: 900; letter-spacing: 0.15em; text-transform: uppercase; color: #38bdf8; }
-  .badge { background: rgba(56, 189, 248, 0.15); border: 1px solid ${accentColor}; color: ${accentColor}; padding: 8px 18px; font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; border-radius: 4px; }
-  .content { display: flex; gap: 40px; align-items: center; margin: 40px 0; z-index: 10; flex: 1; }
+  const tier = rarityTier(card.rarity);
+  return slideDocument({
+    badge: `CARTA DO DIA${tier ? ` • ${tier}` : " • GCG"}`,
+    accent: accentColor,
+    pager,
+    cta: card.altArtCount ? `Arraste para ver ${card.altArtCount === 1 ? "a arte alternativa" : `as ${card.altArtCount} artes alternativas`} →` : undefined,
+    css: `
+  .content { display: flex; gap: 40px; align-items: center; flex: 1; }
   .card-frame { flex: 0 0 480px; height: 672px; background: rgba(255, 255, 255, 0.03); border: 2px solid rgba(255, 255, 255, 0.15); border-radius: 16px; display: flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.15); }
   .card-img { width: 100%; height: 100%; object-fit: contain; }
   .info-pane { flex: 1; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
@@ -335,25 +423,15 @@ export function buildSocialCardHtml(card: SocialCard): string {
   .stat-unit { font-size: 16px; color: #64748b; }
   .effect-box { background: rgba(15, 23, 42, 0.9); border-left: 4px solid ${accentColor}; border-radius: 4px; padding: 20px; font-size: 18px; line-height: 1.6; color: #cbd5e1; max-height: 300px; overflow: hidden; }
   .effect-text { white-space: pre-line; }
-  .effect-label { font-size: 12px; font-weight: 800; text-transform: uppercase; color: ${accentColor}; margin-bottom: 6px; }
-  .footer { border-top: 2px solid rgba(255, 255, 255, 0.1); padding-top: 24px; display: flex; justify-content: space-between; align-items: center; gap: 24px; z-index: 10; }
-  .cta-text { font-size: 20px; font-weight: 700; color: #cbd5e1; }
-  .fan-note { font-size: 13px; color: #64748b; margin-top: 6px; }
-  .url-badge { background: #38bdf8; color: #020617; font-size: 18px; font-weight: 800; padding: 10px 22px; border-radius: 6px; letter-spacing: 0.05em; white-space: nowrap; }
-</style>
-</head>
-<body>
-  <div class="header">
-    <div class="brand">ANAHEIM HUB</div>
-    <div class="badge">CARTA DO DIA • GCG</div>
-  </div>
+  .effect-label { font-size: 12px; font-weight: 800; text-transform: uppercase; color: ${accentColor}; margin-bottom: 6px; }`,
+    body: `
   <div class="content">
     <div class="card-frame">
       ${imageUrl ? `<img class="card-img" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.name)}" />` : `<div style="text-align:center;padding:20px;"><div style="font-size:24px;font-weight:800;color:#38bdf8;">${escapeHtml(card.code)}</div><div style="font-size:16px;color:#94a3b8;margin-top:8px;">${escapeHtml(card.name)}</div></div>`}
     </div>
     <div class="info-pane">
       <div>
-        <div class="card-code">${escapeHtml(card.code)} • ${escapeHtml(typeLabel.toUpperCase())}</div>
+        <div class="card-code">${escapeHtml(card.code)} • ${escapeHtml(typeLabel.toUpperCase())}${card.rarity ? ` • ${escapeHtml(card.rarity.toUpperCase())}` : ""}</div>
         <h1 class="card-name">${escapeHtml(card.name)}</h1>
       </div>
       <div class="stats-grid">
@@ -371,38 +449,15 @@ export function buildSocialCardHtml(card: SocialCard): string {
         <div class="effect-text">${escapeHtml(effect)}</div>
       </div>
     </div>
-  </div>
-  <div class="footer">
-    <div>
-      <div class="cta-text">Monte seu deck e jogue online no simulador</div>
-      <div class="fan-note">Projeto de fãs, sem vínculo com a Bandai. Gundam Card Game © Bandai / Sotsu · Sunrise.</div>
-    </div>
-    <div class="url-badge">anaheimhub.com</div>
-  </div>
-</body>
-</html>`;
+  </div>`,
+  });
 }
 
 /** Renderiza a arte 1080x1350 em JPEG (o único formato de imagem que a API do Instagram aceita). */
 export async function renderSocialCardImage(card: SocialCard, outputPath: string): Promise<string> {
-  const html = buildSocialCardHtml(card);
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  // carregado só aqui: o navegador pesa e só é usado ao gerar um post
-  const { chromium } = await import("playwright");
-  const browser = await chromium.launch({
-    headless: true,
-    // SOCIAL_CHROMIUM_PATH: usa um Chromium já instalado no servidor em vez do baixado pelo Playwright
-    executablePath: process.env.SOCIAL_CHROMIUM_PATH || undefined,
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
-  });
-  try {
-    const page = await browser.newPage({ viewport: { width: 1080, height: 1350 } });
-    await page.setContent(html, { waitUntil: "load", timeout: 20000 });
-    await page.screenshot({ path: outputPath, type: "jpeg", quality: 90 });
-    return outputPath;
-  } finally {
-    await browser.close();
-  }
+  const [ok] = await renderSlides([buildSocialCardHtml(card)], [outputPath]);
+  if (!ok) throw new Error("A arte não renderizou.");
+  return outputPath;
 }
 
 /** O navegador do Playwright está instalado neste servidor? */
@@ -432,7 +487,7 @@ export async function cleanupOrphanSocialImages(prisma: PrismaClient, now = new 
   const candidates = names.filter((n) => /^social-[A-Za-z0-9-]+\.(?:jpg|png)$/.test(n));
   if (!candidates.length) return 0;
   const used = new Set(
-    (await prisma.socialMediaPost.findMany({ where: { imageUrl: { not: null } }, select: { imageUrl: true } })).map((p) => p.imageUrl),
+    (await prisma.socialMediaPost.findMany({ select: { imageUrl: true, mediaUrls: true } })).flatMap((p) => [p.imageUrl, ...(p.mediaUrls ?? [])]),
   );
   let removed = 0;
   for (const name of candidates) {
@@ -447,7 +502,7 @@ export async function cleanupOrphanSocialImages(prisma: PrismaClient, now = new 
 }
 
 export type DiscordNoticeKind = "draft" | "approved" | "rejected" | "published" | "failed";
-type DiscordNoticePost = { id: string; title: string | null; caption: string; imageUrl: string | null; type: string; scheduledFor?: Date | null };
+type DiscordNoticePost = { id: string; title: string | null; caption: string; imageUrl: string | null; type: string; scheduledFor?: Date | null; mediaUrls?: string[] };
 
 const DISCORD_HEADERS: Record<DiscordNoticeKind, string> = {
   draft: "📢 **Novo rascunho para o Instagram**\nRevise a arte e a legenda e aprove:",
@@ -469,21 +524,27 @@ export function buildDiscordSocialPayload(post: DiscordNoticePost, publicUrl: st
     published: "🟢 Publicado",
     failed: "🔴 Falhou",
   };
+  const slides = post.mediaUrls?.length ?? 0;
+  // embeds com a mesma url viram galeria no Discord (até 4 imagens)
+  const gallery = slides > 1 ? (post.mediaUrls ?? []).slice(1, 4).map((url) => ({ url: adminLink, image: { url: `${publicUrl}${url}` } })) : [];
   return {
     content: DISCORD_HEADERS[kind],
     embeds: [
       {
         title: post.title || "Post — Anaheim Hub",
+        url: adminLink,
         description: (extra ? `${extra}\n\n` : "") + post.caption.slice(0, 1500) + (post.caption.length > 1500 ? "..." : ""),
         color: kind === "failed" ? 15680580 : kind === "rejected" ? 7041664 : 3718648,
         image: absoluteImageUrl ? { url: absoluteImageUrl } : undefined,
         fields: [
           { name: "Status", value: status[kind], inline: false },
+          ...(slides > 1 ? [{ name: "Formato", value: `🖼️ Carrossel com ${slides} imagens`, inline: false }] : []),
           { name: "Painel", value: `[Abrir no painel do admin](${adminLink})`, inline: false },
         ],
         footer: { text: "Anaheim Hub • posts com aprovação humana" },
         timestamp: new Date().toISOString(),
       },
+      ...gallery,
     ],
   };
 }
@@ -527,39 +588,258 @@ export function socialPublicAppUrl(): string {
   return env && !/localhost|127\.0\.0\.1/.test(env) ? env : "https://anaheimhub.com";
 }
 
-/** Cria um rascunho completo: carta + legenda + arte JPEG + aviso no Discord. */
+/** Conteúdo de um rascunho antes de gravar: legenda, slides (o primeiro é a capa) e dados para o painel. */
+type DraftContent = {
+  type: SocialPostType;
+  content: GeneratedPostContent;
+  cardCode?: string;
+  /** prefixo do nome dos arquivos (só letras, números e hífen) */
+  fileStem: string;
+  slides: string[];
+  metadata?: Record<string, unknown>;
+  /** motivo para o aviso no Discord (ex.: semana sem torneio virou carta do dia) */
+  notice?: string;
+};
+
+/**
+ * Desenha os slides em JPEG. Sem navegador no servidor (ou falha ao desenhar a capa) o post fica sem imagem, em vez de
+ * apontar para um arquivo que não existe; slide do meio que falhar só sai do carrossel.
+ */
+async function renderDraftSlides(fileStem: string, slides: string[]): Promise<string[]> {
+  const stamp = Date.now();
+  const names = slides.map((_, i) => `social-${safeFileStem(fileStem)}-${stamp}${i ? `-${i + 1}` : ""}.jpg`);
+  let done: boolean[];
+  try {
+    done = await renderSlides(slides, names.map((name) => path.join(socialUploadDir(), name)));
+  } catch (err) {
+    console.warn("[socialPublisher] Aviso ao renderizar imagem Playwright:", err instanceof Error ? err.message : err);
+    return [];
+  }
+  if (!done[0]) return [];
+  return names.filter((_, i) => done[i]).map((name) => `/uploads/social/${name}`);
+}
+
+/** Carta do dia: a pedida, ou a próxima raridade do rodízio LR → R → U → C; artes alternativas viram carrossel. */
+export async function draftCardSpotlight(prisma: PrismaClient, input: GeneratePostInput = {}): Promise<DraftContent> {
+  const tiers = input.cardCode ? undefined : rarityAttemptOrder(await lastSpotlightTier(prisma));
+  const picked = await pickCardForPost(prisma, input.cardCode, Math.random, { tiers });
+  const altArts = await findAltArts(prisma, picked);
+  const card: SocialCard = { ...picked, altArtCount: altArts.length };
+  const total = altArts.length + 1;
+  const pager = (i: number) => (total > 1 ? `${i}/${total}` : undefined);
+  const accent = accentFor(card.color);
+  return {
+    type: SocialPostType.CARD_SPOTLIGHT,
+    content: await generateSocialContentWithGemini(card, input.customTopic, input.apiKeyGemini),
+    cardCode: card.code,
+    fileStem: card.code,
+    slides: [buildSocialCardHtml(card, pager(1)), ...altArts.map((art, i) => altArtSlideHtml(art, accent, pager(i + 2)))],
+    metadata: { rarityTier: rarityTier(card.rarity), altArts: altArts.map((a) => ({ code: a.code, rarity: a.rarity, setCode: a.setCode })) },
+  };
+}
+
+const TOURNAMENT_HASHTAGS = ["GundamCardGame", "GundamTCG", "GundamBrasil", "TCGBrasil", "TorneioGundam", "AnaheimHub"];
+
+/** Regras comuns a todos os prompts de legenda. */
+const CAPTION_RULES = `Regras:
+1. Português do Brasil, tom de jogador experiente falando com outros jogadores.
+2. Não traduza nomes de cartas, arquétipos, personagens nem palavras-chave do jogo.
+3. Use SOMENTE os dados acima. Não invente números, resultados, jogadores, lojas nem afirmações sobre o "meta".
+4. Nomes de jogadores e lojas exatamente como estão nos dados.
+5. Não diga que o post é oficial nem fale em nome da Bandai.
+6. Legenda completa com no máximo 1.800 caracteres, de 8 a 12 hashtags no final.
+
+Responda APENAS com JSON válido:
+{"title": "...", "hook": "...", "strategy": "...", "cta": "...", "hashtags": ["..."], "fullCaption": "..."}`;
+
+const placeOf = (t: WeeklyTournament) => [t.city ? `${t.city}${t.uf ? `-${t.uf}` : ""}` : null, dayMonth(t.date)].filter(Boolean).join(", ");
+const championOf = (t: WeeklyTournament) => t.top.find((p) => p.placement === 1) ?? null;
+
+function tournamentTemplate(report: WeeklyReport): GeneratedPostContent {
+  const count = reportTournamentCount(report);
+  const lines = report.featured.map((t) => {
+    const champ = championOf(t);
+    return `• ${t.store ?? t.event} (${placeOf(t)}): ${champ ? `${champ.player}${champ.archetype ? ` com ${champ.archetype.name}` : ""}` : "campeão não informado"}`;
+  });
+  const top = report.champions[0];
+  const caption =
+    `🏆 TORNEIOS DO BRASIL · ${dayMonth(report.from)} a ${dayMonth(report.to)}\n\n` +
+    `${count} ${count === 1 ? "torneio" : "torneios"}, ${report.totalPlayers} jogadores em ${report.cities.length} ${report.cities.length === 1 ? "cidade" : "cidades"}.\n\n` +
+    `Campeões da semana:\n${lines.join("\n")}\n` +
+    (report.others.length ? `…e mais ${report.others.length} ${report.others.length === 1 ? "torneio" : "torneios"} no site.\n` : "") +
+    (top && top.wins > 1 ? `\nQuem mais venceu: ${top.archetype.name} (${top.wins}x).\n` : "") +
+    `\n👇 Jogou algum desses? Conta como foi nos comentários!\n` +
+    `🔗 Resultados completos e listas no Anaheim Hub (link na bio)\n\n` +
+    TOURNAMENT_HASHTAGS.map((h) => `#${h}`).join(" ");
+  return {
+    title: `Torneios do Brasil: ${dayMonth(report.from)} a ${dayMonth(report.to)}`,
+    hook: `${count} torneios no Brasil nesta semana.`,
+    strategy: "",
+    cta: "Resultados completos no Anaheim Hub (link na bio).",
+    hashtags: TOURNAMENT_HASHTAGS,
+    fullCaption: caption,
+  };
+}
+
+function tournamentPrompt(report: WeeklyReport, customTopic?: string): string {
+  const data = {
+    semana: `${dayMonth(report.from)} a ${dayMonth(report.to)}`,
+    torneios: reportTournamentCount(report),
+    jogadores: report.totalPlayers,
+    cidades: report.cities,
+    resultados: [...report.featured, ...report.others].map((t) => ({
+      evento: t.event,
+      loja: t.store,
+      local: placeOf(t),
+      jogadores: t.players,
+      top: t.top.map((p) => ({ colocacao: p.placement, jogador: p.player, arquetipo: p.archetype?.name ?? null, campanha: p.record })),
+    })),
+    arquetiposCampeoes: report.champions.map((c) => ({ arquetipo: c.archetype.name, vitorias: c.wins })),
+  };
+  return `Você escreve os posts do Instagram do Anaheim Hub (anaheimhub.com), um portal brasileiro feito por fãs do Gundam Card Game (Bandai). O portal não é oficial nem ligado à Bandai.
+Escreva o post de segunda-feira com os torneios do Brasil da semana passada. O post é um carrossel: capa, um slide por torneio com o top 4 e um resumo. Dados (JSON):
+
+${JSON.stringify(data, null, 1)}
+${customTopic ? `Pedido do editor: "${customTopic.slice(0, 300)}"` : ""}
+
+Estrutura: gancho de 1–2 linhas com o tamanho da semana; os campeões (jogador, loja/cidade e arquétipo), um por linha; o arquétipo que mais venceu, se algum venceu mais de uma vez; uma pergunta para os comentários; convite para ver os resultados completos no Anaheim Hub (link na bio).
+${CAPTION_RULES}`;
+}
+
+/** Segunda: carrossel dos torneios do Brasil da semana anterior. Semana vazia vira carta do dia, com aviso. */
+export async function draftTournamentReport(prisma: PrismaClient, input: GeneratePostInput = {}, deps: { index?: VedaIndex; now?: Date } = {}): Promise<DraftContent> {
+  const range = previousWeekRange(input.scheduledFor ?? deps.now ?? new Date());
+  const index = deps.index ?? (await (await import("../vedaService.ts")).getVedaIndex(prisma));
+  const report = buildWeeklyReport(index, range);
+  if (!reportTournamentCount(report)) {
+    const card = await draftCardSpotlight(prisma, { ...input, cardCode: undefined });
+    return { ...card, notice: `ℹ️ Nenhum torneio no Brasil entre ${dayMonth(range.from)} e ${dayMonth(range.to)}: o post de hoje virou carta do dia.` };
+  }
+  const total = report.featured.length + 2;
+  const pager = (i: number) => `${i}/${total}`;
+  return {
+    type: SocialPostType.TOURNAMENT_REPORT,
+    content: await generateCaption(tournamentPrompt(report, input.customTopic), tournamentTemplate(report), input.apiKeyGemini),
+    fileStem: `torneios-${range.from}`,
+    slides: [tournamentCoverHtml(report, pager(1)), ...report.featured.map((t, i) => tournamentSlideHtml(t, pager(i + 2))), tournamentClosingHtml(report, pager(total))],
+    metadata: { weekStart: range.from, weekEnd: range.to, tournamentIds: [...report.featured, ...report.others].map((t) => t.id) },
+  };
+}
+
+const DECK_HASHTAGS = ["GundamCardGame", "GundamTCG", "GundamBrasil", "TCGBrasil", "Decklist", "AnaheimHub"];
+const percent = (v: number) => `${Math.round(v * 100)}%`;
+const deckPlacement = (p: number | null) => (p === 1 ? "campeã" : p ? `${p}º lugar` : "lista");
+
+function deckTemplate(deck: FeaturedDeck): GeneratedPostContent {
+  const where = [deck.entry.store ?? deck.entry.tournament, deck.entry.city, dayMonth(deck.entry.date)].filter(Boolean).join(", ");
+  const key = deck.keyCards.slice(0, 5).map((c) => `• ${c.name} (${c.copies}x)`);
+  const caption =
+    `🔥 DECK EM DESTAQUE: ${deck.archetype.name}\n\n` +
+    `Nos últimos 30 dias: ${deck.lists} listas em ${deck.tournaments} torneios, ${deck.wins} ${deck.wins === 1 ? "título" : "títulos"} e ${percent(deck.topRate)} das colocações no top 25%.\n\n` +
+    `📋 A lista do carrossel é de ${deck.entry.player} (${deckPlacement(deck.entry.placement)}${deck.entry.record ? `, ${deck.entry.record}` : ""}) em ${where}.\n` +
+    (key.length ? `\n🔑 Cartas-chave:\n${key.join("\n")}\n` : "") +
+    `\n💬 Você jogaria com esse deck? Conta nos comentários!\n` +
+    `🔗 Lista completa, deckbuilder e simulador no Anaheim Hub (link na bio)\n\n` +
+    DECK_HASHTAGS.map((h) => `#${h}`).join(" ");
+  return {
+    title: `Deck em destaque: ${deck.archetype.name}`,
+    hook: `${deck.archetype.name} é o deck de melhor desempenho do mês.`,
+    strategy: "",
+    cta: "Teste a lista no simulador do Anaheim Hub (link na bio).",
+    hashtags: DECK_HASHTAGS,
+    fullCaption: caption,
+  };
+}
+
+function deckPrompt(deck: FeaturedDeck, customTopic?: string): string {
+  const data = {
+    arquetipo: deck.archetype.name,
+    cores: deck.archetype.colors,
+    periodo: `${dayMonth(deck.window.from)} a ${dayMonth(deck.window.to)}`,
+    listas: deck.lists,
+    torneios: deck.tournaments,
+    titulos: deck.wins,
+    taxaTop25: percent(deck.topRate),
+    listasNoBrasil: deck.brLists,
+    listaMostrada: { jogador: deck.entry.player, colocacao: deck.entry.placement, campanha: deck.entry.record, evento: deck.entry.tournament, loja: deck.entry.store, cidade: deck.entry.city, data: deck.entry.date },
+    cartas: deck.cards.map((c) => `${c.quantity}x ${c.name} (${c.code})`),
+    cartasChave: deck.keyCards.map((c) => ({ carta: c.name, presenca: percent(c.inclusion), copias: c.copies })),
+  };
+  return `Você escreve os posts do Instagram do Anaheim Hub (anaheimhub.com), um portal brasileiro feito por fãs do Gundam Card Game (Bandai). O portal não é oficial nem ligado à Bandai.
+Escreva o post de sexta-feira "Deck em destaque": o arquétipo de melhor desempenho nos torneios dos últimos 30 dias. O post é um carrossel: capa com os números, a lista completa e as cartas-chave. Dados (JSON):
+
+${JSON.stringify(data, null, 1)}
+${customTopic ? `Pedido do editor: "${customTopic.slice(0, 300)}"` : ""}
+
+Estrutura: gancho de 1–2 linhas com o desempenho (use os números exatos); de quem é a lista e onde foi; 3 a 5 cartas-chave e o papel delas, só com base nos nomes e na presença (sem inventar efeitos); uma pergunta para os comentários; convite para abrir a lista e testar no simulador do Anaheim Hub (link na bio).
+${CAPTION_RULES}`;
+}
+
+/** Arquétipos destacados nas últimas 4 semanas (não repetem na sexta). */
+async function recentFeaturedSlugs(prisma: PrismaClient, now: Date): Promise<string[]> {
+  const posts = await prisma.socialMediaPost
+    .findMany({
+      where: { type: SocialPostType.DECK_FEATURE, status: { not: SocialPostStatus.REJECTED }, createdAt: { gte: new Date(now.getTime() - FEATURED_DECK_NO_REPEAT_DAYS * 24 * 3600_000) } },
+      select: { metadata: true },
+    })
+    .catch(() => [] as { metadata: string | null }[]);
+  return posts.flatMap((p) => {
+    try {
+      const slug = (JSON.parse(p.metadata || "{}") as { archetypeSlug?: unknown }).archetypeSlug;
+      return typeof slug === "string" ? [slug] : [];
+    } catch {
+      return [];
+    }
+  });
+}
+
+/** Sexta: carrossel do arquétipo de melhor desempenho do mês, com uma lista real. Sem elegível, vira carta do dia. */
+export async function draftDeckFeature(prisma: PrismaClient, input: GeneratePostInput = {}, deps: { index?: VedaIndex; now?: Date } = {}): Promise<DraftContent> {
+  const now = deps.now ?? new Date();
+  const index = deps.index ?? (await (await import("../vedaService.ts")).getVedaIndex(prisma));
+  const deck = pickFeaturedDeck(index, now, await recentFeaturedSlugs(prisma, now));
+  if (!deck) {
+    const card = await draftCardSpotlight(prisma, { ...input, cardCode: undefined });
+    return { ...card, notice: "ℹ️ Nenhum arquétipo com listas suficientes nos últimos 30 dias: o post de hoje virou carta do dia." };
+  }
+  return {
+    type: SocialPostType.DECK_FEATURE,
+    content: await generateCaption(deckPrompt(deck, input.customTopic), deckTemplate(deck), input.apiKeyGemini),
+    fileStem: `deck-${deck.archetype.slug}`.slice(0, 24),
+    slides: [deckCoverHtml(deck, "1/3"), deckListHtml(deck, "2/3"), deckKeyCardsHtml(deck, "3/3")],
+    metadata: { archetypeSlug: deck.archetype.slug, archetype: deck.archetype.name, entryId: deck.entry.id, window: deck.window },
+  };
+}
+
+async function buildDraft(prisma: PrismaClient, input: GeneratePostInput): Promise<DraftContent> {
+  if (input.type === SocialPostType.TOURNAMENT_REPORT) return draftTournamentReport(prisma, input);
+  if (input.type === SocialPostType.DECK_FEATURE) return draftDeckFeature(prisma, input);
+  return draftCardSpotlight(prisma, input);
+}
+
+/** Cria um rascunho completo no formato do tipo pedido: legenda + slides JPEG + aviso no Discord. */
 export async function createSocialPostDraft(prisma: PrismaClient, input: GeneratePostInput = {}) {
   const publicAppUrl = input.publicAppUrl || socialPublicAppUrl();
-  const card = await pickCardForPost(prisma, input.cardCode);
-  const content = await generateSocialContentWithGemini(card, input.customTopic, input.apiKeyGemini);
-
-  const fileName = `social-${safeFileStem(card.code)}-${Date.now()}.jpg`;
-  const absolutePath = path.join(socialUploadDir(), fileName);
-
-  // sem navegador no servidor (ou falha ao desenhar) o post fica sem imagem, em vez de apontar para um arquivo que não existe
-  let imageUrl: string | null = `/uploads/social/${fileName}`;
-  try {
-    await renderSocialCardImage(card, absolutePath);
-  } catch (err) {
-    imageUrl = null;
-    console.warn("[socialPublisher] Aviso ao renderizar imagem Playwright:", err instanceof Error ? err.message : err);
-  }
+  const draft = await buildDraft(prisma, input);
+  const mediaUrls = await renderDraftSlides(draft.fileStem, draft.slides);
+  const { content } = draft;
 
   const post = await prisma.socialMediaPost.create({
     data: {
-      type: input.type || SocialPostType.CARD_SPOTLIGHT,
+      type: draft.type,
       status: SocialPostStatus.PENDING_APPROVAL,
       title: content.title,
       caption: normalizeInstagramCaption(content.fullCaption),
-      cardCode: card.code,
-      imageUrl,
+      cardCode: draft.cardCode ?? null,
+      imageUrl: mediaUrls[0] ?? null,
+      mediaUrls: mediaUrls.length > 1 ? mediaUrls : [],
       scheduledFor: input.scheduledFor ?? null,
       slotKey: input.slotKey ?? null,
-      metadata: JSON.stringify({ hashtags: content.hashtags, hook: content.hook, strategy: content.strategy, cta: content.cta }),
+      metadata: JSON.stringify({ hashtags: content.hashtags, hook: content.hook, strategy: content.strategy, cta: content.cta, ...draft.metadata }),
     },
   });
 
-  await sendDiscordSocialNotification(post, publicAppUrl, "draft");
+  await sendDiscordSocialNotification(post, publicAppUrl, "draft", draft.notice);
   return post;
 }
 
@@ -582,7 +862,11 @@ export function missingAdDisclosure(type: SocialPostType | string, caption: stri
  * Publica um post aprovado no Instagram. Pega o post de forma atômica (APPROVED/FAILED → PUBLISHING) para que
  * duas chamadas ao mesmo tempo não publiquem duas vezes.
  */
-export async function publishApprovedPost(prisma: PrismaClient, postId: string, deps: { publish?: typeof publishInstagramImage; publicAppUrl?: string } = {}) {
+export async function publishApprovedPost(
+  prisma: PrismaClient,
+  postId: string,
+  deps: { publish?: typeof publishInstagramImage; publishCarousel?: typeof publishInstagramCarousel; publicAppUrl?: string } = {},
+) {
   const publicAppUrl = (deps.publicAppUrl || socialPublicAppUrl()).replace(/\/+$/, "");
   const claimed = await prisma.socialMediaPost.updateMany({
     where: { id: postId, status: { in: [SocialPostStatus.APPROVED, SocialPostStatus.FAILED] } },
@@ -596,7 +880,10 @@ export async function publishApprovedPost(prisma: PrismaClient, postId: string, 
     const problems = captionProblems(post.caption);
     if (problems.length) throw new Error(problems.join(" "));
     if (missingAdDisclosure(post.type, post.caption)) throw new Error("Post de afiliado precisa estar identificado como publicidade (ex.: #publi).");
-    const result = await (deps.publish ?? publishInstagramImage)(prisma, { imageUrl: `${publicAppUrl}${post.imageUrl}`, caption: post.caption });
+    const result =
+      (post.mediaUrls ?? []).length > 1
+        ? await (deps.publishCarousel ?? publishInstagramCarousel)(prisma, { imageUrls: post.mediaUrls.map((url) => `${publicAppUrl}${url}`), caption: post.caption })
+        : await (deps.publish ?? publishInstagramImage)(prisma, { imageUrl: `${publicAppUrl}${post.imageUrl}`, caption: post.caption });
     const updated = await prisma.socialMediaPost.update({
       where: { id: postId },
       data: { status: SocialPostStatus.PUBLISHED, instagramPostId: result.mediaId, instagramPermalink: result.permalink, publishedAt: new Date(), publishError: null },

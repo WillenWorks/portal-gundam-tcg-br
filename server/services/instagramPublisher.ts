@@ -108,47 +108,84 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export type PublishResult = { mediaId: string; permalink: string | null };
 
-/** Publica uma imagem (JPEG em endereço público) com legenda. Cria o contêiner, espera ficar pronto e publica. */
-export async function publishInstagramImage(
-  prisma: PrismaClient,
-  input: { imageUrl: string; caption: string },
-  deps: { config?: InstagramConfig | null; fetchFn?: FetchLike; pollDelayMs?: number; maxPolls?: number } = {},
-): Promise<PublishResult> {
+type PublishDeps = { config?: InstagramConfig | null; fetchFn?: FetchLike; pollDelayMs?: number; maxPolls?: number };
+const JPEG_HTTPS = /^https:\/\/[^/]+\/.+\.jpe?g$/i;
+export const INSTAGRAM_CAROUSEL_MAX = 10;
+
+async function publishContext(prisma: PrismaClient, deps: PublishDeps) {
   const config = deps.config === undefined ? readInstagramConfig() : deps.config;
   if (!config) throw new InstagramApiError("Instagram não configurado (INSTAGRAM_USER_ID e INSTAGRAM_ACCESS_TOKEN).");
-  if (!/^https:\/\/[^/]+\/.+\.jpe?g$/i.test(input.imageUrl)) throw new InstagramApiError("A imagem precisa ser um JPEG em endereço https público.");
-  const caption = normalizeInstagramCaption(input.caption);
-  const fetchFn = deps.fetchFn ?? fetch;
-  const pollDelayMs = deps.pollDelayMs ?? 5000;
-  const maxPolls = deps.maxPolls ?? 12;
   const { token } = await getInstagramToken(prisma, config);
-  const base = `${GRAPH_HOST}/${config.version}`;
+  return {
+    config,
+    token,
+    fetchFn: deps.fetchFn ?? fetch,
+    pollDelayMs: deps.pollDelayMs ?? 5000,
+    maxPolls: deps.maxPolls ?? 12,
+    base: `${GRAPH_HOST}/${config.version}`,
+  };
+}
+type PublishContext = Awaited<ReturnType<typeof publishContext>>;
 
-  const container = await graphPost(fetchFn, `${base}/${config.userId}/media`, { image_url: input.imageUrl, caption, access_token: token }, "criar contêiner");
+async function createContainer(ctx: PublishContext, params: Record<string, string>): Promise<string> {
+  const container = await graphPost(ctx.fetchFn, `${ctx.base}/${ctx.config.userId}/media`, { ...params, access_token: ctx.token }, "criar contêiner");
   const containerId = String(container.id || "");
   if (!/^\d+$/.test(containerId)) throw new InstagramApiError("Instagram não devolveu o id do contêiner.");
+  return containerId;
+}
 
-  for (let i = 0; i < maxPolls; i += 1) {
-    const status = await graphGet(fetchFn, `${base}/${containerId}`, { fields: "status_code", access_token: token }, "status do contêiner");
+async function waitContainer(ctx: PublishContext, containerId: string): Promise<void> {
+  for (let i = 0; i < ctx.maxPolls; i += 1) {
+    const status = await graphGet(ctx.fetchFn, `${ctx.base}/${containerId}`, { fields: "status_code", access_token: ctx.token }, "status do contêiner");
     const code = String(status.status_code || "");
-    if (code === "FINISHED") break;
+    if (code === "FINISHED") return;
     if (code === "ERROR" || code === "EXPIRED") throw new InstagramApiError(`Instagram recusou a mídia (status ${code}).`);
-    if (i === maxPolls - 1) throw new InstagramApiError("Instagram não terminou de processar a imagem a tempo; tente publicar de novo.");
-    await sleep(pollDelayMs);
+    if (i === ctx.maxPolls - 1) throw new InstagramApiError("Instagram não terminou de processar a imagem a tempo; tente publicar de novo.");
+    await sleep(ctx.pollDelayMs);
   }
+}
 
-  const published = await graphPost(fetchFn, `${base}/${config.userId}/media_publish`, { creation_id: containerId, access_token: token }, "publicar");
+async function publishContainer(ctx: PublishContext, containerId: string): Promise<PublishResult> {
+  const published = await graphPost(ctx.fetchFn, `${ctx.base}/${ctx.config.userId}/media_publish`, { creation_id: containerId, access_token: ctx.token }, "publicar");
   const mediaId = String(published.id || "");
   if (!/^\d+$/.test(mediaId)) throw new InstagramApiError("Instagram não devolveu o id do post publicado.");
 
   let permalink: string | null = null;
   try {
-    const info = await graphGet(fetchFn, `${base}/${mediaId}`, { fields: "permalink", access_token: token }, "link do post");
+    const info = await graphGet(ctx.fetchFn, `${ctx.base}/${mediaId}`, { fields: "permalink", access_token: ctx.token }, "link do post");
     permalink = typeof info.permalink === "string" && info.permalink.startsWith("https://") ? info.permalink : null;
   } catch {
     /* o post já saiu; o link é só conveniência */
   }
   return { mediaId, permalink };
+}
+
+/** Publica uma imagem (JPEG em endereço público) com legenda. Cria o contêiner, espera ficar pronto e publica. */
+export async function publishInstagramImage(prisma: PrismaClient, input: { imageUrl: string; caption: string }, deps: PublishDeps = {}): Promise<PublishResult> {
+  if (!JPEG_HTTPS.test(input.imageUrl)) throw new InstagramApiError("A imagem precisa ser um JPEG em endereço https público.");
+  const ctx = await publishContext(prisma, deps);
+  const containerId = await createContainer(ctx, { image_url: input.imageUrl, caption: normalizeInstagramCaption(input.caption) });
+  await waitContainer(ctx, containerId);
+  return publishContainer(ctx, containerId);
+}
+
+/**
+ * Publica um carrossel (2 a 10 JPEGs na mesma proporção). Um contêiner por imagem, criado e processado em sequência
+ * (o pai criado antes de os filhos terminarem dá invalid_children); depois o contêiner CAROUSEL com a legenda.
+ */
+export async function publishInstagramCarousel(prisma: PrismaClient, input: { imageUrls: string[]; caption: string }, deps: PublishDeps = {}): Promise<PublishResult> {
+  if (input.imageUrls.length < 2 || input.imageUrls.length > INSTAGRAM_CAROUSEL_MAX) throw new InstagramApiError("O carrossel precisa ter de 2 a 10 imagens.");
+  if (!input.imageUrls.every((url) => JPEG_HTTPS.test(url))) throw new InstagramApiError("Todas as imagens do carrossel precisam ser JPEG em endereço https público.");
+  const ctx = await publishContext(prisma, deps);
+  const children: string[] = [];
+  for (const imageUrl of input.imageUrls) {
+    const childId = await createContainer(ctx, { image_url: imageUrl, is_carousel_item: "true" });
+    await waitContainer(ctx, childId);
+    children.push(childId);
+  }
+  const parentId = await createContainer(ctx, { media_type: "CAROUSEL", children: children.join(","), caption: normalizeInstagramCaption(input.caption) });
+  await waitContainer(ctx, parentId);
+  return publishContainer(ctx, parentId);
 }
 
 /** Renova o token de longa duração (vale mais 60 dias) quando a última renovação tem mais de 7 dias. */
