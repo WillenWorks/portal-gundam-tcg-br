@@ -229,8 +229,10 @@ function buildQueueEntry(
     return { ...entry, trashSearch: { legalTrashIds, label: spec.sourceText } };
   }
 
-  // GD01-039 — a posição em si (top/bottom) é a escolha; reusa enumChoice com opções fixas.
+  // GD01-039 — a posição em si (top/bottom) é a escolha; reusa enumChoice com opções fixas. "Look at the top
+  // card": a carta vista vai junto (antes a tela só mostrava as opções e o jogador escolhia às cegas).
   if (choice.op === "moveTopCardToChosenPosition") {
+    const owner = resolvePlayerRef(choice.player, player);
     return {
       ...entry,
       enumChoice: {
@@ -240,6 +242,7 @@ function buildQueueEntry(
           label: value === "top" ? "Topo do deck" : value === "bottom" ? "Fundo do deck" : "Trash",
         })),
         label: spec.sourceText,
+        topCards: state.players[owner].deck.slice(0, 1),
       },
     };
   }
