@@ -22,6 +22,8 @@ import {
   publishApprovedPost,
   safeFileStem,
   sendDiscordSocialNotification,
+  approveSocialPost,
+  rejectSocialPost,
 } from "./socialPublisherService";
 
 const cardRow = {
@@ -45,6 +47,13 @@ describe("socialPublisherService", () => {
     const card = await pickCardForPost(prisma, "st01-001");
     expect(card).toMatchObject({ code: "ST01-001", name: "Gundam", color: "blue", text: "<Repair 2> (No final do seu turno...)" });
     expect(prisma.card.findFirst.mock.calls[0][0].where.code).toBe("ST01-001");
+  });
+
+  it("quebras <br> do texto da carta viram linha nova (saíam cruas na legenda); palavras-chave <...> ficam", async () => {
+    const row = { ...cardRow, effectPt: "[Burst] Adicione esta carta à sua mão.<br>[When Paired] <Blocker><BR/>Fim" };
+    const prisma = { card: { findFirst: vi.fn().mockResolvedValue(row) }, socialMediaPost: { findMany: vi.fn() } } as any;
+    const card = await pickCardForPost(prisma, "ST01-001");
+    expect(card.text).toBe("[Burst] Adicione esta carta à sua mão.\n[When Paired] <Blocker>\nFim");
   });
 
   it("pickCardForPost recusa código com caracteres de caminho", async () => {
@@ -181,6 +190,15 @@ describe("socialPublisherService", () => {
       expect(result.instagramPostId).toBe("999");
     });
 
+    it("PUBLIC_APP_URL apontando para localhost (como estava na VPS) não vira o link da arte: usa o domínio público", async () => {
+      vi.stubEnv("PUBLIC_APP_URL", "http://localhost:8787");
+      const prisma = makePrisma();
+      const publish = vi.fn().mockResolvedValue({ mediaId: "999", permalink: "https://www.instagram.com/p/x/" });
+      await publishApprovedPost(prisma, "p1", { publish });
+      vi.unstubAllEnvs();
+      expect(publish.mock.calls[0][1].imageUrl).toBe("https://anaheimhub.com/uploads/social/social-GD01-001-1.jpg");
+    });
+
     it("sem imagem JPEG marca FAILED com o motivo", async () => {
       const prisma = makePrisma(1, { ...basePost, imageUrl: "/uploads/social/antigo.png" });
       const publish = vi.fn();
@@ -196,6 +214,72 @@ describe("socialPublisherService", () => {
       const result = await publishApprovedPost(prisma, "p1", { publish });
       expect(result.status).toBe("FAILED");
       expect(result.publishError).toContain("limite atingido");
+    });
+  });
+
+  describe("approveSocialPost / rejectSocialPost (painel e botões do Discord)", () => {
+    const draft = { id: "p1", type: "CARD_SPOTLIGHT", status: "PENDING_APPROVAL", title: "T", caption: "Legenda #GCG", imageUrl: "/uploads/social/a.jpg", scheduledFor: null };
+    const makePrisma = (post: Record<string, unknown> | null, rejectCount = 1) =>
+      ({
+        socialMediaPost: {
+          findUnique: vi.fn().mockResolvedValue(post),
+          update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...post, ...data })),
+          updateMany: vi.fn().mockResolvedValue({ count: rejectCount }),
+        },
+      }) as any;
+
+    it("rascunho manual aprovado com o Instagram configurado é publicado na hora", async () => {
+      const publishNow = vi.fn(async () => ({ ...draft, status: "PUBLISHED" }) as any);
+      const result = await approveSocialPost(makePrisma(draft), "p1", {}, { instagramReady: true, publishNow });
+      expect(publishNow).toHaveBeenCalledWith("p1");
+      expect(result).toMatchObject({ ok: true, post: { status: "PUBLISHED" } });
+    });
+
+    it("rascunho da agenda com horário futuro só fica APROVADO (sai no horário)", async () => {
+      const scheduled = { ...draft, scheduledFor: new Date(Date.now() + 3600_000) };
+      const publishNow = vi.fn();
+      const result = await approveSocialPost(makePrisma(scheduled), "p1", {}, { instagramReady: true, publishNow });
+      expect(publishNow).not.toHaveBeenCalled();
+      expect(result.post.status).toBe("APPROVED");
+    });
+
+    it("post inexistente, já publicado ou com legenda inválida não é aprovado", async () => {
+      await expect(approveSocialPost(makePrisma(null), "p1")).rejects.toMatchObject({ status: 404 });
+      await expect(approveSocialPost(makePrisma({ ...draft, status: "PUBLISHED" }), "p1")).rejects.toMatchObject({ status: 409 });
+      await expect(approveSocialPost(makePrisma({ ...draft, caption: " " }), "p1")).rejects.toMatchObject({ status: 400 });
+    });
+
+    it("descartar marca REJECTED com o motivo; post já publicado não é descartado", async () => {
+      const prisma = makePrisma({ ...draft, status: "REJECTED" });
+      const post = await rejectSocialPost(prisma, "p1", "Descartado pelo Discord");
+      expect(prisma.socialMediaPost.updateMany.mock.calls[0][0].data).toMatchObject({ status: "REJECTED", rejectedReason: "Descartado pelo Discord" });
+      expect(post?.status).toBe("REJECTED");
+      await expect(rejectSocialPost(makePrisma(draft, 0), "p1", "x")).rejects.toMatchObject({ status: 409 });
+    });
+  });
+
+  describe("aviso de rascunho pelo bot do Discord", () => {
+    const post = { id: "p1", title: "T", caption: "L", imageUrl: "/uploads/social/a.jpg", type: "CARD_SPOTLIGHT" };
+    const bot = { appId: "1563411550826401875", publicKey: "a".repeat(64), botToken: "tok", channelId: "1563339185967075389", approverIds: new Set(["106821025269813248"]) };
+
+    it("com bot configurado, o rascunho vai pelo bot com os botões Aprovar/Descartar", async () => {
+      const fetchFn = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+      expect(await sendDiscordSocialNotification(post, "https://anaheimhub.com", "draft", undefined, { bot, fetchFn })).toBe("sent");
+      const [url, init] = fetchFn.mock.calls[0];
+      expect(url).toContain("/channels/1563339185967075389/messages");
+      const body = JSON.parse(init.body);
+      expect(body.components[0].components.map((b: { custom_id: string }) => b.custom_id)).toEqual(["social:approve:p1", "social:reject:p1"]);
+    });
+
+    it("bot recusado (sem acesso ao canal): cai no webhook, sem botões — o aviso nunca se perde", async () => {
+      vi.stubEnv("DISCORD_WEBHOOK_URL", "https://discord.com/api/webhooks/1/abc");
+      const fetchFn = vi.fn().mockResolvedValueOnce({ ok: false, status: 403 }).mockResolvedValueOnce({ ok: true, status: 204 });
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      expect(await sendDiscordSocialNotification(post, "https://anaheimhub.com", "draft", undefined, { bot, fetchFn })).toBe("sent");
+      warn.mockRestore();
+      vi.unstubAllEnvs();
+      expect(fetchFn.mock.calls[1][0]).toBe("https://discord.com/api/webhooks/1/abc");
+      expect(JSON.parse(fetchFn.mock.calls[1][1].body).components).toBeUndefined();
     });
   });
 });

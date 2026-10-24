@@ -1,4 +1,4 @@
-import { Prisma, PrismaClient, SocialPostStatus, SocialPostType } from "@prisma/client";
+import { Prisma, PrismaClient, SocialPostStatus, SocialPostType, type SocialMediaPost } from "@prisma/client";
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { GoogleGenAI } from "@google/genai";
@@ -7,6 +7,7 @@ import path from "node:path";
 import { z } from "zod";
 import { getCardDefByCode, ALL_CARD_DEFS } from "../../src/modules/simulator/content/allCardDefs";
 import { formatSlot } from "./socialSchedule";
+import { postBotMessage, readDiscordBotConfig, socialButtons, type DiscordBotConfig } from "./discordBot";
 import { countHashtags, INSTAGRAM_CAPTION_MAX, INSTAGRAM_HASHTAG_MAX, normalizeInstagramCaption, publishInstagramImage, readInstagramConfig } from "./instagramPublisher";
 
 export interface GeneratePostInput {
@@ -111,8 +112,9 @@ function fromCardRow(row: CardRow): SocialCard {
     hp: row.hp ?? undefined,
     cost: row.cost ?? undefined,
     level: row.level ?? undefined,
-    // o texto explicativo vai em português quando existe (o post é para o público brasileiro)
-    text: row.effectPt || row.effectEn || "",
+    // o texto explicativo vai em português quando existe (o post é para o público brasileiro). O banco guarda as
+    // quebras como <br>, que saíam cruas na legenda; as palavras-chave entre < > (ex.: <Blocker>) ficam.
+    text: (row.effectPt || row.effectEn || "").replace(/<br\s*\/?>/gi, "\n"),
     imageUrl: row.imageUrl || undefined,
   };
 }
@@ -444,33 +446,39 @@ export async function cleanupOrphanSocialImages(prisma: PrismaClient, now = new 
   return removed;
 }
 
-/** Notifica o canal do Discord com a prévia e o link para revisar. */
-export async function sendDiscordSocialNotification(
-  post: { id: string; title: string | null; caption: string; imageUrl: string | null; type: string; scheduledFor?: Date | null },
-  publicUrl: string,
-  kind: "draft" | "published" | "failed" = "draft",
-  extra?: string,
-): Promise<string | null> {
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
-  if (!webhookUrl || !/^https:\/\/(?:discord\.com|discordapp\.com)\/api\/webhooks\//.test(webhookUrl)) return null;
+export type DiscordNoticeKind = "draft" | "approved" | "rejected" | "published" | "failed";
+type DiscordNoticePost = { id: string; title: string | null; caption: string; imageUrl: string | null; type: string; scheduledFor?: Date | null };
 
+const DISCORD_HEADERS: Record<DiscordNoticeKind, string> = {
+  draft: "📢 **Novo rascunho para o Instagram**\nRevise a arte e a legenda e aprove:",
+  approved: "👍 **Post aprovado**",
+  rejected: "🗑️ **Rascunho descartado**",
+  published: "✅ **Post publicado no Instagram**",
+  failed: "⚠️ **Falha ao publicar no Instagram**",
+};
+
+/** Mensagem do Discord (cabeçalho + embed com a arte, a legenda e o status) para cada etapa do post. */
+export function buildDiscordSocialPayload(post: DiscordNoticePost, publicUrl: string, kind: DiscordNoticeKind = "draft", extra?: string) {
   const adminLink = `${publicUrl}/admin#social`;
   const absoluteImageUrl = post.imageUrl ? `${publicUrl}${post.imageUrl}` : undefined;
-  const header =
-    kind === "published" ? "✅ **Post publicado no Instagram**" : kind === "failed" ? "⚠️ **Falha ao publicar no Instagram**" : "📢 **Novo rascunho para o Instagram**\nRevise a arte e a legenda e aprove pelo painel:";
-  const status =
-    kind === "published" ? "🟢 Publicado" : kind === "failed" ? "🔴 Falhou" : post.scheduledFor ? `🟡 Aguardando aprovação · sai ${formatSlot(post.scheduledFor)} (Brasília)` : "🟡 Aguardando aprovação";
-
-  const payload = {
-    content: header,
+  const slot = post.scheduledFor ? ` · sai ${formatSlot(post.scheduledFor)} (Brasília)` : "";
+  const status: Record<DiscordNoticeKind, string> = {
+    draft: `🟡 Aguardando aprovação${slot}`,
+    approved: `🟢 Aprovado${slot}`,
+    rejected: "⚫ Descartado",
+    published: "🟢 Publicado",
+    failed: "🔴 Falhou",
+  };
+  return {
+    content: DISCORD_HEADERS[kind],
     embeds: [
       {
         title: post.title || "Post — Anaheim Hub",
         description: (extra ? `${extra}\n\n` : "") + post.caption.slice(0, 1500) + (post.caption.length > 1500 ? "..." : ""),
-        color: kind === "failed" ? 15680580 : 3718648,
+        color: kind === "failed" ? 15680580 : kind === "rejected" ? 7041664 : 3718648,
         image: absoluteImageUrl ? { url: absoluteImageUrl } : undefined,
         fields: [
-          { name: "Status", value: status, inline: false },
+          { name: "Status", value: status[kind], inline: false },
           { name: "Painel", value: `[Abrir no painel do admin](${adminLink})`, inline: false },
         ],
         footer: { text: "Anaheim Hub • posts com aprovação humana" },
@@ -478,20 +486,50 @@ export async function sendDiscordSocialNotification(
       },
     ],
   };
+}
 
-  try {
-    const res = await fetch(webhookUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), redirect: "error" });
-    if (res.ok) return "sent";
-    console.warn("[socialPublisher] Discord respondeu", res.status);
-  } catch (err) {
-    console.error("[socialPublisher] Falha ao enviar notificação ao Discord:", err instanceof Error ? err.message : err);
+/**
+ * Avisa o canal do Discord. Rascunho com bot configurado vai pelo bot, com os botões Aprovar/Descartar; o resto (e o
+ * rascunho, se o bot falhar) vai pelo webhook. Sem webhook, o bot manda sem botões.
+ */
+export async function sendDiscordSocialNotification(
+  post: DiscordNoticePost,
+  publicUrl: string,
+  kind: DiscordNoticeKind = "draft",
+  extra?: string,
+  deps: { bot?: DiscordBotConfig | null; fetchFn?: typeof fetch } = {},
+): Promise<string | null> {
+  const bot = deps.bot !== undefined ? deps.bot : readDiscordBotConfig();
+  const fetchFn = deps.fetchFn ?? fetch;
+  const payload = buildDiscordSocialPayload(post, publicUrl, kind, extra);
+
+  if (bot && kind === "draft" && (await postBotMessage(bot, { ...payload, components: socialButtons(post.id) }, fetchFn))) return "sent";
+
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  if (webhookUrl && /^https:\/\/(?:discord\.com|discordapp\.com)\/api\/webhooks\//.test(webhookUrl)) {
+    try {
+      const res = await fetchFn(webhookUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), redirect: "error" });
+      if (res.ok) return "sent";
+      console.warn("[socialPublisher] Discord respondeu", res.status);
+    } catch (err) {
+      console.error("[socialPublisher] Falha ao enviar notificação ao Discord:", err instanceof Error ? err.message : err);
+    }
+    return null;
   }
+  if (bot && kind !== "draft" && (await postBotMessage(bot, payload, fetchFn))) return "sent";
   return null;
+}
+
+// O Instagram baixa a arte por esse endereço e o Discord linka o painel: um PUBLIC_APP_URL local (a VPS estava com
+// "http://localhost:8787") não serve a ninguém de fora — vale o domínio público, como nos links de e-mail.
+export function socialPublicAppUrl(): string {
+  const env = (process.env.PUBLIC_APP_URL || "").trim();
+  return env && !/localhost|127\.0\.0\.1/.test(env) ? env : "https://anaheimhub.com";
 }
 
 /** Cria um rascunho completo: carta + legenda + arte JPEG + aviso no Discord. */
 export async function createSocialPostDraft(prisma: PrismaClient, input: GeneratePostInput = {}) {
-  const publicAppUrl = input.publicAppUrl || process.env.PUBLIC_APP_URL || "https://anaheimhub.com";
+  const publicAppUrl = input.publicAppUrl || socialPublicAppUrl();
   const card = await pickCardForPost(prisma, input.cardCode);
   const content = await generateSocialContentWithGemini(card, input.customTopic, input.apiKeyGemini);
 
@@ -545,7 +583,7 @@ export function missingAdDisclosure(type: SocialPostType | string, caption: stri
  * duas chamadas ao mesmo tempo não publiquem duas vezes.
  */
 export async function publishApprovedPost(prisma: PrismaClient, postId: string, deps: { publish?: typeof publishInstagramImage; publicAppUrl?: string } = {}) {
-  const publicAppUrl = (deps.publicAppUrl || process.env.PUBLIC_APP_URL || "https://anaheimhub.com").replace(/\/+$/, "");
+  const publicAppUrl = (deps.publicAppUrl || socialPublicAppUrl()).replace(/\/+$/, "");
   const claimed = await prisma.socialMediaPost.updateMany({
     where: { id: postId, status: { in: [SocialPostStatus.APPROVED, SocialPostStatus.FAILED] } },
     data: { status: SocialPostStatus.PUBLISHING, publishError: null },
@@ -573,11 +611,65 @@ export async function publishApprovedPost(prisma: PrismaClient, postId: string, 
   }
 }
 
+/** Erro de uma ação sobre o post, com o status HTTP que o painel devolve (o Discord mostra só a mensagem). */
+export class SocialActionError extends Error {
+  readonly status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+/** Estados em que o post ainda pode ser editado/aprovado (publicado ou publicando, não). */
+export const SOCIAL_EDITABLE = new Set<SocialPostStatus>([SocialPostStatus.DRAFT, SocialPostStatus.PENDING_APPROVAL, SocialPostStatus.APPROVED, SocialPostStatus.FAILED, SocialPostStatus.REJECTED]);
+
+/**
+ * Aprova o post (painel e botão do Discord). Se já está no horário — rascunho manual ou horário da agenda passado — e
+ * o Instagram está configurado, publica na hora; senão fica APROVADO e a agenda publica no horário.
+ */
+export async function approveSocialPost(
+  prisma: PrismaClient,
+  id: string,
+  edits: { title?: string; caption?: string } = {},
+  deps: { instagramReady?: boolean; publishNow?: (id: string) => Promise<SocialMediaPost> } = {},
+) {
+  const existing = await prisma.socialMediaPost.findUnique({ where: { id } });
+  if (!existing) throw new SocialActionError("Post não encontrado.", 404);
+  if (!SOCIAL_EDITABLE.has(existing.status)) throw new SocialActionError("Este post já foi publicado.", 409);
+  const caption = edits.caption ?? existing.caption;
+  const problems = captionProblems(caption);
+  if (problems.length) throw new SocialActionError(problems.join(" "), 400);
+  if (missingAdDisclosure(existing.type, caption)) throw new SocialActionError("Post de afiliado precisa estar identificado como publicidade (ex.: #publi) — regra do CONAR.", 400);
+
+  const approved = await prisma.socialMediaPost.update({
+    where: { id },
+    data: { title: edits.title, caption, status: SocialPostStatus.APPROVED, approvedAt: new Date(), publishError: null, rejectedReason: null },
+  });
+  const due = !approved.scheduledFor || approved.scheduledFor.getTime() <= Date.now();
+  const instagramReady = deps.instagramReady ?? Boolean(readInstagramConfig());
+  if (due && instagramReady) {
+    const post = await (deps.publishNow ?? ((postId: string) => publishApprovedPost(prisma, postId)))(id);
+    return { ok: post.status === SocialPostStatus.PUBLISHED, post };
+  }
+  return { ok: true, post: approved };
+}
+
+/** Descarta o rascunho (painel e botão do Discord). Post publicado ou publicando não é descartado. */
+export async function rejectSocialPost(prisma: PrismaClient, id: string, reason: string) {
+  const updated = await prisma.socialMediaPost.updateMany({
+    where: { id, status: { notIn: [SocialPostStatus.PUBLISHED, SocialPostStatus.PUBLISHING] } },
+    data: { status: SocialPostStatus.REJECTED, rejectedReason: reason || "Rejeitado pelo moderador" },
+  });
+  if (updated.count !== 1) throw new SocialActionError("Post não encontrado ou já publicado.", 409);
+  return prisma.socialMediaPost.findUnique({ where: { id } });
+}
+
 /** Situação das integrações para o painel (só sim/não; nenhum segredo). */
 export async function socialIntegrationStatus() {
   return {
     gemini: Boolean((process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY || "").trim()),
     discord: /^https:\/\/(?:discord\.com|discordapp\.com)\/api\/webhooks\//.test(process.env.DISCORD_WEBHOOK_URL || ""),
+    discordButtons: Boolean(readDiscordBotConfig()),
     instagram: Boolean(readInstagramConfig()),
     renderer: await isSocialRendererAvailable(),
     scheduler: process.env.SOCIAL_SCHEDULER_ENABLED === "true",
