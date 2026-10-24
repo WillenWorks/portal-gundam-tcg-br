@@ -7,9 +7,13 @@ const loadService = () => import("../services/socialPublisherService.ts");
 
 const STATUS_VALUES = new Set<string>(Object.values(SocialPostStatus));
 const TYPE_VALUES = new Set<string>(Object.values(SocialPostType));
-const EDITABLE = new Set<SocialPostStatus>([SocialPostStatus.DRAFT, SocialPostStatus.PENDING_APPROVAL, SocialPostStatus.APPROVED, SocialPostStatus.FAILED, SocialPostStatus.REJECTED]);
 
 const errorMessage = (err: unknown, fallback: string) => (err instanceof Error && err.message ? err.message : fallback);
+// SocialActionError traz o status certo (404/409/400); erro inesperado usa o padrão da rota
+const actionStatus = (err: unknown, fallback: number) => {
+  const status = err instanceof Error ? (err as Error & { status?: unknown }).status : undefined;
+  return typeof status === "number" ? status : fallback;
+};
 
 function parseTextEdits(body: unknown): { title?: string; caption?: string; error?: string } {
   const { title, caption } = (body ?? {}) as { title?: unknown; caption?: unknown };
@@ -70,7 +74,8 @@ export function registerSocialRoutes(app: Express, prisma: PrismaClient, authReq
     try {
       const existing = await prisma.socialMediaPost.findUnique({ where: { id } });
       if (!existing) return res.status(404).json({ error: "Post não encontrado." });
-      if (!EDITABLE.has(existing.status)) return res.status(409).json({ error: "Post já publicado (ou publicando) não pode ser editado." });
+      const { SOCIAL_EDITABLE } = await loadService();
+      if (!SOCIAL_EDITABLE.has(existing.status)) return res.status(409).json({ error: "Post já publicado (ou publicando) não pode ser editado." });
       const updated = await prisma.socialMediaPost.update({ where: { id }, data: { title: edits.title, caption: edits.caption } });
       res.json(updated);
     } catch (err) {
@@ -80,32 +85,13 @@ export function registerSocialRoutes(app: Express, prisma: PrismaClient, authReq
 
   // aprovar: salva a edição que estiver na tela e, se já passou do horário marcado, publica na hora
   app.post("/api/admin/social/posts/:id/approve", authRequired, adminOnly, async (req: Request, res: Response) => {
-    const id = String(req.params.id);
     const edits = parseTextEdits(req.body);
     if (edits.error) return res.status(400).json({ error: edits.error });
     try {
-      const { captionProblems, missingAdDisclosure, publishApprovedPost } = await loadService();
-      const { readInstagramConfig } = await import("../services/instagramPublisher.ts");
-      const existing = await prisma.socialMediaPost.findUnique({ where: { id } });
-      if (!existing) return res.status(404).json({ error: "Post não encontrado." });
-      if (!EDITABLE.has(existing.status)) return res.status(409).json({ error: "Este post já foi publicado." });
-      const caption = edits.caption ?? existing.caption;
-      const problems = captionProblems(caption);
-      if (problems.length) return res.status(400).json({ error: problems.join(" ") });
-      if (missingAdDisclosure(existing.type, caption)) return res.status(400).json({ error: "Post de afiliado precisa estar identificado como publicidade (ex.: #publi) — regra do CONAR." });
-
-      const approved = await prisma.socialMediaPost.update({
-        where: { id },
-        data: { title: edits.title, caption, status: SocialPostStatus.APPROVED, approvedAt: new Date(), publishError: null, rejectedReason: null },
-      });
-      const due = !approved.scheduledFor || approved.scheduledFor.getTime() <= Date.now();
-      if (due && readInstagramConfig()) {
-        const post = await publishApprovedPost(prisma, id);
-        return res.json({ ok: post.status === SocialPostStatus.PUBLISHED, post });
-      }
-      res.json({ ok: true, post: approved });
+      const { approveSocialPost } = await loadService();
+      res.json(await approveSocialPost(prisma, String(req.params.id), { title: edits.title, caption: edits.caption }));
     } catch (err) {
-      res.status(400).json({ error: errorMessage(err, "Erro ao aprovar post.") });
+      res.status(actionStatus(err, 400)).json({ error: errorMessage(err, "Erro ao aprovar post.") });
     }
   });
 
@@ -121,17 +107,12 @@ export function registerSocialRoutes(app: Express, prisma: PrismaClient, authReq
   });
 
   app.post("/api/admin/social/posts/:id/reject", authRequired, adminOnly, async (req: Request, res: Response) => {
-    const id = String(req.params.id);
     const reason = typeof req.body?.reason === "string" ? req.body.reason.slice(0, 300) : "";
     try {
-      const updated = await prisma.socialMediaPost.updateMany({
-        where: { id, status: { notIn: [SocialPostStatus.PUBLISHED, SocialPostStatus.PUBLISHING] } },
-        data: { status: SocialPostStatus.REJECTED, rejectedReason: reason || "Rejeitado pelo moderador" },
-      });
-      if (updated.count !== 1) return res.status(409).json({ error: "Post não encontrado ou já publicado." });
-      res.json({ ok: true, post: await prisma.socialMediaPost.findUnique({ where: { id } }) });
+      const { rejectSocialPost } = await loadService();
+      res.json({ ok: true, post: await rejectSocialPost(prisma, String(req.params.id), reason) });
     } catch (err) {
-      res.status(400).json({ error: errorMessage(err, "Erro ao rejeitar post.") });
+      res.status(actionStatus(err, 400)).json({ error: errorMessage(err, "Erro ao rejeitar post.") });
     }
   });
 

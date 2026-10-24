@@ -123,6 +123,7 @@ import { purgeStaleSimulatorMatches, SIMULATOR_MATCH_PURGE_INTERVAL_MS } from ".
 import { registerVedaRoutes } from "./vedaService.ts";
 import { registerAdminDashboardRoutes } from "./routes/adminDashboardRoutes.ts";
 import { registerSocialRoutes } from "./routes/socialRoutes.ts";
+import { registerDiscordInteractionRoute } from "./routes/discordInteractionRoute.ts";
 import { registerArticleSocialRoutes } from "./routes/articleSocialRoutes.ts";
 import { attachSocialSocket } from "./socialSocket.ts";
 import { createMailer, registerAuthEmailRoutes, sendVerificationEmail, validatePasswordRequirements } from "./authEmailService.ts";
@@ -416,6 +417,8 @@ if (IS_PRODUCTION && allowedOrigins.length === 0) {
   process.exit(1);
 }
 app.use(cors(allowedOrigins.length ? { origin: allowedOrigins } : undefined));
+// botões do Discord (aprovar post do Instagram): corpo cru para a assinatura — por isso antes do express.json
+registerDiscordInteractionRoute(app, prisma);
 app.use(express.json({ limit: "4mb" }));
 app.use(gzipJson());
 
