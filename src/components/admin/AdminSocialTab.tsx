@@ -55,6 +55,7 @@ export interface SocialMediaPost {
 interface SocialStatus {
   gemini: boolean;
   discord: boolean;
+  discordButtons?: boolean;
   instagram: boolean;
   renderer: boolean;
   scheduler: boolean;
@@ -344,6 +345,7 @@ export function AdminSocialTab() {
             {integrations ? (
               <div className="space-y-2 text-xs">
                 <IntegrationRow label="Discord (avisos)" ok={integrations.discord} okText="Configurado" offText="Sem DISCORD_WEBHOOK_URL" />
+                <IntegrationRow label="Discord (botões)" ok={Boolean(integrations.discordButtons)} okText="Aprovar pelo Discord" offText="Só aviso (sem bot)" />
                 <IntegrationRow label="Gemini (legenda)" ok={integrations.gemini} okText="Configurado" offText="Usando modelo fixo" />
                 <IntegrationRow label="Navegador (arte)" ok={integrations.renderer} okText="Instalado" offText="Não instalado" />
                 <div className="flex items-center justify-between gap-2 p-2.5 bg-white/[0.02] border border-white/10">
