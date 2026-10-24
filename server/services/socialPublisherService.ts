@@ -1,7 +1,10 @@
 import { Prisma, PrismaClient, SocialPostStatus, SocialPostType } from "@prisma/client";
+import Anthropic from "@anthropic-ai/sdk";
+import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { GoogleGenAI } from "@google/genai";
 import fs from "node:fs";
 import path from "node:path";
+import { z } from "zod";
 import { getCardDefByCode, ALL_CARD_DEFS } from "../../src/modules/simulator/content/allCardDefs";
 import { formatSlot } from "./socialSchedule";
 import { countHashtags, INSTAGRAM_CAPTION_MAX, INSTAGRAM_HASHTAG_MAX, normalizeInstagramCaption, publishInstagramImage, readInstagramConfig } from "./instagramPublisher";
@@ -179,22 +182,29 @@ function templateContent(card: SocialCard): GeneratedPostContent {
   };
 }
 
-// sobrecarga (503) e cota (429) do Gemini são por modelo e passageiras: antes de cair no texto fixo, tenta os
-// próximos da lista (do mais novo ao mais estável). GEMINI_SOCIAL_MODEL, se definido, vai na frente.
-export const GEMINI_SOCIAL_MODELS = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-2.5-flash"];
+// sobrecarga (503) e cota (429) do Gemini são por modelo e passageiras: antes de desistir, tenta os próximos da
+// lista. GEMINI_SOCIAL_MODEL, se definido, vai na frente. (gemini-2.5-* não abre mais para contas novas: 404.)
+export const GEMINI_SOCIAL_MODELS = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-3.6-flash", "gemini-3.5-flash-lite"];
+
+// último recurso antes do texto fixo, quando nenhum Gemini responde — só com ANTHROPIC_API_KEY na VPS
+export const CLAUDE_SOCIAL_MODEL = "claude-opus-5-5";
+
+const PostContentSchema = z.object({
+  title: z.string(),
+  hook: z.string(),
+  strategy: z.string(),
+  cta: z.string(),
+  hashtags: z.array(z.string()),
+  fullCaption: z.string(),
+});
 
 function geminiSocialModels(): string[] {
   const custom = process.env.GEMINI_SOCIAL_MODEL?.trim();
   return custom ? [custom, ...GEMINI_SOCIAL_MODELS.filter((model) => model !== custom)] : GEMINI_SOCIAL_MODELS;
 }
 
-/** Gera a legenda com o Gemini; sem chave ou com falha, usa um modelo fixo só com os dados da carta. */
-export async function generateSocialContentWithGemini(card: SocialCard, customTopic?: string, apiKey?: string): Promise<GeneratedPostContent> {
-  const resolvedKey = apiKey !== undefined ? apiKey : process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
-  if (!resolvedKey || !resolvedKey.trim()) return templateContent(card);
-
-  const ai = new GoogleGenAI({ apiKey: resolvedKey });
-  const prompt = `Você escreve os posts do Instagram do Anaheim Hub (anaheimhub.com), um portal brasileiro feito por fãs do Gundam Card Game (Bandai). O portal não é oficial nem ligado à Bandai.
+function buildSocialPrompt(card: SocialCard, customTopic?: string): string {
+  return `Você escreve os posts do Instagram do Anaheim Hub (anaheimhub.com), um portal brasileiro feito por fãs do Gundam Card Game (Bandai). O portal não é oficial nem ligado à Bandai.
 Escreva um post sobre esta carta, usando SOMENTE os dados abaixo:
 
 Nome oficial (não traduza): ${card.name}
@@ -216,7 +226,22 @@ Regras:
 
 Responda APENAS com JSON válido:
 {"title": "...", "hook": "...", "strategy": "...", "cta": "...", "hashtags": ["..."], "fullCaption": "..."}`;
+}
 
+function toPostContent(card: SocialCard, parsed: Partial<GeneratedPostContent> | null | undefined): GeneratedPostContent | null {
+  if (!parsed || typeof parsed.fullCaption !== "string" || !parsed.fullCaption.trim()) return null;
+  return {
+    title: String(parsed.title || `Carta do Dia: ${card.name} (${card.code})`).slice(0, 140),
+    hook: String(parsed.hook || ""),
+    strategy: String(parsed.strategy || ""),
+    cta: String(parsed.cta || ""),
+    hashtags: Array.isArray(parsed.hashtags) ? parsed.hashtags.map(String).slice(0, INSTAGRAM_HASHTAG_MAX) : [],
+    fullCaption: normalizeInstagramCaption(parsed.fullCaption),
+  };
+}
+
+async function generateWithGemini(card: SocialCard, prompt: string, apiKey: string): Promise<GeneratedPostContent | null> {
+  const ai = new GoogleGenAI({ apiKey });
   for (const model of geminiSocialModels()) {
     try {
       const response = await ai.models.generateContent({
@@ -224,23 +249,57 @@ Responda APENAS com JSON válido:
         contents: prompt,
         config: { responseMimeType: "application/json" },
       });
-      const parsed = JSON.parse(response.text?.trim() || "{}") as Partial<GeneratedPostContent>;
-      if (typeof parsed.fullCaption === "string" && parsed.fullCaption.trim()) {
-        return {
-          title: String(parsed.title || `Carta do Dia: ${card.name} (${card.code})`).slice(0, 140),
-          hook: String(parsed.hook || ""),
-          strategy: String(parsed.strategy || ""),
-          cta: String(parsed.cta || ""),
-          hashtags: Array.isArray(parsed.hashtags) ? parsed.hashtags.map(String).slice(0, INSTAGRAM_HASHTAG_MAX) : [],
-          fullCaption: normalizeInstagramCaption(parsed.fullCaption),
-        };
-      }
+      const content = toPostContent(card, JSON.parse(response.text?.trim() || "{}") as Partial<GeneratedPostContent>);
+      if (content) return content;
       console.warn(`[socialPublisher] Gemini (${model}) respondeu sem legenda, tentando o próximo modelo`);
     } catch (err) {
       console.warn(`[socialPublisher] Gemini (${model}) falhou na geração do texto:`, err instanceof Error ? err.message : err);
     }
   }
-  console.warn("[socialPublisher] nenhum modelo do Gemini respondeu, usando o modelo fixo");
+  return null;
+}
+
+async function generateWithClaude(card: SocialCard, prompt: string, apiKey: string): Promise<GeneratedPostContent | null> {
+  try {
+    const client = new Anthropic({ apiKey });
+    const response = await client.beta.messages.parse({
+      model: CLAUDE_SOCIAL_MODEL,
+      max_tokens: 8000,
+      // recusa por engano do classificador de segurança: a API refaz no modelo indicado pela própria Anthropic
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+      // legenda curta a partir de dados prontos: pouco raciocínio basta
+      output_config: { effort: "low", format: betaZodOutputFormat(PostContentSchema) },
+      messages: [{ role: "user", content: prompt }],
+    });
+    if (response.stop_reason === "refusal") {
+      console.warn("[socialPublisher] Claude recusou a legenda:", response.stop_details?.category ?? "sem categoria");
+      return null;
+    }
+    return toPostContent(card, response.parsed_output);
+  } catch (err) {
+    console.warn("[socialPublisher] Claude falhou na geração do texto:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+/**
+ * Gera a legenda: Gemini (vários modelos) → Claude (se houver ANTHROPIC_API_KEY) → modelo fixo só com os dados da
+ * carta. As chaves podem vir por parâmetro (painel admin, testes); `undefined` lê do ambiente, "" desliga.
+ */
+export async function generateSocialContentWithGemini(card: SocialCard, customTopic?: string, apiKey?: string, claudeApiKey?: string): Promise<GeneratedPostContent> {
+  const geminiKey = (apiKey !== undefined ? apiKey : process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY || "").trim();
+  const claudeKey = (claudeApiKey !== undefined ? claudeApiKey : process.env.ANTHROPIC_API_KEY || "").trim();
+  const prompt = buildSocialPrompt(card, customTopic);
+
+  const fromGemini = geminiKey ? await generateWithGemini(card, prompt, geminiKey) : null;
+  if (fromGemini) return fromGemini;
+  if (claudeKey) {
+    if (geminiKey) console.warn("[socialPublisher] nenhum modelo do Gemini respondeu, tentando o Claude");
+    const fromClaude = await generateWithClaude(card, prompt, claudeKey);
+    if (fromClaude) return fromClaude;
+  }
+  if (geminiKey || claudeKey) console.warn("[socialPublisher] nenhuma IA respondeu, usando o modelo fixo");
   return templateContent(card);
 }
 
