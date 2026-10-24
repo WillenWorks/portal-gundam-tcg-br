@@ -131,6 +131,14 @@ function redactPendingDecisionFor(
         if (nextQ.handDiscard) {
           nextQ = { ...nextQ, handDiscard: { ...nextQ.handDiscard, cards: [] } };
         }
+        // topo do deck de quem decide: ST02-015 (reordenar) e GD01-039 Dopp (olhar o topo). O deckReorder
+        // passava inteiro e mostrava ao oponente as cartas do topo.
+        if (nextQ.deckReorder) {
+          nextQ = { ...nextQ, deckReorder: { ...nextQ.deckReorder, topCards: [] } };
+        }
+        if (nextQ.enumChoice?.topCards) {
+          nextQ = { ...nextQ, enumChoice: { ...nextQ.enumChoice, topCards: [] } };
+        }
         return nextQ;
       }),
     };
@@ -190,9 +198,10 @@ export interface ViewGameState {
   /**
    * Decisão interativa pendente por jogador (docs/19, Sessão 2). Quase tudo
    * passa como está — o `cardDef` de um 【Burst】 é de shield já trashada (zona
-   * pública), as outras variantes só carregam `instanceId`/`specId`. A única
-   * redação é `abilityResolution.queue[].deckTopReveal.topCards` (topo do deck
-   * de quem decide), esvaziado pro oponente — ver `redactPendingDecision`.
+   * pública), as outras variantes só carregam `instanceId`/`specId`. O que é
+   * redigido pro oponente: as cartas do topo do deck de quem decide
+   * (`deckTopReveal`, `deckReorder` e `enumChoice.topCards`) e as cartas do
+   * `handDiscard` — ver `redactPendingDecisionFor`.
    */
   pendingDecision: GameState["pendingDecision"];
   gameOver: GameState["gameOver"];
