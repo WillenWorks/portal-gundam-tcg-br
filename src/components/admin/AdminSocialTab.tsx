@@ -33,13 +33,15 @@ function InstagramIcon({ className = "size-4" }: { className?: string }) {
 
 export interface SocialMediaPost {
   id: string;
-  type: "CARD_SPOTLIGHT" | "DECK_FEATURE" | "META_INSIGHT" | "PRODUCT_AFFILIATE";
+  type: "CARD_SPOTLIGHT" | "DECK_FEATURE" | "META_INSIGHT" | "PRODUCT_AFFILIATE" | "TOURNAMENT_REPORT";
   status: "DRAFT" | "PENDING_APPROVAL" | "APPROVED" | "PUBLISHING" | "PUBLISHED" | "REJECTED" | "FAILED";
   title: string | null;
   caption: string;
   cardCode: string | null;
   deckId: string | null;
   imageUrl: string | null;
+  /** imagens do carrossel, na ordem (vazio = imagem única em imageUrl) */
+  mediaUrls?: string[];
   discordMessageId: string | null;
   instagramPostId: string | null;
   instagramPermalink: string | null;
@@ -51,6 +53,23 @@ export interface SocialMediaPost {
   createdAt: string;
   updatedAt: string;
 }
+
+const POST_TYPE_LABEL: Record<SocialMediaPost["type"], string> = {
+  TOURNAMENT_REPORT: "Torneios",
+  CARD_SPOTLIGHT: "Carta",
+  DECK_FEATURE: "Deck",
+  META_INSIGHT: "Meta",
+  PRODUCT_AFFILIATE: "Afiliado",
+};
+
+/** Formatos da agenda (segunda, quarta, sexta), na ordem em que aparecem no gerador. */
+const GENERATE_TYPES: { value: SocialMediaPost["type"]; label: string; hint: string }[] = [
+  { value: "TOURNAMENT_REPORT", label: "Torneios da semana", hint: "Carrossel com os torneios do Brasil da semana passada (segunda)." },
+  { value: "CARD_SPOTLIGHT", label: "Carta do dia", hint: "Rodízio LR → R → U → C; artes alternativas entram no carrossel (quarta)." },
+  { value: "DECK_FEATURE", label: "Deck em destaque", hint: "Arquétipo de melhor desempenho nos últimos 30 dias, com a lista (sexta)." },
+];
+
+const slidesOf = (post: SocialMediaPost) => (post.mediaUrls?.length ? post.mediaUrls : post.imageUrl ? [post.imageUrl] : []);
 
 interface SocialStatus {
   gemini: boolean;
@@ -86,6 +105,8 @@ export function AdminSocialTab() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [cardCodeInput, setCardCodeInput] = useState("");
+  const [postTypeInput, setPostTypeInput] = useState<SocialMediaPost["type"]>("CARD_SPOTLIGHT");
+  const [slideIndex, setSlideIndex] = useState(0);
   const [customTopicInput, setCustomTopicInput] = useState("");
   const [selectedPost, setSelectedPost] = useState<SocialMediaPost | null>(null);
   const [editCaption, setEditCaption] = useState("");
@@ -102,6 +123,7 @@ export function AdminSocialTab() {
 
   const selectPost = (post: SocialMediaPost) => {
     setSelectedPost(post);
+    setSlideIndex(0);
     setEditTitle(post.title || "");
     setEditCaption(post.caption || "");
   };
@@ -133,9 +155,9 @@ export function AdminSocialTab() {
       const newPost = await apiFetch<SocialMediaPost>("/admin/social/generate", {
         method: "POST",
         body: JSON.stringify({
-          cardCode: cardCodeInput.trim() || undefined,
+          cardCode: postTypeInput === "CARD_SPOTLIGHT" ? cardCodeInput.trim() || undefined : undefined,
           customTopic: customTopicInput.trim() || undefined,
-          type: "CARD_SPOTLIGHT",
+          type: postTypeInput,
         }),
       });
       toast.success("Rascunho criado com sucesso e notificado no Discord!");
@@ -276,7 +298,33 @@ export function AdminSocialTab() {
               </div>
             </div>
 
+            <div>
+              <span className="text-xs uppercase font-mono text-slate-300 block mb-1">Formato do post</span>
+              <div role="radiogroup" aria-label="Formato do post" className="flex flex-wrap gap-2">
+                {GENERATE_TYPES.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={postTypeInput === option.value}
+                    onClick={() => setPostTypeInput(option.value)}
+                    className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border transition ${
+                      postTypeInput === option.value
+                        ? "border-sky-400 bg-sky-500/15 text-sky-300"
+                        : "border-white/10 text-slate-400 hover:border-white/25"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <span className="text-[11px] text-slate-500 mt-1 block">
+                {GENERATE_TYPES.find((option) => option.value === postTypeInput)?.hint}
+              </span>
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
+              {postTypeInput === "CARD_SPOTLIGHT" && (
               <div>
                 <label className="text-xs uppercase font-mono text-slate-300 block mb-1">
                   Código da Carta (Opcional)
@@ -288,9 +336,10 @@ export function AdminSocialTab() {
                   className="rounded-none font-mono text-sm bg-slate-950/60"
                 />
                 <span className="text-[11px] text-slate-500 mt-1 block">
-                  Se vazio, o agente sorteia uma carta (impressão principal, com imagem) que não saiu nos últimos 60 posts.
+                  Se vazio, o agente sorteia uma carta da raridade da vez (impressão principal, com imagem) que não saiu nos últimos 60 posts.
                 </span>
               </div>
+              )}
 
               <div>
                 <label className="text-xs uppercase font-mono text-slate-300 block mb-1">
@@ -446,7 +495,9 @@ export function AdminSocialTab() {
                     <div className="flex-1 min-w-0 space-y-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-mono text-[11px] font-bold text-sky-400 truncate">
-                          {post.cardCode || post.type}
+                          {POST_TYPE_LABEL[post.type] ?? post.type}
+                          {post.cardCode ? ` · ${post.cardCode}` : ""}
+                          {(post.mediaUrls?.length ?? 0) > 1 ? ` · ${post.mediaUrls?.length} imagens` : ""}
                         </span>
                         {getStatusBadge(post.status)}
                       </div>
@@ -501,30 +552,57 @@ export function AdminSocialTab() {
                 <div className="grid md:grid-cols-12 gap-5">
                   {/* Prévia Visual da Imagem */}
                   <div className="md:col-span-5 space-y-2">
-                    <label className="text-xs uppercase font-mono text-slate-300 block">
-                      Arte 1080x1350 (Instagram)
-                    </label>
-                    <div className="border border-white/15 bg-slate-950 aspect-[4/5] relative overflow-hidden flex items-center justify-center group">
-                      {selectedPost.imageUrl ? (
+                    {(() => {
+                      const slides = slidesOf(selectedPost);
+                      const current = slides[Math.min(slideIndex, slides.length - 1)];
+                      return (
                         <>
-                          <img
-                            src={selectedPost.imageUrl}
-                            alt="Arte do post"
-                            className="size-full object-contain"
-                          />
-                          <a
-                            href={selectedPost.imageUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2 text-white text-xs font-semibold"
-                          >
-                            <Eye className="size-4" /> Ver em Alta Definição
-                          </a>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs uppercase font-mono text-slate-300">
+                              {slides.length > 1 ? "Carrossel" : "Arte"} 1080x1350 (Instagram)
+                            </span>
+                            {slides.length > 1 && (
+                              <span className="text-[11px] font-mono text-slate-400">
+                                {Math.min(slideIndex, slides.length - 1) + 1}/{slides.length}
+                              </span>
+                            )}
+                          </div>
+                          <div className="border border-white/15 bg-slate-950 aspect-[4/5] relative overflow-hidden flex items-center justify-center group">
+                            {current ? (
+                              <>
+                                <img src={current} alt="Arte do post" className="size-full object-contain" />
+                                <a
+                                  href={current}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2 text-white text-xs font-semibold"
+                                >
+                                  <Eye className="size-4" /> Ver em Alta Definição
+                                </a>
+                              </>
+                            ) : (
+                              <span className="text-xs text-slate-500">Imagem não disponível</span>
+                            )}
+                          </div>
+                          {slides.length > 1 && (
+                            <div className="flex gap-1.5 overflow-x-auto pb-1" aria-label="Imagens do carrossel">
+                              {slides.map((url, i) => (
+                                <button
+                                  key={url}
+                                  type="button"
+                                  onClick={() => setSlideIndex(i)}
+                                  aria-label={`Imagem ${i + 1} de ${slides.length}`}
+                                  aria-current={i === slideIndex}
+                                  className={`shrink-0 w-12 aspect-[4/5] border overflow-hidden ${i === slideIndex ? "border-sky-400" : "border-white/10 opacity-70 hover:opacity-100"}`}
+                                >
+                                  <img src={url} alt="" className="size-full object-cover" />
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </>
-                      ) : (
-                        <span className="text-xs text-slate-500">Imagem não disponível</span>
-                      )}
-                    </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Campos Editáveis */}

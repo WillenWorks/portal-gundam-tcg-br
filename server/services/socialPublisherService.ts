@@ -7,8 +7,21 @@ import path from "node:path";
 import { z } from "zod";
 import { getCardDefByCode, ALL_CARD_DEFS } from "../../src/modules/simulator/content/allCardDefs";
 import { formatSlot } from "./socialSchedule";
+import { PRIMARY_RARITY_VALUES, rarityAttemptOrder, rarityTier, type RarityTier } from "./socialContent";
+import { accentFor, altArtSlideHtml, escapeHtml, renderSlides, safeImageUrl, slideDocument, type AltArt } from "./socialSlides";
 import { postBotMessage, readDiscordBotConfig, socialButtons, type DiscordBotConfig } from "./discordBot";
-import { countHashtags, INSTAGRAM_CAPTION_MAX, INSTAGRAM_HASHTAG_MAX, normalizeInstagramCaption, publishInstagramImage, readInstagramConfig } from "./instagramPublisher";
+import {
+  countHashtags,
+  INSTAGRAM_CAPTION_MAX,
+  INSTAGRAM_CAROUSEL_MAX,
+  INSTAGRAM_HASHTAG_MAX,
+  normalizeInstagramCaption,
+  publishInstagramCarousel,
+  publishInstagramImage,
+  readInstagramConfig,
+} from "./instagramPublisher";
+
+export { escapeHtml };
 
 export interface GeneratePostInput {
   cardCode?: string;
@@ -42,17 +55,10 @@ export type SocialCard = {
   level?: number;
   text?: string;
   imageUrl?: string;
-};
-
-/** Paleta de cores oficial de Gundam Card Game */
-const COLOR_HEX: Record<string, string> = {
-  blue: "#38bdf8",
-  red: "#f87171",
-  green: "#4ade80",
-  yellow: "#facc15",
-  black: "#94a3b8",
-  white: "#f8fafc",
-  purple: "#c084fc",
+  rarity?: string;
+  cardModelId?: string;
+  /** quantas artes alternativas vão no carrossel (a legenda menciona) */
+  altArtCount?: number;
 };
 
 const CARD_TYPE_PT: Record<string, string> = {
@@ -75,15 +81,6 @@ export function safeFileStem(code: string): string {
   return code.replace(/[^A-Za-z0-9-]/g, "").slice(0, 24) || "carta";
 }
 
-export function escapeHtml(value: unknown): string {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
 const RECENT_POSTS_WINDOW = 60;
 
 type CardRow = {
@@ -99,6 +96,9 @@ type CardRow = {
   effectEn: string | null;
   effectPt: string | null;
   imageUrl: string | null;
+  imageLargeUrl?: string | null;
+  rarity?: string | null;
+  cardModelId?: string | null;
 };
 
 function fromCardRow(row: CardRow): SocialCard {
@@ -115,12 +115,67 @@ function fromCardRow(row: CardRow): SocialCard {
     // o texto explicativo vai em português quando existe (o post é para o público brasileiro). O banco guarda as
     // quebras como <br>, que saíam cruas na legenda; as palavras-chave entre < > (ex.: <Blocker>) ficam.
     text: (row.effectPt || row.effectEn || "").replace(/<br\s*\/?>/gi, "\n"),
-    imageUrl: row.imageUrl || undefined,
+    // a de 1000px quando existe: a de 400px fica borrada no slide de 1080
+    imageUrl: row.imageLargeUrl || row.imageUrl || undefined,
+    rarity: row.rarity || undefined,
+    cardModelId: row.cardModelId || undefined,
   };
 }
 
-/** Seleciona a carta do post: a pedida, ou uma sorteada entre as impressões principais com imagem que não saíram nos últimos posts. */
-export async function pickCardForPost(prisma: PrismaClient, preferredCode?: string, random: () => number = Math.random): Promise<SocialCard> {
+/** Raridade do último post de carta (não descartado), para o rodízio LR → R → U → C. */
+export async function lastSpotlightTier(prisma: PrismaClient): Promise<RarityTier | null> {
+  const last = await prisma.socialMediaPost
+    .findFirst({
+      where: { type: SocialPostType.CARD_SPOTLIGHT, cardCode: { not: null }, status: { not: SocialPostStatus.REJECTED } },
+      orderBy: { createdAt: "desc" },
+      select: { cardCode: true, metadata: true },
+    })
+    .catch(() => null);
+  if (!last) return null;
+  try {
+    const tier = rarityTier((JSON.parse(last.metadata || "{}") as { rarityTier?: string }).rarityTier);
+    if (tier) return tier;
+  } catch {
+    /* metadata antiga ou inválida: olha a carta */
+  }
+  const card = await prisma.card
+    .findFirst({ where: { code: last.cardCode ?? "", deletedAt: null }, orderBy: { isPrimaryPrint: "desc" }, select: { rarity: true } })
+    .catch(() => null);
+  return rarityTier(card?.rarity);
+}
+
+/** Outras impressões da mesma carta com imagem própria (artes alternativas), até completar o carrossel. */
+export async function findAltArts(prisma: PrismaClient, card: SocialCard): Promise<AltArt[]> {
+  if (!card.cardModelId) return [];
+  const prints = await prisma.card
+    .findMany({
+      where: { cardModelId: card.cardModelId, isPrimaryPrint: false, isActive: true, deletedAt: null, imageUrl: { not: null } },
+      orderBy: { createdAt: "asc" },
+      select: { code: true, nameEn: true, rarity: true, imageUrl: true, imageLargeUrl: true, set: { select: { code: true } } },
+    })
+    .catch(() => []);
+  const seen = new Set([card.imageUrl]);
+  const arts: AltArt[] = [];
+  for (const p of prints) {
+    const imageUrl = safeImageUrl(p.imageLargeUrl || p.imageUrl);
+    if (!imageUrl || seen.has(imageUrl)) continue;
+    seen.add(imageUrl);
+    // a fonte põe a raridade no nome da impressão alternativa ("... (LR+)"); ela já aparece à parte no slide
+    arts.push({ code: p.code, name: p.nameEn.replace(/\s*\((?:LR|SR|R|U|C|P)\+*\)\s*$/i, ""), rarity: p.rarity, setCode: p.set?.code ?? null, imageUrl });
+  }
+  return arts.slice(0, INSTAGRAM_CAROUSEL_MAX - 1);
+}
+
+/**
+ * Seleciona a carta do post: a pedida, ou uma sorteada entre as impressões principais com imagem que não saíram nos
+ * últimos posts. Com `tiers`, sorteia na primeira raridade da lista que tiver candidata (rodízio da carta do dia).
+ */
+export async function pickCardForPost(
+  prisma: PrismaClient,
+  preferredCode?: string,
+  random: () => number = Math.random,
+  opts: { tiers?: RarityTier[] } = {},
+): Promise<SocialCard> {
   if (preferredCode) {
     const code = preferredCode.trim().toUpperCase();
     if (!CARD_CODE_PATTERN.test(code)) throw new Error("Código de carta inválido.");
@@ -145,10 +200,12 @@ export async function pickCardForPost(prisma: PrismaClient, preferredCode?: stri
     cardType: { in: ["UNIT", "PILOT", "COMMAND", "COMMAND_PILOT", "BASE"] },
     ...(recentCodes.length ? { code: { notIn: recentCodes } } : {}),
   };
-  const total = await prisma.card.count({ where }).catch(() => 0);
-  if (total > 0) {
+  const attempts: Prisma.CardWhereInput[] = opts.tiers?.length ? opts.tiers.map((tier) => ({ ...where, rarity: { in: PRIMARY_RARITY_VALUES[tier] } })) : [where];
+  for (const attempt of attempts) {
+    const total = await prisma.card.count({ where: attempt }).catch(() => 0);
+    if (total <= 0) continue;
     const candidate = (await prisma.card
-      .findFirst({ where, orderBy: { id: "asc" }, skip: Math.floor(random() * total) })
+      .findFirst({ where: attempt, orderBy: { id: "asc" }, skip: Math.floor(random() * total) })
       .catch(() => null)) as CardRow | null;
     if (candidate) return fromCardRow(candidate);
   }
@@ -171,6 +228,7 @@ function templateContent(card: SocialCard): GeneratedPostContent {
     `• Custo: ${card.cost ?? "—"}${card.level !== undefined ? ` · Nível: ${card.level}` : ""}\n` +
     (card.ap !== undefined || card.hp !== undefined ? `• ${card.ap ?? "—"} AP / ${card.hp ?? "—"} HP\n` : "") +
     (card.text ? `\n📝 Efeito:\n${card.text}\n` : "") +
+    (card.altArtCount ? `\n🎨 Arraste para o lado: ${card.altArtCount === 1 ? "tem 1 arte alternativa" : `são ${card.altArtCount} artes alternativas`} no carrossel.\n` : "") +
     `\n⚔️ Em que deck você colocaria essa carta? Conta aqui nos comentários!\n\n` +
     `🔗 Monte seu deck e teste no simulador do Anaheim Hub (link na bio)\n\n` +
     DEFAULT_HASHTAGS.map((h) => `#${h}`).join(" ");
@@ -216,6 +274,8 @@ Cor: ${card.color}
 Custo: ${card.cost ?? "—"}${card.level !== undefined ? ` · Nível: ${card.level}` : ""}
 AP / HP: ${card.ap ?? "—"} / ${card.hp ?? "—"}
 Texto da carta: "${card.text || "sem efeito"}"
+${card.rarity ? `Raridade: ${card.rarity}` : ""}
+${card.altArtCount ? `O post é um carrossel: depois da carta vêm ${card.altArtCount} arte(s) alternativa(s) dela. Convide a arrastar para ver e pergunte qual arte a pessoa prefere.` : ""}
 ${customTopic ? `Pedido do editor: "${customTopic.slice(0, 300)}"` : ""}
 
 Regras:
@@ -306,23 +366,19 @@ export async function generateSocialContentWithGemini(card: SocialCard, customTo
 }
 
 /** HTML da arte 1080x1350 (4:5, formato retrato aceito pelo Instagram). Todo dado é escapado. */
-export function buildSocialCardHtml(card: SocialCard): string {
-  const accentColor = COLOR_HEX[card.color.toLowerCase()] || "#38bdf8";
-  const imageUrl = card.imageUrl && /^https:\/\//i.test(card.imageUrl) ? card.imageUrl : "";
+export function buildSocialCardHtml(card: SocialCard, pager?: string): string {
+  const accentColor = accentFor(card.color);
+  const imageUrl = safeImageUrl(card.imageUrl);
   const typeLabel = CARD_TYPE_PT[card.type] || card.type;
   const effect = card.text?.trim() || "Sem efeito.";
-  return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-  body { width: 1080px; height: 1350px; background: radial-gradient(circle at 50% 20%, #0f172a 0%, #020617 100%); color: #f8fafc; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; padding: 60px; position: relative; }
-  body::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(56, 189, 248, 0.04) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none; }
-  .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid rgba(255, 255, 255, 0.1); padding-bottom: 24px; z-index: 10; }
-  .brand { font-size: 32px; font-weight: 900; letter-spacing: 0.15em; text-transform: uppercase; color: #38bdf8; }
-  .badge { background: rgba(56, 189, 248, 0.15); border: 1px solid ${accentColor}; color: ${accentColor}; padding: 8px 18px; font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; border-radius: 4px; }
-  .content { display: flex; gap: 40px; align-items: center; margin: 40px 0; z-index: 10; flex: 1; }
+  const tier = rarityTier(card.rarity);
+  return slideDocument({
+    badge: `CARTA DO DIA${tier ? ` • ${tier}` : " • GCG"}`,
+    accent: accentColor,
+    pager,
+    cta: card.altArtCount ? `Arraste para ver ${card.altArtCount === 1 ? "a arte alternativa" : `as ${card.altArtCount} artes alternativas`} →` : undefined,
+    css: `
+  .content { display: flex; gap: 40px; align-items: center; flex: 1; }
   .card-frame { flex: 0 0 480px; height: 672px; background: rgba(255, 255, 255, 0.03); border: 2px solid rgba(255, 255, 255, 0.15); border-radius: 16px; display: flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.15); }
   .card-img { width: 100%; height: 100%; object-fit: contain; }
   .info-pane { flex: 1; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
@@ -335,25 +391,15 @@ export function buildSocialCardHtml(card: SocialCard): string {
   .stat-unit { font-size: 16px; color: #64748b; }
   .effect-box { background: rgba(15, 23, 42, 0.9); border-left: 4px solid ${accentColor}; border-radius: 4px; padding: 20px; font-size: 18px; line-height: 1.6; color: #cbd5e1; max-height: 300px; overflow: hidden; }
   .effect-text { white-space: pre-line; }
-  .effect-label { font-size: 12px; font-weight: 800; text-transform: uppercase; color: ${accentColor}; margin-bottom: 6px; }
-  .footer { border-top: 2px solid rgba(255, 255, 255, 0.1); padding-top: 24px; display: flex; justify-content: space-between; align-items: center; gap: 24px; z-index: 10; }
-  .cta-text { font-size: 20px; font-weight: 700; color: #cbd5e1; }
-  .fan-note { font-size: 13px; color: #64748b; margin-top: 6px; }
-  .url-badge { background: #38bdf8; color: #020617; font-size: 18px; font-weight: 800; padding: 10px 22px; border-radius: 6px; letter-spacing: 0.05em; white-space: nowrap; }
-</style>
-</head>
-<body>
-  <div class="header">
-    <div class="brand">ANAHEIM HUB</div>
-    <div class="badge">CARTA DO DIA • GCG</div>
-  </div>
+  .effect-label { font-size: 12px; font-weight: 800; text-transform: uppercase; color: ${accentColor}; margin-bottom: 6px; }`,
+    body: `
   <div class="content">
     <div class="card-frame">
       ${imageUrl ? `<img class="card-img" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.name)}" />` : `<div style="text-align:center;padding:20px;"><div style="font-size:24px;font-weight:800;color:#38bdf8;">${escapeHtml(card.code)}</div><div style="font-size:16px;color:#94a3b8;margin-top:8px;">${escapeHtml(card.name)}</div></div>`}
     </div>
     <div class="info-pane">
       <div>
-        <div class="card-code">${escapeHtml(card.code)} • ${escapeHtml(typeLabel.toUpperCase())}</div>
+        <div class="card-code">${escapeHtml(card.code)} • ${escapeHtml(typeLabel.toUpperCase())}${card.rarity ? ` • ${escapeHtml(card.rarity.toUpperCase())}` : ""}</div>
         <h1 class="card-name">${escapeHtml(card.name)}</h1>
       </div>
       <div class="stats-grid">
@@ -371,38 +417,15 @@ export function buildSocialCardHtml(card: SocialCard): string {
         <div class="effect-text">${escapeHtml(effect)}</div>
       </div>
     </div>
-  </div>
-  <div class="footer">
-    <div>
-      <div class="cta-text">Monte seu deck e jogue online no simulador</div>
-      <div class="fan-note">Projeto de fãs, sem vínculo com a Bandai. Gundam Card Game © Bandai / Sotsu · Sunrise.</div>
-    </div>
-    <div class="url-badge">anaheimhub.com</div>
-  </div>
-</body>
-</html>`;
+  </div>`,
+  });
 }
 
 /** Renderiza a arte 1080x1350 em JPEG (o único formato de imagem que a API do Instagram aceita). */
 export async function renderSocialCardImage(card: SocialCard, outputPath: string): Promise<string> {
-  const html = buildSocialCardHtml(card);
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  // carregado só aqui: o navegador pesa e só é usado ao gerar um post
-  const { chromium } = await import("playwright");
-  const browser = await chromium.launch({
-    headless: true,
-    // SOCIAL_CHROMIUM_PATH: usa um Chromium já instalado no servidor em vez do baixado pelo Playwright
-    executablePath: process.env.SOCIAL_CHROMIUM_PATH || undefined,
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
-  });
-  try {
-    const page = await browser.newPage({ viewport: { width: 1080, height: 1350 } });
-    await page.setContent(html, { waitUntil: "load", timeout: 20000 });
-    await page.screenshot({ path: outputPath, type: "jpeg", quality: 90 });
-    return outputPath;
-  } finally {
-    await browser.close();
-  }
+  const [ok] = await renderSlides([buildSocialCardHtml(card)], [outputPath]);
+  if (!ok) throw new Error("A arte não renderizou.");
+  return outputPath;
 }
 
 /** O navegador do Playwright está instalado neste servidor? */
@@ -432,7 +455,7 @@ export async function cleanupOrphanSocialImages(prisma: PrismaClient, now = new 
   const candidates = names.filter((n) => /^social-[A-Za-z0-9-]+\.(?:jpg|png)$/.test(n));
   if (!candidates.length) return 0;
   const used = new Set(
-    (await prisma.socialMediaPost.findMany({ where: { imageUrl: { not: null } }, select: { imageUrl: true } })).map((p) => p.imageUrl),
+    (await prisma.socialMediaPost.findMany({ select: { imageUrl: true, mediaUrls: true } })).flatMap((p) => [p.imageUrl, ...(p.mediaUrls ?? [])]),
   );
   let removed = 0;
   for (const name of candidates) {
@@ -447,7 +470,7 @@ export async function cleanupOrphanSocialImages(prisma: PrismaClient, now = new 
 }
 
 export type DiscordNoticeKind = "draft" | "approved" | "rejected" | "published" | "failed";
-type DiscordNoticePost = { id: string; title: string | null; caption: string; imageUrl: string | null; type: string; scheduledFor?: Date | null };
+type DiscordNoticePost = { id: string; title: string | null; caption: string; imageUrl: string | null; type: string; scheduledFor?: Date | null; mediaUrls?: string[] };
 
 const DISCORD_HEADERS: Record<DiscordNoticeKind, string> = {
   draft: "📢 **Novo rascunho para o Instagram**\nRevise a arte e a legenda e aprove:",
@@ -469,21 +492,27 @@ export function buildDiscordSocialPayload(post: DiscordNoticePost, publicUrl: st
     published: "🟢 Publicado",
     failed: "🔴 Falhou",
   };
+  const slides = post.mediaUrls?.length ?? 0;
+  // embeds com a mesma url viram galeria no Discord (até 4 imagens)
+  const gallery = slides > 1 ? (post.mediaUrls ?? []).slice(1, 4).map((url) => ({ url: adminLink, image: { url: `${publicUrl}${url}` } })) : [];
   return {
     content: DISCORD_HEADERS[kind],
     embeds: [
       {
         title: post.title || "Post — Anaheim Hub",
+        url: adminLink,
         description: (extra ? `${extra}\n\n` : "") + post.caption.slice(0, 1500) + (post.caption.length > 1500 ? "..." : ""),
         color: kind === "failed" ? 15680580 : kind === "rejected" ? 7041664 : 3718648,
         image: absoluteImageUrl ? { url: absoluteImageUrl } : undefined,
         fields: [
           { name: "Status", value: status[kind], inline: false },
+          ...(slides > 1 ? [{ name: "Formato", value: `🖼️ Carrossel com ${slides} imagens`, inline: false }] : []),
           { name: "Painel", value: `[Abrir no painel do admin](${adminLink})`, inline: false },
         ],
         footer: { text: "Anaheim Hub • posts com aprovação humana" },
         timestamp: new Date().toISOString(),
       },
+      ...gallery,
     ],
   };
 }
@@ -527,39 +556,84 @@ export function socialPublicAppUrl(): string {
   return env && !/localhost|127\.0\.0\.1/.test(env) ? env : "https://anaheimhub.com";
 }
 
-/** Cria um rascunho completo: carta + legenda + arte JPEG + aviso no Discord. */
+/** Conteúdo de um rascunho antes de gravar: legenda, slides (o primeiro é a capa) e dados para o painel. */
+type DraftContent = {
+  type: SocialPostType;
+  content: GeneratedPostContent;
+  cardCode?: string;
+  /** prefixo do nome dos arquivos (só letras, números e hífen) */
+  fileStem: string;
+  slides: string[];
+  metadata?: Record<string, unknown>;
+  /** motivo para o aviso no Discord (ex.: semana sem torneio virou carta do dia) */
+  notice?: string;
+};
+
+/**
+ * Desenha os slides em JPEG. Sem navegador no servidor (ou falha ao desenhar a capa) o post fica sem imagem, em vez de
+ * apontar para um arquivo que não existe; slide do meio que falhar só sai do carrossel.
+ */
+async function renderDraftSlides(fileStem: string, slides: string[]): Promise<string[]> {
+  const stamp = Date.now();
+  const names = slides.map((_, i) => `social-${safeFileStem(fileStem)}-${stamp}${i ? `-${i + 1}` : ""}.jpg`);
+  let done: boolean[];
+  try {
+    done = await renderSlides(slides, names.map((name) => path.join(socialUploadDir(), name)));
+  } catch (err) {
+    console.warn("[socialPublisher] Aviso ao renderizar imagem Playwright:", err instanceof Error ? err.message : err);
+    return [];
+  }
+  if (!done[0]) return [];
+  return names.filter((_, i) => done[i]).map((name) => `/uploads/social/${name}`);
+}
+
+/** Carta do dia: a pedida, ou a próxima raridade do rodízio LR → R → U → C; artes alternativas viram carrossel. */
+export async function draftCardSpotlight(prisma: PrismaClient, input: GeneratePostInput = {}): Promise<DraftContent> {
+  const tiers = input.cardCode ? undefined : rarityAttemptOrder(await lastSpotlightTier(prisma));
+  const picked = await pickCardForPost(prisma, input.cardCode, Math.random, { tiers });
+  const altArts = await findAltArts(prisma, picked);
+  const card: SocialCard = { ...picked, altArtCount: altArts.length };
+  const total = altArts.length + 1;
+  const pager = (i: number) => (total > 1 ? `${i}/${total}` : undefined);
+  const accent = accentFor(card.color);
+  return {
+    type: SocialPostType.CARD_SPOTLIGHT,
+    content: await generateSocialContentWithGemini(card, input.customTopic, input.apiKeyGemini),
+    cardCode: card.code,
+    fileStem: card.code,
+    slides: [buildSocialCardHtml(card, pager(1)), ...altArts.map((art, i) => altArtSlideHtml(art, accent, pager(i + 2)))],
+    metadata: { rarityTier: rarityTier(card.rarity), altArts: altArts.map((a) => ({ code: a.code, rarity: a.rarity, setCode: a.setCode })) },
+  };
+}
+
+async function buildDraft(prisma: PrismaClient, input: GeneratePostInput): Promise<DraftContent> {
+  // torneios (segunda) e deck em destaque (sexta) ainda não têm formato próprio: saem como carta do dia
+  return draftCardSpotlight(prisma, input);
+}
+
+/** Cria um rascunho completo no formato do tipo pedido: legenda + slides JPEG + aviso no Discord. */
 export async function createSocialPostDraft(prisma: PrismaClient, input: GeneratePostInput = {}) {
   const publicAppUrl = input.publicAppUrl || socialPublicAppUrl();
-  const card = await pickCardForPost(prisma, input.cardCode);
-  const content = await generateSocialContentWithGemini(card, input.customTopic, input.apiKeyGemini);
-
-  const fileName = `social-${safeFileStem(card.code)}-${Date.now()}.jpg`;
-  const absolutePath = path.join(socialUploadDir(), fileName);
-
-  // sem navegador no servidor (ou falha ao desenhar) o post fica sem imagem, em vez de apontar para um arquivo que não existe
-  let imageUrl: string | null = `/uploads/social/${fileName}`;
-  try {
-    await renderSocialCardImage(card, absolutePath);
-  } catch (err) {
-    imageUrl = null;
-    console.warn("[socialPublisher] Aviso ao renderizar imagem Playwright:", err instanceof Error ? err.message : err);
-  }
+  const draft = await buildDraft(prisma, input);
+  const mediaUrls = await renderDraftSlides(draft.fileStem, draft.slides);
+  const { content } = draft;
 
   const post = await prisma.socialMediaPost.create({
     data: {
-      type: input.type || SocialPostType.CARD_SPOTLIGHT,
+      type: draft.type,
       status: SocialPostStatus.PENDING_APPROVAL,
       title: content.title,
       caption: normalizeInstagramCaption(content.fullCaption),
-      cardCode: card.code,
-      imageUrl,
+      cardCode: draft.cardCode ?? null,
+      imageUrl: mediaUrls[0] ?? null,
+      mediaUrls: mediaUrls.length > 1 ? mediaUrls : [],
       scheduledFor: input.scheduledFor ?? null,
       slotKey: input.slotKey ?? null,
-      metadata: JSON.stringify({ hashtags: content.hashtags, hook: content.hook, strategy: content.strategy, cta: content.cta }),
+      metadata: JSON.stringify({ hashtags: content.hashtags, hook: content.hook, strategy: content.strategy, cta: content.cta, ...draft.metadata }),
     },
   });
 
-  await sendDiscordSocialNotification(post, publicAppUrl, "draft");
+  await sendDiscordSocialNotification(post, publicAppUrl, "draft", draft.notice);
   return post;
 }
 
@@ -582,7 +656,11 @@ export function missingAdDisclosure(type: SocialPostType | string, caption: stri
  * Publica um post aprovado no Instagram. Pega o post de forma atômica (APPROVED/FAILED → PUBLISHING) para que
  * duas chamadas ao mesmo tempo não publiquem duas vezes.
  */
-export async function publishApprovedPost(prisma: PrismaClient, postId: string, deps: { publish?: typeof publishInstagramImage; publicAppUrl?: string } = {}) {
+export async function publishApprovedPost(
+  prisma: PrismaClient,
+  postId: string,
+  deps: { publish?: typeof publishInstagramImage; publishCarousel?: typeof publishInstagramCarousel; publicAppUrl?: string } = {},
+) {
   const publicAppUrl = (deps.publicAppUrl || socialPublicAppUrl()).replace(/\/+$/, "");
   const claimed = await prisma.socialMediaPost.updateMany({
     where: { id: postId, status: { in: [SocialPostStatus.APPROVED, SocialPostStatus.FAILED] } },
@@ -596,7 +674,10 @@ export async function publishApprovedPost(prisma: PrismaClient, postId: string, 
     const problems = captionProblems(post.caption);
     if (problems.length) throw new Error(problems.join(" "));
     if (missingAdDisclosure(post.type, post.caption)) throw new Error("Post de afiliado precisa estar identificado como publicidade (ex.: #publi).");
-    const result = await (deps.publish ?? publishInstagramImage)(prisma, { imageUrl: `${publicAppUrl}${post.imageUrl}`, caption: post.caption });
+    const result =
+      (post.mediaUrls ?? []).length > 1
+        ? await (deps.publishCarousel ?? publishInstagramCarousel)(prisma, { imageUrls: post.mediaUrls.map((url) => `${publicAppUrl}${url}`), caption: post.caption })
+        : await (deps.publish ?? publishInstagramImage)(prisma, { imageUrl: `${publicAppUrl}${post.imageUrl}`, caption: post.caption });
     const updated = await prisma.socialMediaPost.update({
       where: { id: postId },
       data: { status: SocialPostStatus.PUBLISHED, instagramPostId: result.mediaId, instagramPermalink: result.permalink, publishedAt: new Date(), publishError: null },

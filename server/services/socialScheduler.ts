@@ -2,21 +2,22 @@
  *
  * A cada 5 minutos:
  *  1. em dia de post (padrão seg/qua/sex), a partir de SOCIAL_DRAFT_LEAD_HOURS antes do horário, gera o rascunho
- *     do dia (uma vez só: o dia fica gravado em slotKey, único no banco) e avisa no Discord;
+ *     do dia no formato do dia (torneios / carta / deck; uma vez só: o dia fica gravado em slotKey, único no banco)
+ *     e avisa no Discord;
  *  2. publica os posts APROVADOS cujo horário já chegou;
  *  3. uma vez por dia, renova o token do Instagram (vale 60 dias) e apaga imagens de posts excluídos.
  * Nada é publicado sem aprovação: rascunho não aprovado fica esperando no painel.
  *
  * Por que aqui e não num cron do GitHub: o agendamento do GitHub Actions atrasa de 3 a 7 horas. */
 import { Prisma, SocialPostStatus, type PrismaClient } from "@prisma/client";
-import { draftSlotDue, readSocialScheduleConfig, slotKeyFor } from "./socialSchedule.ts";
+import { draftSlotDue, postTypeFor, readSocialScheduleConfig, slotKeyFor, type SocialPlanType } from "./socialSchedule.ts";
 
 const TICK_MS = 5 * 60_000;
 const TOKEN_CHECK_MS = 24 * 3600_000;
 
 type Deps = {
   now?: () => Date;
-  createDraft?: (prisma: PrismaClient, input: { scheduledFor: Date; slotKey: string }) => Promise<unknown>;
+  createDraft?: (prisma: PrismaClient, input: { scheduledFor: Date; slotKey: string; type: SocialPlanType }) => Promise<unknown>;
   publish?: (prisma: PrismaClient, postId: string) => Promise<unknown>;
   refreshToken?: (prisma: PrismaClient) => Promise<unknown>;
   instagramConfigured?: () => boolean;
@@ -38,13 +39,14 @@ export async function runSocialSchedulerTick(prisma: PrismaClient, deps: Deps = 
     const instagramConfigured = deps.instagramConfigured ?? (() => Boolean(ig?.readInstagramConfig()));
 
     // 1. rascunho do dia
-    const slot = draftSlotDue(now, readSocialScheduleConfig());
+    const config = readSocialScheduleConfig();
+    const slot = draftSlotDue(now, config);
     if (slot) {
       const slotKey = slotKeyFor(slot);
       const exists = await prisma.socialMediaPost.findUnique({ where: { slotKey }, select: { id: true } });
       if (!exists) {
         try {
-          await (deps.createDraft ?? service!.createSocialPostDraft)(prisma, { scheduledFor: slot, slotKey });
+          await (deps.createDraft ?? service!.createSocialPostDraft)(prisma, { scheduledFor: slot, slotKey, type: postTypeFor(slot, config) });
           drafted = slotKey;
         } catch (err) {
           // outro processo gerou o mesmo dia ao mesmo tempo: tudo bem

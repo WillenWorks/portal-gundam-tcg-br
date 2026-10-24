@@ -24,6 +24,9 @@ import {
   sendDiscordSocialNotification,
   approveSocialPost,
   rejectSocialPost,
+  buildDiscordSocialPayload,
+  findAltArts,
+  lastSpotlightTier,
 } from "./socialPublisherService";
 
 const cardRow = {
@@ -208,6 +211,17 @@ describe("socialPublisherService", () => {
       expect(result.publishError).toContain("JPEG");
     });
 
+    it("post com várias imagens sai como carrossel, na ordem, com a URL pública", async () => {
+      const mediaUrls = ["/uploads/social/social-x-1.jpg", "/uploads/social/social-x-1-2.jpg", "/uploads/social/social-x-1-3.jpg"];
+      const prisma = makePrisma(1, { ...basePost, imageUrl: mediaUrls[0], mediaUrls });
+      const publish = vi.fn();
+      const publishCarousel = vi.fn().mockResolvedValue({ mediaId: "777", permalink: null });
+      const result = await publishApprovedPost(prisma, "p1", { publish, publishCarousel, publicAppUrl: "https://anaheimhub.com" });
+      expect(publish).not.toHaveBeenCalled();
+      expect(publishCarousel.mock.calls[0][1].imageUrls).toEqual(mediaUrls.map((u) => `https://anaheimhub.com${u}`));
+      expect(result.status).toBe("PUBLISHED");
+    });
+
     it("erro do Instagram marca FAILED e guarda a mensagem", async () => {
       const prisma = makePrisma();
       const publish = vi.fn().mockRejectedValue(new Error("Instagram (publicar): limite atingido"));
@@ -280,6 +294,64 @@ describe("socialPublisherService", () => {
       vi.unstubAllEnvs();
       expect(fetchFn.mock.calls[1][0]).toBe("https://discord.com/api/webhooks/1/abc");
       expect(JSON.parse(fetchFn.mock.calls[1][1].body).components).toBeUndefined();
+    });
+  });
+
+  describe("carta do dia: rodízio de raridade e artes alternativas", () => {
+    it("pickCardForPost com rodízio: tenta a raridade da vez e pula a que não tem carta", async () => {
+      const count = vi.fn(async ({ where }: { where: { rarity?: { in: string[] } } }) => (where.rarity?.in.includes("Uncommon") ? 0 : 5));
+      const prisma = { card: { count, findFirst: vi.fn().mockResolvedValue({ ...cardRow, rarity: "Common" }) }, socialMediaPost: { findMany: vi.fn().mockResolvedValue([]) } } as any;
+      const card = await pickCardForPost(prisma, undefined, () => 0, { tiers: ["U", "C", "LR", "R"] });
+      expect(count.mock.calls.map(([arg]) => arg.where.rarity?.in)).toEqual([["U", "Uncommon"], ["C", "Common"]]);
+      expect(prisma.card.findFirst.mock.calls[0][0].where.rarity).toEqual({ in: ["C", "Common"] });
+      expect(card.rarity).toBe("Common");
+    });
+
+    it("a imagem de 1000px é a preferida para o slide", async () => {
+      const prisma = { card: { findFirst: vi.fn().mockResolvedValue({ ...cardRow, imageLargeUrl: "https://example.com/big.jpg" }) } } as any;
+      expect((await pickCardForPost(prisma, "ST01-001")).imageUrl).toBe("https://example.com/big.jpg");
+    });
+
+    it("última raridade: vem da metadata do último post; post antigo sem metadata olha a carta", async () => {
+      const withMeta = { socialMediaPost: { findFirst: vi.fn().mockResolvedValue({ cardCode: "GD01-001", metadata: '{"rarityTier":"R"}' }) }, card: { findFirst: vi.fn() } } as any;
+      expect(await lastSpotlightTier(withMeta)).toBe("R");
+      expect(withMeta.socialMediaPost.findFirst.mock.calls[0][0].where.status).toEqual({ not: "REJECTED" });
+      const old = { socialMediaPost: { findFirst: vi.fn().mockResolvedValue({ cardCode: "GD02-099", metadata: "{}" }) }, card: { findFirst: vi.fn().mockResolvedValue({ rarity: "Common" }) } } as any;
+      expect(await lastSpotlightTier(old)).toBe("C");
+      const none = { socialMediaPost: { findFirst: vi.fn().mockResolvedValue(null) } } as any;
+      expect(await lastSpotlightTier(none)).toBeNull();
+    });
+
+    it("artes alternativas: outras impressões com imagem própria, sem repetir a da carta, no máximo 9", async () => {
+      const prints = [
+        { code: "EB01-041", nameEn: "Strike Freedom (LR+)", rarity: "LR+", imageUrl: "https://cdn/2_400w.jpg", imageLargeUrl: "https://cdn/2.jpg", set: { code: "EB01" } },
+        { code: "EB01-041", nameEn: "Strike Freedom", rarity: "LR", imageUrl: "https://cdn/1.jpg", imageLargeUrl: null, set: { code: "EB01" } },
+        { code: "EB01-041", nameEn: "Strike Freedom", rarity: "LR++", imageUrl: "http://inseguro/3.jpg", imageLargeUrl: null, set: null },
+        ...Array.from({ length: 12 }, (_, i) => ({ code: "EB01-041", nameEn: "Strike Freedom", rarity: "P", imageUrl: `https://cdn/p${i}.jpg`, imageLargeUrl: null, set: null })),
+      ];
+      const prisma = { card: { findMany: vi.fn().mockResolvedValue(prints) } } as any;
+      const arts = await findAltArts(prisma, { code: "EB01-041", name: "Strike Freedom", color: "blue", type: "UNIT", imageUrl: "https://cdn/1.jpg", cardModelId: "m1" });
+      expect(prisma.card.findMany.mock.calls[0][0].where).toMatchObject({ cardModelId: "m1", isPrimaryPrint: false });
+      expect(arts[0]).toEqual({ code: "EB01-041", name: "Strike Freedom", rarity: "LR+", setCode: "EB01", imageUrl: "https://cdn/2.jpg" });
+      expect(arts.some((a) => a.imageUrl === "https://cdn/1.jpg" || a.imageUrl.startsWith("http:"))).toBe(false);
+      expect(arts).toHaveLength(9);
+      expect(await findAltArts(prisma, { code: "X", name: "X", color: "blue", type: "UNIT" })).toEqual([]);
+    });
+
+    it("arte da carta mostra a raridade no selo e chama para arrastar quando há arte alternativa", () => {
+      const html = buildSocialCardHtml({ code: "EB01-041", name: "Strike Freedom", color: "blue", type: "UNIT", rarity: "Legend Rare", altArtCount: 1 }, "1/2");
+      expect(html).toContain("CARTA DO DIA • LR");
+      expect(html).toContain("Arraste para ver a arte alternativa");
+      expect(html).toContain("1/2");
+    });
+
+    it("Discord: carrossel avisa a quantidade e mostra as primeiras imagens em galeria", () => {
+      const mediaUrls = ["/a.jpg", "/b.jpg", "/c.jpg", "/d.jpg", "/e.jpg"];
+      const payload = buildDiscordSocialPayload({ id: "p1", title: "T", caption: "L", imageUrl: "/a.jpg", type: "CARD_SPOTLIGHT", mediaUrls }, "https://anaheimhub.com");
+      expect(payload.embeds).toHaveLength(4);
+      expect(payload.embeds.every((e) => e.url === "https://anaheimhub.com/admin#social")).toBe(true);
+      expect(payload.embeds[1].image?.url).toBe("https://anaheimhub.com/b.jpg");
+      expect(JSON.stringify(payload.embeds[0])).toContain("Carrossel com 5 imagens");
     });
   });
 });
