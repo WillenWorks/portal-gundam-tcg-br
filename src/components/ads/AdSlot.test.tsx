@@ -31,4 +31,11 @@ describe("AdSlot Component", () => {
     const { container } = render(<AdSlot format="leaderboard" slotId="1234567890" />);
     expect(container.querySelector("ins.adsbygoogle")).toBeTruthy();
   });
+
+  it("sem slotId explícito, usa o bloco padrão do VITE_ADSENSE_SLOT_ID", () => {
+    vi.stubEnv("DEV", false);
+    vi.stubEnv("VITE_ADSENSE_SLOT_ID", "9876543210");
+    const { container } = render(<AdSlot format="responsive" />);
+    expect(container.querySelector("ins.adsbygoogle")?.getAttribute("data-ad-slot")).toBe("9876543210");
+  });
 });

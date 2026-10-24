@@ -9,7 +9,7 @@ declare global {
 }
 
 interface AdSlotProps {
-  /** ID do bloco de anúncio no Google AdSense (ex: '1234567890') */
+  /** ID do bloco de anúncio no Google AdSense (ex: '1234567890'); sem ele, usa o bloco padrão de VITE_ADSENSE_SLOT_ID */
   slotId?: string;
   /** ID do cliente AdSense (caso não informado, usa import.meta.env.VITE_ADSENSE_CLIENT_ID) */
   clientId?: string;
@@ -24,7 +24,8 @@ const DEFAULT_ADSENSE_CLIENT =
   (import.meta.env.VITE_ADSENSE_CLIENT_ID as string | undefined) || "ca-pub-4516039090052126";
 
 export function AdSlot({
-  slotId,
+  // lido a cada render (não no carregamento do módulo): um bloco de display responsivo serve para todas as páginas
+  slotId = (import.meta.env.VITE_ADSENSE_SLOT_ID as string | undefined) || undefined,
   clientId = DEFAULT_ADSENSE_CLIENT,
   format = "responsive",
   carbonPlacement,

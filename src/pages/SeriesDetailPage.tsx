@@ -58,7 +58,7 @@ export default function SeriesDetailPage() {
   }, [meta]);
 
   return (
-    <PublicShell breadcrumbs={[{ label: "Universo Gundam", href: "/series" }, { label: entry?.name || params?.slug || "Série" }]}>
+    <PublicShell ad={Boolean(entry)} breadcrumbs={[{ label: "Universo Gundam", href: "/series" }, { label: entry?.name || params?.slug || "Série" }]}>
       <div className="space-y-6">
         <Card className="panel-cut rounded-none border-primary/30 hero-surface">
           <CardContent className="p-6">

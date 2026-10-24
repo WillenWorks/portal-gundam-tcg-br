@@ -42,7 +42,7 @@ export function VedaShell({
   ];
 
   return (
-    <PublicShell breadcrumbs={finalBreadcrumbs}>
+    <PublicShell breadcrumbs={finalBreadcrumbs} ad>
       <div className="space-y-6">
         {/* Barra superior de navegação rápida entre as 4 frentes competitivas do Sistema VEDA */}
         <div className="panel-cut border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/80 p-2 sm:p-2.5">

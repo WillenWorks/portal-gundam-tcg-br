@@ -29,7 +29,7 @@ export default function CollectionsPage() {
   }, []);
 
   return (
-    <PublicShell
+    <PublicShell ad
       breadcrumbs={[{ label: "Coleções & Produtos" }]}
       heroBanner={
         <ParallaxHeroBanner

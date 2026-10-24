@@ -174,7 +174,7 @@
     "input-otp": "^1.5.0",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.52.0",
-    "multer": "^2.4.0",
+    "multer": "^2.5.0",
     "nanoid": "^6.0.1",
     "nodemailer": "10.0.14",
     "qrcode": "^1.5.4",

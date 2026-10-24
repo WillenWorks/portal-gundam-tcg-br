@@ -941,7 +941,7 @@ export default function SharedDeckPage() {
   }
 
   return (
-    <PublicShell
+    <PublicShell ad
       breadcrumbs={[
         { label: "Decks", href: "/decks" },
         { label: deck.name || tr("Especificação de Deck", "Deck") },

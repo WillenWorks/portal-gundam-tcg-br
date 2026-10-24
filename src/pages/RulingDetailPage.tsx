@@ -68,7 +68,7 @@ export default function RulingDetailPage() {
   }, [rule, params?.id, isPt]);
 
   return (
-    <PublicShell breadcrumbs={breadcrumbs}>
+    <PublicShell ad={Boolean(rule)} breadcrumbs={breadcrumbs}>
       <div className="space-y-6">
         <Card className="panel-cut rounded-none border-primary/30 hero-surface">
           <CardContent className="p-6">

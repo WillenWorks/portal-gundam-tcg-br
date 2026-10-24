@@ -1,4 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
+
+const genai = vi.hoisted(() => ({ generateContent: vi.fn() }));
+vi.mock("@google/genai", () => ({
+  GoogleGenAI: class {
+    models = { generateContent: genai.generateContent };
+  },
+}));
+
+const claude = vi.hoisted(() => ({ parse: vi.fn() }));
+vi.mock("@anthropic-ai/sdk", () => ({
+  default: class {
+    beta = { messages: { parse: claude.parse } };
+  },
+}));
 import {
   buildSocialCardHtml,
   captionProblems,
@@ -52,11 +66,62 @@ describe("socialPublisherService", () => {
   });
 
   it("modelo fixo (sem chave do Gemini) usa só os dados da carta", async () => {
-    const content = await generateSocialContentWithGemini({ code: "ST01-001", name: "Gundam", color: "blue", type: "UNIT", ap: 3, hp: 4, cost: 3, text: "efeito" }, undefined, "");
+    const content = await generateSocialContentWithGemini({ code: "ST01-001", name: "Gundam", color: "blue", type: "UNIT", ap: 3, hp: 4, cost: 3, text: "efeito" }, undefined, "", "");
     expect(content.title).toContain("ST01-001");
     expect(content.fullCaption).toContain("CARTA DO DIA");
     expect(content.fullCaption).toContain("#GundamCardGame");
     expect(content.fullCaption).toContain("Unidade");
+  });
+
+  it("Gemini sobrecarregado (503) num modelo: tenta o próximo antes de cair no texto fixo", async () => {
+    genai.generateContent.mockReset();
+    genai.generateContent
+      .mockRejectedValueOnce(new Error('{"error":{"code":503,"status":"UNAVAILABLE"}}'))
+      .mockResolvedValueOnce({ text: JSON.stringify({ title: "Gundam em foco", fullCaption: "Legenda do Gemini #GundamCardGame" }) });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const content = await generateSocialContentWithGemini({ code: "ST01-001", name: "Gundam", color: "blue", type: "UNIT", text: "efeito" }, undefined, "chave", "");
+    warn.mockRestore();
+    expect(content.fullCaption).toContain("Legenda do Gemini");
+    const models = genai.generateContent.mock.calls.map(([req]) => req.model);
+    expect(models).toHaveLength(2);
+    expect(models[0]).not.toBe(models[1]);
+  });
+
+  it("todos os modelos do Gemini falhando: usa o texto fixo", async () => {
+    genai.generateContent.mockReset();
+    genai.generateContent.mockRejectedValue(new Error("503"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const content = await generateSocialContentWithGemini({ code: "ST01-001", name: "Gundam", color: "blue", type: "UNIT", text: "efeito" }, undefined, "chave", "");
+    warn.mockRestore();
+    expect(content.fullCaption).toContain("CARTA DO DIA");
+  });
+
+  it("nenhum Gemini respondendo: a legenda vem do Claude (com recusa por engano coberta pelo fallback da API)", async () => {
+    genai.generateContent.mockReset();
+    genai.generateContent.mockRejectedValue(new Error("503"));
+    claude.parse.mockReset();
+    claude.parse.mockResolvedValueOnce({
+      stop_reason: "end_turn",
+      parsed_output: { title: "Gundam", hook: "", strategy: "", cta: "", hashtags: ["#GundamCardGame"], fullCaption: "Legenda do Claude" },
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const content = await generateSocialContentWithGemini({ code: "ST01-001", name: "Gundam", color: "blue", type: "UNIT", text: "efeito" }, undefined, "chave", "chave-claude");
+    warn.mockRestore();
+    expect(content.fullCaption).toBe("Legenda do Claude");
+    const [request] = claude.parse.mock.calls[0];
+    expect(request.model).toBe("claude-opus-5-5");
+    expect(request.fallbacks).toBe("default");
+  });
+
+  it("Claude recusando ou falhando: usa o texto fixo", async () => {
+    genai.generateContent.mockReset();
+    genai.generateContent.mockRejectedValue(new Error("503"));
+    claude.parse.mockReset();
+    claude.parse.mockResolvedValueOnce({ stop_reason: "refusal", stop_details: { category: null }, parsed_output: null });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const content = await generateSocialContentWithGemini({ code: "ST01-001", name: "Gundam", color: "blue", type: "UNIT", text: "efeito" }, undefined, "chave", "chave-claude");
+    warn.mockRestore();
+    expect(content.fullCaption).toContain("CARTA DO DIA");
   });
 
   it("arte: palavras-chave entre < > aparecem escapadas (antes sumiam como tag HTML)", () => {
