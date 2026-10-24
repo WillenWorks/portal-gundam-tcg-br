@@ -16,6 +16,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # o deploy roda `prisma migrate deploy`: mudança no schema.prisma sem migration chega ao código mas não ao banco
+  # (foi o que derrubou o painel do Instagram no #193). Aplica as migrations num Postgres vazio e compara com o schema.
+  migrations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Enable corepack (pnpm)
+        run: corepack enable
+
+      - name: Install dependencies
+        run: corepack pnpm install --frozen-lockfile
+
+      - name: Toda mudança no schema.prisma tem migration
+        run: |
+          corepack pnpm exec prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema-datamodel prisma/schema.prisma \
+            --shadow-database-url "postgresql://postgres:postgres@localhost:5432/postgres" \
+            --script --exit-code \
+            || { echo "::error::O schema.prisma tem mudanças sem migration em prisma/migrations (o diff acima mostra o SQL que falta)."; exit 1; }
+
   checks:
     runs-on: ubuntu-latest
     timeout-minutes: 30
