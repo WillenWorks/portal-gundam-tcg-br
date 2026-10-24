@@ -880,7 +880,7 @@ export default function SharedDeckPage() {
       "gundam_deckbuilder_draft",
       JSON.stringify({
         deckName: tr(`${deck.name} (Cópia)`, `${deck.name} (Copy)`),
-        visibility: "PRIVATE",
+        visibility: "PUBLIC",
         entries,
       })
     );

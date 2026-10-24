@@ -10,52 +10,22 @@ import {
   Swords,
   Users,
 } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, type ApiPost, type PostType } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 import haroRulesOff from "@/assets/home/haro_rules_off.webp";
 import haroRulesOn from "@/assets/home/haro_rules_on.webp";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
 
-// Subsequentes aos 4 primeiros da Hero (Artigos #5 a #8)
-const SUBSEQUENT_ARTICLES = [
-  {
-    id: 5,
-    tag: { pt: "Rulings Oficiais", en: "Official Rulings" },
-    date: { pt: "02 Set 2026", en: "Sep 02, 2026" },
-    title: { pt: "Resolução de Burst e Gatilhos de Escudo", en: "Resolving Burst and Shield Triggers" },
-    summary:
-      { pt: "Como funcionam as prioridades quando múltiplas cartas de escudo sofrem dano simultâneo e a ordem de ativação das cartas de Comando.", en: "How priorities work when several shield cards take damage at the same time, and the activation order of Command cards." },
-    link: "/rules",
-  },
-  {
-    id: 6,
-    tag: { pt: "Guia", en: "Guide" },
-    date: { pt: "31 Ago 2026", en: "Aug 31, 2026" },
-    title: { pt: "Sinergia de Traits: Earth Alliance vs Zeon", en: "Trait Synergy: Earth Alliance vs Zeon" },
-    summary:
-      { pt: "Estudo detalhado das tags militares, acoplamento de pilotos correspondentes e ganhos de poder de combate por fidelidade temática.", en: "A detailed look at military traits, pairing matching pilots and the combat bonuses of staying on theme." },
-    link: "/sets",
-  },
-  {
-    id: 7,
-    tag: { pt: "Deckbuilding", en: "Deckbuilding" },
-    date: { pt: "28 Ago 2026", en: "Aug 28, 2026" },
-    title: { pt: "Curva de Recursos e Gestão de Energia", en: "Resource Curve and Energy Management" },
-    summary:
-      { pt: "A proporção ideal entre Unidades pesadas, pilotos de suporte e cartas de comando para manter ritmo contínuo desde o turno 1.", en: "The ideal mix of heavy Units, support pilots and command cards to keep a steady pace from turn 1." },
-    link: "/deckbuilder",
-  },
-  {
-    id: 8,
-    tag: { pt: "Metagame & Stats", en: "Metagame & Stats" },
-    date: { pt: "25 Ago 2026", en: "Aug 25, 2026" },
-    title: { pt: "Relatório de Eficiência: ST01 vs ST02", en: "Efficiency Report: ST01 vs ST02" },
-    summary:
-      { pt: "Dados dos torneios registrados mostrando o confronto entre a agressividade de Zeon e a estabilidade da Federação.", en: "Recorded tournament data on the clash between Zeon's aggression and the Federation's stability." },
-    link: "/stats",
-  },
-];
+// Últimos artigos publicados no Content Hub (o resto fica em /articles, paginado)
+const HOME_ARTICLES = 3;
+
+const POST_TYPE_LABEL: Record<PostType, { pt: string; en: string }> = {
+  NEWS: { pt: "Notícia", en: "News" },
+  PREVIEW: { pt: "Preview", en: "Preview" },
+  REVIEW: { pt: "Análise", en: "Review" },
+  GUIDE: { pt: "Guia", en: "Guide" },
+};
 
 // Links Oficiais (Referência Bandai e Compêndio)
 const OFFICIAL_LINKS = [
@@ -134,9 +104,16 @@ function AnimatedCounter({ value, duration = 1400, trigger }: AnimatedCounterPro
 }
 
 export function HomeDirectivesSection() {
-  const { tr } = useSiteLanguage();
+  const { tr, isEn } = useSiteLanguage();
   const sectionRef = useRef<HTMLElement>(null);
   const [inView, setInView] = useState(false);
+  const [articles, setArticles] = useState<ApiPost[] | null>(null);
+
+  useEffect(() => {
+    api.listPostsPage("PUBLISHED", { page: 1, pageSize: HOME_ARTICLES })
+      .then((result) => setArticles(result?.items ?? []))
+      .catch(() => setArticles([]));
+  }, []);
   const [metrics, setMetrics] = useState({
     userCount: 0,
     cardCount: 0,
@@ -368,7 +345,7 @@ export function HomeDirectivesSection() {
               </div>
             </div>
 
-            {/* Bloco 2: Artigos Recentes Subsequentes (#5 a #8, excluindo os 4 do Hero) */}
+            {/* Bloco 2: os últimos artigos publicados no Content Hub */}
             <div className="rounded-2xl border border-white/10 bg-slate-950/80 p-5 sm:p-6 shadow-2xl backdrop-blur-xl light:border-slate-300 light:bg-white light:shadow-md flex-1 flex flex-col justify-between">
               <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4 light:border-slate-200">
                 <div className="flex items-center gap-3">
@@ -380,41 +357,60 @@ export function HomeDirectivesSection() {
                     <h3 className="font-heading text-xl uppercase tracking-wider text-white heading-portal">{tr("Artigos & Análises Táticas", "Articles & Tactical Analysis")}</h3>
                   </div>
                 </div>
-                <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-white/5 border border-white/10 px-2.5 py-0.5 text-[10px] text-slate-400 font-mono">
-                  Matérias #05 a #08
-                </span>
+                <Link
+                  href="/articles"
+                  className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary/80 hover:text-primary"
+                >
+                  {tr("Ver todos", "See all")} <ArrowRight className="size-3" />
+                </Link>
               </div>
 
-              {/* Grid 2x2 com os 4 Artigos Subsequentes */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 flex-1">
-                {SUBSEQUENT_ARTICLES.map((article) => (
-                  <Link
-                    key={article.id}
-                    href={article.link}
-                    className="group relative flex flex-col justify-between rounded-xl border border-white/10 bg-white/[0.02] p-4 transition-all duration-300 hover:bg-white/[0.06] hover:border-primary/40 light:border-slate-200 light:bg-slate-50 light:hover:bg-slate-100"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-                          {tr(article.tag)}
-                        </span>
-                        <span className="text-[10px] font-mono text-slate-400">{tr(article.date)}</span>
+              {articles === null ? (
+                <div className="grid grid-cols-1 gap-3.5 flex-1" aria-busy="true">
+                  {Array.from({ length: HOME_ARTICLES }, (_, i) => (
+                    <div key={i} className="h-24 animate-pulse rounded-xl border border-white/10 bg-white/[0.03] light:border-slate-200 light:bg-slate-100" />
+                  ))}
+                </div>
+              ) : articles.length === 0 ? (
+                <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/10 p-6 text-center light:border-slate-300">
+                  <p className="text-sm text-muted-portal">{tr("Nenhum artigo publicado ainda.", "No articles published yet.")}</p>
+                  <p className="text-xs text-slate-500">{tr("Guias, análises e notícias do Gundam Card Game aparecem aqui.", "Gundam Card Game guides, reviews and news will show up here.")}</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-3.5 flex-1">
+                  {articles.map((article) => (
+                    <Link
+                      key={article.id}
+                      href={`/articles/${article.slug}`}
+                      className="group relative flex gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-3 transition-all duration-300 hover:bg-white/[0.06] hover:border-primary/40 light:border-slate-200 light:bg-slate-50 light:hover:bg-slate-100"
+                    >
+                      <div className="hidden sm:block aspect-[16/9] w-36 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-slate-950/60 light:border-slate-200 light:bg-slate-200">
+                        {article.coverImage ? (
+                          <img loading="lazy" decoding="async" src={article.coverImage} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full items-center justify-center">
+                            <BookOpen className="size-5 text-slate-500" />
+                          </div>
+                        )}
                       </div>
-                      <h4 className="font-heading text-sm uppercase text-white transition-colors duration-200 heading-portal line-clamp-1 group-hover:text-primary">
-                        {tr(article.title)}
-                      </h4>
-                      <p className="text-xs text-muted-portal mt-1.5 leading-relaxed line-clamp-2">
-                        {tr(article.summary)}
-                      </p>
-                    </div>
-
-                    <div className="pt-3 mt-2 border-t border-white/5 flex items-center justify-between text-[11px] font-semibold text-primary/80 group-hover:text-primary">
-                      <span>{tr("Ler Matéria", "Read Article")}</span>
-                      <ArrowRight className="size-3 transition-transform duration-200 group-hover:translate-x-1" />
-                    </div>
-                  </Link>
-                ))}
-              </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-primary">{tr(POST_TYPE_LABEL[article.postType])}</span>
+                          {article.publishedAt ? (
+                            <span className="text-[10px] font-mono text-slate-400">
+                              {new Date(article.publishedAt).toLocaleDateString(isEn ? "en-US" : "pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
+                            </span>
+                          ) : null}
+                        </div>
+                        <h4 className="font-heading text-sm uppercase text-white transition-colors duration-200 heading-portal line-clamp-2 group-hover:text-primary">
+                          {article.title}
+                        </h4>
+                        {article.excerpt ? <p className="text-xs text-muted-portal mt-1 leading-relaxed line-clamp-2">{article.excerpt}</p> : null}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
 
           </div>

@@ -58,7 +58,7 @@ export function BuildCoreDeckModal({
 
     const draft = {
       deckName: tr(`Núcleo: ${archetypeName || "Arquétipo Base"}`, `Core: ${archetypeName || "Base Archetype"}`),
-      visibility: "PRIVATE",
+      visibility: "PUBLIC",
       entries,
     };
 

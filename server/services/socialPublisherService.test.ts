@@ -36,6 +36,8 @@ import {
   startSocialPostDraft,
   socialGenerationState,
   resetSocialGenerationState,
+  draftArticlePost,
+  queueArticleSocialDraft,
 } from "./socialPublisherService";
 
 const cardRow = {
@@ -500,5 +502,57 @@ describe("socialPublisherService", () => {
     await generateSocialContentWithGemini({ code: "ST01-001", name: "Gundam", color: "blue", type: "UNIT" }, undefined, "chave", "");
     warn.mockRestore();
     expect(genai.options[0]).toMatchObject({ httpOptions: { timeout: 25000, retryOptions: { attempts: 1 } } });
+  });
+
+  describe("artigo publicado vira post no Instagram", () => {
+    const article = {
+      id: "a1",
+      title: "Guia do <ST01>",
+      slug: "guia-st01",
+      excerpt: "Resumo curto do guia.",
+      contentMd: "O **Gundam** abre o jogo e segura o ritmo.",
+      coverImage: "/uploads/capa.webp",
+      postType: "GUIDE",
+      status: "PUBLISHED",
+      publishedAt: new Date("2026-10-24T12:00:00Z"),
+    };
+    const prismaWith = (row: unknown) => ({ post: { findUnique: vi.fn().mockResolvedValue(row), findFirst: vi.fn().mockResolvedValue(row) } }) as any;
+    const input = { articleId: "a1", apiKeyGemini: "", publicAppUrl: "https://anaheimhub.com" };
+
+    it("imagem única com a capa e legenda com o resumo e o endereço do artigo", async () => {
+      const draft = await draftArticlePost(prismaWith(article), input);
+      expect(draft.type).toBe("ARTICLE");
+      expect(draft.slides).toHaveLength(1);
+      expect(draft.slides[0]).toContain("https://anaheimhub.com/uploads/capa.webp");
+      expect(draft.slides[0]).toContain("Guia do &lt;ST01&gt;");
+      expect(draft.content.fullCaption).toContain("Resumo curto do guia.");
+      expect(draft.content.fullCaption).toContain("anaheimhub.com/articles/guia-st01");
+      expect(captionProblems(draft.content.fullCaption)).toEqual([]);
+      expect(draft.metadata).toMatchObject({ articleId: "a1", articleSlug: "guia-st01" });
+    });
+
+    it("a IA resume só o texto do artigo; se esquecer o endereço, ele entra antes das hashtags", async () => {
+      genai.generateContent.mockReset().mockResolvedValue({ text: JSON.stringify({ title: "Guia", fullCaption: "Resumo da IA.\n\n#GundamCardGame #AnaheimHub" }) });
+      const draft = await draftArticlePost(prismaWith(article), { ...input, apiKeyGemini: "chave" });
+      expect(genai.generateContent.mock.calls[0][0].contents).toContain("O Gundam abre o jogo e segura o ritmo.");
+      expect(draft.content.fullCaption).toMatch(/Resumo da IA\.[\s\S]*anaheimhub\.com\/articles\/guia-st01[\s\S]*#GundamCardGame #AnaheimHub$/);
+    });
+
+    it("artigo sem capa usa o fundo padrão; artigo que não está publicado é recusado", async () => {
+      const draft = await draftArticlePost(prismaWith({ ...article, coverImage: null }), input);
+      expect(draft.slides[0]).not.toContain("<img");
+      await expect(draftArticlePost(prismaWith({ ...article, status: "DRAFT" }), input)).rejects.toThrow(/publicado/);
+      await expect(draftArticlePost(prismaWith(null), input)).rejects.toThrow(/publicado/);
+    });
+
+    it("publicar o mesmo artigo de novo não cria um segundo rascunho", async () => {
+      const create = vi.fn(async (_prisma: unknown, _input: unknown) => ({ id: "s1" }));
+      const prisma = { socialMediaPost: { findUnique: vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "s1" }) } } as any;
+      expect(await queueArticleSocialDraft(prisma, "a1", create as any)).toBe(true);
+      expect(await queueArticleSocialDraft(prisma, "a1", create as any)).toBe(false);
+      expect(create).toHaveBeenCalledTimes(1);
+      expect(create.mock.calls[0][1]).toMatchObject({ type: "ARTICLE", articleId: "a1", slotKey: "artigo-a1" });
+      expect(prisma.socialMediaPost.findUnique.mock.calls[0][0]).toEqual({ where: { slotKey: "artigo-a1" }, select: { id: true } });
+    });
   });
 });

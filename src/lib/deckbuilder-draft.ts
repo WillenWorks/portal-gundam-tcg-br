@@ -6,7 +6,7 @@ export type DeckbuilderDraftEntry = { cardId: string; quantity: number; section:
 export function loadDeckbuilderDraft(navigate: (path: string) => void, name: string, entries: DeckbuilderDraftEntry[]) {
   localStorage.setItem(
     "gundam_deckbuilder_draft",
-    JSON.stringify({ deckName: name, visibility: "PRIVATE", entries }),
+    JSON.stringify({ deckName: name, visibility: "PUBLIC", entries }),
   );
   navigate("/deckbuilder/novo");
 }

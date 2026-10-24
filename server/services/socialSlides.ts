@@ -369,6 +369,35 @@ export function deckKeyCardsHtml(deck: FeaturedDeck, pager?: string): string {
   });
 }
 
+// ---------- artigo publicado no site ----------
+
+export type ArticleSlide = { title: string; kind: string; coverUrl: string };
+
+/**
+ * Capa do artigo inteira (sem corte, qualquer proporção) sobre um fundo desfocado dela mesma, com o título embaixo.
+ * Sem capa em https, fica o fundo padrão com o título maior.
+ */
+export function articleCoverHtml(article: ArticleSlide): string {
+  const cover = safeImageUrl(article.coverUrl);
+  return slideDocument({
+    badge: "NOVO ARTIGO",
+    cta: "Leia o artigo completo no site (link na bio)",
+    css: `
+      .art-bg { position: absolute; inset: 0; background-size: cover; background-position: center; filter: blur(38px) brightness(0.35); transform: scale(1.15); z-index: -1; }
+      .header, .footer { flex-shrink: 0; }
+      /* sem camada própria no .main: o fundo desfocado (z-index -1) fica atrás do cabeçalho, não por cima */
+      .main { z-index: auto; }
+      .cover-wrap { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; overflow: hidden; }
+      .cover { max-width: 100%; max-height: 100%; border-radius: 14px; border: 2px solid rgba(255,255,255,0.16); box-shadow: 0 30px 60px -12px rgba(0,0,0,0.85); object-fit: contain; }
+      .kind { font-size: 20px; font-weight: 800; color: #38bdf8; letter-spacing: 0.18em; text-transform: uppercase; margin-top: 30px; }
+      .title { font-size: ${cover ? 46 : 72}px; font-weight: 900; line-height: 1.12; margin-top: 10px; display: -webkit-box; -webkit-line-clamp: ${cover ? 3 : 6}; -webkit-box-orient: vertical; overflow: hidden; }`,
+    body: `
+      ${cover ? `<div class="art-bg" style="background-image:url('${escapeHtml(cover)}')"></div><div class="cover-wrap"><img class="cover" src="${escapeHtml(cover)}" alt="" /></div>` : `<div class="cover-wrap"></div>`}
+      <div class="kind">${escapeHtml(article.kind)}</div>
+      <div class="title">${escapeHtml(article.title)}</div>`,
+  });
+}
+
 /**
  * Renderiza cada HTML no JPEG correspondente (o único formato de imagem que a API do Instagram aceita), num navegador
  * só. Devolve, para cada slide, se o arquivo foi gerado; um slide que falha não derruba os outros.

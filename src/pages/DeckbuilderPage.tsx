@@ -612,7 +612,7 @@ export default function DeckbuilderPage() {
   const [importing, setImporting] = useState(false);
   const [deckName, setDeckName] = useState(() => trNow("Novo Deck", "New Deck"));
   const [entries, setEntries] = useState<DeckEntry[]>([]);
-  const [visibility, setVisibility] = useState<DeckVisibility>("PRIVATE");
+  const [visibility, setVisibility] = useState<DeckVisibility>("PUBLIC");
   const [coverImage, setCoverImage] = useState("");
   const [featuredCardIds, setFeaturedCardIds] = useState<string[]>([]);
   // Detalhes (nome + imagem) das cartas de destaque escolhidas — independente da pool
