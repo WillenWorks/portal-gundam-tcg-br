@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { VedaIndex } from "../vedaCore";
 
 const genai = vi.hoisted(() => ({ generateContent: vi.fn() }));
 vi.mock("@google/genai", () => ({
@@ -27,6 +28,7 @@ import {
   buildDiscordSocialPayload,
   findAltArts,
   lastSpotlightTier,
+  draftTournamentReport,
 } from "./socialPublisherService";
 
 const cardRow = {
@@ -352,6 +354,59 @@ describe("socialPublisherService", () => {
       expect(payload.embeds.every((e) => e.url === "https://anaheimhub.com/admin#social")).toBe(true);
       expect(payload.embeds[1].image?.url).toBe("https://anaheimhub.com/b.jpg");
       expect(JSON.stringify(payload.embeds[0])).toContain("Carrossel com 5 imagens");
+    });
+  });
+
+  describe("segunda: torneios do Brasil", () => {
+    const monday = new Date("2026-10-26T15:00:00Z");
+    const t = (id: string, date: string, store: string) => ({
+      id,
+      name: `Locals @ ${store} — ${date}`,
+      organizer: store,
+      country: "Brasil",
+      city: "Curitiba",
+      uf: "PR",
+      season: null,
+      tier: "SMALL_OFFICIAL" as const,
+      sourceUrl: null,
+      participantCount: 12,
+      roundCount: null,
+      date: `${date}T00:00:00.000Z`,
+      updatedAt: date,
+    });
+    const e = (id: string, tournamentId: string, placement: number, player: string, archetype: string) => ({ id, tournamentId, playerName: player, placement, wins: 3, losses: 0, draws: 0, archetype, deckSnapshotId: null });
+    const index = (tournaments: ReturnType<typeof t>[], entries: ReturnType<typeof e>[]) =>
+      new VedaIndex({ tournaments, entries, snapshots: new Map(), cards: new Map(), seasons: [] });
+
+    it("carrossel com capa, um slide por torneio e fechamento; legenda de reserva com os campeões", async () => {
+      const ix = index([t("a", "2026-10-21", "Taverna Game House"), t("b", "2026-10-23", "Meruru")], [e("e1", "a", 1, "Johannjfs", "Blue / Green Nu Gundam"), e("e2", "b", 1, "Eddie", "Red / White MF")]);
+      const draft = await draftTournamentReport({} as any, { scheduledFor: monday, apiKeyGemini: "" }, { index: ix });
+      expect(draft.type).toBe("TOURNAMENT_REPORT");
+      expect(draft.slides).toHaveLength(4);
+      expect(draft.slides[0]).toContain("19/10 a 25/10");
+      expect(draft.slides[1]).toContain("Taverna Game House");
+      expect(draft.slides[1]).toContain("Johannjfs");
+      expect(draft.slides[3]).toContain("Quem venceu");
+      expect(draft.metadata).toMatchObject({ weekStart: "2026-10-19", weekEnd: "2026-10-25", tournamentIds: ["a", "b"] });
+      expect(draft.content.fullCaption).toContain("Johannjfs com Blue / Green Nu Gundam");
+      expect(captionProblems(draft.content.fullCaption)).toEqual([]);
+    });
+
+    it("dados do torneio vão escapados para o slide", async () => {
+      const ix = index([t("a", "2026-10-21", "<script>loja</script>")], [e("e1", "a", 1, "<img src=x>", "Blue")]);
+      const draft = await draftTournamentReport({} as any, { scheduledFor: monday, apiKeyGemini: "" }, { index: ix });
+      expect(draft.slides.join("")).not.toContain("<script>loja");
+      expect(draft.slides.join("")).not.toContain("<img src=x>");
+    });
+
+    it("semana sem torneio no Brasil: vira carta do dia e o aviso explica", async () => {
+      const prisma = {
+        socialMediaPost: { findFirst: vi.fn().mockResolvedValue(null), findMany: vi.fn().mockResolvedValue([]) },
+        card: { count: vi.fn().mockResolvedValue(1), findFirst: vi.fn().mockResolvedValue({ ...cardRow, rarity: "LR" }), findMany: vi.fn().mockResolvedValue([]) },
+      } as any;
+      const draft = await draftTournamentReport(prisma, { scheduledFor: monday, apiKeyGemini: "" }, { index: index([], []) });
+      expect(draft.type).toBe("CARD_SPOTLIGHT");
+      expect(draft.notice).toContain("Nenhum torneio no Brasil entre 19/10 e 25/10");
     });
   });
 });

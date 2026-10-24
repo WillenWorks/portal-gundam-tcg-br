@@ -6,9 +6,31 @@ import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { getCardDefByCode, ALL_CARD_DEFS } from "../../src/modules/simulator/content/allCardDefs";
-import { formatSlot } from "./socialSchedule";
-import { PRIMARY_RARITY_VALUES, rarityAttemptOrder, rarityTier, type RarityTier } from "./socialContent";
-import { accentFor, altArtSlideHtml, escapeHtml, renderSlides, safeImageUrl, slideDocument, type AltArt } from "./socialSlides";
+import { formatSlot, previousWeekRange } from "./socialSchedule";
+import {
+  buildWeeklyReport,
+  dayMonth,
+  PRIMARY_RARITY_VALUES,
+  rarityAttemptOrder,
+  rarityTier,
+  reportTournamentCount,
+  type RarityTier,
+  type WeeklyReport,
+  type WeeklyTournament,
+} from "./socialContent";
+import {
+  accentFor,
+  altArtSlideHtml,
+  escapeHtml,
+  renderSlides,
+  safeImageUrl,
+  slideDocument,
+  tournamentClosingHtml,
+  tournamentCoverHtml,
+  tournamentSlideHtml,
+  type AltArt,
+} from "./socialSlides";
+import type { VedaIndex } from "../vedaCore";
 import { postBotMessage, readDiscordBotConfig, socialButtons, type DiscordBotConfig } from "./discordBot";
 import {
   countHashtags,
@@ -290,10 +312,10 @@ Responda APENAS com JSON válido:
 {"title": "...", "hook": "...", "strategy": "...", "cta": "...", "hashtags": ["..."], "fullCaption": "..."}`;
 }
 
-function toPostContent(card: SocialCard, parsed: Partial<GeneratedPostContent> | null | undefined): GeneratedPostContent | null {
+function toPostContent(defaultTitle: string, parsed: Partial<GeneratedPostContent> | null | undefined): GeneratedPostContent | null {
   if (!parsed || typeof parsed.fullCaption !== "string" || !parsed.fullCaption.trim()) return null;
   return {
-    title: String(parsed.title || `Carta do Dia: ${card.name} (${card.code})`).slice(0, 140),
+    title: String(parsed.title || defaultTitle).slice(0, 140),
     hook: String(parsed.hook || ""),
     strategy: String(parsed.strategy || ""),
     cta: String(parsed.cta || ""),
@@ -302,7 +324,7 @@ function toPostContent(card: SocialCard, parsed: Partial<GeneratedPostContent> |
   };
 }
 
-async function generateWithGemini(card: SocialCard, prompt: string, apiKey: string): Promise<GeneratedPostContent | null> {
+async function generateWithGemini(defaultTitle: string, prompt: string, apiKey: string): Promise<GeneratedPostContent | null> {
   const ai = new GoogleGenAI({ apiKey });
   for (const model of geminiSocialModels()) {
     try {
@@ -311,7 +333,7 @@ async function generateWithGemini(card: SocialCard, prompt: string, apiKey: stri
         contents: prompt,
         config: { responseMimeType: "application/json" },
       });
-      const content = toPostContent(card, JSON.parse(response.text?.trim() || "{}") as Partial<GeneratedPostContent>);
+      const content = toPostContent(defaultTitle, JSON.parse(response.text?.trim() || "{}") as Partial<GeneratedPostContent>);
       if (content) return content;
       console.warn(`[socialPublisher] Gemini (${model}) respondeu sem legenda, tentando o próximo modelo`);
     } catch (err) {
@@ -321,7 +343,7 @@ async function generateWithGemini(card: SocialCard, prompt: string, apiKey: stri
   return null;
 }
 
-async function generateWithClaude(card: SocialCard, prompt: string, apiKey: string): Promise<GeneratedPostContent | null> {
+async function generateWithClaude(defaultTitle: string, prompt: string, apiKey: string): Promise<GeneratedPostContent | null> {
   try {
     const client = new Anthropic({ apiKey });
     const response = await client.beta.messages.parse({
@@ -338,7 +360,7 @@ async function generateWithClaude(card: SocialCard, prompt: string, apiKey: stri
       console.warn("[socialPublisher] Claude recusou a legenda:", response.stop_details?.category ?? "sem categoria");
       return null;
     }
-    return toPostContent(card, response.parsed_output);
+    return toPostContent(defaultTitle, response.parsed_output);
   } catch (err) {
     console.warn("[socialPublisher] Claude falhou na geração do texto:", err instanceof Error ? err.message : err);
     return null;
@@ -346,23 +368,27 @@ async function generateWithClaude(card: SocialCard, prompt: string, apiKey: stri
 }
 
 /**
- * Gera a legenda: Gemini (vários modelos) → Claude (se houver ANTHROPIC_API_KEY) → modelo fixo só com os dados da
- * carta. As chaves podem vir por parâmetro (painel admin, testes); `undefined` lê do ambiente, "" desliga.
+ * Gera a legenda: Gemini (vários modelos) → Claude (se houver ANTHROPIC_API_KEY) → texto fixo montado só com os
+ * dados do post. As chaves podem vir por parâmetro (painel admin, testes); `undefined` lê do ambiente, "" desliga.
  */
-export async function generateSocialContentWithGemini(card: SocialCard, customTopic?: string, apiKey?: string, claudeApiKey?: string): Promise<GeneratedPostContent> {
+export async function generateCaption(prompt: string, fallback: GeneratedPostContent, apiKey?: string, claudeApiKey?: string): Promise<GeneratedPostContent> {
   const geminiKey = (apiKey !== undefined ? apiKey : process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY || "").trim();
   const claudeKey = (claudeApiKey !== undefined ? claudeApiKey : process.env.ANTHROPIC_API_KEY || "").trim();
-  const prompt = buildSocialPrompt(card, customTopic);
 
-  const fromGemini = geminiKey ? await generateWithGemini(card, prompt, geminiKey) : null;
+  const fromGemini = geminiKey ? await generateWithGemini(fallback.title, prompt, geminiKey) : null;
   if (fromGemini) return fromGemini;
   if (claudeKey) {
     if (geminiKey) console.warn("[socialPublisher] nenhum modelo do Gemini respondeu, tentando o Claude");
-    const fromClaude = await generateWithClaude(card, prompt, claudeKey);
+    const fromClaude = await generateWithClaude(fallback.title, prompt, claudeKey);
     if (fromClaude) return fromClaude;
   }
   if (geminiKey || claudeKey) console.warn("[socialPublisher] nenhuma IA respondeu, usando o modelo fixo");
-  return templateContent(card);
+  return fallback;
+}
+
+/** Legenda da carta do dia (mesma cadeia de IAs de generateCaption). */
+export async function generateSocialContentWithGemini(card: SocialCard, customTopic?: string, apiKey?: string, claudeApiKey?: string): Promise<GeneratedPostContent> {
+  return generateCaption(buildSocialPrompt(card, customTopic), templateContent(card), apiKey, claudeApiKey);
 }
 
 /** HTML da arte 1080x1350 (4:5, formato retrato aceito pelo Instagram). Todo dado é escapado. */
@@ -606,8 +632,97 @@ export async function draftCardSpotlight(prisma: PrismaClient, input: GeneratePo
   };
 }
 
+const TOURNAMENT_HASHTAGS = ["GundamCardGame", "GundamTCG", "GundamBrasil", "TCGBrasil", "TorneioGundam", "AnaheimHub"];
+
+/** Regras comuns a todos os prompts de legenda. */
+const CAPTION_RULES = `Regras:
+1. Português do Brasil, tom de jogador experiente falando com outros jogadores.
+2. Não traduza nomes de cartas, arquétipos, personagens nem palavras-chave do jogo.
+3. Use SOMENTE os dados acima. Não invente números, resultados, jogadores, lojas nem afirmações sobre o "meta".
+4. Nomes de jogadores e lojas exatamente como estão nos dados.
+5. Não diga que o post é oficial nem fale em nome da Bandai.
+6. Legenda completa com no máximo 1.800 caracteres, de 8 a 12 hashtags no final.
+
+Responda APENAS com JSON válido:
+{"title": "...", "hook": "...", "strategy": "...", "cta": "...", "hashtags": ["..."], "fullCaption": "..."}`;
+
+const placeOf = (t: WeeklyTournament) => [t.city ? `${t.city}${t.uf ? `-${t.uf}` : ""}` : null, dayMonth(t.date)].filter(Boolean).join(", ");
+const championOf = (t: WeeklyTournament) => t.top.find((p) => p.placement === 1) ?? null;
+
+function tournamentTemplate(report: WeeklyReport): GeneratedPostContent {
+  const count = reportTournamentCount(report);
+  const lines = report.featured.map((t) => {
+    const champ = championOf(t);
+    return `• ${t.store ?? t.event} (${placeOf(t)}): ${champ ? `${champ.player}${champ.archetype ? ` com ${champ.archetype.name}` : ""}` : "campeão não informado"}`;
+  });
+  const top = report.champions[0];
+  const caption =
+    `🏆 TORNEIOS DO BRASIL · ${dayMonth(report.from)} a ${dayMonth(report.to)}\n\n` +
+    `${count} ${count === 1 ? "torneio" : "torneios"}, ${report.totalPlayers} jogadores em ${report.cities.length} ${report.cities.length === 1 ? "cidade" : "cidades"}.\n\n` +
+    `Campeões da semana:\n${lines.join("\n")}\n` +
+    (report.others.length ? `…e mais ${report.others.length} ${report.others.length === 1 ? "torneio" : "torneios"} no site.\n` : "") +
+    (top && top.wins > 1 ? `\nQuem mais venceu: ${top.archetype.name} (${top.wins}x).\n` : "") +
+    `\n👇 Jogou algum desses? Conta como foi nos comentários!\n` +
+    `🔗 Resultados completos e listas no Anaheim Hub (link na bio)\n\n` +
+    TOURNAMENT_HASHTAGS.map((h) => `#${h}`).join(" ");
+  return {
+    title: `Torneios do Brasil: ${dayMonth(report.from)} a ${dayMonth(report.to)}`,
+    hook: `${count} torneios no Brasil nesta semana.`,
+    strategy: "",
+    cta: "Resultados completos no Anaheim Hub (link na bio).",
+    hashtags: TOURNAMENT_HASHTAGS,
+    fullCaption: caption,
+  };
+}
+
+function tournamentPrompt(report: WeeklyReport, customTopic?: string): string {
+  const data = {
+    semana: `${dayMonth(report.from)} a ${dayMonth(report.to)}`,
+    torneios: reportTournamentCount(report),
+    jogadores: report.totalPlayers,
+    cidades: report.cities,
+    resultados: [...report.featured, ...report.others].map((t) => ({
+      evento: t.event,
+      loja: t.store,
+      local: placeOf(t),
+      jogadores: t.players,
+      top: t.top.map((p) => ({ colocacao: p.placement, jogador: p.player, arquetipo: p.archetype?.name ?? null, campanha: p.record })),
+    })),
+    arquetiposCampeoes: report.champions.map((c) => ({ arquetipo: c.archetype.name, vitorias: c.wins })),
+  };
+  return `Você escreve os posts do Instagram do Anaheim Hub (anaheimhub.com), um portal brasileiro feito por fãs do Gundam Card Game (Bandai). O portal não é oficial nem ligado à Bandai.
+Escreva o post de segunda-feira com os torneios do Brasil da semana passada. O post é um carrossel: capa, um slide por torneio com o top 4 e um resumo. Dados (JSON):
+
+${JSON.stringify(data, null, 1)}
+${customTopic ? `Pedido do editor: "${customTopic.slice(0, 300)}"` : ""}
+
+Estrutura: gancho de 1–2 linhas com o tamanho da semana; os campeões (jogador, loja/cidade e arquétipo), um por linha; o arquétipo que mais venceu, se algum venceu mais de uma vez; uma pergunta para os comentários; convite para ver os resultados completos no Anaheim Hub (link na bio).
+${CAPTION_RULES}`;
+}
+
+/** Segunda: carrossel dos torneios do Brasil da semana anterior. Semana vazia vira carta do dia, com aviso. */
+export async function draftTournamentReport(prisma: PrismaClient, input: GeneratePostInput = {}, deps: { index?: VedaIndex; now?: Date } = {}): Promise<DraftContent> {
+  const range = previousWeekRange(input.scheduledFor ?? deps.now ?? new Date());
+  const index = deps.index ?? (await (await import("../vedaService.ts")).getVedaIndex(prisma));
+  const report = buildWeeklyReport(index, range);
+  if (!reportTournamentCount(report)) {
+    const card = await draftCardSpotlight(prisma, { ...input, cardCode: undefined });
+    return { ...card, notice: `ℹ️ Nenhum torneio no Brasil entre ${dayMonth(range.from)} e ${dayMonth(range.to)}: o post de hoje virou carta do dia.` };
+  }
+  const total = report.featured.length + 2;
+  const pager = (i: number) => `${i}/${total}`;
+  return {
+    type: SocialPostType.TOURNAMENT_REPORT,
+    content: await generateCaption(tournamentPrompt(report, input.customTopic), tournamentTemplate(report), input.apiKeyGemini),
+    fileStem: `torneios-${range.from}`,
+    slides: [tournamentCoverHtml(report, pager(1)), ...report.featured.map((t, i) => tournamentSlideHtml(t, pager(i + 2))), tournamentClosingHtml(report, pager(total))],
+    metadata: { weekStart: range.from, weekEnd: range.to, tournamentIds: [...report.featured, ...report.others].map((t) => t.id) },
+  };
+}
+
 async function buildDraft(prisma: PrismaClient, input: GeneratePostInput): Promise<DraftContent> {
-  // torneios (segunda) e deck em destaque (sexta) ainda não têm formato próprio: saem como carta do dia
+  if (input.type === SocialPostType.TOURNAMENT_REPORT) return draftTournamentReport(prisma, input);
+  // deck em destaque (sexta) ainda não tem formato próprio: sai como carta do dia
   return draftCardSpotlight(prisma, input);
 }
 
