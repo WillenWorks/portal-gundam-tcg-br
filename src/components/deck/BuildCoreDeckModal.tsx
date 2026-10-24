@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Sparkles, ArrowRight, ShieldCheck, Wrench, Layers } from "lucide-react";
 import { getCardMetagameTier, type MetagameTier } from "@/lib/deck-analytics-engine";
+import { DECKBUILDER_DRAFT_KEY } from "@/lib/deckbuilder-draft";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export interface CoreCardItem {
@@ -62,7 +63,7 @@ export function BuildCoreDeckModal({
       entries,
     };
 
-    localStorage.setItem("gundam_deckbuilder_draft", JSON.stringify(draft));
+    localStorage.setItem(DECKBUILDER_DRAFT_KEY, JSON.stringify(draft));
     onClose();
     navigate("/deckbuilder/new");
   };

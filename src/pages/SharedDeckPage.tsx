@@ -77,6 +77,7 @@ import { isNonStatsCard } from "@/lib/deck-legality";
 import { GAME_COLOR_HEX } from "@/lib/gundam-catalog";
 import { earliestPlayableTurn, isBoardDevelopmentCard } from "@/lib/opening-hand-score";
 import { mapApiCard } from "@/lib/api";
+import { DECKBUILDER_DRAFT_KEY } from "@/lib/deckbuilder-draft";
 import { usePageMeta } from "@/lib/pageMeta";
 import type { CardRecord } from "@/modules/core/types";
 
@@ -877,7 +878,7 @@ export default function SharedDeckPage() {
       section: r.section,
     }));
     localStorage.setItem(
-      "gundam_deckbuilder_draft",
+      DECKBUILDER_DRAFT_KEY,
       JSON.stringify({
         deckName: tr(`${deck.name} (Cópia)`, `${deck.name} (Copy)`),
         visibility: "PUBLIC",
