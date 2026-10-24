@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { VedaIndex } from "../vedaCore";
 
-const genai = vi.hoisted(() => ({ generateContent: vi.fn() }));
+const genai = vi.hoisted(() => ({ generateContent: vi.fn(), options: [] as unknown[] }));
 vi.mock("@google/genai", () => ({
   GoogleGenAI: class {
     models = { generateContent: genai.generateContent };
+    constructor(options: unknown) {
+      genai.options.push(options);
+    }
   },
 }));
 
@@ -30,6 +33,9 @@ import {
   lastSpotlightTier,
   draftTournamentReport,
   draftDeckFeature,
+  startSocialPostDraft,
+  socialGenerationState,
+  resetSocialGenerationState,
 } from "./socialPublisherService";
 
 const cardRow = {
@@ -458,5 +464,41 @@ describe("socialPublisherService", () => {
       expect(draft.type).toBe("CARD_SPOTLIGHT");
       expect(draft.notice).toContain("virou carta do dia");
     });
+  });
+
+  describe("geração em segundo plano (um post por vez)", () => {
+    it("segundo pedido enquanto gera é recusado; ao terminar, o estado traz o post criado", async () => {
+      resetSocialGenerationState();
+      let finish!: (post: { id: string }) => void;
+      const create = vi.fn(() => new Promise<{ id: string }>((resolve) => (finish = resolve)));
+      expect(startSocialPostDraft({} as any, { type: "TOURNAMENT_REPORT" as any }, create as any)).toBe(true);
+      expect(startSocialPostDraft({} as any, { type: "TOURNAMENT_REPORT" as any }, create as any)).toBe(false);
+      expect(create).toHaveBeenCalledTimes(1);
+      expect(socialGenerationState()).toMatchObject({ running: true, type: "TOURNAMENT_REPORT", postId: null });
+      finish({ id: "p9" });
+      await new Promise((r) => setTimeout(r, 0));
+      expect(socialGenerationState()).toMatchObject({ running: false, postId: "p9", error: null });
+      // terminou: pode gerar de novo
+      expect(startSocialPostDraft({} as any, {}, vi.fn(async () => ({ id: "p10" })) as any)).toBe(true);
+    });
+
+    it("falha na geração fica no estado (o painel mostra) e libera a próxima", async () => {
+      resetSocialGenerationState();
+      const err = vi.spyOn(console, "error").mockImplementation(() => {});
+      startSocialPostDraft({} as any, {}, vi.fn(async () => Promise.reject(new Error("Chromium não abriu"))) as any);
+      await new Promise((r) => setTimeout(r, 0));
+      err.mockRestore();
+      expect(socialGenerationState()).toMatchObject({ running: false, postId: null, error: "Chromium não abriu" });
+      resetSocialGenerationState();
+    });
+  });
+
+  it("Gemini: uma tentativa por modelo e tempo limite (sem as 5 tentativas com espera do SDK)", async () => {
+    genai.options.length = 0;
+    genai.generateContent.mockReset().mockRejectedValue(new Error("503"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await generateSocialContentWithGemini({ code: "ST01-001", name: "Gundam", color: "blue", type: "UNIT" }, undefined, "chave", "");
+    warn.mockRestore();
+    expect(genai.options[0]).toMatchObject({ httpOptions: { timeout: 25000, retryOptions: { attempts: 1 } } });
   });
 });
