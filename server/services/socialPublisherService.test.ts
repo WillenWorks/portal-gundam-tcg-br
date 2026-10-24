@@ -181,6 +181,15 @@ describe("socialPublisherService", () => {
       expect(result.instagramPostId).toBe("999");
     });
 
+    it("PUBLIC_APP_URL apontando para localhost (como estava na VPS) não vira o link da arte: usa o domínio público", async () => {
+      vi.stubEnv("PUBLIC_APP_URL", "http://localhost:8787");
+      const prisma = makePrisma();
+      const publish = vi.fn().mockResolvedValue({ mediaId: "999", permalink: "https://www.instagram.com/p/x/" });
+      await publishApprovedPost(prisma, "p1", { publish });
+      vi.unstubAllEnvs();
+      expect(publish.mock.calls[0][1].imageUrl).toBe("https://anaheimhub.com/uploads/social/social-GD01-001-1.jpg");
+    });
+
     it("sem imagem JPEG marca FAILED com o motivo", async () => {
       const prisma = makePrisma(1, { ...basePost, imageUrl: "/uploads/social/antigo.png" });
       const publish = vi.fn();
