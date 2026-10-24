@@ -379,7 +379,7 @@ export default function ArticleDetailPage() {
   const articleShareUrl = typeof window !== "undefined" ? window.location.href : "";
 
   return (
-    <PublicShell
+    <PublicShell ad={Boolean(post)}
       breadcrumbs={[
         { label: "Artigos", href: "/articles" },
         { label: post?.title || params?.slug || "Artigo" },

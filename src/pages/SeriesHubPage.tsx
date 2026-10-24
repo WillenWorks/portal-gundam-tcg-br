@@ -18,7 +18,7 @@ export default function SeriesHubPage() {
   }, []);
 
   return (
-    <PublicShell
+    <PublicShell ad
       breadcrumbs={[{ label: "Universo Gundam" }]}
       heroBanner={
         <ParallaxHeroBanner

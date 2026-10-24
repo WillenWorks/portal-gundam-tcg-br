@@ -8,6 +8,7 @@ import {
   Radio,
 } from "lucide-react";
 
+import { AdSlot } from "@/components/ads/AdSlot";
 import { Button } from "@/components/ui/button";
 import { AppTopNav } from "@/components/layout/AppTopNav";
 import { AppFooter } from "@/components/layout/shared/AppFooter";
@@ -487,6 +488,9 @@ export default function Home({ targetSection }: HomeProps) {
 
         {/* ── CARTAS PRINCIPAIS POPULARES (LR RANKING) ──────────────────── */}
         <PopularMainCardsSection />
+
+        {/* ── PUBLICIDADE: no meio da página, longe do topo e dos botões de ação ── */}
+        <AdSlot format="responsive" className="container-ultrawide my-4" />
 
         {/* ── ÚLTIMAS COLEÇÕES (PRODUTOS EM LINHA) ─────────────────────── */}
         <LatestCollectionsSection />
