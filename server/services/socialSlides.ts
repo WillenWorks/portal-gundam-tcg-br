@@ -3,7 +3,7 @@
  * para todos os slides do post. */
 import fs from "node:fs";
 import path from "node:path";
-import type { ReportArchetype, WeeklyReport, WeeklyTournament } from "./socialContent";
+import type { FeaturedDeck, ReportArchetype, WeeklyReport, WeeklyTournament } from "./socialContent";
 
 export const SLIDE_WIDTH = 1080;
 export const SLIDE_HEIGHT = 1350;
@@ -267,6 +267,105 @@ export function tournamentClosingHtml(report: WeeklyReport, pager?: string): str
       ${mostPlayed}
       ${alsoPlayed}
       <div class="ask">Qual deck você leva no próximo torneio?<span>Conta nos comentários e marca quem joga com você.</span></div>`,
+  });
+}
+
+// ---------- sexta: deck em destaque ----------
+
+const DECK_CSS = `${REPORT_CSS}
+  .deck-name { font-size: 64px; font-weight: 900; line-height: 1.05; text-transform: uppercase; margin-top: 16px; overflow-wrap: anywhere; }
+  .stats.four { grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 44px; }
+  .stats.four .n { font-size: 54px; }
+  .stats.four .l { font-size: 15px; }
+  .hero { display: flex; gap: 14px; margin-top: 40px; justify-content: center; }
+  .hero .tile { border-radius: 12px; border: 2px solid rgba(255,255,255,0.18); box-shadow: 0 18px 36px -10px rgba(0,0,0,0.8); }
+  .source { margin-top: 34px; font-size: 24px; color: #cbd5e1; line-height: 1.45; }
+  .source b { color: #facc15; }
+  .grid { display: grid; gap: 12px; margin-top: 24px; }
+  .tile { position: relative; aspect-ratio: 63 / 88; border-radius: 8px; overflow: hidden; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); }
+  .tile img { width: 100%; height: 100%; object-fit: cover; }
+  .tile .ph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 14px; font-weight: 800; color: #94a3b8; padding: 6px; }
+  .qty { position: absolute; right: 6px; bottom: 6px; background: #020617; border: 2px solid #38bdf8; color: #fff; font-weight: 900; font-size: 22px; min-width: 40px; height: 40px; border-radius: 20px; display: flex; align-items: center; justify-content: center; padding: 0 8px; }
+  .key { display: grid; grid-template-columns: repeat(4, 170px); justify-content: center; column-gap: 40px; row-gap: 18px; margin-top: 26px; }
+  .key .k { text-align: center; }
+  .key .pct { font-size: 24px; font-weight: 900; color: #facc15; margin-top: 8px; }
+  .key .nm { font-size: 16px; color: #cbd5e1; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }`;
+
+const cardTile = (c: { code: string; name: string; imageUrl: string | null }, qty?: number, style = "") => {
+  const img = safeImageUrl(c.imageUrl);
+  return `<div class="tile"${style ? ` style="${style}"` : ""}>${img ? `<img src="${escapeHtml(img)}" alt="${escapeHtml(c.name)}" />` : `<div class="ph">${escapeHtml(c.code)}</div>`}${qty ? `<div class="qty">${qty}</div>` : ""}</div>`;
+};
+
+const placementText = (p: number | null) => (p === 1 ? "Campeão" : p ? `${p}º lugar` : "Lista");
+
+export function deckCoverHtml(deck: FeaturedDeck, pager?: string): string {
+  const accent = accentFor(deck.archetype.colors[0]);
+  const hero = deck.keyCards.length ? deck.keyCards : deck.cards;
+  const where = [deck.entry.store ?? deck.entry.tournament, deck.entry.city ? `${deck.entry.city}${deck.entry.uf ? `-${deck.entry.uf}` : ""}` : null, ddmm(deck.entry.date)].filter(Boolean).join(" · ");
+  return slideDocument({
+    badge: "DECK EM DESTAQUE",
+    accent,
+    pager,
+    cta: "Arraste para ver a lista completa →",
+    css: DECK_CSS,
+    body: `
+      <div class="kicker">${colorDots(deck.archetype.colors)} Melhor desempenho nos últimos 30 dias</div>
+      <div class="deck-name">${escapeHtml(deck.archetype.name)}</div>
+      <div class="stats four">
+        <div class="stat" style="border-top-color:${accent}"><div class="n">${Math.round(deck.topRate * 100)}%</div><div class="l">No top 25%</div></div>
+        <div class="stat" style="border-top-color:${accent}"><div class="n">${deck.wins}</div><div class="l">${deck.wins === 1 ? "Título" : "Títulos"}</div></div>
+        <div class="stat" style="border-top-color:${accent}"><div class="n">${deck.lists}</div><div class="l">Listas</div></div>
+        <div class="stat" style="border-top-color:${accent}"><div class="n">${deck.tournaments}</div><div class="l">Torneios</div></div>
+      </div>
+      <div class="hero">${hero
+        .slice(0, 4)
+        .map((c) => cardTile(c, undefined, "width:228px;flex:0 0 228px;"))
+        .join("")}</div>
+      <div class="source">Lista de <b>${escapeHtml(deck.entry.player)}</b> · ${escapeHtml(placementText(deck.entry.placement))}${deck.entry.record ? ` (${escapeHtml(deck.entry.record)})` : ""}<br>${escapeHtml(where)}</div>`,
+  });
+}
+
+export function deckListHtml(deck: FeaturedDeck, pager?: string): string {
+  const accent = accentFor(deck.archetype.colors[0]);
+  const n = deck.cards.length;
+  const cols = n <= 15 ? 5 : n <= 24 ? 6 : n <= 35 ? 7 : 8;
+  const total = deck.cards.reduce((sum, c) => sum + c.quantity, 0);
+  return slideDocument({
+    badge: "DECK EM DESTAQUE",
+    accent,
+    pager,
+    cta: "Copie a lista no site e teste no simulador",
+    css: DECK_CSS,
+    body: `
+      <div class="kicker">Lista completa · ${total} cartas</div>
+      <div class="title" style="font-size:44px;overflow-wrap:anywhere;">${escapeHtml(deck.entry.player)} · ${escapeHtml(placementText(deck.entry.placement))}</div>
+      <div class="grid" style="grid-template-columns:repeat(${cols}, 1fr);">${deck.cards
+        .slice(0, 48)
+        .map((c) => cardTile(c, c.quantity))
+        .join("")}</div>`,
+  });
+}
+
+export function deckKeyCardsHtml(deck: FeaturedDeck, pager?: string): string {
+  const accent = accentFor(deck.archetype.colors[0]);
+  return slideDocument({
+    badge: "DECK EM DESTAQUE",
+    accent,
+    pager,
+    cta: `anaheimhub.com/arquetipos/${deck.archetype.slug}`.slice(0, 70),
+    css: DECK_CSS,
+    body: `
+      <div class="kicker">O que não pode faltar</div>
+      <div class="title" style="font-size:56px;">Cartas-chave</div>
+      <div class="subtitle" style="font-size:24px;">Presentes em pelo menos 80% das ${deck.lists} listas do arquétipo</div>
+      ${
+        deck.keyCards.length
+          ? `<div class="key">${deck.keyCards
+              .map((c) => `<div class="k">${cardTile(c, c.copies)}<div class="pct">${Math.round(c.inclusion * 100)}%</div><div class="nm">${escapeHtml(c.name)}</div></div>`)
+              .join("")}</div>`
+          : `<div class="subtitle">O arquétipo ainda varia muito: nenhuma carta aparece em 80% das listas.</div>`
+      }
+      <div class="ask">Você jogaria com esse deck?<span>Abra a lista no site, monte no deckbuilder e teste no simulador.</span></div>`,
   });
 }
 

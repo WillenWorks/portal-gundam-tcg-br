@@ -1,6 +1,6 @@
 /* Regras de conteúdo da agenda do Instagram (funções puras, sem banco): rodízio de raridade da carta do dia,
  * relatório semanal de torneios e escolha do deck em destaque, a partir do índice do Veda já carregado. */
-import { filterTournaments, recordOf, type RawTournament, type VedaIndex } from "../vedaCore.ts";
+import { cardInclusion, filterTournaments, recordOf, type RawEntry, type RawTournament, type VedaIndex } from "../vedaCore.ts";
 import type { GameColor, VedaTier } from "../../src/lib/veda/types.ts";
 
 export type RarityTier = "LR" | "R" | "U" | "C";
@@ -136,3 +136,116 @@ export const reportTournamentCount = (r: WeeklyReport) => r.featured.length + r.
 
 /** "2026-10-19" → "19/10" */
 export const dayMonth = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : "—");
+
+// ---------- sexta: deck em destaque ----------
+
+export const FEATURED_DECK_WINDOW_DAYS = 30;
+/** mínimo de listas na janela para o arquétipo concorrer; sem nenhum elegível, tenta com o segundo valor */
+export const FEATURED_DECK_MIN_LISTS = [15, 8];
+export const FEATURED_DECK_NO_REPEAT_DAYS = 28;
+const KEY_CARDS_MAX = 8;
+const DAY_MS = 24 * 3600_000;
+
+export type FeaturedDeck = {
+  archetype: ReportArchetype;
+  window: { from: string; to: string };
+  lists: number;
+  wins: number;
+  /** fração das colocações no top 25% do torneio: não infla com local pequeno, onde todo mundo é "top 8" */
+  topRate: number;
+  tournaments: number;
+  /** listas brasileiras do arquétipo na janela */
+  brLists: number;
+  /** a lista mostrada: campeã mais recente; sem campeã, a de melhor colocação mais recente */
+  entry: { id: string; player: string; placement: number | null; record: string | null; tournament: string; store: string | null; city: string | null; uf: string | null; date: string | null };
+  cards: Array<{ code: string; name: string; cardType: string; cost: number | null; level: number | null; quantity: number; imageUrl: string | null }>;
+  keyCards: Array<{ code: string; name: string; imageUrl: string | null; inclusion: number; copies: number }>;
+};
+
+const isTopQuarter = (placement: number | null, players: number) => placement != null && players > 0 && placement <= Math.max(1, Math.ceil(players / 4));
+const TYPE_ORDER = ["UNIT", "PILOT", "COMMAND", "BASE", "RESOURCE"];
+
+/**
+ * Arquétipo de maior rendimento nos últimos 30 dias (todas as fontes): entre os que têm listas suficientes e pelo
+ * menos uma decklist, o de maior taxa de top 25%; desempate por títulos e volume. Pula os destacados nas últimas 4
+ * semanas (`recentSlugs`).
+ */
+export function pickFeaturedDeck(ix: VedaIndex, now: Date, recentSlugs: string[] = []): FeaturedDeck | null {
+  const window = { from: new Date(now.getTime() - FEATURED_DECK_WINDOW_DAYS * DAY_MS).toISOString().slice(0, 10), to: now.toISOString().slice(0, 10) };
+  const tournaments = filterTournaments(ix, window);
+  type Stat = { archetype: ReportArchetype; entries: RawEntry[]; wins: number; top: number; ranked: number; tournaments: Set<string>; br: number };
+  const stats = new Map<string, Stat>();
+  for (const t of tournaments) {
+    const entries = ix.entriesByTournament.get(t.id) ?? [];
+    const players = t.participantCount ?? entries.length;
+    const brazil = Boolean(t.uf) || /^bra[sz]il$/i.test(t.country ?? "");
+    for (const e of entries) {
+      const archetype = ix.archetypeOf(e);
+      if (!archetype) continue;
+      const s = stats.get(archetype.slug) ?? { archetype, entries: [], wins: 0, top: 0, ranked: 0, tournaments: new Set<string>(), br: 0 };
+      s.entries.push(e);
+      s.tournaments.add(t.id);
+      if (e.placement === 1) s.wins += 1;
+      if (e.placement != null) {
+        s.ranked += 1;
+        if (isTopQuarter(e.placement, players)) s.top += 1;
+      }
+      if (brazil) s.br += 1;
+      stats.set(archetype.slug, s);
+    }
+  }
+  const recent = new Set(recentSlugs);
+  const rate = (s: Stat) => (s.ranked ? s.top / s.ranked : 0);
+  let chosen: Stat | undefined;
+  for (const min of FEATURED_DECK_MIN_LISTS) {
+    chosen = [...stats.values()]
+      .filter((s) => s.entries.length >= min && !recent.has(s.archetype.slug) && s.entries.some((e) => e.deckSnapshotId && ix.deck(e)?.length))
+      .sort((a, b) => rate(b) - rate(a) || b.wins - a.wins || b.entries.length - a.entries.length)[0];
+    if (chosen) break;
+  }
+  if (!chosen) return null;
+
+  const dateOf = (e: RawEntry) => ix.byId.get(e.tournamentId)?.date ?? "";
+  const withList = chosen.entries.filter((e) => e.deckSnapshotId && ix.deck(e)?.length);
+  const pick = [...withList].sort((a, b) => (a.placement ?? 9999) - (b.placement ?? 9999) || dateOf(b).localeCompare(dateOf(a)))[0];
+  const champion = withList.filter((e) => e.placement === 1).sort((a, b) => dateOf(b).localeCompare(dateOf(a)))[0];
+  const shown = champion ?? pick;
+  const t = ix.byId.get(shown.tournamentId);
+  const deck = ix.deck(shown) ?? [];
+
+  const merged = new Map<string, FeaturedDeck["cards"][number]>();
+  for (const { card, quantity } of deck) {
+    const prev = merged.get(card.code);
+    merged.set(card.code, { code: card.code, name: card.nameEn, cardType: card.cardType, cost: card.cost, level: card.level, quantity: (prev?.quantity ?? 0) + quantity, imageUrl: card.imageUrl });
+  }
+  const cards = [...merged.values()].sort(
+    (a, b) => (TYPE_ORDER.indexOf(a.cardType) + 1 || 99) - (TYPE_ORDER.indexOf(b.cardType) + 1 || 99) || (a.level ?? 99) - (b.level ?? 99) || (a.cost ?? 99) - (b.cost ?? 99) || a.code.localeCompare(b.code),
+  );
+  const keyCards = cardInclusion(ix, withList)
+    .filter((c) => c.tier === "core")
+    .slice(0, KEY_CARDS_MAX)
+    .map((c) => ({ code: c.card.code, name: c.card.name, imageUrl: c.card.imageUrl, inclusion: c.inclusion, copies: c.card.quantity }));
+
+  return {
+    archetype: chosen.archetype,
+    window,
+    lists: chosen.entries.length,
+    wins: chosen.wins,
+    topRate: rate(chosen),
+    tournaments: chosen.tournaments.size,
+    brLists: chosen.br,
+    entry: {
+      id: shown.id,
+      player: shown.playerName,
+      placement: shown.placement,
+      record: recordOf(shown),
+      tournament: t ? eventLabel(t.name, t.organizer) : "",
+      store: t?.organizer ?? null,
+      city: t?.city ?? null,
+      uf: t?.uf ?? null,
+      date: t?.date ? t.date.slice(0, 10) : null,
+    },
+    cards,
+    keyCards,
+  };
+}

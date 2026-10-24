@@ -10,10 +10,13 @@ import { formatSlot, previousWeekRange } from "./socialSchedule";
 import {
   buildWeeklyReport,
   dayMonth,
+  FEATURED_DECK_NO_REPEAT_DAYS,
+  pickFeaturedDeck,
   PRIMARY_RARITY_VALUES,
   rarityAttemptOrder,
   rarityTier,
   reportTournamentCount,
+  type FeaturedDeck,
   type RarityTier,
   type WeeklyReport,
   type WeeklyTournament,
@@ -21,6 +24,9 @@ import {
 import {
   accentFor,
   altArtSlideHtml,
+  deckCoverHtml,
+  deckKeyCardsHtml,
+  deckListHtml,
   escapeHtml,
   renderSlides,
   safeImageUrl,
@@ -720,9 +726,94 @@ export async function draftTournamentReport(prisma: PrismaClient, input: Generat
   };
 }
 
+const DECK_HASHTAGS = ["GundamCardGame", "GundamTCG", "GundamBrasil", "TCGBrasil", "Decklist", "AnaheimHub"];
+const percent = (v: number) => `${Math.round(v * 100)}%`;
+const deckPlacement = (p: number | null) => (p === 1 ? "campeã" : p ? `${p}º lugar` : "lista");
+
+function deckTemplate(deck: FeaturedDeck): GeneratedPostContent {
+  const where = [deck.entry.store ?? deck.entry.tournament, deck.entry.city, dayMonth(deck.entry.date)].filter(Boolean).join(", ");
+  const key = deck.keyCards.slice(0, 5).map((c) => `• ${c.name} (${c.copies}x)`);
+  const caption =
+    `🔥 DECK EM DESTAQUE: ${deck.archetype.name}\n\n` +
+    `Nos últimos 30 dias: ${deck.lists} listas em ${deck.tournaments} torneios, ${deck.wins} ${deck.wins === 1 ? "título" : "títulos"} e ${percent(deck.topRate)} das colocações no top 25%.\n\n` +
+    `📋 A lista do carrossel é de ${deck.entry.player} (${deckPlacement(deck.entry.placement)}${deck.entry.record ? `, ${deck.entry.record}` : ""}) em ${where}.\n` +
+    (key.length ? `\n🔑 Cartas-chave:\n${key.join("\n")}\n` : "") +
+    `\n💬 Você jogaria com esse deck? Conta nos comentários!\n` +
+    `🔗 Lista completa, deckbuilder e simulador no Anaheim Hub (link na bio)\n\n` +
+    DECK_HASHTAGS.map((h) => `#${h}`).join(" ");
+  return {
+    title: `Deck em destaque: ${deck.archetype.name}`,
+    hook: `${deck.archetype.name} é o deck de melhor desempenho do mês.`,
+    strategy: "",
+    cta: "Teste a lista no simulador do Anaheim Hub (link na bio).",
+    hashtags: DECK_HASHTAGS,
+    fullCaption: caption,
+  };
+}
+
+function deckPrompt(deck: FeaturedDeck, customTopic?: string): string {
+  const data = {
+    arquetipo: deck.archetype.name,
+    cores: deck.archetype.colors,
+    periodo: `${dayMonth(deck.window.from)} a ${dayMonth(deck.window.to)}`,
+    listas: deck.lists,
+    torneios: deck.tournaments,
+    titulos: deck.wins,
+    taxaTop25: percent(deck.topRate),
+    listasNoBrasil: deck.brLists,
+    listaMostrada: { jogador: deck.entry.player, colocacao: deck.entry.placement, campanha: deck.entry.record, evento: deck.entry.tournament, loja: deck.entry.store, cidade: deck.entry.city, data: deck.entry.date },
+    cartas: deck.cards.map((c) => `${c.quantity}x ${c.name} (${c.code})`),
+    cartasChave: deck.keyCards.map((c) => ({ carta: c.name, presenca: percent(c.inclusion), copias: c.copies })),
+  };
+  return `Você escreve os posts do Instagram do Anaheim Hub (anaheimhub.com), um portal brasileiro feito por fãs do Gundam Card Game (Bandai). O portal não é oficial nem ligado à Bandai.
+Escreva o post de sexta-feira "Deck em destaque": o arquétipo de melhor desempenho nos torneios dos últimos 30 dias. O post é um carrossel: capa com os números, a lista completa e as cartas-chave. Dados (JSON):
+
+${JSON.stringify(data, null, 1)}
+${customTopic ? `Pedido do editor: "${customTopic.slice(0, 300)}"` : ""}
+
+Estrutura: gancho de 1–2 linhas com o desempenho (use os números exatos); de quem é a lista e onde foi; 3 a 5 cartas-chave e o papel delas, só com base nos nomes e na presença (sem inventar efeitos); uma pergunta para os comentários; convite para abrir a lista e testar no simulador do Anaheim Hub (link na bio).
+${CAPTION_RULES}`;
+}
+
+/** Arquétipos destacados nas últimas 4 semanas (não repetem na sexta). */
+async function recentFeaturedSlugs(prisma: PrismaClient, now: Date): Promise<string[]> {
+  const posts = await prisma.socialMediaPost
+    .findMany({
+      where: { type: SocialPostType.DECK_FEATURE, status: { not: SocialPostStatus.REJECTED }, createdAt: { gte: new Date(now.getTime() - FEATURED_DECK_NO_REPEAT_DAYS * 24 * 3600_000) } },
+      select: { metadata: true },
+    })
+    .catch(() => [] as { metadata: string | null }[]);
+  return posts.flatMap((p) => {
+    try {
+      const slug = (JSON.parse(p.metadata || "{}") as { archetypeSlug?: unknown }).archetypeSlug;
+      return typeof slug === "string" ? [slug] : [];
+    } catch {
+      return [];
+    }
+  });
+}
+
+/** Sexta: carrossel do arquétipo de melhor desempenho do mês, com uma lista real. Sem elegível, vira carta do dia. */
+export async function draftDeckFeature(prisma: PrismaClient, input: GeneratePostInput = {}, deps: { index?: VedaIndex; now?: Date } = {}): Promise<DraftContent> {
+  const now = deps.now ?? new Date();
+  const index = deps.index ?? (await (await import("../vedaService.ts")).getVedaIndex(prisma));
+  const deck = pickFeaturedDeck(index, now, await recentFeaturedSlugs(prisma, now));
+  if (!deck) {
+    const card = await draftCardSpotlight(prisma, { ...input, cardCode: undefined });
+    return { ...card, notice: "ℹ️ Nenhum arquétipo com listas suficientes nos últimos 30 dias: o post de hoje virou carta do dia." };
+  }
+  return {
+    type: SocialPostType.DECK_FEATURE,
+    content: await generateCaption(deckPrompt(deck, input.customTopic), deckTemplate(deck), input.apiKeyGemini),
+    fileStem: `deck-${deck.archetype.slug}`.slice(0, 24),
+    slides: [deckCoverHtml(deck, "1/3"), deckListHtml(deck, "2/3"), deckKeyCardsHtml(deck, "3/3")],
+    metadata: { archetypeSlug: deck.archetype.slug, archetype: deck.archetype.name, entryId: deck.entry.id, window: deck.window },
+  };
+}
+
 async function buildDraft(prisma: PrismaClient, input: GeneratePostInput): Promise<DraftContent> {
   if (input.type === SocialPostType.TOURNAMENT_REPORT) return draftTournamentReport(prisma, input);
-  // deck em destaque (sexta) ainda não tem formato próprio: sai como carta do dia
+  if (input.type === SocialPostType.DECK_FEATURE) return draftDeckFeature(prisma, input);
   return draftCardSpotlight(prisma, input);
 }
 

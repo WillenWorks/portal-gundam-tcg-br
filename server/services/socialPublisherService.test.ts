@@ -29,6 +29,7 @@ import {
   findAltArts,
   lastSpotlightTier,
   draftTournamentReport,
+  draftDeckFeature,
 } from "./socialPublisherService";
 
 const cardRow = {
@@ -407,6 +408,55 @@ describe("socialPublisherService", () => {
       const draft = await draftTournamentReport(prisma, { scheduledFor: monday, apiKeyGemini: "" }, { index: index([], []) });
       expect(draft.type).toBe("CARD_SPOTLIGHT");
       expect(draft.notice).toContain("Nenhum torneio no Brasil entre 19/10 e 25/10");
+    });
+  });
+
+  describe("sexta: deck em destaque", () => {
+    const now = new Date("2026-10-30T12:00:00Z");
+    const card = (code: string) => ({ cardModelId: `m${code}`, code, nameEn: `Carta ${code}`, namePt: null, cardType: "UNIT", color: "Red", level: 2, cost: 2, imageUrl: `https://cdn/${code}.jpg` });
+    function deckIndex(arch: string, n: number) {
+      const tournaments = Array.from({ length: n }, (_, i) => ({
+        id: `t${i}`,
+        name: `Locals @ Loja ${i} — 2026-10-20`,
+        organizer: `Loja ${i}`,
+        country: "Brasil",
+        city: "Curitiba",
+        uf: "PR",
+        season: null,
+        tier: "SMALL_OFFICIAL" as const,
+        sourceUrl: null,
+        participantCount: 16,
+        roundCount: null,
+        date: "2026-10-20T00:00:00.000Z",
+        updatedAt: "2026-10-20",
+      }));
+      const entries = tournaments.map((t, i) => ({ id: `e${i}`, tournamentId: t.id, playerName: `P${i}`, placement: 1, wins: 4, losses: 0, draws: 0, archetype: arch, deckSnapshotId: `s${i}` }));
+      const snapshots = new Map(tournaments.map((_, i) => [`s${i}`, [{ cardId: "A", quantity: 4 }, { cardId: "B", quantity: 2 }]]));
+      return new VedaIndex({ tournaments, entries, snapshots, cards: new Map([["A", card("A")], ["B", card("B")]]), seasons: [] });
+    }
+    const prismaWith = (metadata: string[] = []) =>
+      ({
+        socialMediaPost: { findMany: vi.fn().mockResolvedValue(metadata.map((m) => ({ metadata: m }))), findFirst: vi.fn().mockResolvedValue(null) },
+        card: { count: vi.fn().mockResolvedValue(1), findFirst: vi.fn().mockResolvedValue({ ...cardRow, rarity: "R" }), findMany: vi.fn().mockResolvedValue([]) },
+      }) as any;
+
+    it("carrossel de 3 slides (capa, lista, cartas-chave) e metadata com o arquétipo", async () => {
+      const prisma = prismaWith();
+      const draft = await draftDeckFeature(prisma, { apiKeyGemini: "" }, { index: deckIndex("Red / White MF", 16), now });
+      expect(draft.type).toBe("DECK_FEATURE");
+      expect(draft.slides).toHaveLength(3);
+      expect(draft.slides[0]).toContain("Red / White MF");
+      expect(draft.slides[1]).toContain("https://cdn/A.jpg");
+      expect(draft.metadata).toMatchObject({ archetypeSlug: "red-white-mf" });
+      expect(draft.content.fullCaption).toContain("16 listas");
+      expect(captionProblems(draft.content.fullCaption)).toEqual([]);
+      expect(prisma.socialMediaPost.findMany.mock.calls[0][0].where).toMatchObject({ type: "DECK_FEATURE", status: { not: "REJECTED" } });
+    });
+
+    it("arquétipo destacado nas últimas semanas não repete; sem outro elegível vira carta do dia com aviso", async () => {
+      const draft = await draftDeckFeature(prismaWith(['{"archetypeSlug":"red-white-mf"}']), { apiKeyGemini: "" }, { index: deckIndex("Red / White MF", 16), now });
+      expect(draft.type).toBe("CARD_SPOTLIGHT");
+      expect(draft.notice).toContain("virou carta do dia");
     });
   });
 });

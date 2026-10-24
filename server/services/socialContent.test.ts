@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { VedaIndex, type RawEntry, type RawTournament } from "../vedaCore";
-import { buildWeeklyReport, dayMonth, eventLabel, rarityAttemptOrder, rarityTier, reportTournamentCount } from "./socialContent";
+import { VedaIndex, type RawCard, type RawEntry, type RawTournament } from "../vedaCore";
+import { buildWeeklyReport, dayMonth, eventLabel, pickFeaturedDeck, rarityAttemptOrder, rarityTier, reportTournamentCount } from "./socialContent";
 
 describe("rodízio de raridade da carta do dia", () => {
   it("normaliza os dois formatos do banco e as artes alternativas", () => {
@@ -122,5 +122,88 @@ describe("segunda: torneios do Brasil da semana", () => {
     expect(eventLabel("Store Championship @ Forja Hobby Store — 2026-10-15", "Forja Hobby Store")).toBe("Store Championship");
     expect(eventLabel("Regional Sul", "Loja X")).toBe("Regional Sul");
     expect(dayMonth("2026-10-05")).toBe("05/10");
+  });
+});
+
+describe("sexta: deck em destaque", () => {
+  const now = new Date("2026-10-30T12:00:00Z");
+  const card = (code: string, cardType = "UNIT", level = 3): RawCard => ({ cardModelId: `m-${code}`, code, nameEn: `Carta ${code}`, namePt: null, cardType, color: "Blue", level, cost: 2, imageUrl: `https://cdn/${code}.jpg` });
+  const cards = new Map(["A", "B", "C", "D"].map((c) => [c, card(c, c === "D" ? "COMMAND" : "UNIT", c === "A" ? 5 : 2)]));
+
+  /** cria `n` listas do arquétipo, cada uma num torneio de `players` jogadores, com a colocação dada */
+  function build(spec: Array<{ arch: string; n: number; placement: number; players?: number; date?: string; withList?: boolean; uf?: string | null }>) {
+    const tournaments: RawTournament[] = [];
+    const entries: RawEntry[] = [];
+    const snapshots = new Map<string, Array<{ cardId: string; quantity: number }>>();
+    let k = 0;
+    for (const s of spec) {
+      for (let i = 0; i < s.n; i += 1) {
+        k += 1;
+        const t = tournament({ date: `${s.date ?? "2026-10-20"}T00:00:00.000Z`, participantCount: s.players ?? 16, uf: s.uf === undefined ? null : s.uf, country: s.uf ? "Brasil" : "USA" });
+        tournaments.push(t);
+        const snap = s.withList === false ? null : `snap${k}`;
+        if (snap) snapshots.set(snap, [{ cardId: "A", quantity: 4 }, { cardId: "B", quantity: 4 }, { cardId: k % 2 ? "C" : "D", quantity: 2 }]);
+        entries.push({ id: `x${k}`, tournamentId: t.id, playerName: `P${k}`, placement: s.placement, wins: 3, losses: 1, draws: 0, archetype: s.arch, deckSnapshotId: snap });
+      }
+    }
+    return new VedaIndex({ tournaments, entries, snapshots, cards, seasons: [] });
+  }
+
+  it("escolhe o arquétipo com maior taxa de top 25% entre os que têm listas suficientes", () => {
+    const ix = build([
+      { arch: "Blue / White Blockers", n: 15, placement: 9 },
+      { arch: "Blue / White Blockers", n: 5, placement: 1 },
+      { arch: "Red / White MF", n: 16, placement: 2 },
+      { arch: "Purple Banshee", n: 5, placement: 1 }, // 100%, mas poucas listas
+    ]);
+    const deck = pickFeaturedDeck(ix, now);
+    expect(deck?.archetype.name).toBe("Red / White MF");
+    expect(deck?.topRate).toBe(1);
+    expect(deck?.lists).toBe(16);
+  });
+
+  it("local pequeno não infla: 5º de 6 jogadores não é top 25%", () => {
+    const ix = build([
+      { arch: "Small Locals", n: 16, placement: 5, players: 6 },
+      { arch: "Big Events", n: 16, placement: 8, players: 32 },
+    ]);
+    expect(pickFeaturedDeck(ix, now)?.archetype.name).toBe("Big Events");
+  });
+
+  it("não repete o arquétipo destacado nas últimas semanas e exige decklist", () => {
+    const ix = build([
+      { arch: "Red / White MF", n: 16, placement: 1 },
+      { arch: "Sem Lista", n: 16, placement: 1, withList: false },
+      { arch: "Blue / White Blockers", n: 16, placement: 4 },
+    ]);
+    const first = pickFeaturedDeck(ix, now);
+    expect(first?.archetype.name).toBe("Red / White MF");
+    expect(pickFeaturedDeck(ix, now, [first!.archetype.slug])?.archetype.name).toBe("Blue / White Blockers");
+  });
+
+  it("sem arquétipo com 15 listas, baixa para 8; sem nenhum, devolve null", () => {
+    expect(pickFeaturedDeck(build([{ arch: "Red / White MF", n: 9, placement: 1 }]), now)?.archetype.name).toBe("Red / White MF");
+    expect(pickFeaturedDeck(build([{ arch: "Red / White MF", n: 5, placement: 1 }]), now)).toBeNull();
+  });
+
+  it("janela de 30 dias: lista antiga não conta", () => {
+    const ix = build([{ arch: "Velho", n: 16, placement: 1, date: "2026-09-01" }, { arch: "Novo", n: 16, placement: 3 }]);
+    expect(pickFeaturedDeck(ix, now)?.archetype.name).toBe("Novo");
+  });
+
+  it("lista mostrada: a campeã mais recente; cartas agrupadas por tipo e nível; cartas-chave com inclusão ≥ 80%", () => {
+    const ix = build([
+      { arch: "Red / White MF", n: 10, placement: 2, date: "2026-10-28", uf: "PR" },
+      { arch: "Red / White MF", n: 1, placement: 1, date: "2026-10-10" },
+      { arch: "Red / White MF", n: 1, placement: 1, date: "2026-10-22" },
+    ]);
+    const deck = pickFeaturedDeck(ix, now)!;
+    expect(deck.entry).toMatchObject({ placement: 1, date: "2026-10-22" });
+    expect(deck.brLists).toBe(10);
+    expect(deck.cards.map((c) => c.code)).toEqual(["B", "A", deck.cards[2].code]);
+    expect(deck.keyCards.map((c) => [c.code, c.inclusion, c.copies])).toEqual([
+      ["A", 1, 4],
+      ["B", 1, 4],
+    ]);
   });
 });
