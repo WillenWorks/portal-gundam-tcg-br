@@ -109,6 +109,8 @@ export function AdSlot({
   }, [clientId, slotId, carbonPlacement, isConfigured, adLoaded]);
 
   if (!isConfigured && !showPlaceholder) return null;
+  // AdSense recusou o bloco: em produção some de vez (o aviso de patrocínio é só para desenvolvimento)
+  if (adError && !import.meta.env.DEV) return null;
 
   return (
     <aside
@@ -125,7 +127,9 @@ export function AdSlot({
       {isConfigured && !adError ? (
         <ins
           className="adsbygoogle"
-          style={{ display: "block" }}
+          // largura explícita: o <aside> centraliza o conteúdo e, sem ela, o <ins> encolhe a 0 e o push falha
+          // com "No slot size for availableWidth=0"
+          style={{ display: "block", width: "100%" }}
           data-ad-client={clientId}
           data-ad-slot={slotId}
           data-ad-format={format === "responsive" ? "auto" : undefined}
