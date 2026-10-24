@@ -111,8 +111,9 @@ function fromCardRow(row: CardRow): SocialCard {
     hp: row.hp ?? undefined,
     cost: row.cost ?? undefined,
     level: row.level ?? undefined,
-    // o texto explicativo vai em português quando existe (o post é para o público brasileiro)
-    text: row.effectPt || row.effectEn || "",
+    // o texto explicativo vai em português quando existe (o post é para o público brasileiro). O banco guarda as
+    // quebras como <br>, que saíam cruas na legenda; as palavras-chave entre < > (ex.: <Blocker>) ficam.
+    text: (row.effectPt || row.effectEn || "").replace(/<br\s*\/?>/gi, "\n"),
     imageUrl: row.imageUrl || undefined,
   };
 }
