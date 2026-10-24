@@ -71,6 +71,7 @@ import {
   type PostStatus,
   type SiteConfig,
 } from "@/lib/api";
+import { adminTabFromHash, type AdminTab } from "@/lib/adminTabs";
 import { cn } from "@/lib/utils";
 
 const CHART_COLORS = ["#00f0ff", "#38bdf8", "#f59e0b", "#10b981", "#ef4444", "#a855f7", "#ec4899", "#64748b"];
@@ -79,7 +80,7 @@ export default function AdminDashboardPage() {
   const { user } = useAuth();
 
   // Estados principais
-  const [activeTab, setActiveTab] = useState<"overview" | "marketing" | "social" | "dynamic" | "actions" | "workflows" | "bugs">("overview");
+  const [activeTab, setActiveTab] = useState<AdminTab>(() => adminTabFromHash(typeof window === "undefined" ? "" : window.location.hash));
   const [refreshing, setRefreshing] = useState(false);
   const [metrics, setMetrics] = useState<AdminMetricsData | null>(null);
   const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null);

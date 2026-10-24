@@ -489,9 +489,16 @@ export async function sendDiscordSocialNotification(
   return null;
 }
 
+// O Instagram baixa a arte por esse endereço e o Discord linka o painel: um PUBLIC_APP_URL local (a VPS estava com
+// "http://localhost:8787") não serve a ninguém de fora — vale o domínio público, como nos links de e-mail.
+function socialPublicAppUrl(): string {
+  const env = (process.env.PUBLIC_APP_URL || "").trim();
+  return env && !/localhost|127\.0\.0\.1/.test(env) ? env : "https://anaheimhub.com";
+}
+
 /** Cria um rascunho completo: carta + legenda + arte JPEG + aviso no Discord. */
 export async function createSocialPostDraft(prisma: PrismaClient, input: GeneratePostInput = {}) {
-  const publicAppUrl = input.publicAppUrl || process.env.PUBLIC_APP_URL || "https://anaheimhub.com";
+  const publicAppUrl = input.publicAppUrl || socialPublicAppUrl();
   const card = await pickCardForPost(prisma, input.cardCode);
   const content = await generateSocialContentWithGemini(card, input.customTopic, input.apiKeyGemini);
 
@@ -545,7 +552,7 @@ export function missingAdDisclosure(type: SocialPostType | string, caption: stri
  * duas chamadas ao mesmo tempo não publiquem duas vezes.
  */
 export async function publishApprovedPost(prisma: PrismaClient, postId: string, deps: { publish?: typeof publishInstagramImage; publicAppUrl?: string } = {}) {
-  const publicAppUrl = (deps.publicAppUrl || process.env.PUBLIC_APP_URL || "https://anaheimhub.com").replace(/\/+$/, "");
+  const publicAppUrl = (deps.publicAppUrl || socialPublicAppUrl()).replace(/\/+$/, "");
   const claimed = await prisma.socialMediaPost.updateMany({
     where: { id: postId, status: { in: [SocialPostStatus.APPROVED, SocialPostStatus.FAILED] } },
     data: { status: SocialPostStatus.PUBLISHING, publishError: null },
