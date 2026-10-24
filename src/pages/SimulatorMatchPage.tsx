@@ -1837,8 +1837,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         };
       }
 
-      const inAction = view.combat?.step === "action";
-      const trigger = inAction ? "Activate·Action" : "Activate·Main";
+      // Action Step de batalha OU de fim de turno (antes só olhava o de batalha)
+      const trigger = inActionStep ? "Activate·Action" : "Activate·Main";
       const specs = findTriggerSpecs(ALL_EFFECT_SPECS, pendingCard.def.code, trigger);
       const needing = specs.filter((s) => specNeedsNamedTarget(s));
       if (needing.length === 0) return none;
@@ -2317,8 +2317,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     const canAttackFrom = isSelf && myTurnMain && !attackerId && !selecting;
     const canBeTargeted = !isSelf && attackerId !== null && combat === null;
     const canBlockWith = isSelf && iAmDefending;
-    // 【Activate·Main】 de carta em campo (Etapa 3) — só na Main Phase própria, sem combate.
-    const canActivateHere = isSelf && myTurnMain && !attackerId && !selecting;
+    // 【Activate·Main】 de carta em campo (Etapa 3) — só na Main Phase própria, sem combate. 【Activate·Action】 —
+    // com a prioridade num Action Step (batalha ou fim de turno); antes não havia botão e a habilidade ficava sem uso.
+    const canActivateHere = isSelf && (myTurnMain || inActionStep) && !attackerId && !selecting;
+    const abilityTiming = inActionStep ? "action" : "main";
     const myActiveResources = player.resourceArea.filter(
       (r) => !isHidden(r) && !(r as CardInstance).rested,
     ).length;
@@ -2353,7 +2355,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             ? "light"
             : "heavy"
           : undefined;
-      const ability = unit && canActivateHere ? fieldAbilityFor(unit) : null;
+      const ability = unit && canActivateHere ? fieldAbilityFor(unit, abilityTiming) : null;
       const canActivate = Boolean(ability && myActiveResources >= ability.cost);
       const isLegal = isLegalTargetForSlot(unit);
 
@@ -2556,9 +2558,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     // 【Activate·Main】 da Base (ex.: ST01-015 White Base "②", ST01-016
     // Asticassia "Rest this Base") — bug real: a Base nunca tinha esse botão,
     // só os Units da Battle Area (mesmo guard de `renderBattleSlots`).
-    const canActivateBaseHere = isSelf && myTurnMain && !attackerId && !selecting;
+    const canActivateBaseHere = isSelf && (myTurnMain || inActionStep) && !attackerId && !selecting;
     const myActiveResourcesForBase = player.resourceArea.filter((r) => !isHidden(r) && !(r as CardInstance).rested).length;
-    const baseAbility = base && canActivateBaseHere ? fieldAbilityFor(base) : null;
+    const baseAbility = base && canActivateBaseHere ? fieldAbilityFor(base, inActionStep ? "action" : "main") : null;
     const canActivateBase = Boolean(baseAbility && myActiveResourcesForBase >= baseAbility.cost);
     const resources = (player.resourceArea.filter((c) => !isHidden(c)) as CardInstance[]).map((r) => ({
       instanceId: r.instanceId,
