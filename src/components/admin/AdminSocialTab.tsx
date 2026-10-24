@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 
 function InstagramIcon({ className = "size-4" }: { className?: string }) {
   return (
@@ -68,6 +68,11 @@ const GENERATE_TYPES: { value: SocialMediaPost["type"]; label: string; hint: str
   { value: "CARD_SPOTLIGHT", label: "Carta do dia", hint: "Rodízio LR → R → U → C; artes alternativas entram no carrossel (quarta)." },
   { value: "DECK_FEATURE", label: "Deck em destaque", hint: "Arquétipo de melhor desempenho nos últimos 30 dias, com a lista (sexta)." },
 ];
+
+/** Estado da geração em segundo plano (GET /admin/social/generation). */
+type GenerationState = { running: boolean; postId: string | null; error: string | null };
+const GENERATION_POLL_MS = 5000;
+const GENERATION_WATCH_MS = 8 * 60_000;
 
 const slidesOf = (post: SocialMediaPost) => (post.mediaUrls?.length ? post.mediaUrls : post.imageUrl ? [post.imageUrl] : []);
 
@@ -148,11 +153,51 @@ export function AdminSocialTab() {
     fetchPosts();
   }, [statusFilter]);
 
+  // a geração roda em segundo plano no servidor (leva de 20 s a alguns minutos); o painel acompanha pelo estado
+  useEffect(() => {
+    apiFetch<GenerationState>("/admin/social/generation")
+      .then((state) => {
+        if (state?.running) setGenerating(true);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!generating) return;
+    const startedAt = Date.now();
+    const timer = window.setInterval(async () => {
+      try {
+        const state = await apiFetch<GenerationState>("/admin/social/generation");
+        if (state?.running) {
+          if (Date.now() - startedAt > GENERATION_WATCH_MS) {
+            window.clearInterval(timer);
+            setGenerating(false);
+            toast.info("A geração está demorando; o rascunho aparece aqui e no Discord quando terminar.");
+          }
+          return;
+        }
+        window.clearInterval(timer);
+        setGenerating(false);
+        if (state?.error) {
+          toast.error(`Falha ao gerar o post: ${state.error}`);
+          return;
+        }
+        const list = await apiFetch<SocialMediaPost[]>("/admin/social/posts");
+        const created = list?.find((p) => p.id === state?.postId);
+        setPosts(list ?? []);
+        if (created) selectPost(created);
+        toast.success("Rascunho criado e enviado ao Discord para aprovação!");
+      } catch {
+        // falha passageira de rede: tenta de novo no próximo ciclo
+      }
+    }, GENERATION_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [generating]);
+
   const handleGenerate = async () => {
     try {
       setGenerating(true);
-      toast.info("O Agente IA está gerando o texto e a arte em 1080x1350...");
-      const newPost = await apiFetch<SocialMediaPost>("/admin/social/generate", {
+      await apiFetch<GenerationState>("/admin/social/generate", {
         method: "POST",
         body: JSON.stringify({
           cardCode: postTypeInput === "CARD_SPOTLIGHT" ? cardCodeInput.trim() || undefined : undefined,
@@ -160,15 +205,17 @@ export function AdminSocialTab() {
           type: postTypeInput,
         }),
       });
-      toast.success("Rascunho criado com sucesso e notificado no Discord!");
+      toast.info("Gerando o texto e as imagens. O rascunho aparece aqui e no Discord em 1 a 3 minutos.");
       setCardCodeInput("");
       setCustomTopicInput("");
-      setPosts((prev) => [newPost, ...prev]);
-      selectPost(newPost);
     } catch (err: any) {
-      toast.error(err?.message || "Falha ao gerar post com IA.");
-    } finally {
+      // 409: já tem uma geração em andamento — segue acompanhando essa, sem criar outra
+      if (err instanceof ApiError && err.status === 409) {
+        toast.info(err.message);
+        return;
+      }
       setGenerating(false);
+      toast.error(err?.message || "Falha ao gerar post com IA.");
     }
   };
 
