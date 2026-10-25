@@ -11,7 +11,7 @@ import { placeCard } from "./__testkit__/cardHarness";
 import { fingerprint, partnerFor, richBoard, scenarioOpts, settleDecisions, trashMaterialFor } from "./__testkit__/cardScenario";
 import type { EffectSpec } from "./effectSpec";
 import type { CardDef, GameState } from "./types";
-import { buildSt01DeckList, ST01_CARD_DEFS } from "../fixtures/st01Deck";
+import { buildSt01DeckList } from "../fixtures/st01Deck";
 import { buildSt02DeckList } from "../fixtures/st02Deck";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
 import { ALL_CARD_DEFS } from "../content/allCardDefs";
