@@ -2,7 +2,7 @@ import type { ZeroCounterSummary } from "@/modules/simulator/engine/bot/zeroCoun
 import type { BotDeckEntryView } from "@/modules/simulator/ui/ZeroCounterDeckSummary";
 import type { CardRecord, RuleEntry } from "@/modules/core/types";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
-import type { PlayerId } from "@/modules/simulator/engine/types";
+import type { GameEvent, PlayerId } from "@/modules/simulator/engine/types";
 import type { ViewGameState } from "@/modules/simulator/engine/viewState";
 import type { LegalMenu } from "@/modules/simulator/engine/legalMenu";
 import type { DeckListWithSideboard } from "@/modules/simulator/engine/sideboard";
@@ -906,6 +906,12 @@ export type SimulatorMatchView = {
   botDeckList?: BotDeckEntryView[];
   /** jogadas legais deste assento calculadas pelo motor (`legalMenuFor`); ausente em servidor antigo */
   legalMenu?: LegalMenu;
+  /** posição do estado desta visão no log do motor (spec simulador-animacao-pelo-log) */
+  eventSeq?: number;
+  /** só na transmissão: eventos desde a visão anterior, já redigidos para este assento */
+  eventsSince?: GameEvent[];
+  /** `eventSeq` da visão que `eventsSince` continua */
+  eventsFromSeq?: number;
 };
 
 export type SimulatorMatchState = ({ seated: false } & SimulatorMatchSummary) | ({ seated: true } & SimulatorMatchView);

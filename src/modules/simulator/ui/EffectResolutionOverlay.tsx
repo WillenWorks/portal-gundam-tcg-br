@@ -50,6 +50,12 @@ export interface EffectResolutionCue {
 
 interface EffectResolutionOverlayProps {
   eventLog: GameEvent[];
+  /**
+   * Eventos exatos da última visão tocada pelo log (`MatchView.eventsSince`, spec simulador-animacao-pelo-log).
+   * Com ele os cues saem do que o motor fez, sem adivinhar os eventos novos pelo `eventLog` janelado; `key` novo =
+   * lote novo. Sem ele (visão sem eventos), vale `newEventsSince` sobre o `eventLog`.
+   */
+  eventsBatch?: { key: number; events: GameEvent[] };
   rectOf: (key: string) => DOMRect | null;
   viewerSeat: PlayerId;
   nameOf?: (id: string) => string;
@@ -85,6 +91,7 @@ export function newEventsSince(prev: GameEvent[], next: GameEvent[]): GameEvent[
 
 export function EffectResolutionOverlay({
   eventLog,
+  eventsBatch,
   rectOf,
   viewerSeat,
   className,
@@ -92,6 +99,7 @@ export function EffectResolutionOverlay({
   const { tr } = useSiteLanguage();
   const [cues, setCues] = useState<EffectResolutionCue[]>([]);
   const processedLogRef = useRef<GameEvent[]>(eventLog);
+  const processedBatchKeyRef = useRef<number | null>(eventsBatch?.key ?? null);
   const activeTimersRef = useRef<Set<NodeJS.Timeout>>(new Set());
 
   useEffect(() => {
@@ -103,11 +111,13 @@ export function EffectResolutionOverlay({
 
   useEffect(() => {
     const prevLog = processedLogRef.current;
-    if (prevLog === eventLog) return;
+    const freshBatch = eventsBatch && eventsBatch.key !== processedBatchKeyRef.current ? eventsBatch : null;
+    if (prevLog === eventLog && !freshBatch) return;
     processedLogRef.current = eventLog;
+    if (eventsBatch) processedBatchKeyRef.current = eventsBatch.key;
 
     // Limitar o lote de eventos novos para evitar sobrecarga de animações simultâneas
-    const batch = newEventsSince(prevLog, eventLog).slice(-MAX_CUES_PER_BATCH);
+    const batch = (freshBatch ? freshBatch.events : newEventsSince(prevLog, eventLog)).slice(-MAX_CUES_PER_BATCH);
     if (batch.length === 0) return;
 
     const newCues: EffectResolutionCue[] = [];
@@ -301,7 +311,7 @@ export function EffectResolutionOverlay({
     }, durationMs);
 
     activeTimersRef.current.add(timer);
-  }, [eventLog, rectOf, viewerSeat]);
+  }, [eventLog, eventsBatch, rectOf, viewerSeat]);
 
   if (cues.length === 0) return null;
 

@@ -1,9 +1,9 @@
-import type { GameState, PlayerId } from "../engine/types";
+import type { GameEvent, GameState, PlayerId } from "../engine/types";
 import { createGame, type DeckList } from "../engine/setup";
 import { advanceToMainPhase } from "../engine/phases";
 import { applyPlayerAction, playerHasActionStepPlay, type PlayerAction } from "../engine/actions";
 import { applyEvents } from "../engine/events";
-import { viewStateFor, type ViewGameState } from "../engine/viewState";
+import { eventsSinceFor, viewStateFor, type ViewGameState } from "../engine/viewState";
 import { legalMenuFor, type LegalMenu } from "../engine/legalMenu";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
 import { buildBattleLog, type BattleLogEntry } from "../ui/battleLog";
@@ -127,6 +127,8 @@ export interface MatchRecord {
   updatedAt: number;
   /** incrementa a cada `applyAction` — conveniência pra cliente detectar "cheguei atrasado" numa reconexão do socket */
   version: number;
+  /** `eventLog.length` da última transmissão (`notify`) — só em memória; sem ele a próxima visão vai sem `eventsSince` */
+  broadcastEventSeq?: number;
   /** timestamp (epoch ms) até quando a decisão atual pode ser tomada antes do servidor agir sozinho — `null` quando não há decisão pendente (partida ainda não tem os 2 assentos ocupados, ou já terminou). */
   turnDeadlineAt: number | null;
   /** último sinal de vida (ping do cliente OU qualquer ação real) de cada assento — base do W.O. por abandono. */
@@ -248,9 +250,20 @@ export interface MatchView {
   botDeckList?: BotDeckEntry[];
   /** jogadas legais DESTE assento agrupadas por carta (`legalMenuFor`) — a tela desenha botões/alvos a partir daqui */
   legalMenu: LegalMenu;
+  /** posição absoluta do estado desta visão no log do motor (`eventLog.length`) */
+  eventSeq: number;
+  /**
+   * Só na transmissão (`notify`): os eventos desde a transmissão anterior, redigidos para este assento — a tela
+   * anima a partir deles (spec simulador-animacao-pelo-log). Ausente = aplicar a visão sem animar.
+   */
+  eventsSince?: GameEvent[];
+  /** `eventSeq` da visão que `eventsSince` continua — a tela confere com a última que aplicou */
+  eventsFromSeq?: number;
 }
 
-export function matchViewFor(match: MatchRecord, seat: PlayerId): MatchView {
+/** `eventsFrom`: só a transmissão passa — o `eventSeq` da transmissão anterior (ver `notify`) */
+export function matchViewFor(match: MatchRecord, seat: PlayerId, eventsFrom?: number): MatchView {
+  const eventsSince = eventsSinceFor(match.state, eventsFrom, seat);
   return {
     view: viewStateFor(match.state, seat),
     matchId: match.id,
@@ -271,6 +284,8 @@ export function matchViewFor(match: MatchRecord, seat: PlayerId): MatchView {
     botCounter: match.botCounter,
     botDeckList: match.botCounter && match.state.gameOver ? botDeckEntries(match) : undefined,
     legalMenu: legalMenuFor(match.state, seat, ALL_EFFECT_SPECS, { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver }),
+    eventSeq: match.state.eventLog.length,
+    ...(eventsSince ? { eventsSince, eventsFromSeq: eventsFrom } : {}),
   };
 }
 
@@ -300,8 +315,8 @@ function botDeckEntries(match: MatchRecord): BotDeckEntry[] | undefined {
   return [...byCode.values()];
 }
 
-function matchViewsForBothPlayers(match: MatchRecord): Record<PlayerId, MatchView> {
-  return { A: matchViewFor(match, "A"), B: matchViewFor(match, "B") };
+function matchViewsForBothPlayers(match: MatchRecord, eventsFrom?: number): Record<PlayerId, MatchView> {
+  return { A: matchViewFor(match, "A", eventsFrom), B: matchViewFor(match, "B", eventsFrom) };
 }
 
 /**
@@ -1397,7 +1412,9 @@ function logGameOverOnce(match: MatchRecord): void {
 function notify(match: MatchRecord): void {
   logGameOverOnce(match);
   if (globalMatchListeners.size === 0) return;
-  const views = matchViewsForBothPlayers(match);
+  // os dois assentos recebem toda transmissão, então um marcador por partida basta
+  const views = matchViewsForBothPlayers(match, match.broadcastEventSeq);
+  match.broadcastEventSeq = match.state.eventLog.length;
   for (const listener of globalMatchListeners) listener(match.id, views, match);
 }
 

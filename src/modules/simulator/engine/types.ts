@@ -1955,7 +1955,14 @@ export type GameEvent =
   /** docs/19 Sessão 2 — grava/limpa a decisão interativa pendente de um jogador (ver `PendingDecision`). */
   | { type: "SET_PENDING_DECISION"; player: PlayerId; decision: PendingDecision }
   | { type: "CLEAR_PENDING_DECISION"; player: PlayerId }
-  | { type: "GAME_OVER"; winner: PlayerId | null; reason: GameOverInfo["reason"] };
+  | { type: "GAME_OVER"; winner: PlayerId | null; reason: GameOverInfo["reason"] }
+  /**
+   * Narração, sem efeito no estado (spec simulador-animacao-pelo-log): a carta foi jogada da mão. A tela anima a
+   * partir dos eventos; sem isto "Command jogada" teria que ser deduzida de MOVE_CARD hand→trash.
+   */
+  | { type: "CARD_PLAYED"; player: PlayerId; instanceId: string; as: "unit" | "base" | "pilot" | "command"; trigger?: "Main" | "Action" }
+  /** Narração, sem efeito no estado: habilidade ativada (【Activate･Main/Action】, <Support>, 【Burst】). */
+  | { type: "ABILITY_ACTIVATED"; player: PlayerId; instanceId: string; trigger: string };
 
 /**
  * Comprehensive Rules 3-3-6: Pilot pareado segue a Unit pro mesmo destino

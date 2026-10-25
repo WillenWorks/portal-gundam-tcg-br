@@ -44,6 +44,23 @@ describe("EffectResolutionOverlay (Fase 3)", () => {
     expect(screen.getByText("DANO")).toBeInTheDocument();
   });
 
+  it("com eventsBatch, os cues saem dos eventos do lote — mesmo com a janela do eventLog cheia e igual", () => {
+    const rectOf = (key: string) => (key === "u7" ? mockRect(150, 250) : null);
+    // janela de 150 cheia: o eventLog não muda de tamanho nem de cauda entre as visões
+    const window: GameEvent[] = Array.from({ length: 150 }, () => ({ type: "COMBAT_ENDED" }));
+    const { rerender } = render(<EffectResolutionOverlay eventLog={window} rectOf={rectOf} viewerSeat="A" />);
+    rerender(
+      <EffectResolutionOverlay
+        eventLog={window}
+        eventsBatch={{ key: 42, events: [{ type: "DAMAGE_UNIT", instanceId: "u7", amount: 4 }] }}
+        rectOf={rectOf}
+        viewerSeat="A"
+      />,
+    );
+    expect(screen.getByText("-4")).toBeInTheDocument();
+    cleanup();
+  });
+
   it("renderiza cue de destruição e de exílio de carta", () => {
     const rectOf = (_key: string) => mockRect(100, 100);
     const events: GameEvent[] = [

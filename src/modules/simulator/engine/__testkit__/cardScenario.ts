@@ -104,7 +104,10 @@ export function settleDecisions(state: GameState, specs: EffectSpec[]): GameStat
   return next;
 }
 
-/** tudo o que o efeito pode ter mudado: zonas (com ordem), marcas nas cartas e nos jogadores, combate — sem o log */
+/** tudo o que o efeito pode ter mudado: zonas (com ordem), marcas nas cartas e nos jogadores, combate — sem o log.
+ *  As marcas de uso (`usedKeywordsThisTurn`) entram ordenadas: a ordem em que o motor as grava não é efeito. */
 export function fingerprint(state: GameState): string {
-  return JSON.stringify({ players: state.players, combat: state.combat });
+  return JSON.stringify({ players: state.players, combat: state.combat }, (key, value) =>
+    key === "usedKeywordsThisTurn" && Array.isArray(value) ? [...value].sort() : value,
+  );
 }

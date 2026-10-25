@@ -429,6 +429,8 @@ function applyPlayerActionInner(
         if (priority !== actingPlayer) throw new Error("Não é a prioridade desse jogador no Action Step");
       }
 
+      const announced = (s: GameState) =>
+        applyEvent(s, { type: "ABILITY_ACTIVATED", player: actingPlayer, instanceId: action.sourceInstanceId, trigger });
       const abilitySpecs = findTriggerSpecs(specs, source.def.code, trigger);
       if (abilitySpecs.length > 0) {
         // W2c — sem isto a ativação virava no-op silencioso (e o bot podia repetir sem fim)
@@ -451,7 +453,7 @@ function applyPlayerActionInner(
           // W9 — custo/efeito de exilar do trash com mais elegíveis que o necessário: o jogador escolhe quais
           (usable.some((s) => trashExileChoice(state, s, actingPlayer)) && !action.targets?.trashExile);
         if ((costTarget && !action.targets?.[costTarget]?.length) || choiceMissing) {
-          return deferOrDispatchAbilities(state, actingPlayer, trigger, [{ code: source.def.code, instanceId: action.sourceInstanceId }], specs, {
+          return deferOrDispatchAbilities(announced(state), actingPlayer, trigger, [{ code: source.def.code, instanceId: action.sourceInstanceId }], specs, {
             predicateResolver,
             targetFilterResolver,
           });
@@ -481,7 +483,7 @@ function applyPlayerActionInner(
         // `dispatchTrigger` recebia lista vazia, nada era marcado e a ativação continuava legal: o bot
         // reativava sem fim (travamentos da Bot matrix GD05, run 38918657397).
         if (dispatchable.length === 0) {
-          let spent = state;
+          let spent = announced(state);
           for (const s of usable) {
             if (s.oncePerTurn) {
               spent = applyEvent(spent, { type: "MARK_KEYWORD_USED", instanceId: action.sourceInstanceId, keyword: specOncePerTurnMarker(s) });
@@ -492,7 +494,7 @@ function applyPlayerActionInner(
           }
           return spent;
         }
-        return dispatchTrigger(state, action.sourceInstanceId, trigger, dispatchable, {
+        return dispatchTrigger(announced(state), action.sourceInstanceId, trigger, dispatchable, {
           targets: action.targets,
           costResourceIds: action.resourceInstanceIds,
           predicateResolver,
@@ -506,7 +508,7 @@ function applyPlayerActionInner(
       if (trigger === "Activate·Main" && hasKeyword(source, "Support", state)) {
         const supportTargetId = action.targets?.target?.[0];
         if (!supportTargetId) throw new Error("<Support> precisa de uma Unit amiga alvo (targets.target[0])");
-        return activateSupport(state, action.sourceInstanceId, supportTargetId);
+        return activateSupport(announced(state), action.sourceInstanceId, supportTargetId);
       }
 
       throw new Error(`${source.def.code} não tem ${trigger === "Activate·Main" ? "【Activate·Main】 nem <Support>" : "【Activate·Action】"} pra ativar`);
@@ -519,6 +521,7 @@ function applyPlayerActionInner(
       }
       let next = applyEvent(state, { type: "CLEAR_PENDING_DECISION", player: actingPlayer });
       if (action.activate) {
+        next = applyEvent(next, { type: "ABILITY_ACTIVATED", player: actingPlayer, instanceId: decision.cardInstanceId, trigger: "Burst" });
         // V0 (docs/25): alguns 【Burst】 reaproveitam a ação do 【Main】 da mesma
         // carta (ex.: Siege Ploy, Unforeseen Incident) e por isso também podem
         // precisar de alvo nomeado — mesma filtragem de `playCommand`. Mesmo
