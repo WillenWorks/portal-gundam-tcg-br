@@ -133,9 +133,11 @@ import { findAltDiscardCandidates, findEligibleSacrifices, playableModes, type P
 import { getScaledDuration } from "@/modules/simulator/ui/animationSettings";
 import {
   handleOpponentCommandCast,
+  resolveCommandAnimationPoints,
   shouldAnimateAttackStrike,
   shouldWaitForBurstReveal,
 } from "@/modules/simulator/ui/viewAnimationQueue";
+import { cardDefInView, isRepeatedView, planAnimations, timelineFor, type PendingAttack } from "@/modules/simulator/ui/timelinePlayback";
 import { ALL_EFFECT_SPECS, defaultTargetFilterResolver } from "@/modules/simulator/content";
 import { computeLegalTargets, specNeedsNamedTarget } from "@/modules/simulator/engine/effectSpec";
 import { findTriggerSpecs } from "@/modules/simulator/engine/dispatcher";
@@ -909,6 +911,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   // sobrepor com o próximo item da fila sem corromper nenhum estado
   // compartilhado — travar a fila por causa dele só atrasaria sem necessidade.
   const viewQueueRef = useRef<SimulatorMatchView[]>([]);
+  // spec simulador-animacao-pelo-log, fase 3 — último `eventSeq` aplicado e combate cujo golpe ainda não tocou
+  const lastEventSeqRef = useRef<number | null>(null);
+  const pendingAttackRef = useRef<PendingAttack | null>(null);
   const isDrainingViewQueueRef = useRef(false);
   const hasAppliedFirstViewRef = useRef(false);
   const prevViewForQueueRef = useRef<ViewGameState | null>(null);
@@ -929,46 +934,73 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       };
       const prevView = prevViewForQueueRef.current;
       prevViewForQueueRef.current = incoming.view;
-
-      await handleOpponentCommandCast({
-        prevView,
-        incomingView: incoming.view,
-        viewerSeat: incoming.seat,
-        board,
-        fallbackCenter,
-        animateCommand: ({ cardDef, origin, dest }) =>
-          new Promise<void>((resolve) => {
-            let timer: ReturnType<typeof setTimeout> | null = null;
-            const finish = () => {
-              if (timer) clearTimeout(timer);
-              setCommandCast(null);
-              commandCastResolveRef.current = null;
-              resolve();
-            };
-            commandCastResolveRef.current = finish;
-            timer = setTimeout(finish, VIEW_QUEUE_ITEM_TIMEOUT_MS);
-            setCommandCast({ cardDef, origin, dest });
-          }),
-      });
+      const animateCommand = ({ cardDef, origin, dest }: { cardDef: CardDef; origin: { x: number; y: number }; dest: { x: number; y: number } }) =>
+        new Promise<void>((resolve) => {
+          let timer: ReturnType<typeof setTimeout> | null = null;
+          const finish = () => {
+            if (timer) clearTimeout(timer);
+            setCommandCast(null);
+            commandCastResolveRef.current = null;
+            resolve();
+          };
+          commandCastResolveRef.current = finish;
+          timer = setTimeout(finish, VIEW_QUEUE_ITEM_TIMEOUT_MS);
+          setCommandCast({ cardDef, origin, dest });
+        });
+      const strike = (attackerId: string, target: AttackTarget, defendingPlayer: PlayerId) =>
+        Promise.race([
+          executeAttackStrike(attackerId, target, defendingPlayer),
+          new Promise<void>((resolve) => setTimeout(resolve, VIEW_QUEUE_ITEM_TIMEOUT_MS)),
+        ]);
 
       const prevCombat = prevCombatRef.current;
       prevCombatRef.current = incoming.view.combat;
 
-      // Nova leva de correções — causa raiz real do lunge nunca disparar contra o
-      // Bot: em modo treino tanto o assento humano quanto o bot têm
-      // `autoPassActionStep: true` (`trainingMatch.ts`), e `settleAutoPasses`
-      // (`matchStore.ts`) resolve o Action Step dos DOIS lados de forma síncrona no
-      // servidor antes de qualquer resposta chegar aqui — o cliente nunca observa
-      // `combat.step === "action"`. Por isso o gatilho não pode depender de um
-      // `step` intermediário específico: dispara sempre que o combate do MESMO
-      // atacante (attackerId/currentTarget/defendingPlayer já existem desde o
-      // passo "attack") deixou de existir, ou terminou em "battleEnd", ou um novo
-      // combate com atacante diferente já começou no lugar dele.
-      if (prevCombat && shouldAnimateAttackStrike(prevCombat, incoming.view.combat)) {
-        await Promise.race([
-          executeAttackStrike(prevCombat.attackerId, prevCombat.currentTarget, prevCombat.defendingPlayer),
-          new Promise<void>((resolve) => setTimeout(resolve, VIEW_QUEUE_ITEM_TIMEOUT_MS)),
-        ]);
+      // spec simulador-animacao-pelo-log, fase 3 — com eventos contínuos, a tela toca o que o motor fez, na ordem
+      // (vários ataques/Commands no mesmo lote do bot). Visão repetida (POST antes da transmissão) não anima de novo;
+      // sem eventos ou com buraco na sequência, ficam as deduções por comparação de visões.
+      const repeated = isRepeatedView(incoming, lastEventSeqRef.current);
+      const timeline = repeated ? null : timelineFor(incoming, lastEventSeqRef.current);
+      if (incoming.eventSeq !== undefined && !repeated) lastEventSeqRef.current = incoming.eventSeq;
+
+      if (timeline) {
+        const { plan, pendingAttack } = planAnimations(timeline, incoming.seat, pendingAttackRef.current);
+        pendingAttackRef.current = pendingAttack;
+        const opponentSeat: PlayerId = incoming.seat === "A" ? "B" : "A";
+        for (const item of plan) {
+          if (item.kind === "strike") {
+            await strike(item.attackerId, item.target, item.defendingPlayer);
+            continue;
+          }
+          const cardDef = cardDefInView(incoming.view, item.instanceId);
+          if (!cardDef) continue;
+          const { origin, dest } = resolveCommandAnimationPoints(board, opponentSeat, fallbackCenter);
+          await animateCommand({ cardDef, origin, dest });
+        }
+      } else if (!repeated) {
+        pendingAttackRef.current = null;
+        await handleOpponentCommandCast({
+          prevView,
+          incomingView: incoming.view,
+          viewerSeat: incoming.seat,
+          board,
+          fallbackCenter,
+          animateCommand,
+        });
+
+        // Nova leva de correções — causa raiz real do lunge nunca disparar contra o
+        // Bot: em modo treino tanto o assento humano quanto o bot têm
+        // `autoPassActionStep: true` (`trainingMatch.ts`), e `settleAutoPasses`
+        // (`matchStore.ts`) resolve o Action Step dos DOIS lados de forma síncrona no
+        // servidor antes de qualquer resposta chegar aqui — o cliente nunca observa
+        // `combat.step === "action"`. Por isso o gatilho não pode depender de um
+        // `step` intermediário específico: dispara sempre que o combate do MESMO
+        // atacante (attackerId/currentTarget/defendingPlayer já existem desde o
+        // passo "attack") deixou de existir, ou terminou em "battleEnd", ou um novo
+        // combate com atacante diferente já começou no lugar dele.
+        if (prevCombat && shouldAnimateAttackStrike(prevCombat, incoming.view.combat)) {
+          await strike(prevCombat.attackerId, prevCombat.currentTarget, prevCombat.defendingPlayer);
+        }
       }
 
       const isTurnChange =
@@ -1078,6 +1110,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       if (!hasAppliedFirstViewRef.current) {
         hasAppliedFirstViewRef.current = true;
         prevViewForQueueRef.current = incoming.view;
+        lastEventSeqRef.current = incoming.eventSeq ?? null;
         detectDepartures(incoming);
         prevCombatRef.current = incoming.view.combat;
         setMatchView(incoming);
