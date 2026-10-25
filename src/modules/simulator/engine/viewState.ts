@@ -202,6 +202,23 @@ function redactEventLog(state: GameState, log: GameState["eventLog"], viewer: Pl
   );
 }
 
+/**
+ * Mais que isto numa transmissão só (lote patológico) não vale animar: a tela aplica a visão final direto.
+ * Um turno inteiro do bot fica bem abaixo (o golden passa de ~30 eventos por turno).
+ */
+export const MAX_EVENTS_SINCE = 400;
+
+/**
+ * Eventos de `from` em diante, redigidos para `viewer` (spec simulador-animacao-pelo-log): a tela anima a partir
+ * deles em vez de comparar visões. `undefined` quando não há sequência a continuar — `from` desconhecido, de outro
+ * jogo (Bo3 recomeça o log) ou lote grande demais.
+ */
+export function eventsSinceFor(state: GameState, from: number | undefined, viewer: PlayerId): GameState["eventLog"] | undefined {
+  if (from === undefined || from > state.eventLog.length) return undefined;
+  if (state.eventLog.length - from > MAX_EVENTS_SINCE) return undefined;
+  return redactEventLog(state, state.eventLog.slice(from), viewer);
+}
+
 export interface ViewGameState {
   turnNumber: number;
   activePlayer: PlayerId;

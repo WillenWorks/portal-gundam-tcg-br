@@ -29,6 +29,7 @@ import {
   subscribeAllMatches,
   touchPresence,
   type MatchPersistence,
+  type MatchView,
   type StoredMatch,
 } from "./matchStore";
 import { applyPlayerAction } from "../engine/actions";
@@ -181,6 +182,43 @@ describe("subscribeAllMatches — emitter global pro broadcast Socket.io (Frente
     // na visão de A, a mão de B vem redigida (cartas ocultas -> { hidden: true }); na de B, a mão de A.
     expect(views.A.view.players.B.hand.every((c) => (c as { hidden?: boolean }).hidden === true)).toBe(true);
     expect(views.B.view.players.A.hand.every((c) => (c as { hidden?: boolean }).hidden === true)).toBe(true);
+  });
+});
+
+describe("eventsSince — a tela anima pelo log (spec simulador-animacao-pelo-log, fase 1)", () => {
+  it("cada transmissão continua a anterior: eventsFromSeq = eventSeq da última, sem buraco nem repetição", () => {
+    const sent: Array<Record<"A" | "B", MatchView>> = [];
+    const stop = subscribeAllMatches((_id, views) => sent.push(views));
+    const match = newMatch();
+    joinMatch(match.id, "A", { userId: "u1", displayName: "A" });
+    joinMatch(match.id, "B", { userId: "u2", displayName: "B" });
+    const unitInHand = getMatch(match.id)!.state.players.A.hand.find((c) => c.def.cardType === "UNIT" && (c.def.level ?? 0) <= 1);
+    expect(unitInHand).toBeDefined();
+    applyAction(match.id, "u1", { kind: "deployCard", cardInstanceId: unitInHand!.instanceId });
+    applyAction(match.id, "u1", { kind: "finishTurn" });
+    applyAction(match.id, "u2", { kind: "passEndPhaseAction" });
+    applyAction(match.id, "u1", { kind: "passEndPhaseAction" });
+    stop();
+
+    const withEvents = sent.filter((v) => v.A.eventsSince);
+    expect(withEvents.length).toBeGreaterThanOrEqual(2);
+    for (let i = 1; i < sent.length; i++) {
+      for (const seat of ["A", "B"] as const) {
+        const view = sent[i][seat];
+        expect(view.eventsFromSeq).toBe(sent[i - 1][seat].eventSeq);
+        expect(view.eventsSince).toHaveLength(view.eventSeq - view.eventsFromSeq!);
+      }
+    }
+    const all = withEvents.flatMap((v) => v.A.eventsSince!);
+    expect(all).toContainEqual({ type: "CARD_PLAYED", player: "A", instanceId: unitInHand!.instanceId, as: "unit" });
+    expect(all.some((e) => e.type === "TURN_CHANGE")).toBe(true);
+  });
+
+  it("a visão fora da transmissão (GET/POST) leva eventSeq e não leva eventsSince", () => {
+    const match = newMatch();
+    const view = matchViewFor(match, "A");
+    expect(view.eventSeq).toBe(match.state.eventLog.length);
+    expect(view.eventsSince).toBeUndefined();
   });
 });
 

@@ -592,6 +592,10 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       state.gameOver = { winner: event.winner, reason: event.reason };
       return state;
     }
+    case "CARD_PLAYED":
+    case "ABILITY_ACTIVATED":
+      // narração: só entra no log
+      return state;
     case "SPAWN_TOKEN": {
       // Nenhuma checagem de limite de zona (máx. 6 Units/1 Base) aqui de propósito —
       // mesma limitação já aceita pro `moveZone self->baseSection` dos Burst de Base

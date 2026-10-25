@@ -184,9 +184,18 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
     );
   }
 
-  const events: GameEvent[] = freeDeploy
-    ? [...discardEvents]
-    : payCostEvents(base, player, def, options.resourceInstanceIds, playAsPilot ? options.pairWithUnitId : undefined);
+  const played: GameEvent = {
+    type: "CARD_PLAYED",
+    player,
+    instanceId: cardInstanceId,
+    as: playAsPilot ? "pilot" : def.cardType === "BASE" ? "base" : "unit",
+  };
+  const events: GameEvent[] = [
+    played,
+    ...(freeDeploy
+      ? discardEvents
+      : payCostEvents(base, player, def, options.resourceInstanceIds, playAsPilot ? options.pairWithUnitId : undefined)),
+  ];
   if (freeDeploy && options.sacrificeInstanceId) {
     const sacrificed = findCard(base, options.sacrificeInstanceId);
     events.push({ type: "DESTROY_CARD", instanceId: options.sacrificeInstanceId });
@@ -393,7 +402,7 @@ export function playCommand(
   if (withEx || card.paidWithExOnTurn !== undefined) {
     costEvents.push({ type: "MARK_COMMAND_PAYMENT", instanceId: cardInstanceId, withEx, turn: state.turnNumber });
   }
-  let next = applyEvents(state, costEvents);
+  let next = applyEvents(state, [{ type: "CARD_PLAYED", player, instanceId: cardInstanceId, as: "command", trigger }, ...costEvents]);
 
   // docs/47 Classe A — Command com escolha nomeada (ST04-012 Striker Pack 【Main】:
   // Sword ou Launcher): PAUSA pra a camada de decisão, igual `deployCard`. A
