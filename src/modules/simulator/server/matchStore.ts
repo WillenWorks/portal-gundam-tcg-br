@@ -1414,6 +1414,13 @@ function notify(match: MatchRecord): void {
   if (globalMatchListeners.size === 0) return;
   // os dois assentos recebem toda transmissão, então um marcador por partida basta
   const views = matchViewsForBothPlayers(match, match.broadcastEventSeq);
+  // 1ª transmissão (partida nova / servidor reiniciado) sai sem eventos por definição; fora isso é lote grande ou
+  // jogo novo do Bo3 — registrado para medir antes de remover o caminho antigo da tela (spec animação pelo log, fase 4)
+  if (match.broadcastEventSeq !== undefined && !views.A.eventsSince) {
+    console.info(
+      `[SIMULADOR][ANIMAÇÃO] transmissão sem eventsSince match=${match.id} de=${match.broadcastEventSeq} até=${match.state.eventLog.length}`,
+    );
+  }
   match.broadcastEventSeq = match.state.eventLog.length;
   for (const listener of globalMatchListeners) listener(match.id, views, match);
 }

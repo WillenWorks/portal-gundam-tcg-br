@@ -137,7 +137,15 @@ import {
   shouldAnimateAttackStrike,
   shouldWaitForBurstReveal,
 } from "@/modules/simulator/ui/viewAnimationQueue";
-import { cardDefInView, isRepeatedView, planAnimations, timelineFor, type PendingAttack } from "@/modules/simulator/ui/timelinePlayback";
+import {
+  cardDefInView,
+  emptySequenceStats,
+  planAnimations,
+  sequenceStatus,
+  timelineFor,
+  type PendingAttack,
+  type SequenceStats,
+} from "@/modules/simulator/ui/timelinePlayback";
 import { ALL_EFFECT_SPECS, defaultTargetFilterResolver } from "@/modules/simulator/content";
 import { computeLegalTargets, specNeedsNamedTarget } from "@/modules/simulator/engine/effectSpec";
 import { findTriggerSpecs } from "@/modules/simulator/engine/dispatcher";
@@ -929,6 +937,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const viewQueueRef = useRef<SimulatorMatchView[]>([]);
   // spec simulador-animacao-pelo-log, fase 3 — último `eventSeq` aplicado e combate cujo golpe ainda não tocou
   const lastEventSeqRef = useRef<number | null>(null);
+  const sequenceStatsRef = useRef<SequenceStats>(emptySequenceStats());
   const pendingAttackRef = useRef<PendingAttack | null>(null);
   const isDrainingViewQueueRef = useRef(false);
   const hasAppliedFirstViewRef = useRef(false);
@@ -944,8 +953,17 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       // (vários ataques/Commands no mesmo lote do bot; a Unit destruída sai depois do golpe). Visão repetida (POST
       // antes da transmissão) não anima de novo; sem eventos ou com buraco na sequência, ficam as deduções por
       // comparação de visões.
-      const repeated = isRepeatedView(incoming, lastEventSeqRef.current);
-      const timeline = repeated ? null : timelineFor(incoming, lastEventSeqRef.current);
+      const status = sequenceStatus(incoming, lastEventSeqRef.current);
+      sequenceStatsRef.current[status] += 1;
+      if (status === "gap") {
+        console.warn("[SIMULADOR][ANIMAÇÃO] buraco na sequência do log — animando pelo caminho antigo", {
+          ultimoAplicado: lastEventSeqRef.current,
+          eventosDesde: incoming.eventsFromSeq,
+          eventSeq: incoming.eventSeq,
+        });
+      }
+      const repeated = status === "repeated";
+      const timeline = status === "continuous" ? timelineFor(incoming, lastEventSeqRef.current) : null;
       if (incoming.eventSeq !== undefined && !repeated) lastEventSeqRef.current = incoming.eventSeq;
       const prevDepartureView = prevDepartureViewRef.current;
       if (timeline) prevDepartureViewRef.current = incoming.view;
@@ -1335,6 +1353,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         matchView,
         view,
         battleLog,
+        animationSequence: { ...sequenceStatsRef.current },
       });
       setBugReport((s) => ({ ...s, capturing: false, snapshot: snap }));
     } catch (err) {
@@ -3347,6 +3366,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       ) : null}
       {myPendingDecision?.kind === "triggerOrder" ? (
         <TriggerOrderModal
+          // rodadas de gatilho seguidas: remonta, senão a ordem da rodada anterior ia junto
+          key={myPendingDecision.triggers.map((t) => t.specId).join("|")}
           decision={myPendingDecision}
           busy={busy}
           onResolve={(orderedSpecIds) => runAction({ kind: "resolveTriggerOrder", orderedSpecIds })}

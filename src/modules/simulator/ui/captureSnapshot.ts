@@ -3,6 +3,7 @@ import type { PlayerId } from "@/modules/simulator/engine/types";
 import type { ViewGameState, ViewCardInstance } from "@/modules/simulator/engine/viewState";
 import type { BattleLogEntry } from "./battleLog";
 import type { SimulatorMatchView } from "@/lib/api";
+import type { SequenceStats } from "./timelinePlayback";
 
 export interface BugReportSnapshot {
   timestamp: number;
@@ -22,6 +23,8 @@ export interface BugReportSnapshot {
   oppUnitsInPlay: string[];
   screenshotBase64?: string;
   battleLogRecent: string[];
+  /** como as visões chegaram nesta partida: quantas animaram pelo log e quantas caíram no caminho antigo (e por quê) */
+  animationSequence?: SequenceStats;
   browserInfo: {
     userAgent: string;
     screenWidth: number;
@@ -38,6 +41,7 @@ export interface CaptureContext {
   matchView?: SimulatorMatchView | null;
   view: ViewGameState;
   battleLog: BattleLogEntry[];
+  animationSequence?: SequenceStats;
 }
 
 const SCREENSHOT_MAX_WIDTH = 1600;
@@ -57,7 +61,7 @@ export async function captureSimulatorSnapshot(
   containerElement: HTMLElement | null,
   context: CaptureContext,
 ): Promise<BugReportSnapshot> {
-  const { matchId, seat, opponentSeat, matchView, view, battleLog } = context;
+  const { matchId, seat, opponentSeat, matchView, view, battleLog, animationSequence } = context;
 
   const isAgainstBot = Boolean(
     matchView?.botCounter ||
@@ -117,6 +121,7 @@ export async function captureSimulatorSnapshot(
     oppUnitsInPlay: extractUnitCodes(opp.battleArea),
     screenshotBase64,
     battleLogRecent: recentLog,
+    ...(animationSequence ? { animationSequence } : {}),
     browserInfo: {
       userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "N/D",
       screenWidth: typeof window !== "undefined" ? window.screen.width : 0,

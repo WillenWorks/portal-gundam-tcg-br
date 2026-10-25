@@ -22,6 +22,23 @@ export function isRepeatedView(incoming: Pick<SimulatorMatchView, "eventSeq">, l
   return incoming.eventSeq !== undefined && lastSeq !== null && incoming.eventSeq <= lastSeq;
 }
 
+/**
+ * Como a visão se encaixa na sequência do log (spec simulador-animacao-pelo-log, fase 4 — medir antes de remover o
+ * caminho antigo): `continuous` anima pelo log; `repeated` já foi aplicada; `noEvents` veio sem `eventsSince` (GET/POST,
+ * 1ª transmissão, lote grande); `gap` trouxe eventos que não continuam a última visão (mensagem perdida, reconexão).
+ */
+export type SequenceStatus = "continuous" | "repeated" | "noEvents" | "gap";
+
+export function sequenceStatus(incoming: Pick<SimulatorMatchView, "eventSeq" | "eventsSince" | "eventsFromSeq">, lastSeq: number | null): SequenceStatus {
+  if (isRepeatedView(incoming, lastSeq)) return "repeated";
+  if (!incoming.eventsSince || incoming.eventsFromSeq === undefined) return "noEvents";
+  return timelineFor(incoming, lastSeq) ? "continuous" : "gap";
+}
+
+export type SequenceStats = Record<SequenceStatus, number>;
+
+export const emptySequenceStats = (): SequenceStats => ({ continuous: 0, repeated: 0, noEvents: 0, gap: 0 });
+
 export interface PendingAttack {
   attackerId: string;
   target: AttackTarget;
