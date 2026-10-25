@@ -92,6 +92,11 @@ describe(`【Burst】 gerado — ${BURST_CARDS.length} cartas, caminho do jogado
       try {
         declined = settleDefender(apply(state, "B", { kind: "resolveBurstDecision", activate: false }));
         activated = settleDefender(apply(state, "B", activate));
+        // a tela anima a ativação a partir do log (spec simulador-animacao-pelo-log)
+        const announced = activated.eventLog
+          .slice(state.eventLog.length)
+          .some((e) => e.type === "ABILITY_ACTIVATED" && e.instanceId === shieldId && e.trigger === "Burst");
+        if (!announced) falhas.push(`${code}: ativação sem ABILITY_ACTIVATED no log`);
       } catch (err) {
         falhas.push(`${code}: exceção ${(err as Error).message}`);
         continue;

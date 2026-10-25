@@ -60,7 +60,7 @@ const { zeroSystemPolicy } = await import(sim("engine/bot/zeroSystemPolicy.ts"))
 const { randomLegal } = await import(sim("engine/selfPlay.ts"));
 const { checkLegalMenu, legalMenuFor } = await import(sim("engine/legalMenu.ts"));
 const { findViewLeaks, decisionVisibilityGaps } = await import(sim("engine/viewLeaks.ts"));
-const { viewStateFor } = await import(sim("engine/viewState.ts"));
+const { viewStateFor, eventsSinceFor } = await import(sim("engine/viewState.ts"));
 
 const menuOpts = { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver };
 
@@ -73,7 +73,8 @@ function checkState(state, seat) {
   if (args.leaks) {
     for (const viewer of ["A", "B"]) {
       const view = viewStateFor(state, viewer);
-      const leak = findViewLeaks(state, viewer, { view, legalMenu: legalMenuFor(state, viewer, ALL_EFFECT_SPECS, menuOpts) })[0];
+      const eventsSince = eventsSinceFor(state, Math.max(0, state.eventLog.length - 60), viewer);
+      const leak = findViewLeaks(state, viewer, { view, legalMenu: legalMenuFor(state, viewer, ALL_EFFECT_SPECS, menuOpts), eventsSince })[0];
       if (leak) return `vazamento para ${viewer}: ${leak.path} (${leak.instanceId})`;
       const gap = decisionVisibilityGaps(state, view)[0];
       if (gap) return `decisão de ${viewer}: ${gap}`;

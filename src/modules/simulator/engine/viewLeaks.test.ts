@@ -5,7 +5,7 @@ import { PLAYER_IDS } from "./types";
 import { applyPlayerAction, type PlayerAction } from "./actions";
 import { actionOwner, enumerateLegalActions } from "./legalActions";
 import { legalMenuFor } from "./legalMenu";
-import { viewStateFor } from "./viewState";
+import { eventsSinceFor, MAX_EVENTS_SINCE, viewStateFor } from "./viewState";
 import { createRng } from "./rng";
 import { applyEvent } from "./events";
 import { DECK_BUILDERS, GOLDEN_PAIRS } from "./__golden__/harness";
@@ -39,7 +39,12 @@ describe("visão de cada jogador — informação oculta", () => {
     for (const { key, step, state } of allStates(200)) {
       for (const viewer of PLAYER_IDS) {
         views++;
-        const payload = { view: viewStateFor(state, viewer), legalMenu: legalMenuFor(state, viewer, ALL_EFFECT_SPECS, opts) };
+        const payload = {
+          view: viewStateFor(state, viewer),
+          legalMenu: legalMenuFor(state, viewer, ALL_EFFECT_SPECS, opts),
+          // a transmissão leva os eventos desde a anterior (spec simulador-animacao-pelo-log)
+          eventsSince: eventsSinceFor(state, Math.max(0, state.eventLog.length - 60), viewer),
+        };
         for (const leak of findViewLeaks(state, viewer, payload)) leaks.push(`${key}#${step} ${viewer} ${leak.path} (${leak.instanceId})`);
       }
     }
@@ -104,5 +109,22 @@ describe("instanceId não revela a carta oculta", () => {
     const next = applyEvent(state, { type: "RETURN_TRASH_TO_DECK_SHUFFLE", player: "A", instanceIds: voltam.map((c) => c.instanceId) });
     const ids = next.players.A.deck.map((c) => seq(c.instanceId));
     expect(ids).toEqual([...ids].sort((a, b) => a - b));
+  });
+});
+
+describe("eventsSinceFor — eventos para a tela animar", () => {
+  const state = createGame(DECK_BUILDERS[GOLDEN_PAIRS[0].a](), DECK_BUILDERS[GOLDEN_PAIRS[0].b](), { seed: 2, firstPlayer: "A" });
+  const len = state.eventLog.length;
+
+  it("sem sequência para continuar (desconhecida, de outro jogo, lote grande demais): não manda eventos", () => {
+    expect(eventsSinceFor(state, undefined, "A")).toBeUndefined();
+    expect(eventsSinceFor(state, len + 1, "A")).toBeUndefined();
+    const longo = { ...state, eventLog: Array.from({ length: MAX_EVENTS_SINCE + 1 }, () => ({ type: "COMBAT_ENDED" as const })) };
+    expect(eventsSinceFor(longo, 0, "A")).toBeUndefined();
+  });
+
+  it("devolve exatamente os eventos depois de `from`", () => {
+    expect(eventsSinceFor(state, len, "A")).toEqual([]);
+    expect(eventsSinceFor(state, Math.max(0, len - 3), "B")).toHaveLength(Math.min(3, len));
   });
 });
