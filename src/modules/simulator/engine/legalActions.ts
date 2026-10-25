@@ -91,7 +91,7 @@ function enemyUnits(state: GameState, seat: PlayerId): CardInstance[] {
 }
 
 /** ids de alvo "target" exigidos por algum spec do gatilho, já filtrados. `[]` se nada exige alvo. */
-function neededTargetIds(
+export function neededTargetIds(
   state: GameState,
   seat: PlayerId,
   cardCode: string,

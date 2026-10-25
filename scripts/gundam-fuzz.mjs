@@ -18,6 +18,7 @@
  *   node scripts/gundam-fuzz.mjs --policyA=facil             # (random|heuristic|facil|mcts), default random
  *   node scripts/gundam-fuzz.mjs --policyA=mcts --rollouts=8 # MCTS (rollouts baixos p/ não demorar)
  *   node scripts/gundam-fuzz.mjs --pool=GD01,ST08 --totalGames=5000  # pairwise só nesse subconjunto, ~5000 partidas no total
+ *   node scripts/gundam-fuzz.mjs --menu                # também confere, a cada jogada, o menu da tela contra o motor (checkLegalMenu)
  *
  * Reprodução de um achado: o log imprime `par + seed + ação` — rode
  * `node scripts/gundam-fuzz.mjs --decks=<par> --games=1 --seed=<seed>`.
@@ -56,6 +57,7 @@ const { heuristicPolicy } = await import(sim("engine/bot/heuristicPolicy.ts"));
 const { mctsPolicy } = await import(sim("engine/bot/mctsPolicy.ts"));
 const { zeroSystemPolicy } = await import(sim("engine/bot/zeroSystemPolicy.ts"));
 const { randomLegal } = await import(sim("engine/selfPlay.ts"));
+const { checkLegalMenu } = await import(sim("engine/legalMenu.ts"));
 
 /** `random` (default) | `heuristic` | `facil` | `mcts` | `zero_system` | `treize` — resolve o nome pra uma Policy do self-play. */
 function resolvePolicy(name, rollouts) {
@@ -118,8 +120,10 @@ function parseArgs(argv) {
     policyA: "random",
     policyB: "random",
     rollouts: 8,
+    menu: false,
   };
   for (const a of argv) {
+    if (a === "--menu") args.menu = true;
     const m = a.match(/^--([^=]+)=(.*)$/);
     if (!m) continue;
     const [, k, v] = m;
@@ -203,6 +207,9 @@ for (const [a, b] of pairs) {
         targetFilterResolver: defaultTargetFilterResolver,
         policyA,
         policyB,
+        ...(args.menu
+          ? { checkState: (state, seat) => checkLegalMenu(state, seat, ALL_EFFECT_SPECS, { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver }) }
+          : {}),
       });
     } catch (err) {
       findings.push({ pair: `${a}x${b}`, seed, kind: "throw", detail: err?.stack ?? String(err) });
