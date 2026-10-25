@@ -5,6 +5,7 @@ import { advanceToMainPhase } from "./phases";
 import { applyPlayerAction, type PlayerAction } from "./actions";
 import { actionOwner, enumerateLegalActions } from "./legalActions";
 import { checkLegalMenu, legalMenuFor } from "./legalMenu";
+import { isHiddenCard, viewStateFor } from "./viewState";
 import { createRng } from "./rng";
 import { placeCard } from "./__testkit__/cardHarness";
 import { DECK_BUILDERS, GOLDEN_PAIRS } from "./__golden__/harness";
@@ -45,6 +46,37 @@ describe("legalMenuFor — diferencial com enumerateLegalActions", () => {
     }
     expect(states).toBeGreaterThan(3000);
     expect(divergences.slice(0, 10)).toEqual([]);
+  }, 120_000);
+});
+
+describe("legalMenuFor — informação oculta", () => {
+  it("todo id do menu é de carta que o jogador vê (nada de mão/deck/escudo escondido)", () => {
+    const leaks: string[] = [];
+    for (const { key, step, state, seat } of sampledStates(GOLDEN_PAIRS.slice(0, 12), 120)) {
+      const menu = legalMenuFor(state, seat, ALL_EFFECT_SPECS, opts);
+      const view = viewStateFor(state, seat);
+      const visible = new Set(
+        Object.values(view.players).flatMap((p) =>
+          (["hand", "battleArea", "baseSection", "resourceArea", "trash", "exile"] as const).flatMap((z) => p[z].filter((c) => !isHiddenCard(c)).map((c) => c.instanceId)),
+        ),
+      );
+      const ids = menu.entries.flatMap((e) => {
+        switch (e.kind) {
+          case "deployCard":
+            return [e.cardInstanceId, ...e.pairWithUnitIds];
+          case "playCommand":
+            return [e.cardInstanceId, ...e.slots.flatMap((sl) => sl.legalTargets), ...(e.altCostDiscardId ? [e.altCostDiscardId] : [])];
+          case "activateAbility":
+            return [e.sourceInstanceId, ...e.slots.flatMap((sl) => sl.legalTargets)];
+          case "declareAttack":
+            return [e.attackerId, ...e.targets.flatMap((t) => (t === "player" ? [] : [t.unitId]))];
+          case "activateBlocker":
+            return [e.blockerId];
+        }
+      });
+      for (const id of ids) if (!visible.has(id)) leaks.push(`${key}#${step} ${id}`);
+    }
+    expect(leaks.slice(0, 10)).toEqual([]);
   }, 120_000);
 });
 
