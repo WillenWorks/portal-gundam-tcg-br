@@ -116,7 +116,18 @@ import { useCardLanguage } from "@/i18n/useCardLanguage";
 import type { HiddenCard, ViewCardInstance, ViewGameState, ViewPlayerState } from "@/modules/simulator/engine/viewState";
 import { pairingNeedsExtraTarget, resolveDeploySelection } from "@/modules/simulator/ui/deployIntent";
 import { fieldAbilityFor, type FieldAbility } from "@/modules/simulator/ui/abilityIntent";
-import { abilityTargetsFromMenu, fieldAbilityFromMenu } from "@/modules/simulator/ui/menuIntent";
+import {
+  abilityTargetsFromMenu,
+  altDiscardIdsFromMenu,
+  attackTargetsFromMenu,
+  blockerIdsFromMenu,
+  commandSecondaryFromMenu,
+  commandTargetsFromMenu,
+  fieldAbilityFromMenu,
+  handModesFromMenu,
+  normalCommandFromMenu,
+  pairTargetsFromMenu,
+} from "@/modules/simulator/ui/menuIntent";
 import { findAltDiscardCandidates, findEligibleSacrifices, playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
 import { getScaledDuration } from "@/modules/simulator/ui/animationSettings";
 import {
@@ -1736,6 +1747,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const legalMenu = matchView.legalMenu;
   const fieldAbilityOf = (card: CardInstance, timing: "main" | "action"): FieldAbility | null =>
     legalMenu ? fieldAbilityFromMenu(legalMenu, card.instanceId) : fieldAbilityFor(card, timing);
+  const myHandCardsById = (id: string): CardInstance[] =>
+    view.players[seat].hand.filter((c): c is CardInstance => !isHidden(c) && c.instanceId === id);
   const commandTrigger: "Main" | "Action" | null = inActionStep ? "Action" : myTurnMain ? "Main" : null;
   // Motivo (curto, mostrado no preview da carta) de por que uma Unit/Pilot/Base não pode ser jogada
   // agora -- só entra em jogo quando `myTurnMain` é falso (rodada 5: antes o botão só ficava cinza
@@ -1824,6 +1837,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     if (pending.kind === "deploy") {
       const isPilot = pendingCard.def?.cardType === "PILOT" || Boolean(pendingCard.def?.pilotMode);
       if (isPilot) {
+        if (legalMenu) return pairTargetsFromMenu(legalMenu, pendingCard.instanceId) ?? none;
         // Piloto pareia com Unit amiga livre (sem piloto acoplado)
         const myUnits = view.players[seat].battleArea.filter((c) => !isHidden(c)) as CardInstance[];
         return {
@@ -1878,6 +1892,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
     if (pending.kind === "command") {
       const trigger = pending.trigger ?? "Main";
+      if (legalMenu) return commandTargetsFromMenu(legalMenu, pendingCard.instanceId, trigger, pending.altDiscardId) ?? none;
       const specs = findTriggerSpecs(ALL_EFFECT_SPECS, pendingCard.def.code, trigger);
       const needing = specs.filter((s) => specNeedsNamedTarget(s));
       if (needing.length === 0) return none;
@@ -1908,7 +1923,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
   /** W0 — 2º pool de alvo da Command (`secondaryTarget`): a tela ilumina esse pool depois que o 1º alvo foi escolhido. */
   const secondaryTargeting =
-    pending?.kind === "command" && pendingCard?.def
+    pending?.kind === "command" && pendingCard?.def && legalMenu
+      ? commandSecondaryFromMenu(legalMenu, pendingCard.instanceId, pending.trigger ?? "Main", pending.altDiscardId)
+      : pending?.kind === "command" && pendingCard?.def
       ? secondaryTargetingFor(boardForStats, seat, pendingCard.def.code, pending.trigger ?? "Main", ALL_EFFECT_SPECS, defaultTargetFilterResolver)
       : null;
   const inSecondaryStage = Boolean(secondaryTargeting) && primaryTargetsDone(primaryLegalTargetIds.size, requiredTargetCount, selected);
@@ -2030,8 +2047,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     // docs/54 tarefa 3 — sem alvo e custo 0: resolve na hora, sem passar pelo
     // estado `pending` (nunca chega a piscar um HUD "escolha o alvo/recurso").
     const effCost = altDiscardId && card.def.altPlayByDiscard ? card.def.altPlayByDiscard.cost : effectiveCost(card.def, view as unknown as GameState, seat);
-    const specs = findTriggerSpecs(ALL_EFFECT_SPECS, card.def.code, commandTrigger);
-    const needsTarget = specs.some((s) => specNeedsNamedTarget(s));
+    const needsTarget = legalMenu
+      ? commandTargetsFromMenu(legalMenu, card.instanceId, commandTrigger, altDiscardId) !== null
+      : findTriggerSpecs(ALL_EFFECT_SPECS, card.def.code, commandTrigger).some((s) => specNeedsNamedTarget(s));
     if (effCost === 0 && !needsTarget) {
       sfx.playDeploy();
       runAction({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: commandTrigger, altCostDiscardId: altDiscardId });
@@ -2149,10 +2167,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     };
   };
 
+  /** modos de jogo da carta da mão: do menu do motor quando o servidor manda; senão, regras locais */
+  const handModesOf = (c: CardInstance) => (legalMenu ? handModesFromMenu(legalMenu, c.instanceId) : playableModes(c.def, playabilityCtx()));
+
   /** Modos de jogo de uma carta da mão AGORA (considerando custo/nível/fase/alvo). Vazio = injogável. */
   const handPlayModes = (c: CardInstance): HandPlayMode[] => {
     const ctx = playabilityCtx();
-    const modes = playableModes(c.def, ctx);
+    const modes = handModesOf(c);
     const asCommand: HandPlayMode = { label: tr(`Jogar como Comando (${commandTrigger ?? "Main"})`, `Play as Command (${commandTrigger ?? "Main"})`), run: () => { setPreview(null); startCommand(c); } };
     const asPilot: HandPlayMode = { label: tr("Jogar como Piloto", "Play as Pilot"), run: () => { setPreview(null); startDeploy(c); } };
     const plain = (label: string, fn: (card: CardInstance, sacId?: string) => void, sacId?: string): HandPlayMode => ({
@@ -2173,11 +2194,16 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     if (c.def?.cardType === "COMMAND") {
       if (!modes.length) return [];
       // W9 — ST10-014: custo alternativo por descarte (uma opção por carta elegível)
-      const altCandidates = findAltDiscardCandidates(c.def, ctx, c.instanceId);
+      const altCandidates = legalMenu
+        ? altDiscardIdsFromMenu(legalMenu, c.instanceId).flatMap((id) => myHandCardsById(id))
+        : findAltDiscardCandidates(c.def, ctx, c.instanceId);
       if (altCandidates.length === 0) return [plain("Jogar", startCommand)];
       const out: HandPlayMode[] = [];
       const normalCost = effectiveCost(c.def, ctx.state, ctx.controller);
-      if (ctx.activeResources >= normalCost && ctx.totalResources >= effectiveLevel(c.def, ctx.state, ctx.controller)) {
+      const normalPlayable = legalMenu
+        ? normalCommandFromMenu(legalMenu, c.instanceId, commandTrigger ?? "Main")
+        : ctx.activeResources >= normalCost && ctx.totalResources >= effectiveLevel(c.def, ctx.state, ctx.controller);
+      if (normalPlayable) {
         out.push(plain(tr(`Jogar Normal (Custo ${normalCost})`, `Play Normally (Cost ${normalCost})`), startCommand));
       }
       for (const d of altCandidates) {
@@ -2195,7 +2221,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     // Verificação de sacrifício alternativo (GD01-002 Unicorn Gundam, etc.)
     const eligibleSacrifices = findEligibleSacrifices(c.def, ctx);
     const normalCost = effectiveCost(c.def, ctx.state, ctx.controller);
-    const normalAffordable = ctx.activeResources >= normalCost && ctx.totalResources >= effectiveLevel(c.def, ctx.state, ctx.controller) && ctx.myTurnMain;
+    // sacrifício alternativo (GD01-002) não sai do menu: `enumerateLegalActions` não oferece esse deploy
+    const normalAffordable = legalMenu
+      ? modes.includes("deploy")
+      : ctx.activeResources >= normalCost && ctx.totalResources >= effectiveLevel(c.def, ctx.state, ctx.controller) && ctx.myTurnMain;
 
     const out: HandPlayMode[] = [];
     if (normalAffordable && modes.includes("deploy")) {
@@ -2345,7 +2374,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
     // mesma regra do servidor (`attackTargetError`): provocação, relaxamentos, "não mira o jogador"
     const canAttackerTargetEnemyUnit = (attacker: CardInstance, targetUnit: CardInstance): boolean =>
-      attackTargetError(boardForStats, attacker, { unitId: targetUnit.instanceId }) === null;
+      legalMenu
+        ? Boolean(attackTargetsFromMenu(legalMenu, attacker.instanceId)?.unitIds.has(targetUnit.instanceId))
+        : attackTargetError(boardForStats, attacker, { unitId: targetUnit.instanceId }) === null;
+    const menuBlockers = legalMenu ? blockerIdsFromMenu(legalMenu) : null;
 
     const isLegalTargetForSlot = (unit: CardInstance | null): boolean => {
       if (!unit) return false;
@@ -2356,7 +2388,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         return attackerUnit ? canAttackerTargetEnemyUnit(attackerUnit, unit) : unit.rested;
       }
       if (canBlockWith) {
-        return hasKeyword(unit, "Blocker", boardForStats) && !unit.rested;
+        return menuBlockers ? menuBlockers.has(unit.instanceId) : hasKeyword(unit, "Blocker", boardForStats) && !unit.rested;
       }
       return false;
     };
@@ -2375,7 +2407,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       const canActivate = Boolean(ability && (legalMenu || myActiveResources >= ability.cost));
       const isLegal = isLegalTargetForSlot(unit);
 
-      const canAttackThisUnit = canAttackFrom && Boolean(unit) && canUnitAttackNow(unit!);
+      const canAttackThisUnit =
+        canAttackFrom && Boolean(unit) && (legalMenu ? attackTargetsFromMenu(legalMenu, unit!.instanceId) !== null : canUnitAttackNow(unit!));
       const isAttackTarget = canBeTargeted && isLegal;
       const actions =
         unit && (canAttackThisUnit || isAttackTarget || canBlockWith || canActivate)
@@ -2386,7 +2419,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                     const opponent = view.players[opponentPid];
                     const enemyUnits = publicUnits(opponent);
                     const hasLegalEnemyUnit = enemyUnits.some((eu) => canAttackerTargetEnemyUnit(u, eu));
-                    const cannotTargetPlayer = Boolean(u.def?.attackTargetRules?.cannotTargetPlayer);
+                    const cannotTargetPlayer = legalMenu
+                      ? !attackTargetsFromMenu(legalMenu, u.instanceId)?.player
+                      : Boolean(u.def?.attackTargetRules?.cannotTargetPlayer);
 
                     // Se não há unidades inimigas que possam ser alvos legais, o único alvo válido é o jogador:
                     if (!hasLegalEnemyUnit && !cannotTargetPlayer) {
@@ -2589,7 +2624,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     // Base) declara o ataque direto na hora, sem modal intermediária.
     const directAttacker = attackerId ? publicUnits(view.players[seat]).find((u) => u.instanceId === attackerId) : null;
     const isDirectAttackTarget =
-      !isSelf && attackerId !== null && combat === null && !!directAttacker && attackTargetError(boardForStats, directAttacker, "player") === null;
+      !isSelf &&
+      attackerId !== null &&
+      combat === null &&
+      !!directAttacker &&
+      (legalMenu ? Boolean(attackTargetsFromMenu(legalMenu, directAttacker.instanceId)?.player) : attackTargetError(boardForStats, directAttacker, "player") === null);
     return {
       shields: (
         <ShieldRail
@@ -2847,7 +2886,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     if (iAmDefending) return { kind: "defending" };
     if (inActionStep) {
       const ctx = playabilityCtx();
-      const hasPlay = myHandCards.some((c) => playableModes(c.def, ctx).includes("commandAction"));
+      const hasPlay = myHandCards.some((c) => (legalMenu ? handModesFromMenu(legalMenu, c.instanceId) : playableModes(c.def, ctx)).includes("commandAction"));
       return { kind: "actionStep", scope: iHavePriority ? "combat" : "endPhase", autoPass: dockAutoPass, hasPlay };
     }
     // Só domina o dock quando você NÃO é quem deve agir — na sua Main Phase o dock
@@ -3049,7 +3088,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                     : myHandCards.map((c) => {
                         const { playable, blockedReason, effectiveCost: effCost } = describeHandCard(c);
                         const actionStepPlayable = Boolean(
-                          inActionStep && playable && playableModes(c.def, playabilityCtx()).includes("commandAction"),
+                          inActionStep && playable && handModesOf(c).includes("commandAction"),
                         );
                         return { card: c, playable, blockedReason, effectiveCost: effCost, actionStepPlayable };
                       })
