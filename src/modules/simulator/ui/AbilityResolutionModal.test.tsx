@@ -914,3 +914,48 @@ describe("decisão vinda do motor (camada 2 — a tela mostra o que o texto mand
     expect(screen.queryAllByText(top.def.code)).toHaveLength(0);
   });
 });
+
+describe("decisão trocada no mesmo modal (relato: Domon Kasshu → descarte de Special Move)", () => {
+  it("When Paired com descarte e depois o 'Then' opcional: o modal reinicia sem quebrar", () => {
+    const discard: AR = {
+      kind: "abilityResolution",
+      trigger: "When Paired",
+      queue: [
+        {
+          sourceInstanceId: "domon",
+          specId: "GD05-097-WhenPaired",
+          label: "【When Paired】Draw 1. Then, discard 1.",
+          optional: false,
+          needsTarget: false,
+          targetScope: "enemyUnit",
+          legalTargets: [],
+          handDiscard: { n: 1, legalHandIds: ["punch"], label: "discard 1" },
+        },
+      ],
+    };
+    const then: AR = {
+      kind: "abilityResolution",
+      trigger: "Then:1",
+      parentTrigger: "When Paired",
+      queue: [
+        {
+          sourceInstanceId: "domon",
+          specId: "GD05-097-Then",
+          label: "If you discard a (Special Move) Command card with this effect, you may activate its 【Main】.",
+          optional: true,
+          needsTarget: false,
+          targetScope: "enemyUnit",
+          legalTargets: [],
+          implicitTargets: { previousTarget: ["punch"] },
+        },
+      ],
+    };
+    const onResolve = vi.fn();
+    // o mesmo componente recebe a decisão nova (a página não remonta o modal)
+    const { rerender } = render(<Harness decision={discard} onResolve={onResolve} />);
+    expect(() => rerender(<Harness decision={then} onResolve={onResolve} />)).not.toThrow();
+    expect(screen.getByText(/you may activate its 【Main】/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+    expect(onResolve).toHaveBeenLastCalledWith([expect.objectContaining({ specId: "GD05-097-Then" })]);
+  });
+});

@@ -3366,6 +3366,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       ) : null}
       {myPendingDecision?.kind === "triggerOrder" ? (
         <TriggerOrderModal
+          // rodadas de gatilho seguidas: remonta, senão a ordem da rodada anterior ia junto
+          key={myPendingDecision.triggers.map((t) => t.specId).join("|")}
           decision={myPendingDecision}
           busy={busy}
           onResolve={(orderedSpecIds) => runAction({ kind: "resolveTriggerOrder", orderedSpecIds })}

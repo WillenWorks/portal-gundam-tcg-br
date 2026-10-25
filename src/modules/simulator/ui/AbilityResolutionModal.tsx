@@ -194,6 +194,19 @@ export function AbilityResolutionModal({
   /** a escolha do exílio vale quando o efeito ativa (obrigatório, ou "you may" ligado) */
   const exileActive = (specId: string) => !itemFor(specId).optional || Boolean(activate[specId]);
 
+  // A página reaproveita este componente entre decisões (sem `key`): quando a fila muda — continuação "Then:", 【Main】
+  // ativado pelo efeito —, o estado local ainda apontava os efeitos da decisão anterior e `itemFor` voltava undefined
+  // (relato: Domon Kasshu descartando um Special Move → "reading 'trashExile'"). Reinicia antes de desenhar.
+  const queueKey = decision.queue.map((q) => q.specId).join("|");
+  const [stateKey, setStateKey] = useState(queueKey);
+  if (stateKey !== queueKey) {
+    setStateKey(queueKey);
+    setOrder(decision.queue.map((q) => q.specId));
+    setReorder({});
+    setExiles({});
+    return null;
+  }
+
   const itemFor = (specId: string) => decision.queue.find((q) => q.specId === specId)!;
   const optionsFor = (specId: string) => itemFor(specId).legalTargets.map((instanceId) => ({ instanceId, label: resolveLabel(instanceId) }));
 
