@@ -189,6 +189,19 @@ function redactPendingDecision(
  */
 const EVENT_LOG_WINDOW = 150;
 
+/**
+ * O log grava cada `SET_PENDING_DECISION` com a decisão inteira — inclusive as cartas do topo do deck que o
+ * texto mandou o DONO olhar (ST02-015, GD01-039 Dopp, ST03-006…). Sem isto o oponente lia essas cartas no
+ * `eventLog` mesmo com a `pendingDecision` redigida. Mesma redação de `redactPendingDecisionFor`.
+ */
+function redactEventLog(state: GameState, log: GameState["eventLog"], viewer: PlayerId): GameState["eventLog"] {
+  return log.map((event) =>
+    event.type === "SET_PENDING_DECISION" && event.player !== viewer
+      ? { ...event, decision: redactPendingDecisionFor(state, event.decision, false) as PendingDecision }
+      : event,
+  );
+}
+
 export interface ViewGameState {
   turnNumber: number;
   activePlayer: PlayerId;
@@ -216,10 +229,11 @@ export interface ViewGameState {
 /**
  * Ponto de vista de `viewer` sobre `state`. Nunca devolve `CardInstance`
  * (com `def`) pra uma carta em zona oculta que não seja da própria mão do
- * viewer — devolve `HiddenCard` no lugar. `combat`/`endPhaseAction`/
- * `eventLog` são repassados como estão: nenhum dos três embute
- * `CardDef`/identidade de carta oculta (só `instanceId`, que sozinho não
- * revela nada pra quem não tem acesso à `def` correspondente).
+ * viewer — devolve `HiddenCard` no lugar. `combat`/`endPhaseAction` são
+ * repassados como estão (só `instanceId`, que não revela a carta: ver
+ * `renumberByPosition` em setup.ts); o `eventLog` passa pela redação das
+ * decisões do oponente (`redactEventLog`). `findViewLeaks` (viewLeaks.ts)
+ * cobra isso sobre o payload inteiro.
  */
 export function viewStateFor(state: GameState, viewer: PlayerId): ViewGameState {
   return {
@@ -230,7 +244,7 @@ export function viewStateFor(state: GameState, viewer: PlayerId): ViewGameState 
     endPhaseAction: state.endPhaseAction,
     pendingDecision: redactPendingDecision(state, state.pendingDecision, viewer),
     gameOver: state.gameOver,
-    eventLog: state.eventLog.slice(-EVENT_LOG_WINDOW),
+    eventLog: redactEventLog(state, state.eventLog.slice(-EVENT_LOG_WINDOW), viewer),
     viewer,
     engineVersion: state.engineVersion,
     players: {

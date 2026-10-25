@@ -403,6 +403,10 @@ function pendingDecisionCandidates(state: GameState, seat: PlayerId, specs: Effe
           else idChoices.push(ids, [...ids].reverse()); // 2 slots: a→topo b→fundo | b→topo a→fundo
         } else if (q.enumChoice) {
           for (const opt of q.enumChoice.options) idChoices.push([opt.value]);
+        } else if (q.trashSearch) {
+          // "Choose 1 … from your trash": antes só saía "nenhuma" — o bot nunca pegava a carta (camada 1 de Burst)
+          for (const id of q.trashSearch.legalTrashIds) idChoices.push([id]);
+          idChoices.push([]);
         } else if (q.needsTarget) {
           for (const id of q.legalTargets) idChoices.push([id]);
           if (q.legalTargets.length === 0 || q.optional) idChoices.push([]);
