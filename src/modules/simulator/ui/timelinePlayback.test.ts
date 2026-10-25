@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isRepeatedView, planAnimations, timelineFor, type PendingAttack, type PlannedAnimation } from "./timelinePlayback";
+import { isRepeatedView, planAnimations, sequenceStatus, timelineFor, type PendingAttack, type PlannedAnimation } from "./timelinePlayback";
 import { timelineFromEvents } from "./eventTimeline";
 import type { GameEvent, GameState, PlayerId } from "../engine/types";
 import { PLAYER_IDS } from "../engine/types";
@@ -34,6 +34,16 @@ describe("timelineFor / isRepeatedView — só anima visão que continua a últi
     expect(isRepeatedView({ eventSeq: 12 }, 12)).toBe(true);
     expect(isRepeatedView({ eventSeq: 13 }, 12)).toBe(false);
     expect(isRepeatedView({}, 12)).toBe(false);
+  });
+});
+
+describe("sequenceStatus — medir como as visões chegam (fase 4)", () => {
+  const events: GameEvent[] = [{ type: "COMBAT_ENDED" }];
+  it("classifica contínua, repetida, sem eventos e buraco", () => {
+    expect(sequenceStatus({ eventSeq: 11, eventsSince: events, eventsFromSeq: 10 }, 10)).toBe("continuous");
+    expect(sequenceStatus({ eventSeq: 10, eventsSince: events, eventsFromSeq: 9 }, 10)).toBe("repeated");
+    expect(sequenceStatus({ eventSeq: 12 }, 10)).toBe("noEvents");
+    expect(sequenceStatus({ eventSeq: 15, eventsSince: events, eventsFromSeq: 14 }, 10)).toBe("gap");
   });
 });
 
