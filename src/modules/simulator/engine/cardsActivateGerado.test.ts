@@ -61,7 +61,7 @@ const effectless = (spec: EffectSpec): EffectSpec => ({ ...spec, actions: [], co
  * nem "Choose" sem alvo legal). A lista é cobrada. */
 const NAO_OFERECIDAS_NO_TABULEIRO: string[] = [
   // custo "Exile N (X) cards from your trash" — lixeira sem as cartas
-  "EB01-001", "GD03-015", "GD03-035", "GD03-050", "GD04-065", "GD04-071", "GD04-130", "ST12-006",
+  "EB01-001", "GD03-015", "GD03-050", "GD04-065", "GD04-071", "GD04-130", "ST12-006",
   // custo "Rest N of your (X) Units" / "Destroy 1 friendly Unit token" — sem as Units/token
   "GD04-006", "GD04-125", "GD05-038", "ST13-010",
   // "Choose 1 (Londo Bell)/damaged/token Unit" sem alvo legal
@@ -70,10 +70,10 @@ const NAO_OFERECIDAS_NO_TABULEIRO: string[] = [
 
 /* 【Activate･Main】 sem rastro além do custo, neste tabuleiro, por motivo. A lista é cobrada. */
 const SEM_RASTRO_NO_TABULEIRO: string[] = [
-  // "If …" que o tabuleiro não tem (trait, Link Unit, nome, destruída por efeito, combate no turno, sem Piloto + lixeira)
-  "GD01-023", "GD05-079", "GD05-126", "GD05-128", "GD05-129", "ST06-014", "ST12-016",
-  // efeito sem material: Link Units, carta com keyword na lixeira, "Impulse Gundam" na lixeira
-  "ST01-016", "GD04-067", "ST09-001",
+  // "If …" que o tabuleiro não tem (trait, Link Unit, nome, destruída por efeito, combate no turno)
+  "GD05-079", "GD05-126", "GD05-128", "GD05-129", "ST06-014", "ST12-016",
+  // efeito sem material: Link Units, carta com keyword na lixeira
+  "ST01-016", "GD04-067",
   // escolha que não muda nada: "recovers HP" na 1ª Unit (sem dano); "Set this Unit as active" já ativa
   "GD01-124", "ST08-015", "ST02-006",
 ];

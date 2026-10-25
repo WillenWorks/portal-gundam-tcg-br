@@ -12,11 +12,11 @@ import { ALL_CARD_DEFS } from "../../content/allCardDefs";
 
 export const scenarioOpts = { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver };
 
-/** 1 carta que casa o filtro de cada "Choose 1 … card from your trash" dos specs */
+/** 1 carta que casa o filtro de cada "Choose 1 … card from your trash" dos specs (buscar, parear ou jogar da lixeira) */
 export function trashMaterialFor(specs: readonly EffectSpec[]): CardDef[] {
   return specs.flatMap((s) =>
     [...(s.actions ?? []), ...(s.condition?.then ?? [])].flatMap((a) => {
-      if (a.op !== "searchTrashToHand") return [];
+      if (a.op !== "searchTrashToHand" && a.op !== "pairFromTrashSearch" && a.op !== "deployFromTrashPayingCost") return [];
       const def = Object.values(ALL_CARD_DEFS).find((d) => !d.isToken && matchesCardDefFilter(d, a.filter));
       return def ? [def] : [];
     }),
@@ -74,6 +74,19 @@ export function partnerFor(specs: readonly EffectSpec[], card?: CardDef): { pilo
     pilot: { code: "CA-PILOT", nameEn: pilotName, cardType: "PILOT", color: pilotColor, level: pilotLevel, cost: 1, ap: 1, hp: 1, traits: [...pilotTraits] },
     unit: { ...ST01_CARD_DEFS.GM, code: "CA-UNIT", nameEn: "Test Unit", color: unitColor, traits: [...unitTraits], ...(unitLink ? { link: unitLink } : {}) },
   };
+}
+
+/**
+ * Unit amiga que casa o `targetFilter` do spec ("Choose 1 friendly (Clan) Unit", "damaged", "Lv.5 or higher",
+ * "4 or less AP"), sem habilidade. `null` quando o filtro não fala de trait/dano/nível/AP.
+ */
+export function friendlyTargetFor(spec: EffectSpec): CardDef | null {
+  const parts = spec.targetFilter?.split(";") ?? [];
+  const traits = parts.flatMap((p) => (p.startsWith("trait:") ? [p.slice(6)] : p.startsWith("anyTrait:") ? p.slice(9).split(",").slice(0, 1) : []));
+  const minLevel = parts.map((p) => /^level>=(\d+)$/.exec(p)).find(Boolean);
+  if (traits.length === 0 && !minLevel && !parts.includes("damaged")) return null;
+  const level = minLevel ? Number(minLevel[1]) : ST01_CARD_DEFS.GM.level;
+  return { ...ST01_CARD_DEFS.GM, code: "CA-TARGET", nameEn: "Test Target", level, hp: 5, traits };
 }
 
 /** resolve as decisões pendentes pela 1ª jogada legal que ativa, preferindo escolher algo quando dá */

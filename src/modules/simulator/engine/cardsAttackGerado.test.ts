@@ -72,7 +72,7 @@ const SEM_RASTRO_NO_TABULEIRO: string[] = [
   // "Choose … (enemy <Blocker>, Pilot inimigo, token, Linked (X), Resource descansado)" sem alvo que case
   "EB01-024", "GD01-029", "GD03-018", "GD04-099", "GD01-066", "GD05-039", "GD05-066",
   // "Choose N (X) cards from your trash" / "deploy … from your trash" — lixeira sem as cartas
-  "GD01-003", "GD03-059", "GD04-049", "GD04-050", "GD05-033",
+  "GD03-059", "GD04-049", "GD05-033",
   // "Activate 【Main】 on the card paired with this Unit" — o Piloto de teste não tem 【Main】
   "GD05-035", "GD05-044", "GD05-069", "GD05-076",
   // escolha que não muda nada: "recovers 1 HP" na 1ª Unit (sem dano); "look at the top" devolvido ao topo
