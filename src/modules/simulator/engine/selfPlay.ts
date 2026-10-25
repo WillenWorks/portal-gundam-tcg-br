@@ -44,6 +44,8 @@ export interface SelfPlayInput {
   specs?: EffectSpec[];
   predicateResolver?: PredicateResolver;
   targetFilterResolver?: TargetFilterResolver;
+  /** checagem extra a cada ponto de decisão (ex.: `checkLegalMenu` no fuzz `--menu`); texto = estado ilegal */
+  checkState?: (state: GameState, seat: PlayerId) => string | null;
 }
 
 export interface SelfPlayResult {
@@ -176,6 +178,11 @@ export function runSelfPlay(input: SelfPlayInput): SelfPlayResult {
         illegalState: `nenhuma ação legal para ${owner} (phase=${state.phase}, combat=${state.combat?.step ?? "-"}, pending=${pending})`,
         finalState: state,
       };
+    }
+
+    const extra = input.checkState?.(state, owner);
+    if (extra) {
+      return { winner: null, reason: null, turns: state.turnNumber, actionsPlayed, illegalState: extra, finalState: state };
     }
 
     const policy = owner === "A" ? policyA : policyB;

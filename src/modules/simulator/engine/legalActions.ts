@@ -1,5 +1,5 @@
 import type { AttackTarget, CardInstance, GameState, PlayerId } from "./types";
-import { effectiveCost, effectiveDeployCost, hasKeyword, specPairGateOpen } from "./types";
+import { effectiveCost, effectiveDeployCost, effectivePilotDef, hasKeyword, satisfiesLinkCondition, specPairGateOpen } from "./types";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { commandHasNoAvailableMode, computeLegalTargets, costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, specNeedsNamedTarget, trashExileChoice } from "./effectSpec";
 import { findTriggerSpecs, specOncePerTurnMarker } from "./dispatcher";
@@ -91,7 +91,7 @@ function enemyUnits(state: GameState, seat: PlayerId): CardInstance[] {
 }
 
 /** ids de alvo "target" exigidos por algum spec do gatilho, já filtrados. `[]` se nada exige alvo. */
-function neededTargetIds(
+export function neededTargetIds(
   state: GameState,
   seat: PlayerId,
   cardCode: string,
@@ -273,6 +273,16 @@ function mainPhaseCandidates(state: GameState, seat: PlayerId, specs: EffectSpec
   for (const card of state.players[seat].hand) {
     const def = card.def;
     if (def.cardType === "RESOURCE") continue;
+    // GD01-002 — deploy por 0 destruindo uma Link Unit com o nome/Lv. exigidos (não depende de recurso)
+    const altSac = def.alternateDeploySacrifice;
+    if (altSac && def.cardType === "UNIT") {
+      for (const sac of friendlyUnits(state, seat)) {
+        if ((sac.def.level ?? 0) !== altSac.level || !sac.def.nameEn.includes(altSac.nameContains) || !sac.pairedPilotId) continue;
+        const pilot = state.players[seat].battleArea.find((c) => c.instanceId === sac.pairedPilotId);
+        if (!pilot || !satisfiesLinkCondition(effectivePilotDef(pilot), sac.def)) continue;
+        out.push({ kind: "deployCard", cardInstanceId: card.instanceId, sacrificeInstanceId: sac.instanceId });
+      }
+    }
     const affordable = canPayLevel(state, seat, def) && canAfford(state, seat, effectiveCost(def, state, seat));
     // GD03-085 — custo 0 ao parear com a Unit certa: sem recurso pro custo cheio, só esse pareamento
     if (!affordable) {

@@ -47,7 +47,7 @@ export type DeckKey =
   | "EB01-AZUL-BRANCO" | "EB01-VERDE-BRANCO"
   | "ST11-MARINE" | "ST12-CLOSE-COMBAT" | "ST13-BIT-FUNNEL" | "ST14-HEAVY-ARMED";
 
-const DECK_BUILDERS: Record<DeckKey, () => DeckList> = {
+export const DECK_BUILDERS: Record<DeckKey, () => DeckList> = {
   ST01: buildSt01DeckList,
   ST02: buildSt02DeckList,
   ST03: buildSt03DeckList,
