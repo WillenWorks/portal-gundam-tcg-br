@@ -422,8 +422,13 @@ export function payCostThenDefer(
     costResourceIds: opts.costResourceIds,
   };
   let next = applyEvents(state, compileActions(spec.cost ?? [], ctx));
-  const costless: EffectSpec = { ...spec, cost: undefined, secondaryTarget: undefined };
-  const implicitTargets = spec.secondaryTarget && opts.targets?.[spec.secondaryTarget.name] ? { [spec.secondaryTarget.name]: opts.targets[spec.secondaryTarget.name] } : undefined;
+  // o 2º alvo só sai junto com o custo quando ELE é a escolha do custo ("Rest 1 friendly Unit："); em
+  // "①：Choose 1 of your Unit tokens and 1 enemy Unit" (ST13-001) ele é do efeito e fica
+  const costless: EffectSpec = { ...spec, cost: undefined, ...(costRestsSecondaryTarget(spec) ? { secondaryTarget: undefined } : {}) };
+  const implicitTargets =
+    costRestsSecondaryTarget(spec) && spec.secondaryTarget && opts.targets?.[spec.secondaryTarget.name]
+      ? { [spec.secondaryTarget.name]: opts.targets[spec.secondaryTarget.name] }
+      : undefined;
   next = deferOrDispatchAbilities(next, player, trigger, [{ code: findCard(next, sourceInstanceId).def.code, instanceId: sourceInstanceId, implicitTargets }], [costless], {
     predicateResolver: opts.predicateResolver,
     targetFilterResolver: opts.targetFilterResolver,

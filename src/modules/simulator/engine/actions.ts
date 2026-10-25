@@ -846,7 +846,9 @@ function applyPlayerActionInner(
 
         if (flowTrigger === "Main" || flowTrigger === "Action") commandSources.add(q.sourceInstanceId);
         // custo já pago na etapa anterior (`costStage`): só o efeito
-        const toDispatch = specs.filter((s) => s.id === r.specId).map((s) => (q.costPaid ? { ...s, cost: undefined, secondaryTarget: undefined } : s));
+        const toDispatch = specs
+          .filter((s) => s.id === r.specId)
+          .map((s) => (q.costPaid ? { ...s, cost: undefined, ...(costRestsSecondaryTarget(s) ? { secondaryTarget: undefined } : {}) } : s));
         next = dispatchTrigger(next, q.sourceInstanceId, decision.trigger, toDispatch, {
           targets,
           predicateResolver,

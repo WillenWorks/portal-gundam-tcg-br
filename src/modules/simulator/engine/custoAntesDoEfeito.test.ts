@@ -109,3 +109,25 @@ describe("custo sem escolha (\"Rest this Base：\") também se paga antes do alv
     expect(done.eventLog.slice(state.eventLog.length).filter((e) => e.type === "REST_CARD")).toEqual([{ type: "REST_CARD", instanceId: base }]);
   });
 });
+
+describe("custo sem escolha + efeito com duas escolhas simultâneas", () => {
+  it("ST13-001 Qubeley ①：Choose 1 of your Unit tokens and 1 enemy Unit — paga ① e pede o token e a inimiga JUNTOS", () => {
+    const state = advanceToMainPhase(createGame(buildSt01DeckList(), buildSt02DeckList(), { seed: 7, firstPlayer: "A" }));
+    for (let i = 0; i < 6; i++) placeCard(state, "A", RESOURCE, "resourceArea");
+    const qubeley = placeCard(state, "A", ALL_CARD_DEFS["ST13-001"], "battleArea");
+    const token = placeCard(state, "A", { ...ST01_CARD_DEFS.GM, code: "T-TEST", nameEn: "Funnel", isToken: true }, "battleArea");
+    const enemy = placeCard(state, "B", ST01_CARD_DEFS.GM, "battleArea");
+    const activation = enumerateLegalActions(state, "A", ALL_EFFECT_SPECS, scenarioOpts).find((a) => a.kind === "activateAbility" && a.sourceInstanceId === qubeley);
+    expect(activation).toBeDefined();
+    const restedBefore = state.players.A.resourceArea.filter((r) => r.rested).length;
+    const paid = apply(state, "A", activation!);
+    expect(paid.players.A.resourceArea.filter((r) => r.rested).length).toBe(restedBefore + 1); // ① pago antes
+    const d = paid.pendingDecision.A;
+    const q = d?.kind === "abilityResolution" ? d.queue[0] : undefined;
+    expect(q?.costPaid).toBe(true);
+    expect(q?.legalTargets).toEqual([token]);
+    expect(q?.secondaryTarget?.legalTargets).toContain(enemy); // o 2º alvo é do efeito: fica na mesma decisão
+    // e a decisão tem jogada legal (o fuzz achou a versão em que ela travava)
+    expect(enumerateLegalActions(paid, "A", ALL_EFFECT_SPECS, scenarioOpts).length).toBeGreaterThan(0);
+  });
+});
