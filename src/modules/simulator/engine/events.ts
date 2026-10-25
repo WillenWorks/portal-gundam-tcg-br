@@ -10,6 +10,7 @@ import type {
 } from "./types";
 import { effectiveHp, entersRestedByRule, isActingAsPilot } from "./types";
 import { createRng, shuffleInPlace } from "./rng";
+import { renumberByPosition } from "./setup";
 
 function instantiateToken(state: GameState, owner: PlayerId, def: CardDef, zone: Zone, rested: boolean): CardInstance {
   const instance: CardInstance = {
@@ -620,6 +621,8 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
         player.deck.push(card);
       }
       shuffleInPlace(player.deck, createRng(state.seed ^ state.eventLog.length));
+      // as cartas voltaram da lixeira (públicas): sem isto o id delas apontaria a posição no deck embaralhado
+      renumberByPosition(player.deck);
       return state;
     }
     case "SET_SHIELD_PROTECTION": {

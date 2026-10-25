@@ -19,6 +19,7 @@
  *   node scripts/gundam-fuzz.mjs --policyA=mcts --rollouts=8 # MCTS (rollouts baixos p/ não demorar)
  *   node scripts/gundam-fuzz.mjs --pool=GD01,ST08 --totalGames=5000  # pairwise só nesse subconjunto, ~5000 partidas no total
  *   node scripts/gundam-fuzz.mjs --menu                # também confere, a cada jogada, o menu da tela contra o motor (checkLegalMenu)
+ *   node scripts/gundam-fuzz.mjs --leaks               # e a visão dos dois jogadores: nada oculto identificado, decisão com o que o texto manda ver
  *
  * Reprodução de um achado: o log imprime `par + seed + ação` — rode
  * `node scripts/gundam-fuzz.mjs --decks=<par> --games=1 --seed=<seed>`.
@@ -57,7 +58,29 @@ const { heuristicPolicy } = await import(sim("engine/bot/heuristicPolicy.ts"));
 const { mctsPolicy } = await import(sim("engine/bot/mctsPolicy.ts"));
 const { zeroSystemPolicy } = await import(sim("engine/bot/zeroSystemPolicy.ts"));
 const { randomLegal } = await import(sim("engine/selfPlay.ts"));
-const { checkLegalMenu } = await import(sim("engine/legalMenu.ts"));
+const { checkLegalMenu, legalMenuFor } = await import(sim("engine/legalMenu.ts"));
+const { findViewLeaks, decisionVisibilityGaps } = await import(sim("engine/viewLeaks.ts"));
+const { viewStateFor } = await import(sim("engine/viewState.ts"));
+
+const menuOpts = { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver };
+
+/** `--menu`/`--leaks`: checagens extras a cada jogada (a 1ª que falhar vira achado da partida) */
+function checkState(state, seat) {
+  if (args.menu) {
+    const problem = checkLegalMenu(state, seat, ALL_EFFECT_SPECS, menuOpts);
+    if (problem) return problem;
+  }
+  if (args.leaks) {
+    for (const viewer of ["A", "B"]) {
+      const view = viewStateFor(state, viewer);
+      const leak = findViewLeaks(state, viewer, { view, legalMenu: legalMenuFor(state, viewer, ALL_EFFECT_SPECS, menuOpts) })[0];
+      if (leak) return `vazamento para ${viewer}: ${leak.path} (${leak.instanceId})`;
+      const gap = decisionVisibilityGaps(state, view)[0];
+      if (gap) return `decisão de ${viewer}: ${gap}`;
+    }
+  }
+  return null;
+}
 
 /** `random` (default) | `heuristic` | `facil` | `mcts` | `zero_system` | `treize` — resolve o nome pra uma Policy do self-play. */
 function resolvePolicy(name, rollouts) {
@@ -121,9 +144,11 @@ function parseArgs(argv) {
     policyB: "random",
     rollouts: 8,
     menu: false,
+    leaks: false,
   };
   for (const a of argv) {
     if (a === "--menu") args.menu = true;
+    if (a === "--leaks") args.leaks = true;
     const m = a.match(/^--([^=]+)=(.*)$/);
     if (!m) continue;
     const [, k, v] = m;
@@ -207,9 +232,7 @@ for (const [a, b] of pairs) {
         targetFilterResolver: defaultTargetFilterResolver,
         policyA,
         policyB,
-        ...(args.menu
-          ? { checkState: (state, seat) => checkLegalMenu(state, seat, ALL_EFFECT_SPECS, { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver }) }
-          : {}),
+        ...(args.menu || args.leaks ? { checkState } : {}),
       });
     } catch (err) {
       findings.push({ pair: `${a}x${b}`, seed, kind: "throw", detail: err?.stack ?? String(err) });

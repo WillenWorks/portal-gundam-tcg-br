@@ -81,6 +81,20 @@ function instantiate(def: CardDef, owner: PlayerId, seq: number, zone: CardInsta
   };
 }
 
+/**
+ * O `instanceId` vai para a rede junto com o `HiddenCard` (deck, shields, mão do oponente — viewState.ts). Se ele
+ * seguisse a ordem da lista do deck, quem conhece a lista (a própria, ou a receita pública do deck do bot/preset)
+ * saberia a carta do topo, as shields e a mão do oponente. Depois de todo embaralhamento os ids são redistribuídos
+ * pela posição: o id passa a dizer só a posição, que a visão já mostra.
+ */
+export function renumberByPosition(cards: CardInstance[]): void {
+  const seqOf = (id: string) => Number(id.slice(id.lastIndexOf("-") + 1));
+  const ids = cards.map((c) => c.instanceId).sort((a, b) => seqOf(a) - seqOf(b));
+  cards.forEach((c, i) => {
+    c.instanceId = ids[i];
+  });
+}
+
 function drawN(player: PlayerState, n: number) {
   for (let i = 0; i < n && player.deck.length > 0; i++) {
     const card = player.deck.shift()!;
@@ -99,6 +113,7 @@ export function redrawMulliganHand(player: PlayerState, rng: Rng) {
     player.deck.push(card);
   }
   shuffleInPlace(player.deck, rng);
+  renumberByPosition(player.deck);
   drawN(player, 5);
 }
 
@@ -126,6 +141,8 @@ function dealOpeningHand(id: PlayerId, deck: DeckList, rng: Rng, seqRef: { n: nu
 
   shuffleInPlace(player.deck, rng);
   shuffleInPlace(player.resourceDeck, rng);
+  renumberByPosition(player.deck);
+  renumberByPosition(player.resourceDeck);
   drawN(player, 5);
 
   return player;

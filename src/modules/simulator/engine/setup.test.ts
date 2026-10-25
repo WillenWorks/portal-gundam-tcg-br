@@ -52,7 +52,8 @@ describe("createGame (Comprehensive Rules 6-2, setup de partida)", () => {
   it("seeds diferentes tendem a produzir embaralhadas diferentes", () => {
     const s1 = createGame(buildVanillaDeckList(), buildVanillaDeckList(), { seed: 1, firstPlayer: "A" });
     const s2 = createGame(buildVanillaDeckList(), buildVanillaDeckList(), { seed: 2, firstPlayer: "A" });
-    expect(s1.players.A.deck.map((c) => c.instanceId)).not.toEqual(s2.players.A.deck.map((c) => c.instanceId));
+    // o instanceId é só a posição (renumberByPosition) — a embaralhada se vê pelas cartas
+    expect(s1.players.A.deck.map((c) => c.def.code)).not.toEqual(s2.players.A.deck.map((c) => c.def.code));
   });
 
   it("mulligan devolve a mão, compra 5 novas e mantém o tamanho do deck", () => {
