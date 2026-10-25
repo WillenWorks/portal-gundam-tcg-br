@@ -88,3 +88,24 @@ describe("Gundam Aerial ST13-006 — 【Activate･Action】Rest 1 friendly Unit
     expect(card(s, enemy).damage).toBe(1);
   });
 });
+
+describe("custo sem escolha (\"Rest this Base：\") também se paga antes do alvo", () => {
+  it("GD01-124 Side 7: ativar descansa a Base e só então pede a Unit que recupera HP", () => {
+    const state = advanceToMainPhase(createGame(buildSt01DeckList(), buildSt02DeckList(), { seed: 7, firstPlayer: "A" }));
+    state.players.A.baseSection = [];
+    const base = placeCard(state, "A", ALL_CARD_DEFS["GD01-124"], "baseSection");
+    const hurt = placeCard(state, "A", ST01_CARD_DEFS.GM, "battleArea", { damage: 1 });
+    const activation = enumerateLegalActions(state, "A", ALL_EFFECT_SPECS, scenarioOpts).find((a) => a.kind === "activateAbility" && a.sourceInstanceId === base);
+    expect(activation).toEqual({ kind: "activateAbility", sourceInstanceId: base }); // sem alvo embutido
+    const paid = apply(state, "A", activation!);
+    expect(card(paid, base)).toBeUndefined(); // Base não está na battleArea — confere direto
+    expect(paid.players.A.baseSection.find((c) => c.instanceId === base)?.rested).toBe(true);
+    const d = paid.pendingDecision.A;
+    const q = d?.kind === "abilityResolution" ? d.queue[0] : undefined;
+    expect(q).toMatchObject({ costPaid: true });
+    expect(q?.legalTargets).toContain(hurt);
+    const done = apply(paid, "A", { kind: "resolveAbility", resolutions: [{ specId: q!.specId, activate: true, targetIds: [hurt] }] });
+    expect(card(done, hurt).damage).toBe(0);
+    expect(done.eventLog.slice(state.eventLog.length).filter((e) => e.type === "REST_CARD")).toEqual([{ type: "REST_CARD", instanceId: base }]);
+  });
+});

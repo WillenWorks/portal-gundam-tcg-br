@@ -1,7 +1,7 @@
 import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PendingDecision, PlayerId, QueuedTrigger } from "./types";
 import { isHiddenCard, type ViewGameState } from "./viewState";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { actionsBeforeChoice, compileActions, costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, isFollowUpTrigger, specNeedsChoice, trashExileChoice } from "./effectSpec";
+import { actionsBeforeChoice, compileActions, costRestsSecondaryTarget, costTargetShortfall, specNeedsNamedTarget, exileCostShortfall, isFollowUpTrigger, specNeedsChoice, trashExileChoice } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
 import { canPayLevel, deployCard, playCommand } from "./deploy";
 import { costRestsSelf, specResourceCost } from "./costs";
@@ -15,6 +15,7 @@ import {
   dispatchAfterMain,
   deferOrDispatchAbilities,
   openCostStage,
+  payCostThenDefer,
   dispatchCommandActivated,
   dispatchDestroyedFromEffect,
   dispatchDestroyedTriggers,
@@ -458,6 +459,22 @@ function applyPlayerActionInner(
         if (costTarget && costSpec && !action.targets?.[costTarget]?.length) {
           return openCostStage(announced(state), actingPlayer, trigger, costSpec, action.sourceInstanceId, specs, { predicateResolver, targetFilterResolver });
         }
+        // demais custos ("Rest this Base：", "②：", "Exile N … from your trash：", "Discard 1：") com escolha no efeito:
+        // o custo se paga ANTES de escolher o alvo — se o próprio custo pede escolha (exílio), ela vem primeiro
+        const payFirst = usable.find((s) => (s.cost ?? []).length > 0 && (specNeedsNamedTarget(s) || specNeedsChoice(s)));
+        // escolhas já prontas na ação (bot/legado) seguem de uma vez, como antes
+        const preChosen = Object.values(action.targets ?? {}).some((ids) => ids.length > 0);
+        if (payFirst && !preChosen) {
+          if (trashExileChoice(state, payFirst, actingPlayer, []) && !action.targets?.trashExile) {
+            return openCostStage(announced(state), actingPlayer, trigger, payFirst, action.sourceInstanceId, specs, { predicateResolver, targetFilterResolver });
+          }
+          return payCostThenDefer(announced(state), actingPlayer, trigger, payFirst, action.sourceInstanceId, {
+            targets: action.targets,
+            costResourceIds: action.resourceInstanceIds,
+            predicateResolver,
+            targetFilterResolver,
+          });
+        }
         if (choiceMissing) {
           return deferOrDispatchAbilities(announced(state), actingPlayer, trigger, [{ code: source.def.code, instanceId: action.sourceInstanceId }], specs, {
             predicateResolver,
@@ -656,31 +673,28 @@ function applyPlayerActionInner(
         // docs/47 Fase 5 — 2º pool de alvo (ST05-010 Mikazuki Augus 【When Paired】).
         const secondaryIds = r.secondaryTargetIds ?? [];
 
-        // etapa de custo: paga o custo com a Unit escolhida e abre a escolha do efeito, já depois do custo
+        // etapa de custo: paga o custo com as escolhas dele (Unit do custo, cartas a exilar) e abre a escolha do efeito
         if (q.costStage) {
           const spec = specs.find((s) => s.id === r.specId);
+          if (!spec) throw new Error(`Custo sem definição pra ${r.specId}`);
           const st = q.secondaryTarget;
-          if (!spec || !st) throw new Error(`Custo sem definição pra ${r.specId}`);
-          const want = Math.min(st.count ?? 1, st.legalTargets.length);
-          if (secondaryIds.length !== want || new Set(secondaryIds).size !== secondaryIds.length || !secondaryIds.every((id) => st.legalTargets.includes(id))) {
-            throw new Error(`Custo inválido pra ${r.specId} — escolha ${want} Unit${want > 1 ? "s" : ""} diferente${want > 1 ? "s" : ""} para pagar o custo.`);
+          const costTargets: Record<string, string[]> = {};
+          if (st) {
+            const want = Math.min(st.count ?? 1, st.legalTargets.length);
+            if (secondaryIds.length !== want || new Set(secondaryIds).size !== secondaryIds.length || !secondaryIds.every((id) => st.legalTargets.includes(id))) {
+              throw new Error(`Custo inválido pra ${r.specId} — escolha ${want} Unit${want > 1 ? "s" : ""} diferente${want > 1 ? "s" : ""} para pagar o custo.`);
+            }
+            costTargets[st.name] = secondaryIds;
           }
-          const costCtx = { state: next, controller: actingPlayer, sourceInstanceId: q.sourceInstanceId, turnNumber: next.turnNumber, targets: { [st.name]: secondaryIds } };
-          next = applyEvents(next, compileActions(spec.cost ?? [], costCtx));
-          const costless: EffectSpec = { ...spec, cost: undefined, secondaryTarget: undefined };
-          const code = findCard(next, q.sourceInstanceId).def.code;
-          next = deferOrDispatchAbilities(next, actingPlayer, decision.trigger, [{ code, instanceId: q.sourceInstanceId, implicitTargets: { [st.name]: secondaryIds } }], [costless], {
-            predicateResolver,
-            targetFilterResolver,
-          });
-          const effectStage = next.pendingDecision[actingPlayer];
-          if (effectStage?.kind === "abilityResolution") {
-            next = applyEvent(next, {
-              type: "SET_PENDING_DECISION",
-              player: actingPlayer,
-              decision: { ...effectStage, queue: effectStage.queue.map((e) => (e.specId === r.specId ? { ...e, costPaid: true } : e)) },
-            });
+          const exileChoice = r.trashExileIds ?? [];
+          if (q.trashExile && exileChoice.length > 0) {
+            const legal = q.trashExile.legalTrashIds;
+            if (exileChoice.length !== q.trashExile.count || new Set(exileChoice).size !== exileChoice.length || !exileChoice.every((id) => legal.includes(id))) {
+              throw new Error(`Exílio inválido pra ${r.specId} — escolha ${q.trashExile.count} carta(s) elegíveis do trash.`);
+            }
+            costTargets.trashExile = exileChoice;
           }
+          next = payCostThenDefer(next, actingPlayer, decision.trigger, spec, q.sourceInstanceId, { targets: costTargets, predicateResolver, targetFilterResolver });
           continue;
         }
 
