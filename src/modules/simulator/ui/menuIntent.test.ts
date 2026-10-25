@@ -11,6 +11,7 @@ import {
   handModesFromMenu,
   normalCommandFromMenu,
   pairTargetsFromMenu,
+  sacrificeIdsFromMenu,
 } from "./menuIntent";
 
 const menu: LegalMenu = {
@@ -47,12 +48,13 @@ describe("menuIntent — mão", () => {
     active: true,
     passes: ["finishTurn"],
     entries: [
-      { kind: "deployCard", cardInstanceId: "unit", standalone: true, pairWithUnitIds: [] },
-      { kind: "deployCard", cardInstanceId: "pilot", standalone: false, pairWithUnitIds: ["u1", "u2"] },
+      { kind: "deployCard", cardInstanceId: "unit", standalone: true, pairWithUnitIds: [], sacrificeIds: [] },
+      { kind: "deployCard", cardInstanceId: "pilot", standalone: false, pairWithUnitIds: ["u1", "u2"], sacrificeIds: [] },
       { kind: "playCommand", cardInstanceId: "cmd", trigger: "Main", slots: [{ name: "target", legalTargets: ["e1"], min: 1, max: 1 }, { name: "friendly", legalTargets: ["u1"], min: 1, max: 1 }] },
       { kind: "playCommand", cardInstanceId: "alt", trigger: "Main", altCostDiscardId: "d1", slots: [] },
-      { kind: "deployCard", cardInstanceId: "dual", standalone: false, pairWithUnitIds: ["u1"] },
+      { kind: "deployCard", cardInstanceId: "dual", standalone: false, pairWithUnitIds: ["u1"], sacrificeIds: [] },
       { kind: "playCommand", cardInstanceId: "dual", trigger: "Main", slots: [] },
+      { kind: "deployCard", cardInstanceId: "unicorn", standalone: false, pairWithUnitIds: [], sacrificeIds: ["s1"] },
     ],
   };
 
@@ -61,6 +63,9 @@ describe("menuIntent — mão", () => {
     expect(handModesFromMenu(hand, "dual")).toEqual(["deploy", "commandMain"]);
     expect(handModesFromMenu(hand, "cmd")).toEqual(["commandMain"]);
     expect(handModesFromMenu(hand, "fora")).toEqual([]);
+    // só pelo sacrifício: não é um deploy normal
+    expect(handModesFromMenu(hand, "unicorn")).toEqual([]);
+    expect(sacrificeIdsFromMenu(hand, "unicorn")).toEqual(["s1"]);
   });
 
   it("custo alternativo: só pelo descarte quando o custo normal não cabe", () => {

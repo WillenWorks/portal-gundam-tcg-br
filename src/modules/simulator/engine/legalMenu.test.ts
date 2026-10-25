@@ -14,6 +14,8 @@ import { buildSt08DeckList } from "../fixtures/st08Deck";
 import { ST06_CARD_DEFS } from "../fixtures/st06Deck";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
 import { ST13_CARD_DEFS } from "../content/st13/index";
+import { GD01_CARD_DEFS } from "../content/gd01/index";
+import { findCard } from "./events";
 
 const opts = { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver };
 const apply = (s: GameState, p: PlayerId, a: PlayerAction) =>
@@ -123,6 +125,22 @@ describe("legalMenuFor — casos que já quebraram na tela", () => {
     const unit = placeCard(s, "A", UNIT(), "battleArea");
     const entry = legalMenuFor(s, "A", ALL_EFFECT_SPECS, opts).entries.find((e) => e.kind === "activateAbility" && e.sourceInstanceId === base);
     expect(entry).toMatchObject({ trigger: "Activate·Main", slots: [{ name: "target", legalTargets: [unit], min: 1, max: 1 }] });
+  });
+
+  it("GD01-002 Unicorn (Destroy Mode): sacrificar a Link Unit (Unicorn Mode) Lv.5 aparece no menu mesmo sem recurso", () => {
+    const s = game();
+    for (const r of s.players.A.resourceArea) r.rested = true;
+    const destroy = placeCard(s, "A", GD01_CARD_DEFS["GD01-002"], "hand");
+    const unicorn = placeCard(s, "A", UNIT({ code: "TEST-UNICORN", nameEn: "Unicorn Gundam (Unicorn Mode)", level: 5, link: { kind: "pilotName", values: ["Banagher"] } }), "battleArea");
+    const banagher = placeCard(s, "A", { ...UNIT({ code: "TEST-BANAGHER", nameEn: "Banagher Links" }), cardType: "PILOT" }, "battleArea");
+    findCard(s, unicorn).pairedPilotId = banagher;
+    findCard(s, banagher).pairedUnitId = unicorn;
+    placeCard(s, "A", UNIT({ code: "TEST-OTHER", nameEn: "Unicorn Gundam (Unicorn Mode)", level: 5 }), "battleArea"); // sem Link: não serve
+    const entry = legalMenuFor(s, "A", ALL_EFFECT_SPECS, opts).entries.find((e) => e.kind === "deployCard" && e.cardInstanceId === destroy);
+    expect(entry).toMatchObject({ standalone: false, pairWithUnitIds: [], sacrificeIds: [unicorn] });
+    const after = apply(s, "A", { kind: "deployCard", cardInstanceId: destroy, sacrificeInstanceId: unicorn });
+    expect(after.players.A.battleArea.some((c) => c.instanceId === destroy)).toBe(true);
+    expect(after.players.A.battleArea.some((c) => c.instanceId === unicorn)).toBe(false);
   });
 
   it("ST13-006 Aerial: 【Activate･Action】 aparece no Action Step, não na Main Phase", () => {

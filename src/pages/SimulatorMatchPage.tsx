@@ -127,6 +127,7 @@ import {
   handModesFromMenu,
   normalCommandFromMenu,
   pairTargetsFromMenu,
+  sacrificeIdsFromMenu,
 } from "@/modules/simulator/ui/menuIntent";
 import { findAltDiscardCandidates, findEligibleSacrifices, playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
 import { getScaledDuration } from "@/modules/simulator/ui/animationSettings";
@@ -2219,9 +2220,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     }
 
     // Verificação de sacrifício alternativo (GD01-002 Unicorn Gundam, etc.)
-    const eligibleSacrifices = findEligibleSacrifices(c.def, ctx);
+    const eligibleSacrifices = legalMenu
+      ? sacrificeIdsFromMenu(legalMenu, c.instanceId).flatMap((id) =>
+          view.players[seat].battleArea.filter((u): u is CardInstance => !isHidden(u) && u.instanceId === id),
+        )
+      : findEligibleSacrifices(c.def, ctx);
     const normalCost = effectiveCost(c.def, ctx.state, ctx.controller);
-    // sacrifício alternativo (GD01-002) não sai do menu: `enumerateLegalActions` não oferece esse deploy
     const normalAffordable = legalMenu
       ? modes.includes("deploy")
       : ctx.activeResources >= normalCost && ctx.totalResources >= effectiveLevel(c.def, ctx.state, ctx.controller) && ctx.myTurnMain;

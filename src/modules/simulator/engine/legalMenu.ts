@@ -24,7 +24,14 @@ export interface LegalMenuSlot {
 }
 
 export type LegalMenuEntry =
-  | { kind: "deployCard"; cardInstanceId: string; standalone: boolean; pairWithUnitIds: string[] }
+  | {
+      kind: "deployCard";
+      cardInstanceId: string;
+      standalone: boolean;
+      pairWithUnitIds: string[];
+      /** GD01-002 — Units que podem ser destruídas para jogar esta por 0 */
+      sacrificeIds: string[];
+    }
   | { kind: "playCommand"; cardInstanceId: string; trigger: "Main" | "Action"; slots: LegalMenuSlot[]; altCostDiscardId?: string }
   | {
       kind: "activateAbility";
@@ -175,8 +182,9 @@ export function legalMenuFor(state: GameState, seat: PlayerId, specs: EffectSpec
     entries.push({
       kind: "deployCard",
       cardInstanceId,
-      standalone: actions.some((a) => a.kind === "deployCard" && !a.pairWithUnitId),
+      standalone: actions.some((a) => a.kind === "deployCard" && !a.pairWithUnitId && !a.sacrificeInstanceId),
       pairWithUnitIds: uniq(actions.flatMap((a) => (a.kind === "deployCard" && a.pairWithUnitId ? [a.pairWithUnitId] : []))),
+      sacrificeIds: uniq(actions.flatMap((a) => (a.kind === "deployCard" && a.sacrificeInstanceId ? [a.sacrificeInstanceId] : []))),
     });
   }
   for (const [key, actions] of commands) {
@@ -222,6 +230,7 @@ export function expandMenuEntry(entry: LegalMenuEntry): PlayerAction[] {
       return [
         ...(entry.standalone ? [{ kind: "deployCard", cardInstanceId: entry.cardInstanceId } as PlayerAction] : []),
         ...entry.pairWithUnitIds.map((pairWithUnitId): PlayerAction => ({ kind: "deployCard", cardInstanceId: entry.cardInstanceId, pairWithUnitId })),
+        ...entry.sacrificeIds.map((sacrificeInstanceId): PlayerAction => ({ kind: "deployCard", cardInstanceId: entry.cardInstanceId, sacrificeInstanceId })),
       ];
     case "playCommand":
       return withSlots(
@@ -254,7 +263,14 @@ export function menuCoversAction(menu: LegalMenu, a: PlayerAction): boolean {
       return menu.passes.includes(a.kind);
     case "deployCard":
       return menu.entries.some(
-        (e) => e.kind === "deployCard" && e.cardInstanceId === a.cardInstanceId && (a.pairWithUnitId ? e.pairWithUnitIds.includes(a.pairWithUnitId) : e.standalone),
+        (e) =>
+          e.kind === "deployCard" &&
+          e.cardInstanceId === a.cardInstanceId &&
+          (a.sacrificeInstanceId
+            ? e.sacrificeIds.includes(a.sacrificeInstanceId)
+            : a.pairWithUnitId
+              ? e.pairWithUnitIds.includes(a.pairWithUnitId)
+              : e.standalone),
       );
     case "playCommand":
       return menu.entries.some(

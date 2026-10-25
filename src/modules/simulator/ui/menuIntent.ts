@@ -48,7 +48,9 @@ function commandEntry(menu: LegalMenu, cardId: string, trigger: "Main" | "Action
 /** modos de jogo da carta da mão que o motor oferece agora (mesmos rótulos de `playableModes`) */
 export function handModesFromMenu(menu: LegalMenu, cardId: string): Array<"deploy" | "commandMain" | "commandAction"> {
   const modes: Array<"deploy" | "commandMain" | "commandAction"> = [];
-  if (menu.entries.some((e) => e.kind === "deployCard" && e.cardInstanceId === cardId)) modes.push("deploy");
+  if (menu.entries.some((e) => e.kind === "deployCard" && e.cardInstanceId === cardId && (e.standalone || e.pairWithUnitIds.length > 0))) {
+    modes.push("deploy");
+  }
   const commands = menu.entries.filter((e): e is CommandEntry => e.kind === "playCommand" && e.cardInstanceId === cardId);
   if (commands.some((e) => e.trigger === "Main")) modes.push("commandMain");
   if (commands.some((e) => e.trigger === "Action")) modes.push("commandAction");
@@ -101,4 +103,9 @@ export function attackTargetsFromMenu(menu: LegalMenu, attackerId: string): { pl
 /** Units que podem ativar <Blocker> agora */
 export function blockerIdsFromMenu(menu: LegalMenu): Set<string> {
   return new Set(menu.entries.flatMap((e) => (e.kind === "activateBlocker" ? [e.blockerId] : [])));
+}
+
+/** GD01-002 — Units que o motor aceita destruir para jogar esta carta por 0 */
+export function sacrificeIdsFromMenu(menu: LegalMenu, cardId: string): string[] {
+  return menu.entries.flatMap((e) => (e.kind === "deployCard" && e.cardInstanceId === cardId ? e.sacrificeIds : []));
 }
