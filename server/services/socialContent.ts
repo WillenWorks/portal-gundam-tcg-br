@@ -249,3 +249,32 @@ export function pickFeaturedDeck(ix: VedaIndex, now: Date, recentSlugs: string[]
     keyCards,
   };
 }
+
+// ---------- artigo: texto que a IA resume para a legenda ----------
+
+/** Teto do texto do artigo enviado à IA (o resumo usa só o começo de matérias muito longas). */
+export const ARTICLE_TEXT_MAX = 8000;
+
+/**
+ * Markdown do artigo → texto corrido: some a marcação, imagens, blocos de código e HTML; [[GD01-001]] e links
+ * ficam só com o texto. Corta no limite sem partir palavra.
+ */
+export function articlePlainText(markdown: string, max = ARTICLE_TEXT_MAX): string {
+  const text = String(markdown ?? "")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/\[\[([^[\]]+)\]\]/g, "$1")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/^\s{0,3}(?:#{1,6}|>|[-*+]|\d+[.)])\s+/gm, "")
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/(\*\*|__|\*|_|~~)(\S(?:[\s\S]*?\S)?)\1/g, "$2")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\s*\n\s*/g, "\n")
+    .replace(/\n{2,}/g, "\n")
+    .trim();
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${(lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
+}

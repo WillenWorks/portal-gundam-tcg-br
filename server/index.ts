@@ -1746,13 +1746,16 @@ app.get("/api/posts", authOptional, async (req: RequestWithUser, res) => {
   const pagination = getPagination(req.query, { pageSize: 12, maxPageSize: 50 });
   const isEditor = req.user?.role === UserRole.ADMIN || req.user?.role === UserRole.EDITOR;
   const where = isEditor ? (status ? { status: status as PostStatus } : undefined) : { status: PostStatus.PUBLISHED };
+  // vitrine pública (home e /articles): o mais novo primeiro pela data de publicação, não pela última edição
+  const orderBy: Prisma.PostOrderByWithRelationInput[] =
+    where?.status === PostStatus.PUBLISHED ? [{ publishedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }] : [{ updatedAt: "desc" }];
 
   if (pagination.enabled) {
     const [items, total] = await Promise.all([
       prisma.post.findMany({
         where,
         include: { author: true },
-        orderBy: [{ updatedAt: "desc" }],
+        orderBy,
         skip: pagination.skip,
         take: pagination.take,
       }),
@@ -1764,10 +1767,19 @@ app.get("/api/posts", authOptional, async (req: RequestWithUser, res) => {
   const posts = await prisma.post.findMany({
     where,
     include: { author: true },
-    orderBy: [{ updatedAt: "desc" }],
+    orderBy,
   });
   res.json(posts);
 });
+
+// Artigo publicado vira rascunho de post do Instagram (capa + resumo), para aprovar no painel/Discord.
+// Só com a automação do Instagram ligada; o serviço é carregado aqui para não pesar na subida da API.
+function queueArticleInstagramPost(articleId: string) {
+  if (process.env.SOCIAL_SCHEDULER_ENABLED !== "true") return;
+  void import("./services/socialPublisherService.ts")
+    .then(({ queueArticleSocialDraft }) => queueArticleSocialDraft(prisma, articleId))
+    .catch((err) => console.error("[social] não deu para gerar o post do artigo:", err instanceof Error ? err.message : err));
+}
 
 app.post("/api/posts", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req: RequestWithUser, res) => {
   const payload = req.body as Record<string, unknown>;
@@ -1796,6 +1808,7 @@ app.post("/api/posts", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDIT
     },
     include: { author: true },
   });
+  if (post.status === PostStatus.PUBLISHED) queueArticleInstagramPost(post.id);
   res.status(201).json(post);
 });
 
@@ -1832,6 +1845,7 @@ app.put("/api/posts/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.E
     },
     include: { author: true },
   });
+  if (post.status === PostStatus.PUBLISHED && current.status !== PostStatus.PUBLISHED) queueArticleInstagramPost(post.id);
   res.json(post);
 });
 
@@ -5051,6 +5065,8 @@ async function topUpDeckResources(items: Array<{ cardId: string; quantity: numbe
   return [...items, { cardId: defaultResource.id, quantity: missing, section: "resource" }];
 }
 
+const DECK_VISIBILITIES = new Set<string>(["PRIVATE", "UNLISTED", "PUBLIC"]);
+
 app.post("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
   const { name, format, visibility, notes, coverImage, featuredCardIds, isPrimary, items } = req.body as {
     name: string;
@@ -5072,7 +5088,8 @@ app.post("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
       userId: req.user!.userId,
       name,
       format,
-      visibility,
+      // deck novo é público, a não ser que o dono escolha outra visibilidade
+      visibility: DECK_VISIBILITIES.has(visibility) ? visibility : "PUBLIC",
       notes,
       coverImage: coverImage || null,
       featuredCardIds: Array.isArray(featuredCardIds) ? featuredCardIds.filter(Boolean).slice(0, 2) : [],
@@ -5108,7 +5125,8 @@ app.put("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) => 
     data: {
       name,
       format,
-      visibility,
+      // na edição, sem valor válido mantém a visibilidade atual
+      visibility: DECK_VISIBILITIES.has(visibility) ? visibility : existing.visibility,
       notes,
       coverImage: coverImage || null,
       featuredCardIds: Array.isArray(featuredCardIds) ? featuredCardIds.filter(Boolean).slice(0, 2) : [],

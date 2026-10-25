@@ -1400,6 +1400,9 @@ export const api = {
     request<PaginatedResponse<any>>(`/cards${toQuery({ ...filters, page: String(pagination.page ?? 1), pageSize: String(pagination.pageSize ?? 24) })}`, undefined, { ttlMs: 20_000 }),
   getCardFilters: () => request<{ colors: string[]; cardTypes: string[]; rarities: string[]; statuses: string[]; media: string[]; series: string[]; traits: string[]; keywords: string[]; sets: Array<{ code: string; namePt?: string | null; nameEn: string; releaseDate?: string | null }>; missingRelationCounts: { PILOT: number; UNIT: number; COMMAND: number } }>("/cards/filters", undefined, { ttlMs: 5 * 60_000 }),
   getCard: (id: string) => request<any>(`/cards/${id}`, undefined, { ttlMs: 30_000 }),
+  /** Carta com a impressão pedida (id de impressão; id de modelo cai na impressão principal). */
+  getCardPrint: (printId: string) =>
+    request<any>(`/cards/${encodeURIComponent(printId)}?print=${encodeURIComponent(printId)}`, undefined, { ttlMs: 30_000 }),
   getCardRelations: (id: string) => request<{ outgoing: any[]; incoming: any[] }>(`/cards/${id}/relations`, undefined, { ttlMs: 20_000 }),
   getCardStats: (id: string) =>
     request<{ cardModelId: string; hasEnoughData: boolean; deckAppearances: number; totalDecks: number; usageRate: number | null; wins: number; losses: number; draws: number; totalMatches: number; winRate: number | null }>(`/cards/${id}/stats`, undefined, { ttlMs: 60_000 }),

@@ -1,5 +1,5 @@
 /* Deckbuilder tático — filtros reais da pool, persistência por usuário, diagnóstico operacional e navegação contextual. */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   BrainCircuit,
@@ -27,6 +27,7 @@ import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from 
 import { OpeningHandModal } from "@/components/deck/OpeningHandModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, mapApiCard, type ApiDeck, type CardFilters } from "@/lib/api";
+import { DECKBUILDER_DRAFT_KEY, parseDeckbuilderDraft, type DeckbuilderDraft } from "@/lib/deckbuilder-draft";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, NON_COUNTED_SECTIONS, computeDeckLegality, type DeckLegalityData } from "@/lib/deck-legality";
 import { computeDeckPilotCoverage } from "@/lib/deck-pilot-coverage";
 import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX, groupCardsByType } from "@/lib/gundam-catalog";
@@ -612,7 +613,7 @@ export default function DeckbuilderPage() {
   const [importing, setImporting] = useState(false);
   const [deckName, setDeckName] = useState(() => trNow("Novo Deck", "New Deck"));
   const [entries, setEntries] = useState<DeckEntry[]>([]);
-  const [visibility, setVisibility] = useState<DeckVisibility>("PRIVATE");
+  const [visibility, setVisibility] = useState<DeckVisibility>("PUBLIC");
   const [coverImage, setCoverImage] = useState("");
   const [featuredCardIds, setFeaturedCardIds] = useState<string[]>([]);
   // Detalhes (nome + imagem) das cartas de destaque escolhidas — independente da pool
@@ -1322,7 +1323,7 @@ export default function DeckbuilderPage() {
         featuredCardIds,
         entries,
       };
-      localStorage.setItem("gundam_deckbuilder_draft", JSON.stringify(draft));
+      localStorage.setItem(DECKBUILDER_DRAFT_KEY, JSON.stringify(draft));
       setAuthModalOpen(true);
       return;
     }
@@ -1351,7 +1352,7 @@ export default function DeckbuilderPage() {
         navigate(`/deckbuilder/${created.id}`, { replace: true });
       }
       setSaveModalOpen(false);
-      localStorage.removeItem("gundam_deckbuilder_draft");
+      localStorage.removeItem(DECKBUILDER_DRAFT_KEY);
       toast.success(
         visibility === "PUBLIC"
           ? tr("Deck salvo e publicado!", "Deck saved and published!")
@@ -1521,6 +1522,67 @@ export default function DeckbuilderPage() {
       });
     }
   }, [deckId, urlListImported]);
+
+  // Rascunho gravado por "Copiar deck", "Montar núcleo", "Carregar" (lista de torneio) ou pelo visitante que tentou
+  // salvar sem conta. Antes ninguém lia esse rascunho e o deckbuilder abria vazio. Lido uma vez e apagado.
+  const draftReadRef = useRef(false);
+
+  const applyDraft = async (draft: DeckbuilderDraft) => {
+    setLoadingDeck(true);
+    try {
+      const ids = [...new Set(draft.entries.map((entry) => entry.cardId))];
+      const fetched = await Promise.all(ids.map((id) => api.getCardPrint(id).then(mapApiCard).catch(() => null)));
+      const byId = new Map<string, CardRecord>();
+      ids.forEach((id, i) => {
+        const card = fetched[i];
+        if (card) byId.set(id, card);
+      });
+      cacheCards([...byId.values()]);
+
+      // id de modelo vira a impressão devolvida; Resource que veio como "main" (núcleo) vai para o deck de recursos
+      const merged = new Map<string, DeckEntry>();
+      for (const entry of draft.entries) {
+        const card = byId.get(entry.cardId);
+        if (!card) continue;
+        const section = entry.section === "main" ? getSectionForCardType(card.type) : entry.section;
+        const printId = card.printId || card.id;
+        const key = `${section}:${printId}`;
+        const current = merged.get(key);
+        merged.set(key, { cardId: printId, section, quantity: (current?.quantity ?? 0) + entry.quantity });
+      }
+
+      if (draft.deckName) setDeckName(draft.deckName);
+      setVisibility(draft.visibility);
+      if (draft.coverImage) setCoverImage(draft.coverImage);
+      if (draft.featuredCardIds.length) setFeaturedCardIds(draft.featuredCardIds);
+      setEntries([...merged.values()]);
+
+      const missing = ids.length - byId.size;
+      if (missing) {
+        toast.warning(tr(`Deck carregado, mas ${missing} carta(s) não foram encontradas.`, `Deck loaded, but ${missing} card(s) were not found.`));
+      }
+    } finally {
+      setLoadingDeck(false);
+    }
+  };
+
+  const takeDraft = (): DeckbuilderDraft | null => {
+    try {
+      const draft = parseDeckbuilderDraft(localStorage.getItem(DECKBUILDER_DRAFT_KEY));
+      localStorage.removeItem(DECKBUILDER_DRAFT_KEY);
+      return draft;
+    } catch {
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    if (deckId || draftReadRef.current) return;
+    draftReadRef.current = true;
+    if (new URLSearchParams(window.location.search).get("lista")) return;
+    const draft = takeDraft();
+    if (draft) applyDraft(draft).catch(() => undefined);
+  }, [deckId]);
 
   /** Modal de Exportação de Imagem com Prévia Reativa e Toggles (Exburst style) */
   const generateDeckImage = () => {
@@ -1865,7 +1927,7 @@ export default function DeckbuilderPage() {
                 <Button
                   size="lg"
                   onClick={() => {
-                    localStorage.setItem("gundam_deckbuilder_draft", JSON.stringify({ deckName, visibility, entries }));
+                    localStorage.setItem(DECKBUILDER_DRAFT_KEY, JSON.stringify({ deckName, visibility, entries }));
                     navigate("/login");
                   }}
                   className="rounded-none bg-primary text-primary-foreground font-heading uppercase tracking-wider text-sm px-6 shadow-lg shadow-primary/20"
@@ -1876,7 +1938,7 @@ export default function DeckbuilderPage() {
                   size="lg"
                   variant="outline"
                   onClick={() => {
-                    localStorage.setItem("gundam_deckbuilder_draft", JSON.stringify({ deckName, visibility, entries }));
+                    localStorage.setItem(DECKBUILDER_DRAFT_KEY, JSON.stringify({ deckName, visibility, entries }));
                     navigate("/login");
                   }}
                   className="rounded-none border-white/20 font-heading uppercase tracking-wider text-sm px-6"

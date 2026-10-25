@@ -436,7 +436,7 @@ model Deck {
   userId            String
   name              String
   format            String         @default("constructed")
-  visibility        DeckVisibility @default(PRIVATE)
+  visibility        DeckVisibility @default(PUBLIC)
   notes             String?        @db.Text
   coverImage        String?
   shareId           String         @unique @default(cuid())
@@ -1139,6 +1139,7 @@ enum SocialPostType {
   META_INSIGHT
   PRODUCT_AFFILIATE
   TOURNAMENT_REPORT
+  ARTICLE
 }
 
 /// Fila e historico de postagens para redes sociais com Human-in-the-Loop (Instagram / Discord / Web Admin)

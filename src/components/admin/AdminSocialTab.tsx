@@ -33,7 +33,7 @@ function InstagramIcon({ className = "size-4" }: { className?: string }) {
 
 export interface SocialMediaPost {
   id: string;
-  type: "CARD_SPOTLIGHT" | "DECK_FEATURE" | "META_INSIGHT" | "PRODUCT_AFFILIATE" | "TOURNAMENT_REPORT";
+  type: "CARD_SPOTLIGHT" | "DECK_FEATURE" | "META_INSIGHT" | "PRODUCT_AFFILIATE" | "TOURNAMENT_REPORT" | "ARTICLE";
   status: "DRAFT" | "PENDING_APPROVAL" | "APPROVED" | "PUBLISHING" | "PUBLISHED" | "REJECTED" | "FAILED";
   title: string | null;
   caption: string;
@@ -60,6 +60,7 @@ const POST_TYPE_LABEL: Record<SocialMediaPost["type"], string> = {
   DECK_FEATURE: "Deck",
   META_INSIGHT: "Meta",
   PRODUCT_AFFILIATE: "Afiliado",
+  ARTICLE: "Artigo",
 };
 
 /** Formatos da agenda (segunda, quarta, sexta), na ordem em que aparecem no gerador. */
@@ -67,7 +68,10 @@ const GENERATE_TYPES: { value: SocialMediaPost["type"]; label: string; hint: str
   { value: "TOURNAMENT_REPORT", label: "Torneios da semana", hint: "Carrossel com os torneios do Brasil da semana passada (segunda)." },
   { value: "CARD_SPOTLIGHT", label: "Carta do dia", hint: "Rodízio LR → R → U → C; artes alternativas entram no carrossel (quarta)." },
   { value: "DECK_FEATURE", label: "Deck em destaque", hint: "Arquétipo de melhor desempenho nos últimos 30 dias, com a lista (sexta)." },
+  { value: "ARTICLE", label: "Artigo", hint: "Capa do artigo e um resumo do texto. Sai sozinho ao publicar um artigo; aqui dá para gerar de novo." },
 ];
+
+type PublishedArticle = { id: string; title: string; publishedAt: string | null };
 
 /** Estado da geração em segundo plano (GET /admin/social/generation). */
 type GenerationState = { running: boolean; postId: string | null; error: string | null };
@@ -111,6 +115,8 @@ export function AdminSocialTab() {
   const [generating, setGenerating] = useState(false);
   const [cardCodeInput, setCardCodeInput] = useState("");
   const [postTypeInput, setPostTypeInput] = useState<SocialMediaPost["type"]>("CARD_SPOTLIGHT");
+  const [articles, setArticles] = useState<PublishedArticle[] | null>(null);
+  const [articleIdInput, setArticleIdInput] = useState("");
   const [slideIndex, setSlideIndex] = useState(0);
   const [customTopicInput, setCustomTopicInput] = useState("");
   const [selectedPost, setSelectedPost] = useState<SocialMediaPost | null>(null);
@@ -125,6 +131,18 @@ export function AdminSocialTab() {
       .then(setIntegrations)
       .catch(() => setIntegrations(null));
   }, []);
+
+  // artigos publicados só carregam quando o formato "Artigo" é escolhido
+  useEffect(() => {
+    if (postTypeInput !== "ARTICLE" || articles) return;
+    apiFetch<{ items?: PublishedArticle[] }>("/posts?status=PUBLISHED&page=1&pageSize=20")
+      .then((result) => {
+        const items = result?.items ?? [];
+        setArticles(items);
+        setArticleIdInput((current) => current || items[0]?.id || "");
+      })
+      .catch(() => setArticles([]));
+  }, [postTypeInput, articles]);
 
   const selectPost = (post: SocialMediaPost) => {
     setSelectedPost(post);
@@ -203,6 +221,7 @@ export function AdminSocialTab() {
           cardCode: postTypeInput === "CARD_SPOTLIGHT" ? cardCodeInput.trim() || undefined : undefined,
           customTopic: customTopicInput.trim() || undefined,
           type: postTypeInput,
+          articleId: postTypeInput === "ARTICLE" ? articleIdInput || undefined : undefined,
         }),
       });
       toast.info("Gerando o texto e as imagens. O rascunho aparece aqui e no Discord em 1 a 3 minutos.");
@@ -388,6 +407,33 @@ export function AdminSocialTab() {
               </div>
               )}
 
+              {postTypeInput === "ARTICLE" && (
+              <div>
+                <label htmlFor="social-article" className="text-xs uppercase font-mono text-slate-300 block mb-1">
+                  Artigo
+                </label>
+                <select
+                  id="social-article"
+                  value={articleIdInput}
+                  onChange={(e) => setArticleIdInput(e.target.value)}
+                  disabled={!articles?.length}
+                  className="w-full h-9 rounded-none border border-input bg-slate-950/60 px-3 text-sm text-slate-200"
+                >
+                  {articles === null && <option value="">Carregando artigos...</option>}
+                  {articles?.length === 0 && <option value="">Nenhum artigo publicado</option>}
+                  {articles?.map((article) => (
+                    <option key={article.id} value={article.id}>
+                      {article.title}
+                      {article.publishedAt ? ` (${new Date(article.publishedAt).toLocaleDateString("pt-BR")})` : ""}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-[11px] text-slate-500 mt-1 block">
+                  Os 20 artigos publicados mais recentes. A legenda resume o texto do artigo.
+                </span>
+              </div>
+              )}
+
               <div>
                 <label className="text-xs uppercase font-mono text-slate-300 block mb-1">
                   Contexto ou Instrução Adicional (Opcional)
@@ -411,7 +457,7 @@ export function AdminSocialTab() {
               </div>
               <Button
                 onClick={handleGenerate}
-                disabled={generating}
+                disabled={generating || (postTypeInput === "ARTICLE" && !articleIdInput)}
                 className="rounded-none bg-sky-500 hover:bg-sky-600 text-slate-950 font-bold uppercase tracking-wider text-xs px-5"
               >
                 {generating ? (

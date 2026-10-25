@@ -52,15 +52,16 @@ export function registerSocialRoutes(app: Express, prisma: PrismaClient, authReq
   });
 
   app.post("/api/admin/social/generate", authRequired, adminOnly, async (req: Request, res: Response) => {
-    const { cardCode, customTopic, type } = (req.body ?? {}) as { cardCode?: unknown; customTopic?: unknown; type?: unknown };
+    const { cardCode, customTopic, type, articleId } = (req.body ?? {}) as { cardCode?: unknown; customTopic?: unknown; type?: unknown; articleId?: unknown };
     try {
       const { startSocialPostDraft, socialGenerationState, CARD_CODE_PATTERN } = await loadService();
       const code = typeof cardCode === "string" && cardCode.trim() ? cardCode.trim().toUpperCase() : undefined;
       if (code && !CARD_CODE_PATTERN.test(code)) return res.status(400).json({ error: "Código de carta inválido (ex.: GD01-001)." });
       const topic = typeof customTopic === "string" ? customTopic.trim().slice(0, 300) || undefined : undefined;
       const postType = typeof type === "string" && TYPE_VALUES.has(type) ? (type as SocialPostType) : undefined;
+      const article = postType === SocialPostType.ARTICLE && typeof articleId === "string" && articleId.trim() ? articleId.trim().slice(0, 64) : undefined;
       // responde na hora: a geração segue em segundo plano e o painel acompanha por GET /generation
-      if (!startSocialPostDraft(prisma, { cardCode: code, customTopic: topic, type: postType })) {
+      if (!startSocialPostDraft(prisma, { cardCode: code, customTopic: topic, type: postType, articleId: article })) {
         return res.status(409).json({ error: "Já tem um post sendo gerado. Ele aparece na lista e no Discord quando terminar.", generation: socialGenerationState() });
       }
       res.status(202).json(socialGenerationState());
