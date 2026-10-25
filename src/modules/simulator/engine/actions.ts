@@ -1,7 +1,7 @@
 import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PendingDecision, PlayerId, QueuedTrigger } from "./types";
 import { isHiddenCard, type ViewGameState } from "./viewState";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { actionsBeforeChoice, costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, isFollowUpTrigger, specNeedsChoice, trashExileChoice } from "./effectSpec";
+import { actionsBeforeChoice, compileActions, costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, isFollowUpTrigger, specNeedsChoice, trashExileChoice } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
 import { canPayLevel, deployCard, playCommand } from "./deploy";
 import { costRestsSelf, specResourceCost } from "./costs";
@@ -14,6 +14,7 @@ import {
   collectDestroyedInBattle,
   dispatchAfterMain,
   deferOrDispatchAbilities,
+  openCostStage,
   dispatchCommandActivated,
   dispatchDestroyedFromEffect,
   dispatchDestroyedTriggers,
@@ -452,7 +453,12 @@ function applyPlayerActionInner(
           (usable.some(specNeedsChoice) && !action.targets) ||
           // W9 — custo/efeito de exilar do trash com mais elegíveis que o necessário: o jogador escolhe quais
           (usable.some((s) => trashExileChoice(state, s, actingPlayer)) && !action.targets?.trashExile);
-        if ((costTarget && !action.targets?.[costTarget]?.length) || choiceMissing) {
+        // custo com escolha e sem a Unit do custo na ação: primeiro só o custo (o alvo do efeito vem depois de pagar)
+        const costSpec = usable.find(costRestsSecondaryTarget);
+        if (costTarget && costSpec && !action.targets?.[costTarget]?.length) {
+          return openCostStage(announced(state), actingPlayer, trigger, costSpec, action.sourceInstanceId, specs, { predicateResolver, targetFilterResolver });
+        }
+        if (choiceMissing) {
           return deferOrDispatchAbilities(announced(state), actingPlayer, trigger, [{ code: source.def.code, instanceId: action.sourceInstanceId }], specs, {
             predicateResolver,
             targetFilterResolver,
@@ -650,6 +656,34 @@ function applyPlayerActionInner(
         // docs/47 Fase 5 — 2º pool de alvo (ST05-010 Mikazuki Augus 【When Paired】).
         const secondaryIds = r.secondaryTargetIds ?? [];
 
+        // etapa de custo: paga o custo com a Unit escolhida e abre a escolha do efeito, já depois do custo
+        if (q.costStage) {
+          const spec = specs.find((s) => s.id === r.specId);
+          const st = q.secondaryTarget;
+          if (!spec || !st) throw new Error(`Custo sem definição pra ${r.specId}`);
+          const want = Math.min(st.count ?? 1, st.legalTargets.length);
+          if (secondaryIds.length !== want || new Set(secondaryIds).size !== secondaryIds.length || !secondaryIds.every((id) => st.legalTargets.includes(id))) {
+            throw new Error(`Custo inválido pra ${r.specId} — escolha ${want} Unit${want > 1 ? "s" : ""} diferente${want > 1 ? "s" : ""} para pagar o custo.`);
+          }
+          const costCtx = { state: next, controller: actingPlayer, sourceInstanceId: q.sourceInstanceId, turnNumber: next.turnNumber, targets: { [st.name]: secondaryIds } };
+          next = applyEvents(next, compileActions(spec.cost ?? [], costCtx));
+          const costless: EffectSpec = { ...spec, cost: undefined, secondaryTarget: undefined };
+          const code = findCard(next, q.sourceInstanceId).def.code;
+          next = deferOrDispatchAbilities(next, actingPlayer, decision.trigger, [{ code, instanceId: q.sourceInstanceId, implicitTargets: { [st.name]: secondaryIds } }], [costless], {
+            predicateResolver,
+            targetFilterResolver,
+          });
+          const effectStage = next.pendingDecision[actingPlayer];
+          if (effectStage?.kind === "abilityResolution") {
+            next = applyEvent(next, {
+              type: "SET_PENDING_DECISION",
+              player: actingPlayer,
+              decision: { ...effectStage, queue: effectStage.queue.map((e) => (e.specId === r.specId ? { ...e, costPaid: true } : e)) },
+            });
+          }
+          continue;
+        }
+
         // "Não revelar" ainda dispara `lookAtTopFilterReveal` (as N cartas vão
         // pro fundo). `handDiscard`/`deckReorder`/`enumChoice` são MANDATÓRIOS
         // (não é "may") — não caem nos `continue` de skip; a validação abaixo
@@ -797,7 +831,9 @@ function applyPlayerActionInner(
         }
 
         if (flowTrigger === "Main" || flowTrigger === "Action") commandSources.add(q.sourceInstanceId);
-        next = dispatchTrigger(next, q.sourceInstanceId, decision.trigger, specs.filter((s) => s.id === r.specId), {
+        // custo já pago na etapa anterior (`costStage`): só o efeito
+        const toDispatch = specs.filter((s) => s.id === r.specId).map((s) => (q.costPaid ? { ...s, cost: undefined, secondaryTarget: undefined } : s));
+        next = dispatchTrigger(next, q.sourceInstanceId, decision.trigger, toDispatch, {
           targets,
           predicateResolver,
           targetFilterResolver,

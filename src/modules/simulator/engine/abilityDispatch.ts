@@ -395,6 +395,34 @@ export function deferOrDispatchAbilities(
 }
 
 /**
+ * Ativação com custo de escolha ("Rest 1 friendly Unit：Choose 1 enemy Unit…"): primeiro só o custo. A decisão traz a
+ * escolha da Unit do custo (`secondaryTarget`), sem o alvo do efeito — ele é escolhido depois do custo pago (ver
+ * `resolveAbility`, `costStage`). Pedido do Willen (2026-10-25): o que vem antes do "：" é custo e se cumpre primeiro.
+ */
+export function openCostStage(
+  state: GameState,
+  player: PlayerId,
+  trigger: string,
+  spec: EffectSpec,
+  sourceInstanceId: string,
+  specs: EffectSpec[],
+  opts: { predicateResolver?: PredicateResolver; targetFilterResolver?: TargetFilterResolver } = {},
+): GameState {
+  const entry = buildQueueEntry(state, player, spec, sourceInstanceId, opts.targetFilterResolver, undefined, undefined, specs);
+  return applyEvents(state, [
+    {
+      type: "SET_PENDING_DECISION",
+      player,
+      decision: {
+        kind: "abilityResolution",
+        trigger,
+        queue: [{ ...entry, optional: false, needsTarget: false, legalTargets: [], targetCount: undefined, costStage: true }],
+      },
+    },
+  ]);
+}
+
+/**
  * Compara o estado imediatamente ANTES de aplicar os eventos do Damage Step
  * com o de DEPOIS e devolve as Units que saíram da Battle Area pro trash neste
  * passo (mortes de batalha, `pairedPilotFollowEvents`, Breach letal,

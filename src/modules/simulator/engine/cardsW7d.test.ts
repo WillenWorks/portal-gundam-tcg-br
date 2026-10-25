@@ -225,7 +225,8 @@ describe("FAQ GD05-054 — destruída por DANO de efeito não é \"destroyed by 
     s.activePlayer = "B";
     const hand = s.players.A.hand.length;
     s = act(s, "B", { kind: "activateAbility", sourceInstanceId: enemyThrone });
-    s = act(s, "B", { kind: "resolveAbility", resolutions: [{ specId: "GD05-038-ActivateMain", activate: true, targetIds: [weak], secondaryTargetIds: cbs }] });
+    s = act(s, "B", { kind: "resolveAbility", resolutions: [{ specId: "GD05-038-ActivateMain", activate: true, targetIds: [], secondaryTargetIds: cbs }] });
+    s = act(s, "B", { kind: "resolveAbility", resolutions: [{ specId: "GD05-038-ActivateMain", activate: true, targetIds: [weak] }] });
     expect(inZone(s, "A", "trash", weak)).toBe(true);
     expect(s.players.A.hand.length).toBe(hand);
     expect(s.players.A.ownUnitDestroyedByOwnEffectOnTurn).toBeUndefined();
