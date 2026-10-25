@@ -540,4 +540,19 @@ describe("SimulatorMatchPage — Fases de Turno e Sincronização de Draw e Recu
     expect(staged.viewDraw.view.players.A.hand.length).toBe(6);
     expect(staged.viewDraw.view.phase).toBe("draw");
   }, 15000);
+
+  it("visões intermediárias da virada de turno não carregam jogadas do menu do estado final", () => {
+    const menu = { active: true, passes: ["finishTurn" as const], entries: [{ kind: "activateBlocker" as const, blockerId: "u-1" }] };
+    const incoming = { ...createMatchView(createView({ turnNumber: 3, activePlayer: "A", phase: "main" })), legalMenu: menu };
+    const staged = buildTurnStagedViews(createView({ turnNumber: 2, activePlayer: "B" }), incoming);
+    const empty = { active: false, entries: [], passes: [] };
+    expect(staged.viewAnnounced.legalMenu).toEqual(empty);
+    expect(staged.viewRecovery.legalMenu).toEqual(empty);
+    expect(staged.viewDraw.legalMenu).toEqual(empty);
+    expect(staged.viewMain.legalMenu).toEqual(menu);
+    const turn1 = buildTurn1StagedViews(incoming);
+    expect(turn1.viewAnnounced.legalMenu).toEqual(empty);
+    expect(turn1.viewDraw.legalMenu).toEqual(empty);
+    expect(turn1.viewMain.legalMenu).toEqual(menu);
+  });
 });

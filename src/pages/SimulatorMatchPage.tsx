@@ -116,6 +116,7 @@ import { useCardLanguage } from "@/i18n/useCardLanguage";
 import type { HiddenCard, ViewCardInstance, ViewGameState, ViewPlayerState } from "@/modules/simulator/engine/viewState";
 import { pairingNeedsExtraTarget, resolveDeploySelection } from "@/modules/simulator/ui/deployIntent";
 import { fieldAbilityFor, type FieldAbility } from "@/modules/simulator/ui/abilityIntent";
+import { abilityTargetsFromMenu, fieldAbilityFromMenu } from "@/modules/simulator/ui/menuIntent";
 import { findAltDiscardCandidates, findEligibleSacrifices, playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
 import { getScaledDuration } from "@/modules/simulator/ui/animationSettings";
 import {
@@ -294,6 +295,11 @@ export function endOfTurnBanners(prevView: ViewGameState): string[] {
   return actionStepAlreadyAnnounced ? ["FIM DE TURNO"] : ["FASE DE AÇÕES", "FIM DE TURNO"];
 }
 
+/** visão intermediária de animação: o menu do motor é do estado final, então nenhuma jogada fica disponível nela */
+function heldFromMenu(mv: SimulatorMatchView): Pick<SimulatorMatchView, "legalMenu"> {
+  return mv.legalMenu ? { legalMenu: { active: false, entries: [], passes: [] } } : {};
+}
+
 export function buildTurnStagedViews(
   prevView: ViewGameState,
   incoming: SimulatorMatchView,
@@ -310,6 +316,7 @@ export function buildTurnStagedViews(
   // 1. viewAnnounced: mantém as unidades descansadas (rested) e mão/deck do turno anterior
   const viewAnnounced: SimulatorMatchView = {
     ...incoming,
+    ...heldFromMenu(incoming),
     view: {
       ...incoming.view,
       phase: "start",
@@ -337,6 +344,7 @@ export function buildTurnStagedViews(
   // 2. viewRecovery: unidades destombam (rested: false), mas a mão/deck continuam antes da compra
   const viewRecovery: SimulatorMatchView = {
     ...incoming,
+    ...heldFromMenu(incoming),
     view: {
       ...incoming.view,
       phase: "start",
@@ -364,6 +372,7 @@ export function buildTurnStagedViews(
   // 3. viewDraw: mão recebe a carta recém-comprada de incomingView, deck decrementa
   const viewDraw: SimulatorMatchView = {
     ...incoming,
+    ...heldFromMenu(incoming),
     view: {
       ...incoming.view,
       phase: "draw",
@@ -409,6 +418,7 @@ export function buildTurn1StagedViews(current: SimulatorMatchView): {
 
   const viewBeforeDraw: SimulatorMatchView = {
     ...current,
+    ...heldFromMenu(current),
     view: {
       ...current.view,
       phase: "start",
@@ -425,6 +435,7 @@ export function buildTurn1StagedViews(current: SimulatorMatchView): {
 
   const viewDraw: SimulatorMatchView = {
     ...current,
+    ...heldFromMenu(current),
     view: {
       ...current.view,
       phase: "draw",
@@ -1721,6 +1732,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   // Step de combate, só que ao encerrar o turno em vez de durante uma batalha.
   const iHaveEndPhasePriority = endPhaseAction !== null && endPhaseAction.priority === seat;
   const inActionStep = iHavePriority || iHaveEndPhasePriority;
+  // jogadas legais calculadas pelo motor no servidor (`legalMenuFor`); servidor antigo sem o menu cai nas regras locais
+  const legalMenu = matchView.legalMenu;
+  const fieldAbilityOf = (card: CardInstance, timing: "main" | "action"): FieldAbility | null =>
+    legalMenu ? fieldAbilityFromMenu(legalMenu, card.instanceId) : fieldAbilityFor(card, timing);
   const commandTrigger: "Main" | "Action" | null = inActionStep ? "Action" : myTurnMain ? "Main" : null;
   // Motivo (curto, mostrado no preview da carta) de por que uma Unit/Pilot/Base não pode ser jogada
   // agora -- só entra em jogo quando `myTurnMain` é falso (rodada 5: antes o botão só ficava cinza
@@ -1824,6 +1839,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
     if (pending.kind === "activateAbility") {
       if (!pending.abilityNeedsTarget) return none;
+      if (legalMenu) return abilityTargetsFromMenu(legalMenu, pendingCard.instanceId) ?? none;
 
       if (hasKeyword(pendingCard, "Support")) {
         // Support mira em outra Unit amiga
@@ -2355,8 +2371,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             ? "light"
             : "heavy"
           : undefined;
-      const ability = unit && canActivateHere ? fieldAbilityFor(unit, abilityTiming) : null;
-      const canActivate = Boolean(ability && myActiveResources >= ability.cost);
+      const ability = unit && canActivateHere ? fieldAbilityOf(unit, abilityTiming) : null;
+      const canActivate = Boolean(ability && (legalMenu || myActiveResources >= ability.cost));
       const isLegal = isLegalTargetForSlot(unit);
 
       const canAttackThisUnit = canAttackFrom && Boolean(unit) && canUnitAttackNow(unit!);
@@ -2560,8 +2576,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     // só os Units da Battle Area (mesmo guard de `renderBattleSlots`).
     const canActivateBaseHere = isSelf && (myTurnMain || inActionStep) && !attackerId && !selecting;
     const myActiveResourcesForBase = player.resourceArea.filter((r) => !isHidden(r) && !(r as CardInstance).rested).length;
-    const baseAbility = base && canActivateBaseHere ? fieldAbilityFor(base, inActionStep ? "action" : "main") : null;
-    const canActivateBase = Boolean(baseAbility && myActiveResourcesForBase >= baseAbility.cost);
+    const baseAbility = base && canActivateBaseHere ? fieldAbilityOf(base, inActionStep ? "action" : "main") : null;
+    const canActivateBase = Boolean(baseAbility && (legalMenu || myActiveResourcesForBase >= baseAbility.cost));
     const resources = (player.resourceArea.filter((c) => !isHidden(c)) as CardInstance[]).map((r) => ({
       instanceId: r.instanceId,
       rested: r.rested,

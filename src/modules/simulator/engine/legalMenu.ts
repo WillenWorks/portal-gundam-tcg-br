@@ -32,6 +32,8 @@ export type LegalMenuEntry =
       trigger: "Activate·Main" | "Activate·Action";
       slots: LegalMenuSlot[];
       resourceCost: number;
+      /** keyword `<Support N>` (não um EffectSpec de 【Activate】) */
+      support?: true;
     }
   | { kind: "declareAttack"; attackerId: string; targets: AttackTarget[] }
   | { kind: "activateBlocker"; blockerId: string };
@@ -112,7 +114,7 @@ function abilitySlots(
   actions: LegalAction[],
   specs: EffectSpec[],
   opts: EnumerateOptions,
-): { slots: LegalMenuSlot[]; resourceCost: number } {
+): { slots: LegalMenuSlot[]; resourceCost: number; support?: true } {
   const source = [...state.players[seat].battleArea, ...state.players[seat].baseSection].find((c) => c.instanceId === sourceId);
   if (!source) return { slots: [], resourceCost: 0 };
   const abilitySpecs = findTriggerSpecs(specs, source.def.code, trigger);
@@ -126,8 +128,8 @@ function abilitySlots(
   if (exile && actions.some((a) => "targets" in a && a.targets?.trashExile)) {
     slots.push({ name: "trashExile", legalTargets: exile.legalTrashIds, min: exile.count, max: exile.count });
   }
-  const resourceCost = abilitySpecs.length ? Math.min(...abilitySpecs.map(specResourceCost)) : 0;
-  return { slots, resourceCost };
+  if (abilitySpecs.length === 0) return { slots, resourceCost: 0, support: true };
+  return { slots, resourceCost: Math.min(...abilitySpecs.map(specResourceCost)) };
 }
 
 export function legalMenuFor(state: GameState, seat: PlayerId, specs: EffectSpec[] = [], opts: EnumerateOptions = {}): LegalMenu {
