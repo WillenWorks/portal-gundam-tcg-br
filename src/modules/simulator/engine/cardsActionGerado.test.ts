@@ -1,12 +1,14 @@
 /* Camada 1 da fase de assertividade, categorias 【Action】 (Command) e 【Activate･Action】: gerado a partir de
- * ALL_EFFECT_SPECS e jogado pelo caminho do jogador — A ataca o jogador inimigo, os passes vão até A ter a vez no
- * Action Step, e ali a Command da mão (ou a habilidade da carta em campo) sai pela jogada legal. Controle: a MESMA
- * jogada com o efeito vazio — paga/descarta/descansa igual; só o efeito diferencia. */
+ * ALL_EFFECT_SPECS e jogado pelo caminho do jogador — os passes vão até A ter a vez no Action Step, e ali a Command da
+ * mão (ou a habilidade da carta em campo) sai pela jogada legal. Cenários, na ordem: A ataca o jogador inimigo; B
+ * ataca o jogador A; B ataca uma Unit de A; B ataca e A bloqueia com <Blocker>. A carta conta como exercitada no 1º
+ * cenário em que é oferecida. Controle: a MESMA jogada com o efeito vazio — só o efeito diferencia. */
 import { describe, expect, it } from "vitest";
 import { createGame } from "./setup";
 import { advanceToMainPhase } from "./phases";
 import { applyPlayerAction, type PlayerAction } from "./actions";
 import { actionOwner, enumerateLegalActions } from "./legalActions";
+import { applyEvent } from "./events";
 import { placeCard } from "./__testkit__/cardHarness";
 import { fingerprint, friendlyTargetFor, partnerFor, richBoard, scenarioOpts, settleDecisions, trashMaterialFor } from "./__testkit__/cardScenario";
 import type { EffectSpec } from "./effectSpec";
@@ -32,31 +34,51 @@ function apply(state: GameState, seat: "A" | "B", action: PlayerAction, specs: E
   return settleDecisions(applyPlayerAction(state, seat, action, specs, defaultPredicateResolver, defaultTargetFilterResolver), specs);
 }
 
-/** tabuleiro com recurso de sobra; `extra` põe a carta testada (na mão ou em campo) antes do ataque */
-function board(specs: readonly EffectSpec[], extra: (state: GameState) => GameState): GameState {
-  let state = advanceToMainPhase(createGame(buildSt01DeckList(), buildSt02DeckList(), { seed: 7, firstPlayer: "A" }));
+type Mode = "attack" | "defendPlayer" | "defendUnit" | "defendBlock";
+const MODES: Mode[] = ["attack", "defendPlayer", "defendUnit", "defendBlock"];
+/** atacante de B nos cenários de defesa: Lv.4, 4 HP (alvo de "enemy Unit with 4 or less HP battling …") */
+const RAIDER: CardDef = { ...ST01_CARD_DEFS.GM, code: "CA-RAIDER", nameEn: "Raider", level: 4, ap: 3, hp: 4, traits: [] };
+
+/** tabuleiro com recurso de sobra; `extra` põe a carta testada (na mão ou em campo) antes do ataque.
+ *  Na defesa, a vez é de B e os alvos amigos gerados ficam descansados (podem ser atacados / receber o ataque). */
+function board(specs: readonly EffectSpec[], mode: Mode, extra: (state: GameState) => GameState): GameState {
+  let state = advanceToMainPhase(createGame(buildSt01DeckList(), buildSt02DeckList(), { seed: 7, firstPlayer: mode === "attack" ? "A" : "B" }));
   for (let i = 0; i < 10; i++) placeCard(state, "A", RESOURCE, "resourceArea");
   richBoard(state, "A", TRASH_MATERIAL);
   for (const spec of specs) {
     const target = friendlyTargetFor(spec);
-    if (target) placeCard(state, "A", target, "battleArea", { damage: 1 });
+    if (target) placeCard(state, "A", target, "battleArea", { damage: 1, rested: mode !== "attack" });
   }
   state = extra(state);
   return state;
 }
 
-/** A ataca o jogador inimigo e passa até ter a vez no Action Step; `null` se o combate acabou antes */
-function toActionStep(state: GameState, attackerId: string, specs: EffectSpec[]): GameState | null {
-  const attack = enumerateLegalActions(state, "A", specs, scenarioOpts).find((a) => a.kind === "declareAttack" && a.attackerId === attackerId && a.target === "player");
+/**
+ * Leva o combate até A ter a vez no Action Step. `attack`: A ataca o jogador com uma Unit sua. Defesa: um atacante de B
+ * ataca o jogador A (ou `attackedUnitId`); em `defendBlock`, A bloqueia com um <Blocker> ativo. `null` se não deu.
+ */
+function toActionStep(state: GameState, specs: EffectSpec[], mode: Mode, attackedUnitId?: string): GameState | null {
+  const atk = mode === "attack" ? "A" : "B";
+  if (mode === "defendUnit" && !attackedUnitId) return null;
+  const attackerId = placeCard(state, atk, mode === "attack" ? ST01_CARD_DEFS.GUNDAM : RAIDER, "battleArea");
+  const blockerId = mode === "defendBlock" ? placeCard(state, "A", ST01_CARD_DEFS.ZOWORT, "battleArea") : undefined;
+  const attack = enumerateLegalActions(state, atk, specs, scenarioOpts).find(
+    (a) =>
+      a.kind === "declareAttack" &&
+      a.attackerId === attackerId &&
+      (mode === "defendUnit" ? typeof a.target === "object" && a.target.unitId === attackedUnitId : a.target === "player"),
+  );
   if (!attack) return null;
-  let next = apply(state, "A", attack, specs);
+  let next = apply(state, atk, attack, specs);
   for (let guard = 0; guard < 10 && next.combat; guard++) {
     const seat = actionOwner(next);
     if (!seat) return null;
     if (seat === "A" && next.combat.step === "action") return next;
-    const pass = enumerateLegalActions(next, seat, specs, scenarioOpts).find((a) => a.kind === "skipBlock" || a.kind === "passAction");
-    if (!pass) return null;
-    next = apply(next, seat, pass, specs);
+    const options = enumerateLegalActions(next, seat, specs, scenarioOpts);
+    const block = blockerId ? options.find((a) => a.kind === "activateBlocker" && a.blockerId === blockerId) : undefined;
+    const step = block ?? options.find((a) => a.kind === "skipBlock" || a.kind === "passAction");
+    if (!step) return null;
+    next = apply(next, seat, step, specs);
   }
   return null;
 }
@@ -72,14 +94,15 @@ interface Case {
   play: (specs: EffectSpec[], state: GameState) => PlayerAction | undefined;
 }
 
-function commandCase(code: string): Case | null {
+function commandCase(code: string, mode: Mode): Case | null {
   let cardId = "";
-  const ready = board(ACTION_SPECS.filter((s) => s.cardCode === code), (s) => {
+  const ready = board(ACTION_SPECS.filter((s) => s.cardCode === code), mode, (s) => {
     cardId = placeCard(s, "A", ALL_CARD_DEFS[code], "hand");
     return s;
   });
-  const attackerId = placeCard(ready, "A", ST01_CARD_DEFS.GUNDAM, "battleArea");
-  const state = toActionStep(ready, attackerId, ALL_EFFECT_SPECS);
+  // defesa de Unit: a 1ª Unit descansada de A (o alvo amigo gerado, ou a do tabuleiro)
+  const attacked = ready.players.A.battleArea.find((u) => u.rested)?.instanceId;
+  const state = toActionStep(ready, ALL_EFFECT_SPECS, mode, attacked);
   if (!state) return null;
   return {
     state,
@@ -92,29 +115,38 @@ function commandCase(code: string): Case | null {
   };
 }
 
-function activateCase(code: string): Case | null {
+function activateCase(code: string, mode: Mode): Case | null {
   const def = ALL_CARD_DEFS[code];
   const own = ACTIVATE_SPECS.filter((s) => s.cardCode === code);
   let sourceId = "";
-  const ready = board(own, (s) => {
+  let unitInPlay: string | undefined;
+  const ready = board(own, mode, (s) => {
     if (def.cardType === "BASE") {
       s.players.A.baseSection = [];
       sourceId = placeCard(s, "A", def, "baseSection");
       return s;
     }
     const partner = partnerFor(own, def);
-    const unitId = placeCard(s, "A", def.cardType === "UNIT" ? def : partner.unit, "battleArea");
+    const unitId = placeCard(s, "A", def.cardType === "UNIT" ? def : partner.unit, "battleArea", { rested: mode === "defendUnit" });
+    unitInPlay = unitId;
     sourceId = def.cardType === "UNIT" ? unitId : "";
     if (def.cardType === "UNIT" && !needsPilot(own)) return s;
-    const pilotId = placeCard(s, "A", def.cardType === "UNIT" ? partner.pilot : def, "hand");
+    const pilotDef = def.cardType === "UNIT" ? partner.pilot : def;
+    if (mode !== "attack") {
+      // na defesa a vez é de B e A não joga Piloto: o par já está em campo (preparo; a jogada testada é a ativação)
+      const pilotId = placeCard(s, "A", pilotDef, "battleArea");
+      if (def.cardType !== "UNIT") sourceId = pilotId;
+      return applyEvent(s, { type: "PAIR_CARDS", pilotId, unitId });
+    }
+    const pilotId = placeCard(s, "A", pilotDef, "hand");
     if (def.cardType !== "UNIT") sourceId = pilotId;
     const pair = enumerateLegalActions(s, "A", ALL_EFFECT_SPECS, scenarioOpts).find(
       (a) => a.kind === "deployCard" && a.cardInstanceId === pilotId && "pairWithUnitId" in a && a.pairWithUnitId === unitId,
     );
     return pair ? apply(s, "A", pair, ALL_EFFECT_SPECS) : s;
   });
-  const attackerId = placeCard(ready, "A", ST01_CARD_DEFS.GUNDAM, "battleArea");
-  const state = toActionStep(ready, attackerId, ALL_EFFECT_SPECS);
+  // defesa de Unit: a Unit da carta (ou a pareada com o Piloto da carta) é a atacada
+  const state = toActionStep(ready, ALL_EFFECT_SPECS, mode, unitInPlay);
   if (!state) return null;
   return {
     state,
@@ -123,53 +155,62 @@ function activateCase(code: string): Case | null {
   };
 }
 
-function run(codes: string[], trigger: "Action" | "Activate·Action", build: (code: string) => Case | null) {
+/**
+ * Para cada carta: em todo cenário em que a jogada é oferecida, joga com o efeito e com o efeito vazio. Basta um
+ * cenário com rastro ("change the attack target" só faz algo na defesa). Exceção ou decisão pendente é falha.
+ */
+function run(codes: string[], trigger: "Action" | "Activate·Action", build: (code: string, mode: Mode) => Case | null) {
   const naoOferecidas: string[] = [];
   const semRastro: string[] = [];
   const falhas: string[] = [];
   for (const code of codes) {
-    const c = build(code);
-    const action = c?.play(ALL_EFFECT_SPECS, c.state);
-    if (!c || !action) {
-      naoOferecidas.push(code);
-      continue;
-    }
     const control = ALL_EFFECT_SPECS.map((s) => (s.cardCode === code && s.trigger === trigger ? effectless(s) : s));
-    try {
-      const real = apply(c.state, "A", action, ALL_EFFECT_SPECS);
-      if (real.pendingDecision.A || real.pendingDecision.B) {
-        falhas.push(`${code}: decisão ficou pendente`);
-        continue;
+    let offered = false;
+    let traced = false;
+    for (const mode of MODES) {
+      const c = build(code, mode);
+      const action = c?.play(ALL_EFFECT_SPECS, c.state);
+      if (!c || !action) continue;
+      offered = true;
+      try {
+        const real = apply(c.state, "A", action, ALL_EFFECT_SPECS);
+        if (real.pendingDecision.A || real.pendingDecision.B) {
+          falhas.push(`${code} (${mode}): decisão ficou pendente`);
+          continue;
+        }
+        const ctl = apply(c.state, "A", action, control);
+        if (fingerprint(real) !== fingerprint(ctl)) {
+          traced = true;
+          break;
+        }
+      } catch (err) {
+        falhas.push(`${code} (${mode}): exceção ${(err as Error).message}`);
       }
-      const semEfeito = apply(c.state, "A", action, control);
-      if (fingerprint(real) === fingerprint(semEfeito)) semRastro.push(code);
-    } catch (err) {
-      falhas.push(`${code}: exceção ${(err as Error).message}`);
     }
+    if (!offered) naoOferecidas.push(code);
+    else if (!traced) semRastro.push(code);
   }
   return { naoOferecidas, semRastro, falhas };
 }
 
 /* Exceções deste tabuleiro, por motivo. As listas são cobradas. */
 const COMMAND_NAO_OFERECIDAS: string[] = [
-  // defesa: "battling a friendly Unit with <Blocker>/Lv.5 or higher" — aqui A é quem ataca
-  "GD02-118", "GD05-119",
-  // "Choose 1 rested friendly (G Generation)/(CB) Unit" para receber o ataque — nenhuma descansada do trait
-  "EB01-077", "ST07-013",
+  // "battling one of your Units that is Lv.5 or higher" — as Units de A atacadas/bloqueando são de nível baixo
+  "GD05-119",
   // "Choose 1 … (Link Unit, token, damaged enemy, Pilot inimigo, pareada com (Newtype)/(X-Rounder))" sem alvo
   "GD01-101", "GD01-111", "GD02-105", "GD03-102", "GD03-110", "GD03-115", "GD04-119",
 ];
 const COMMAND_SEM_RASTRO: string[] = [
-  // "If it is your opponent's turn / (Teiwaz)/(Gjallarhorn) Link Unit / 2 (UN) / (G Generation) Unit in play"
-  "EB01-083", "GD02-113", "GD02-119", "GD04-118", "ST10-015",
-  // efeito sem material: nenhuma Unit pareada; nenhum ataque inimigo para mudar de alvo
-  "GD03-112", "GD05-108",
+  // "If a (Teiwaz)/(Gjallarhorn) Link Unit / 2 (UN) / (G Generation) Unit is in play"
+  "GD02-113", "GD02-119", "GD04-118", "ST10-015",
+  // efeito sem material: nenhuma Unit pareada
+  "GD03-112",
   // "recovers 2 HP" na 1ª Unit (Academy) escolhida, sem dano
   "GD05-109",
 ];
 const ACTIVATE_NAO_OFERECIDAS: string[] = [
-  // a carta não está na batalha: "Unit being attacked", "this Unit is battling", "battling this Unit"
-  "EB01-033", "GD02-011", "GD03-073", "ST12-011",
+  // "this Unit is battling an enemy Base/Shield" (só atacando com ela) / "damaged enemy Unit battling this Unit"
+  "GD02-011", "ST12-011",
   // custo "Exile N cards from your trash" sem as cartas
   "GD05-022", "ST12-006",
   // "Choose 1 friendly (ZAFT) Unit with 5 or more AP" sem alvo
@@ -178,8 +219,8 @@ const ACTIVATE_NAO_OFERECIDAS: string[] = [
 const ACTIVATE_SEM_RASTRO: string[] = [
   // "recovers 1 HP" na 1ª Unit escolhida, sem dano
   "EB01-020", "GD01-014",
-  // "If it is your opponent's turn" / "enemy Unit with 1 or less AP"
-  "EB01-070", "GD01-098",
+  // "If there are 6 or more (Gjallarhorn) cards in your trash" / "If an enemy Unit with 1 or less AP is in play"
+  "GD03-073", "GD01-098",
 ];
 
 describe(`【Action】 gerado — ${ACTION_CARDS.length} Commands e ${ACTIVATE_CARDS.length} cartas com 【Activate･Action】, no Action Step`, () => {
