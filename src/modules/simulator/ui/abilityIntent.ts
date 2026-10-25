@@ -10,13 +10,23 @@ import type { EffectSpec } from "../engine/effectSpec";
 import type { CardInstance } from "../engine/types";
 import { hasKeyword } from "../engine/types";
 import { specNeedsNamedTarget } from "./deployIntent";
+import { specOncePerTurnMarker } from "../engine/dispatcher";
 
 const ACTIVATE_MAIN = "Activate·Main";
+const ACTIVATE_ACTION = "Activate·Action";
 const SUPPORT = "Support";
+
+/** Momento da ativação: Main Phase (【Activate·Main】, <Support>) ou Action Step (【Activate·Action】). */
+export type AbilityTiming = "main" | "action";
 
 /** O EffectSpec de 【Activate·Main】 desta carta (por `code`), se houver. */
 export function findActivateMainSpec(cardCode: string): EffectSpec | undefined {
   return ALL_EFFECT_SPECS.find((s) => s.cardCode === cardCode && s.trigger === ACTIVATE_MAIN);
+}
+
+function findActivateSpec(cardCode: string, timing: AbilityTiming): EffectSpec | undefined {
+  const trigger = timing === "action" ? ACTIVATE_ACTION : ACTIVATE_MAIN;
+  return ALL_EFFECT_SPECS.find((s) => s.cardCode === cardCode && s.trigger === trigger);
 }
 
 /** Custo em recursos (`payResourceCost.n`) da habilidade — 0 se não tiver custo de recurso. */
@@ -32,8 +42,8 @@ function costRestsSelf(spec: EffectSpec): boolean {
 }
 
 export interface FieldAbility {
-  /** origem da habilidade: EffectSpec de 【Activate·Main】 ou a keyword `<Support>`. */
-  kind: "activateMain" | "support";
+  /** origem da habilidade: EffectSpec de 【Activate·Main】/【Activate·Action】 ou a keyword `<Support>`. */
+  kind: "activateMain" | "activateAction" | "support";
   cost: number;
   needsTarget: boolean;
 }
@@ -49,17 +59,24 @@ export interface FieldAbility {
  * 【Activate·Main】 tem precedência: nenhuma carta de ST01–ST04 tem os dois, mas
  * se tivesse, o efeito bespoke é o que o texto descreve.
  */
-export function fieldAbilityFor(card: CardInstance): FieldAbility | null {
-  const spec = card.def ? findActivateMainSpec(card.def.code) : null;
+export function fieldAbilityFor(card: CardInstance, timing: AbilityTiming = "main"): FieldAbility | null {
+  const spec = card.def ? findActivateSpec(card.def.code, timing) : null;
   if (spec) {
-    if (card.def?.oncePerTurn && card.usedKeywordsThisTurn.includes(ACTIVATE_MAIN)) return null;
+    if (card.def?.oncePerTurn && card.usedKeywordsThisTurn.includes(spec.trigger)) return null;
+    // 【Once per Turn】 da própria habilidade (marcador por spec, o mesmo que o motor grava)
+    if (spec.oncePerTurn && card.usedKeywordsThisTurn.includes(specOncePerTurnMarker(spec))) return null;
     if (card.rested && costRestsSelf(spec)) return null;
     // W5 — custo "Rest 1 of your … Units" (2º alvo): o motor abre a decisão com alvo + Unit do custo juntos
     const engineAsks = !!spec.secondaryTarget;
-    return { kind: "activateMain", cost: abilityResourceCost(spec), needsTarget: !engineAsks && specNeedsNamedTarget(spec) };
+    return {
+      kind: timing === "action" ? "activateAction" : "activateMain",
+      cost: abilityResourceCost(spec),
+      needsTarget: !engineAsks && specNeedsNamedTarget(spec),
+    };
   }
 
-  if (hasKeyword(card, SUPPORT) && card.def?.cardType === "UNIT" && !card.rested) {
+  // <Support> é 【Activate·Main】: não vale no Action Step
+  if (timing === "main" && hasKeyword(card, SUPPORT) && card.def?.cardType === "UNIT" && !card.rested) {
     if (card.def?.oncePerTurn && card.usedKeywordsThisTurn.includes(SUPPORT)) return null;
     return { kind: "support", cost: 0, needsTarget: true };
   }

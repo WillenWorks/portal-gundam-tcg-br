@@ -393,6 +393,48 @@ describe("ST12", () => {
 });
 
 describe("ST13", () => {
+  describe("ST13-006 Gundam Aerial 【Activate･Action】 Rest 1 friendly Unit: 1 de dano numa inimiga Lv.4-", () => {
+    const opts = { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver };
+    /** A ataca o jogador com outra Unit; devolve o Action Step com a prioridade em A */
+    function actionStepForA() {
+      let s = game();
+      const aerial = placeCard(s, "A", card("ST13-006"), "battleArea");
+      const costUnit = placeCard(s, "A", UNIT({ code: "TEST-COST" }), "battleArea");
+      const attacker = placeCard(s, "A", UNIT({ code: "TEST-ATK" }), "battleArea");
+      const enemy = placeCard(s, "B", UNIT({ code: "TEST-E", level: 4, hp: 3 }), "battleArea", { rested: true });
+      s = act(s, "A", { kind: "declareAttack", attackerId: attacker, target: "player" });
+      for (let i = 0; i < 4 && s.combat && !(s.combat.step === "action" && s.combat.actionPriority === "A"); i++) {
+        if (s.combat.step === "block") s = act(s, "B", { kind: "skipBlock" });
+        else if (s.combat.step === "action") s = act(s, "B", { kind: "passAction" });
+      }
+      expect(s.combat?.step).toBe("action");
+      expect(s.combat?.actionPriority).toBe("A");
+      return { s, aerial, costUnit, enemy };
+    }
+
+    it("aparece entre as jogadas do Action Step e resolve: dano no inimigo, Unit do custo descansada", () => {
+      const { s, aerial, costUnit, enemy } = actionStepForA();
+      const offered = enumerateLegalActions(s, "A", ALL_EFFECT_SPECS, opts);
+      expect(offered.some((a) => a.kind === "activateAbility" && a.sourceInstanceId === aerial)).toBe(true);
+      let next = act(s, "A", { kind: "activateAbility", sourceInstanceId: aerial });
+      const q = entry(next, "A", "ST13-006-ActivateAction");
+      expect(q?.legalTargets).toContain(enemy);
+      expect(q?.secondaryTarget?.legalTargets).toContain(costUnit);
+      next = resolveWith(next, "A", { specId: "ST13-006-ActivateAction", targetIds: [enemy], secondaryTargetIds: [costUnit] });
+      expect(findCard(next, enemy).damage).toBe(1);
+      expect(findCard(next, costUnit).rested).toBe(true);
+    });
+
+    it("a própria Aerial (ativa) pode ser a Unit descansada no custo", () => {
+      const { s, aerial, enemy } = actionStepForA();
+      let next = act(s, "A", { kind: "activateAbility", sourceInstanceId: aerial });
+      expect(entry(next, "A", "ST13-006-ActivateAction")?.secondaryTarget?.legalTargets).toContain(aerial);
+      next = resolveWith(next, "A", { specId: "ST13-006-ActivateAction", targetIds: [enemy], secondaryTargetIds: [aerial] });
+      expect(findCard(next, enemy).damage).toBe(1);
+      expect(findCard(next, aerial).rested).toBe(true);
+    });
+  });
+
   it("T-029 Bit / Funnel não ataca nem pareia", () => {
     let s = game();
     s = deploy(s, "ST13-002");

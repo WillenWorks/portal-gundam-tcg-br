@@ -99,3 +99,26 @@ describe("abilityIntent", () => {
   });
 });
 
+
+// Report de jogador: a 【Activate･Action】 da ST13-006 Gundam Aerial não tinha botão. A tela só procurava
+// 【Activate·Main】 e só liberava ativação na Main Phase.
+describe("abilityIntent — 【Activate·Action】 no Action Step", () => {
+  it("ST13-006 Gundam Aerial: no Action Step tem habilidade (o motor pergunta alvo + Unit do custo)", () => {
+    expect(fieldAbilityFor(inst({ code: "ST13-006" }), "action")).toEqual({ kind: "activateAction", cost: 0, needsTarget: false });
+  });
+
+  it("na Main Phase a Activate·Action não aparece (regra 13-2-2-1: só em Action Step)", () => {
+    expect(fieldAbilityFor(inst({ code: "ST13-006" }), "main")).toBeNull();
+    expect(fieldAbilityFor(inst({ code: "ST13-006" }))).toBeNull();
+  });
+
+  it("【Once per Turn】 da habilidade já usado neste turno → sem botão", () => {
+    const used = inst({ code: "ST13-006" }, { usedKeywordsThisTurn: ["oncePerTurn:Activate·Action"] });
+    expect(fieldAbilityFor(used, "action")).toBeNull();
+  });
+
+  it("Activate·Main e <Support> não aparecem no Action Step", () => {
+    expect(fieldAbilityFor(inst({ code: "ST02-006", oncePerTurn: true }), "action")).toBeNull();
+    expect(fieldAbilityFor(inst({ code: "ST03-002", effectKeywords: ["Support"], keywordTags: ["Support 2"] }), "action")).toBeNull();
+  });
+});
