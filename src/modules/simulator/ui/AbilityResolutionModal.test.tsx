@@ -14,6 +14,14 @@ import {
   usesBoardTargetingForSecondary,
   resolveTriggerModalHeader,
 } from "./AbilityResolutionModal";
+import { createGame } from "@/modules/simulator/engine/setup";
+import { advanceToMainPhase } from "@/modules/simulator/engine/phases";
+import { deployCard } from "@/modules/simulator/engine/deploy";
+import { viewStateFor } from "@/modules/simulator/engine/viewState";
+import { placeCard } from "@/modules/simulator/engine/__testkit__/cardHarness";
+import { buildSt02DeckList } from "@/modules/simulator/fixtures/st02Deck";
+import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "@/modules/simulator/content";
+import { GD01_CARD_DEFS } from "@/modules/simulator/content/gd01";
 
 afterEach(cleanup);
 
@@ -884,5 +892,25 @@ describe("BUG-HA26D8 (descarte mostrava só o nome da carta)", () => {
     expect(confirm).toBeEnabled();
     fireEvent.click(confirm);
     expect(onResolve).toHaveBeenCalledWith([{ specId: "GD01-005-Destroyed", activate: true, targetIds: ["A-1", "A-3"] }]);
+  });
+});
+
+describe("decisão vinda do motor (camada 2 — a tela mostra o que o texto manda ver)", () => {
+  it("GD01-039 Dopp: quem joga vê a carta do topo antes de escolher topo/fundo; o oponente recebe a decisão sem ela", () => {
+    const state = advanceToMainPhase(createGame(buildSt02DeckList(), buildSt02DeckList(), { seed: 11, firstPlayer: "A" }));
+    for (let i = 0; i < 2; i++) placeCard(state, "A", { code: "CA-RES", nameEn: "Resource", cardType: "RESOURCE", color: "colorless" }, "resourceArea");
+    const doppId = placeCard(state, "A", GD01_CARD_DEFS["GD01-039"], "hand");
+    const paused = deployCard(state, "A", doppId, { specs: ALL_EFFECT_SPECS, predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver });
+    const top = paused.players.A.deck[0];
+
+    const own = viewStateFor(paused, "A").pendingDecision.A as AR;
+    render(<Harness decision={own} onResolve={vi.fn()} />);
+    expect(screen.getAllByText(top.def.code).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /top|topo/i })).toBeInTheDocument();
+    cleanup();
+
+    const opp = viewStateFor(paused, "B").pendingDecision.A as AR;
+    render(<Harness decision={opp} onResolve={vi.fn()} />);
+    expect(screen.queryAllByText(top.def.code)).toHaveLength(0);
   });
 });

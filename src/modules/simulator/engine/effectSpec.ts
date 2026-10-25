@@ -1793,6 +1793,20 @@ export function specChoicePrimitives(spec: EffectSpec): ChoicePrimitive[] {
   return specPrimitives(spec).filter(isChoicePrimitive);
 }
 
+/**
+ * "Add 1 of your Shields to your hand. Then, choose …" (EB01-089, GD01-125): as ações do começo, que não dependem
+ * da escolha. Sem escolha (nenhum alvo/carta legal, ou o jogador não escolheu) o "Choose" não faz nada, mas o que
+ * vem antes dele acontece. Para no 1º alvo nomeado, escolha ou continuação (`thenTrigger`).
+ */
+export function actionsBeforeChoice(spec: EffectSpec): PrimitiveCall[] {
+  const out: PrimitiveCall[] = [];
+  for (const call of spec.actions ?? []) {
+    if (isChoicePrimitive(call) || call.op === "thenTrigger" || JSON.stringify(call).includes('"kind":"named"')) break;
+    out.push(call);
+  }
+  return out;
+}
+
 /** `true` se o spec consome uma escolha de carta / enum (ver `specChoicePrimitive`). */
 export function specNeedsChoice(spec: EffectSpec): boolean {
   return specChoicePrimitive(spec) !== undefined;

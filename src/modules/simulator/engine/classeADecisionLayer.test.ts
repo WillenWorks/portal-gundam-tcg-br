@@ -4,6 +4,7 @@ import { createGame } from "./setup";
 import { advanceToMainPhase } from "./phases";
 import { applyPlayerAction } from "./actions";
 import { viewStateFor } from "./viewState";
+import { decisionVisibilityGaps, findViewLeaks } from "./viewLeaks";
 import { deployCard, playCommand } from "./deploy";
 import type { CardDef, CardInstance, GameState, PlayerId, Zone } from "./types";
 import { buildSt02DeckList, ST02_CARD_DEFS } from "../fixtures/st02Deck";
@@ -236,6 +237,13 @@ describe("GD01-039 Dopp — 【Deploy】Look at the top card of your deck. Retur
     expect(JSON.stringify(oppQ)).not.toContain(`"code":"${top.def.code}"`);
   });
 
+  it("nem pelo log: a visão inteira do oponente não identifica a carta do topo; a de quem joga traz o que o texto manda ver", () => {
+    const { paused } = setup();
+    expect(findViewLeaks(paused, "B", viewStateFor(paused, "B"))).toEqual([]);
+    expect(findViewLeaks(paused, "A", viewStateFor(paused, "A"))).toEqual([]);
+    expect(decisionVisibilityGaps(paused, viewStateFor(paused, "A"))).toEqual([]);
+  });
+
   it("'bottom' manda a carta vista para o fundo do deck", () => {
     const { paused, q, top } = setup();
     const next = apply(paused, "A", { kind: "resolveAbility", resolutions: [{ specId: q!.specId, activate: true, targetIds: ["bottom"] }] });
@@ -259,5 +267,7 @@ describe("ST02-015 Saint Gabriel — as cartas do topo não vazam para o oponent
     const opp = viewStateFor(paused, "B").pendingDecision.A;
     expect(own?.kind === "abilityResolution" ? own.queue[0].deckReorder?.topCards : undefined).toHaveLength(2);
     expect(opp?.kind === "abilityResolution" ? opp.queue[0].deckReorder?.topCards : undefined).toEqual([]);
+    // o eventLog grava a decisão inteira — também redigida para o oponente
+    expect(findViewLeaks(paused, "B", viewStateFor(paused, "B"))).toEqual([]);
   });
 });

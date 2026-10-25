@@ -319,7 +319,9 @@ export const MIDAIR_MODIFICATIONS_MAIN: EffectSpec = {
     { op: "setActive", target: { kind: "named", name: "target" } },
     { op: "preventAttackThisTurn", target: { kind: "named", name: "target" } },
   ],
-  targetScope: "friendlyUnit",
+  // "Choose 1 rested Unit with <Blocker>" — sem "friendly/enemy" = qualquer lado; faltava o filtro (achado da camada 1 de Burst)
+  targetScope: "anyUnit",
+  targetFilter: "rested;hasKeyword:Blocker",
   sourceText: "【Main】Choose 1 rested Unit with <Blocker>. Set it as active. It can't attack during this turn.",
 };
 
@@ -333,6 +335,7 @@ export const MIDAIR_MODIFICATIONS_BURST: EffectSpec = {
   trigger: "Burst",
   actions: MIDAIR_MODIFICATIONS_MAIN.actions,
   targetScope: MIDAIR_MODIFICATIONS_MAIN.targetScope,
+  targetFilter: MIDAIR_MODIFICATIONS_MAIN.targetFilter,
   sourceText: "【Burst】Activate this card's 【Main】.",
 };
 

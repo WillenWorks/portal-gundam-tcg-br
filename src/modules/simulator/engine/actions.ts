@@ -1,7 +1,7 @@
 import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PendingDecision, PlayerId, QueuedTrigger } from "./types";
 import { isHiddenCard, type ViewGameState } from "./viewState";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, isFollowUpTrigger, specNeedsChoice, trashExileChoice } from "./effectSpec";
+import { actionsBeforeChoice, costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, isFollowUpTrigger, specNeedsChoice, trashExileChoice } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
 import { canPayLevel, deployCard, playCommand } from "./deploy";
 import { costRestsSelf, specResourceCost } from "./costs";
@@ -536,12 +536,20 @@ function applyPlayerActionInner(
           predicateResolver,
           decision.cardInstanceId,
         );
-        next = dispatchTrigger(next, decision.cardInstanceId, "Burst", dispatchable, {
-          targets: action.targets ?? {},
-          predicateResolver,
-          targetFilterResolver,
-          allSpecs: specs,
-        });
+        // "Choose 1 … from your trash" (GD02-103/117, GD03-017, GD04-114) é escolha do jogador: pausa na fila como
+        // o 【Deploy】 faz. Antes ia direto ao dispatch sem a escolha e o 【Burst】 não fazia nada (camada 1 de Burst).
+        next =
+          dispatchable.some(specNeedsChoice) && !action.targets
+            ? deferOrDispatchAbilities(next, actingPlayer, "Burst", [{ code: decision.cardDef.code, instanceId: decision.cardInstanceId }], dispatchable, {
+                predicateResolver,
+                targetFilterResolver,
+              })
+            : dispatchTrigger(next, decision.cardInstanceId, "Burst", dispatchable, {
+                targets: action.targets ?? {},
+                predicateResolver,
+                targetFilterResolver,
+                allSpecs: specs,
+              });
         // rulings Q376/Q397 — "【Burst】Activate this card's 【Main】" ativa o 【Main】 do Command: conta para
         // "When you activate a Command's 【Main】/【Action】" (GD04-066). Não é "play" (Q42), então quem
         // exige "play … using an EX Resource" (GD04-020/085) segue sem reagir (sem pagamento, sem EX).
@@ -651,8 +659,20 @@ function applyPlayerActionInner(
         if (!deckReveal && !handDiscard && !deckReorder && !enumChoice && !trashSearch) {
           // pulado, ou "Choose 1 ..." sem alvo/carta escolhida = nada acontece (regra oficial).
           if (!r.activate) continue;
-          if (q.needsTarget && r.targetIds.length === 0) continue;
-          if (handChoice && r.targetIds.length === 0) continue;
+          if ((q.needsTarget || handChoice) && r.targetIds.length === 0) {
+            // …mas o que vem antes do "Choose" acontece (EB01-089/GD01-125 "Add 1 of your Shields to your hand. Then, …")
+            const spec = specs.find((s) => s.id === r.specId);
+            const lead = spec && !(spec.cost ?? []).length ? actionsBeforeChoice(spec) : [];
+            if (spec && lead.length > 0) {
+              next = dispatchTrigger(next, q.sourceInstanceId, decision.trigger, [{ ...spec, actions: lead, condition: undefined, condition2: undefined }], {
+                targets: {},
+                predicateResolver,
+                targetFilterResolver,
+                allSpecs: specs,
+              });
+            }
+            continue;
+          }
           // "Choose 1 X AND 1 Y" (ST05-010) — os 2 alvos são exigidos JUNTOS;
           // sem o 2º (nenhum legal, ou o jogador não escolheu), o efeito inteiro
           // não ativa, mesmo com o 1º já escolhido (senão `resolveTargetIds`
