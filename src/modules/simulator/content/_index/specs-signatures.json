@@ -2730,8 +2730,8 @@
       "setActive",
       "preventAttackThisTurn"
     ],
-    "targetScope": "friendlyUnit",
-    "targetFilter": null,
+    "targetScope": "anyUnit",
+    "targetFilter": "rested;hasKeyword:Blocker",
     "predicate": null,
     "sourceText": "【Burst】Activate this card's 【Main】."
   },
@@ -2743,8 +2743,8 @@
       "setActive",
       "preventAttackThisTurn"
     ],
-    "targetScope": "friendlyUnit",
-    "targetFilter": null,
+    "targetScope": "anyUnit",
+    "targetFilter": "rested;hasKeyword:Blocker",
     "predicate": null,
     "sourceText": "【Main】Choose 1 rested Unit with <Blocker>. Set it as active. It can't attack during this turn."
   },

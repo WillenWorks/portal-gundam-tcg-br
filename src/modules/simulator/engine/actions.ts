@@ -536,12 +536,20 @@ function applyPlayerActionInner(
           predicateResolver,
           decision.cardInstanceId,
         );
-        next = dispatchTrigger(next, decision.cardInstanceId, "Burst", dispatchable, {
-          targets: action.targets ?? {},
-          predicateResolver,
-          targetFilterResolver,
-          allSpecs: specs,
-        });
+        // "Choose 1 … from your trash" (GD02-103/117, GD03-017, GD04-114) é escolha do jogador: pausa na fila como
+        // o 【Deploy】 faz. Antes ia direto ao dispatch sem a escolha e o 【Burst】 não fazia nada (camada 1 de Burst).
+        next =
+          dispatchable.some(specNeedsChoice) && !action.targets
+            ? deferOrDispatchAbilities(next, actingPlayer, "Burst", [{ code: decision.cardDef.code, instanceId: decision.cardInstanceId }], dispatchable, {
+                predicateResolver,
+                targetFilterResolver,
+              })
+            : dispatchTrigger(next, decision.cardInstanceId, "Burst", dispatchable, {
+                targets: action.targets ?? {},
+                predicateResolver,
+                targetFilterResolver,
+                allSpecs: specs,
+              });
         // rulings Q376/Q397 — "【Burst】Activate this card's 【Main】" ativa o 【Main】 do Command: conta para
         // "When you activate a Command's 【Main】/【Action】" (GD04-066). Não é "play" (Q42), então quem
         // exige "play … using an EX Resource" (GD04-020/085) segue sem reagir (sem pagamento, sem EX).
