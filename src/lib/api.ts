@@ -4,6 +4,7 @@ import type { CardRecord, RuleEntry } from "@/modules/core/types";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
 import type { PlayerId } from "@/modules/simulator/engine/types";
 import type { ViewGameState } from "@/modules/simulator/engine/viewState";
+import type { LegalMenu } from "@/modules/simulator/engine/legalMenu";
 import type { DeckListWithSideboard } from "@/modules/simulator/engine/sideboard";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787/api";
@@ -903,6 +904,8 @@ export type SimulatorMatchView = {
   botCounter?: ZeroCounterSummary;
   /** lista do deck do bot — só com a partida encerrada e quando houve counter */
   botDeckList?: BotDeckEntryView[];
+  /** jogadas legais deste assento calculadas pelo motor (`legalMenuFor`); ausente em servidor antigo */
+  legalMenu?: LegalMenu;
 };
 
 export type SimulatorMatchState = ({ seated: false } & SimulatorMatchSummary) | ({ seated: true } & SimulatorMatchView);

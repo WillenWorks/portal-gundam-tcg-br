@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ALL_EFFECT_SPECS } from "../content";
-import { isFollowUpTrigger, specNeedsNamedTarget, type EffectSpec } from "./effectSpec";
+import { isDispatchedTrigger, isFollowUpTrigger, specNeedsNamedTarget, type EffectSpec } from "./effectSpec";
 
 /**
  * Invariantes estruturais de TODOS os EffectSpecs — transformam as classes de bug achadas na auditoria
@@ -82,6 +82,12 @@ describe("invariantes de EffectSpec (todos os sets)", () => {
 
   it("spec sem efeito nenhum (sem actions, cost nem condition) não existe — senão a auditoria conta a cláusula como coberta", () => {
     const bad = ALL_EFFECT_SPECS.filter((s) => s.actions.length === 0 && !s.cost?.length && !s.condition && !s.condition2).map((s) => s.id);
+    expect(bad).toEqual([]);
+  });
+
+  it("todo gatilho é um rótulo que o motor despacha (grafia exata: `findTriggerSpecs` compara por igualdade)", () => {
+    // "Activate: Main" (ST06-014, ST08-015) e "EndOfTurn" (ST07-001) passavam na auditoria e nunca eram oferecidos
+    const bad = ALL_EFFECT_SPECS.filter((s) => !isDispatchedTrigger(s.trigger)).map((s) => `${s.id} ("${s.trigger}")`);
     expect(bad).toEqual([]);
   });
 

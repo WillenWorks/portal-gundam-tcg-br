@@ -238,11 +238,12 @@ export const DAVAO_DEPLOY: EffectSpec = {
   sourceText: "【Deploy】Add 1 of your Shields to your hand.",
 };
 
-// ST08-015 Davao — 【Activate: Main】[Once per Turn] (2): Choose 1 of your Units. It recovers 2 HP.
+// ST08-015 Davao — 【Activate·Main】[Once per Turn] (2): Choose 1 of your Units. It recovers 2 HP.
 export const DAVAO_ACTIVATE_MAIN: EffectSpec = {
   id: "ST08-015-ActivateMain",
   cardCode: "ST08-015",
-  trigger: "Activate: Main",
+  trigger: "Activate·Main",
+  oncePerTurn: true,
   cost: [{ op: "payResourceCost", player: "controller", n: 2 }],
   actions: [{ op: "heal", amount: 2, target: { kind: "named", name: "target" } }],
   targetScope: "friendlyUnit",

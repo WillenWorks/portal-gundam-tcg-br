@@ -11592,10 +11592,10 @@
   {
     "id": "ST06-014-ActivateMain",
     "cardCode": "ST06-014",
-    "trigger": "Activate: Main",
+    "trigger": "Activate·Main",
     "ops": [
-      "modifyStat",
-      "rest"
+      "rest",
+      "modifyStat"
     ],
     "targetScope": "friendlyUnit",
     "targetFilter": null,
@@ -11665,7 +11665,7 @@
   {
     "id": "ST07-001-EndOfTurn",
     "cardCode": "ST07-001",
-    "trigger": "EndOfTurn",
+    "trigger": "Reaction:endOfTurn",
     "ops": [
       "setActive"
     ],
@@ -12007,7 +12007,7 @@
   {
     "id": "ST08-015-ActivateMain",
     "cardCode": "ST08-015",
-    "trigger": "Activate: Main",
+    "trigger": "Activate·Main",
     "ops": [
       "payResourceCost",
       "heal"

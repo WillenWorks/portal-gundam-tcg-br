@@ -4,6 +4,7 @@ import { advanceToMainPhase } from "../engine/phases";
 import { applyPlayerAction, playerHasActionStepPlay, type PlayerAction } from "../engine/actions";
 import { applyEvents } from "../engine/events";
 import { viewStateFor, type ViewGameState } from "../engine/viewState";
+import { legalMenuFor, type LegalMenu } from "../engine/legalMenu";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
 import { buildBattleLog, type BattleLogEntry } from "../ui/battleLog";
 import type { HeuristicLevel } from "../engine/bot";
@@ -245,6 +246,8 @@ export interface MatchView {
   botCounter?: ZeroCounterSummary;
   /** lista do deck do bot quando houve counter — SÓ com `gameOver` (não vira informação durante o jogo) */
   botDeckList?: BotDeckEntry[];
+  /** jogadas legais DESTE assento agrupadas por carta (`legalMenuFor`) — a tela desenha botões/alvos a partir daqui */
+  legalMenu: LegalMenu;
 }
 
 export function matchViewFor(match: MatchRecord, seat: PlayerId): MatchView {
@@ -267,6 +270,7 @@ export function matchViewFor(match: MatchRecord, seat: PlayerId): MatchView {
     sideboardDeck: match.sideboardDecks?.[seat],
     botCounter: match.botCounter,
     botDeckList: match.botCounter && match.state.gameOver ? botDeckEntries(match) : undefined,
+    legalMenu: legalMenuFor(match.state, seat, ALL_EFFECT_SPECS, { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver }),
   };
 }
 

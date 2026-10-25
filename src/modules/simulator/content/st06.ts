@@ -196,12 +196,13 @@ export const CLAN_BATTLE_DEPLOY: EffectSpec = {
   sourceText: "【Deploy】Add 1 of your Shields to your hand.",
 };
 
-// ST06-014 Clan Battle — 【Activate: Main】Rest this Base: If a friendly (Clan) Link Unit
+// ST06-014 Clan Battle — 【Activate·Main】Rest this Base: If a friendly (Clan) Link Unit
 // is in play, choose 1 friendly Unit. It gets AP+2 during this turn.
 export const CLAN_BATTLE_ACTIVATE_MAIN: EffectSpec = {
   id: "ST06-014-ActivateMain",
   cardCode: "ST06-014",
-  trigger: "Activate: Main",
+  trigger: "Activate·Main",
+  cost: [{ op: "rest", target: { kind: "self" } }],
   condition: {
     predicate: "controllerLinkUnitWithTraitInPlay:Clan",
     then: [
@@ -214,7 +215,7 @@ export const CLAN_BATTLE_ACTIVATE_MAIN: EffectSpec = {
       },
     ],
   },
-  actions: [{ op: "rest", target: { kind: "self" } }],
+  actions: [],
   targetScope: "friendlyUnit",
   sourceText: "【Activate·Main】Rest this Base:If a friendly (Clan) Link Unit is in play, choose 1 friendly Unit. It gets AP+2 during this turn.",
 };

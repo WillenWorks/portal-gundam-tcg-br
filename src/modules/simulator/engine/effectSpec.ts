@@ -1960,3 +1960,55 @@ export function commandHasNoAvailableMode(
 export function isFollowUpTrigger(trigger: string): boolean {
   return trigger.startsWith("Mode:") || trigger.startsWith("Then:");
 }
+
+/** todos os `ReactionEvent` em runtime — o `Record` obriga a listar um evento novo aqui */
+const REACTION_EVENTS: Record<ReactionEvent, true> = {
+  effectDamage: true,
+  restedByEffect: true,
+  setActiveByEffect: true,
+  pilotPaired: true,
+  attack: true,
+  endOfTurn: true,
+  battleDamageToEnemyUnit: true,
+  destroyedEnemyInBattle: true,
+  destroyedShieldInBattle: true,
+  damagedByEnemy: true,
+  unitDeployed: true,
+  commandActivated: true,
+  exResourcePlaced: true,
+  paidForUnitEffect: true,
+  destroyed: true,
+  destroyedByEffect: true,
+  exResourceExiled: true,
+  unitLinked: true,
+  drewByEffect: true,
+  destroyedEnemyWithDamage: true,
+  enemyDestroyedByEffectDamage: true,
+};
+
+/** rótulos de gatilho que o motor despacha pelo nome exato (`findTriggerSpecs`) */
+const DISPATCHED_TRIGGERS = new Set([
+  "Deploy",
+  "Burst",
+  "Attack",
+  "Main",
+  "Action",
+  "Activate·Main",
+  "Activate·Action",
+  "Destroyed",
+  "When Paired",
+  "When Linked",
+  "AnyPairing",
+  "AfterMain",
+]);
+
+/**
+ * O gatilho tem uma grafia que o motor despacha? Uma grafia diferente ("Activate: Main", "EndOfTurn") não dá erro
+ * nenhum: o spec só nunca é encontrado, e a habilidade some do jogo.
+ */
+export function isDispatchedTrigger(trigger: string): boolean {
+  if (DISPATCHED_TRIGGERS.has(trigger)) return true;
+  if (/^Then:\d+$/.test(trigger) || /^Mode:.+$/.test(trigger)) return true;
+  const reactive = /^(Reaction|Delayed):(.+)$/.exec(trigger);
+  return reactive !== null && reactive[2] in REACTION_EVENTS;
+}
