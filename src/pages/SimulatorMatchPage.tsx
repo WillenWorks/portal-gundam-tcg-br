@@ -108,7 +108,7 @@ import { useMatchTransport } from "@/modules/simulator/network/useMatchTransport
 import { sfx } from "@/modules/simulator/audio/soundEffects";
 
 import { attackTargetError } from "@/modules/simulator/engine/combat";
-import { otherPlayer, hasKeyword, effectiveAp, effectiveHp, effectiveCost, effectiveDeployCost, effectiveLevel, effectivePilotDef, satisfiesLinkCondition, type AttackTarget, type CardDef, type CardInstance, type GameState, type PlayerId, type CombatState } from "@/modules/simulator/engine/types";
+import { otherPlayer, hasKeyword, effectiveAp, effectiveHp, effectiveCost, effectiveDeployCost, effectiveLevel, effectivePilotDef, satisfiesLinkCondition, type AttackTarget, type CardDef, type CardInstance, type GameEvent, type GameState, type PlayerId, type CombatState } from "@/modules/simulator/engine/types";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
 import { playerHasActionStepPlay } from "@/modules/simulator/engine/actions";
 import { actionStepAutoPass, isDecisionResponse } from "@/modules/simulator/ui/actionStepAutoPass";
@@ -714,6 +714,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   // guarda a ÚLTIMA view aplicada só pra esse diff (independente do
   // `prevCombatRef`, que serve à coreografia de ataque).
   const [departures, setDepartures] = useState<DepartingCard[]>([]);
+  // eventos da última visão tocada pelo log — os cues de efeito saem deles (sem adivinhar pelo eventLog janelado)
+  const [cueBatch, setCueBatch] = useState<{ key: number; events: GameEvent[] } | null>(null);
   const prevDepartureViewRef = useRef<ViewGameState | null>(null);
 
   // Combate tático sequencial pós-fase de ação: avanço -> som/impacto -> retorno -> dano
@@ -841,14 +843,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   // (inclusive o caminho que atrasa a view pra coreografia de ataque) — a
   // captura de posição (`board.rectOf`) precisa acontecer enquanto o DOM
   // ainda reflete a view ANTERIOR, senão o elemento já sumiu.
-  const detectDepartures = useCallback(
-    (incoming: SimulatorMatchView) => {
-      const prevView = prevDepartureViewRef.current;
-      prevDepartureViewRef.current = incoming.view;
-      const reduced =
-        typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
-      if (!prevView || reduced) return;
-
+  /** fantasmas das cartas que saíram para Trash/Exílio entre `prevView` e `incoming` (só `only`, se dado) */
+  const buildDepartureGhosts = useCallback(
+    (prevView: ViewGameState, incoming: SimulatorMatchView, only?: ReadonlySet<string>): DepartingCard[] => {
       const newGhosts: DepartingCard[] = [];
       for (const pid of ["A", "B"] as PlayerId[]) {
         const prevPlayer = prevView.players[pid];
@@ -858,6 +855,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         for (const departed of [...curPlayer.trash, ...curPlayer.exile]) {
           if (prevGoneIds.has(departed.instanceId)) continue; // já estava lá antes — não é uma saída nova
           const id = departed.instanceId;
+          if (only && !only.has(id)) continue;
           const wasUnit = prevPlayer.battleArea.some((c) => c.instanceId === id);
           const wasBase = !wasUnit && prevPlayer.baseSection.some((c) => c.instanceId === id);
           const wasOwnHand =
@@ -887,11 +885,29 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           });
         }
       }
-      if (newGhosts.length > 0) {
-        setDepartures((cur) => [...cur, ...newGhosts]);
-      }
+      return newGhosts;
     },
     [board],
+  );
+
+  const launchDepartures = useCallback(
+    (prevView: ViewGameState | null, incoming: SimulatorMatchView, only?: ReadonlySet<string>) => {
+      const reduced =
+        typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+      if (!prevView || reduced) return;
+      const ghosts = buildDepartureGhosts(prevView, incoming, only);
+      if (ghosts.length > 0) setDepartures((cur) => [...cur, ...ghosts]);
+    },
+    [buildDepartureGhosts],
+  );
+
+  const detectDepartures = useCallback(
+    (incoming: SimulatorMatchView) => {
+      const prevView = prevDepartureViewRef.current;
+      prevDepartureViewRef.current = incoming.view;
+      launchDepartures(prevView, incoming);
+    },
+    [launchDepartures],
   );
 
   // "Nova leva de correções" (item 3, plano v2) — fila de reprodução
@@ -924,7 +940,17 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         clockOffsetRef.current = incoming.serverNow - Date.now();
       }
 
-      detectDepartures(incoming);
+      // spec simulador-animacao-pelo-log, fase 3 — com eventos contínuos, a tela toca o que o motor fez, na ordem
+      // (vários ataques/Commands no mesmo lote do bot; a Unit destruída sai depois do golpe). Visão repetida (POST
+      // antes da transmissão) não anima de novo; sem eventos ou com buraco na sequência, ficam as deduções por
+      // comparação de visões.
+      const repeated = isRepeatedView(incoming, lastEventSeqRef.current);
+      const timeline = repeated ? null : timelineFor(incoming, lastEventSeqRef.current);
+      if (incoming.eventSeq !== undefined && !repeated) lastEventSeqRef.current = incoming.eventSeq;
+      const prevDepartureView = prevDepartureViewRef.current;
+      if (timeline) prevDepartureViewRef.current = incoming.view;
+      else detectDepartures(incoming);
+      setCueBatch(timeline && incoming.eventsSince && incoming.eventSeq !== undefined ? { key: incoming.eventSeq, events: incoming.eventsSince } : null);
 
       // Animação de Comando jogado pelo oponente/bot: deve rodar e esperar antes
       // de setMatchView para que o efeito do Comando na arena só apareça resolvido após o onDone.
@@ -956,20 +982,24 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       const prevCombat = prevCombatRef.current;
       prevCombatRef.current = incoming.view.combat;
 
-      // spec simulador-animacao-pelo-log, fase 3 — com eventos contínuos, a tela toca o que o motor fez, na ordem
-      // (vários ataques/Commands no mesmo lote do bot). Visão repetida (POST antes da transmissão) não anima de novo;
-      // sem eventos ou com buraco na sequência, ficam as deduções por comparação de visões.
-      const repeated = isRepeatedView(incoming, lastEventSeqRef.current);
-      const timeline = repeated ? null : timelineFor(incoming, lastEventSeqRef.current);
-      if (incoming.eventSeq !== undefined && !repeated) lastEventSeqRef.current = incoming.eventSeq;
-
       if (timeline) {
         const { plan, pendingAttack } = planAnimations(timeline, incoming.seat, pendingAttackRef.current);
         pendingAttackRef.current = pendingAttack;
         const opponentSeat: PlayerId = incoming.seat === "A" ? "B" : "A";
+        const shieldsTaken: Record<PlayerId, number> = { A: 0, B: 0 };
         for (const item of plan) {
           if (item.kind === "strike") {
             await strike(item.attackerId, item.target, item.defendingPlayer);
+            continue;
+          }
+          if (item.kind === "departure") {
+            // shield quebrada: as do topo na visão anterior, na ordem em que saíram neste lote
+            const ids = item.shieldsOf
+              ? (prevDepartureView?.players[item.shieldsOf].shields ?? [])
+                  .slice(shieldsTaken[item.shieldsOf], (shieldsTaken[item.shieldsOf] += item.count ?? 0))
+                  .map((c) => c.instanceId)
+              : item.ids;
+            launchDepartures(prevDepartureView, incoming, new Set(ids));
             continue;
           }
           const cardDef = cardDefInView(incoming.view, item.instanceId);
@@ -1053,7 +1083,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         });
       }
     },
-    [executeAttackStrike, detectDepartures, waitForBurstReveal, board, enqueuePhaseBanners, waitForPhaseBanners],
+    [executeAttackStrike, detectDepartures, launchDepartures, waitForBurstReveal, board, enqueuePhaseBanners, waitForPhaseBanners],
   );
 
   const drainViewQueue = useCallback(async () => {
@@ -3619,7 +3649,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       />
 
       {/* Números/efeitos flutuantes por GameEvent (dano, buff, keyword, token, EX…) — CONTRATO-MOTOR §7. */}
-      <EffectResolutionOverlay eventLog={view.eventLog} rectOf={board.rectOf} viewerSeat={seat} />
+      <EffectResolutionOverlay eventLog={view.eventLog} eventsBatch={cueBatch ?? undefined} rectOf={board.rectOf} viewerSeat={seat} />
 
       {/* Linha de mira da carta de origem até os alvos já escolhidos na resolução da habilidade. */}
       {abilityDecision?.queue.map((q) => {

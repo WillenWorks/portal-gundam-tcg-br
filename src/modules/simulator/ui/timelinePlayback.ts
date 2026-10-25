@@ -30,12 +30,17 @@ export interface PendingAttack {
 
 export type PlannedAnimation =
   | { kind: "opponentCommand"; instanceId: string }
-  | { kind: "strike"; attackerId: string; target: AttackTarget; defendingPlayer: PlayerId };
+  | { kind: "strike"; attackerId: string; target: AttackTarget; defendingPlayer: PlayerId }
+  /** cartas indo para a lixeira/exílio (`ids`) ou shields quebradas (`shieldsOf`/`count`: as do topo, na visão anterior) */
+  | { kind: "departure"; ids: string[]; shieldsOf?: PlayerId; count?: number };
 
 /**
- * O que tocar, na ordem dos eventos: a Command jogada pelo oponente e o golpe de cada combate. O golpe sai quando o
- * combate TERMINA, contra o alvo final (bloqueio e "change the attack target" já aplicados) — mesmo momento do golpe
- * antigo. Combate que continua na próxima visão (esperando meu bloqueio, Action Step) volta em `pendingAttack`.
+ * O que tocar, na ordem dos eventos: a Command jogada pelo oponente, o golpe de cada combate e as cartas que saem de
+ * jogo. O golpe sai quando o combate TERMINA, contra o alvo final (bloqueio e "change the attack target" já
+ * aplicados) — mesmo momento do golpe antigo. As saídas DURANTE um combate (a Unit destruída no Damage Step) ficam
+ * para depois do golpe daquele combate: no log a destruição vem antes do fim do combate, mas na tela o golpe vem
+ * primeiro. Combate que continua na próxima visão volta em `pendingAttack` (as saídas dele já saem neste lote, porque
+ * a visão final é aplicada logo depois).
  */
 export function planAnimations(
   steps: readonly AnimationStep[],
@@ -44,6 +49,8 @@ export function planAnimations(
 ): { plan: PlannedAnimation[]; pendingAttack: PendingAttack | null } {
   const plan: PlannedAnimation[] = [];
   let attack = pendingAttack;
+  let heldForStrike: PlannedAnimation[] = [];
+  const depart = (item: PlannedAnimation) => (attack ? heldForStrike.push(item) : plan.push(item));
   for (const step of steps) {
     switch (step.kind) {
       case "cardPlayed":
@@ -60,12 +67,28 @@ export function planAnimations(
         break;
       case "combatEnd":
         if (attack) plan.push({ kind: "strike", ...attack });
+        plan.push(...heldForStrike);
+        heldForStrike = [];
         attack = null;
+        break;
+      case "destroy":
+      case "exile":
+        depart({ kind: "departure", ids: [step.instanceId] });
+        break;
+      case "move":
+        if (step.toZone === "trash" || step.toZone === "exile") depart({ kind: "departure", ids: [step.instanceId] });
+        break;
+      case "discard":
+        depart({ kind: "departure", ids: step.instanceIds });
+        break;
+      case "shieldBreak":
+        depart({ kind: "departure", ids: [], shieldsOf: step.player, count: step.count });
         break;
       default:
         break;
     }
   }
+  plan.push(...heldForStrike);
   return { plan, pendingAttack: attack };
 }
 

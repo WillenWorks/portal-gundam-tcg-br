@@ -69,6 +69,42 @@ describe("planAnimations — o que a tela toca, em ordem", () => {
   });
 });
 
+describe("planAnimations — cartas saindo de jogo", () => {
+  it("a Unit destruída no combate sai DEPOIS do golpe (no log a destruição vem antes do fim do combate)", () => {
+    const steps = timelineFromEvents([
+      attack("x"),
+      { type: "BLOCK_DECLARED", blockerId: "bl", newTarget: { unitId: "bl" } },
+      { type: "DAMAGE_UNIT", instanceId: "bl", amount: 3 },
+      { type: "DESTROY_CARD", instanceId: "bl" },
+      { type: "COMBAT_ENDED" },
+    ]);
+    expect(planAnimations(steps, "A", null).plan.map((p) => p.kind)).toEqual(["strike", "departure"]);
+  });
+
+  it("fora de combate a saída toca na hora; shield quebrada leva dono e quantidade", () => {
+    const steps = timelineFromEvents([
+      { type: "MOVE_CARD", instanceId: "c1", toZone: "trash" },
+      { type: "MOVE_CARD", instanceId: "c2", toZone: "hand" },
+      { type: "DISCARD_TO_HAND_LIMIT", player: "A", instanceIds: ["h1", "h2"] },
+    ]);
+    expect(planAnimations(steps, "A", null).plan).toEqual([
+      { kind: "departure", ids: ["c1"] },
+      { kind: "departure", ids: ["h1", "h2"] },
+    ]);
+    const shields = planAnimations(timelineFromEvents([attack("x"), { type: "DAMAGE_SHIELD", player: "B", count: 2 }, { type: "COMBAT_ENDED" }]), "A", null);
+    expect(shields.plan).toEqual([
+      { kind: "strike", attackerId: "x", target: "player", defendingPlayer: "B" },
+      { kind: "departure", ids: [], shieldsOf: "B", count: 2 },
+    ]);
+  });
+
+  it("combate que não termina no lote: as saídas dele ainda tocam neste lote (a visão final vem a seguir)", () => {
+    const r = planAnimations(timelineFromEvents([attack("x"), { type: "DESTROY_CARD", instanceId: "v" }]), "A", null);
+    expect(r.plan).toEqual([{ kind: "departure", ids: ["v"] }]);
+    expect(r.pendingAttack).toMatchObject({ attackerId: "x" });
+  });
+});
+
 describe("planAnimations em partidas reais, com lotes de várias jogadas (como o turno do bot)", () => {
   it("todo combate encerrado vira 1 golpe e toda Command do oponente vira 1 animação, com qualquer corte de lote", () => {
     const erros: string[] = [];
