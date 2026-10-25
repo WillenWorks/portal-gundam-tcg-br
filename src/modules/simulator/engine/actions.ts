@@ -1,7 +1,7 @@
 import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PendingDecision, PlayerId, QueuedTrigger } from "./types";
 import { isHiddenCard, type ViewGameState } from "./viewState";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, isFollowUpTrigger, specNeedsChoice, trashExileChoice } from "./effectSpec";
+import { actionsBeforeChoice, costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, isFollowUpTrigger, specNeedsChoice, trashExileChoice } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
 import { canPayLevel, deployCard, playCommand } from "./deploy";
 import { costRestsSelf, specResourceCost } from "./costs";
@@ -659,8 +659,20 @@ function applyPlayerActionInner(
         if (!deckReveal && !handDiscard && !deckReorder && !enumChoice && !trashSearch) {
           // pulado, ou "Choose 1 ..." sem alvo/carta escolhida = nada acontece (regra oficial).
           if (!r.activate) continue;
-          if (q.needsTarget && r.targetIds.length === 0) continue;
-          if (handChoice && r.targetIds.length === 0) continue;
+          if ((q.needsTarget || handChoice) && r.targetIds.length === 0) {
+            // …mas o que vem antes do "Choose" acontece (EB01-089/GD01-125 "Add 1 of your Shields to your hand. Then, …")
+            const spec = specs.find((s) => s.id === r.specId);
+            const lead = spec && !(spec.cost ?? []).length ? actionsBeforeChoice(spec) : [];
+            if (spec && lead.length > 0) {
+              next = dispatchTrigger(next, q.sourceInstanceId, decision.trigger, [{ ...spec, actions: lead, condition: undefined, condition2: undefined }], {
+                targets: {},
+                predicateResolver,
+                targetFilterResolver,
+                allSpecs: specs,
+              });
+            }
+            continue;
+          }
           // "Choose 1 X AND 1 Y" (ST05-010) — os 2 alvos são exigidos JUNTOS;
           // sem o 2º (nenhum legal, ou o jogador não escolheu), o efeito inteiro
           // não ativa, mesmo com o 1º já escolhido (senão `resolveTargetIds`

@@ -9,7 +9,8 @@ import { applyPlayerAction, type PlayerAction } from "./actions";
 import { actionOwner, enumerateLegalActions } from "./legalActions";
 import { placeCard } from "./__testkit__/cardHarness";
 import type { CardDef, CardInstance, GameState, PlayerId } from "./types";
-import { matchesCardDefFilter, type EffectSpec } from "./effectSpec";
+import type { EffectSpec } from "./effectSpec";
+import { fingerprint, richBoard, settleDecisions, trashMaterialFor } from "./__testkit__/cardScenario";
 import { buildSt01DeckList, ST01_CARD_DEFS } from "../fixtures/st01Deck";
 import { buildSt02DeckList } from "../fixtures/st02Deck";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
@@ -22,29 +23,13 @@ const apply = (s: GameState, p: PlayerId, a: PlayerAction) =>
 const BURST_SPECS = ALL_EFFECT_SPECS.filter((s) => s.trigger === "Burst");
 const BURST_CARDS = [...new Set(BURST_SPECS.map((s) => s.cardCode))].sort().filter((code) => ALL_CARD_DEFS[code]);
 
-/* material de lixeira para os Bursts "Choose 1 … card from your trash": 1 carta que casa cada filtro */
-const TRASH_MATERIAL: CardDef[] = BURST_SPECS.flatMap((s) =>
-  (s.actions ?? []).flatMap((a) => {
-    if (a.op !== "searchTrashToHand") return [];
-    const def = Object.values(ALL_CARD_DEFS).find((d) => !d.isToken && matchesCardDefFilter(d, a.filter));
-    return def ? [def] : [];
-  }),
-);
-const CB_UNIT = Object.values(ALL_CARD_DEFS).find((d) => d.cardType === "UNIT" && !d.isToken && d.traits?.includes("CB") && !ALL_EFFECT_SPECS.some((sp) => sp.cardCode === d.code));
+const TRASH_MATERIAL = trashMaterialFor(BURST_SPECS);
 
-/** A ataca B direto com a shield do topo trocada por `def`; joga passes até a decisão de 【Burst】.
- *  O tabuleiro dá material às condições comuns de Burst: Units descansadas e ativas dos dois lados (HP baixo, uma com <Blocker>),
- *  inimigo com 3 shields e uma Unit (CB), lixeira de B com o que os Bursts de busca pedem. */
+/** A ataca B direto com a shield do topo trocada por `def`; joga passes até a decisão de 【Burst】 (tabuleiro: `richBoard`) */
 function breakShieldWith(def: CardDef, extra?: (state: GameState) => void): { state: GameState; shieldId: string } {
   const state = advanceToMainPhase(createGame(buildSt01DeckList(), buildSt02DeckList(), { seed: 7, firstPlayer: "A" }));
   state.players.B.baseSection = [];
-  placeCard(state, "B", ST01_CARD_DEFS.GM, "battleArea");
-  placeCard(state, "B", ST01_CARD_DEFS.ZOWORT, "battleArea", { rested: true }); // descansada com <Blocker>
-  placeCard(state, "A", ST01_CARD_DEFS.GM, "battleArea");
-  placeCard(state, "A", ST01_CARD_DEFS.GM, "battleArea", { rested: true });
-  if (CB_UNIT) placeCard(state, "A", CB_UNIT, "battleArea");
-  for (const material of TRASH_MATERIAL) placeCard(state, "B", material, "trash");
-  state.players.A.deck.push(...state.players.A.shields.splice(3).map((c) => ({ ...c, zone: "deck" as const })));
+  richBoard(state, "B", TRASH_MATERIAL);
   extra?.(state);
   const attackerId = placeCard(state, "A", ST01_CARD_DEFS.GUNDAM, "battleArea");
   const shield = state.players.B.shields[0];
@@ -62,39 +47,10 @@ function breakShieldWith(def: CardDef, extra?: (state: GameState) => void): { st
   return { state: next, shieldId: shield.instanceId };
 }
 
-/** resolve o que sobrar de decisão de B (alvos, ordem) pela 1ª jogada legal que ativa */
-function settleDefender(state: GameState): GameState {
-  let next = state;
-  for (let guard = 0; guard < 10 && next.pendingDecision.B; guard++) {
-    const legal = enumerateLegalActions(next, "B", ALL_EFFECT_SPECS, opts);
-    const activating = legal.filter((a) => a.kind === "resolveAbility" && a.resolutions.every((r) => r.activate));
-    // escolher algo quando dá ("Choose 1 … from your trash" aceita escolher nenhum)
-    const pick = activating.find((a) => a.kind === "resolveAbility" && a.resolutions.some((r) => r.targetIds.length > 0)) ?? activating[0] ?? legal[0];
-    if (!pick) break;
-    next = apply(next, "B", pick);
-  }
-  return next;
-}
+const settleDefender = (state: GameState) => settleDecisions(state, ALL_EFFECT_SPECS);
 
 const zoneOf = (state: GameState, id: string) =>
   (["hand", "battleArea", "baseSection", "trash", "deck", "shields", "exile"] as const).find((z) => state.players.B[z].some((c) => c.instanceId === id));
-
-/** o que dá para ver de fora de "aconteceu alguma coisa" */
-function fingerprint(state: GameState): string {
-  return JSON.stringify(
-    (["A", "B"] as const).map((p) => {
-      const pl = state.players[p];
-      return {
-        hand: pl.hand.length,
-        deck: pl.deck.length,
-        shields: pl.shields.length,
-        zones: (["battleArea", "baseSection", "resourceArea", "trash", "exile"] as const).map((z) =>
-          pl[z].map((c) => [c.instanceId, c.rested, c.damage, c.statModifiers.length, c.keywordGrants.length]),
-        ),
-      };
-    }),
-  );
-}
 
 function expectedOnActivate(specs: EffectSpec[]): "hand" | "deployed" | "changed" {
   const first = specs[0]?.actions?.[0] as { op?: string; toZone?: string; target?: { kind?: string } } | undefined;
@@ -154,7 +110,7 @@ describe(`【Burst】 gerado — ${BURST_CARDS.length} cartas, caminho do jogado
       }
     }
     expect(falhas).toEqual([]);
-    expect(semRastro).toEqual(SEM_RASTRO_NO_TABULEIRO);
+    expect([...semRastro].sort()).toEqual([...SEM_RASTRO_NO_TABULEIRO].sort());
   }, 120_000);
 
   it("contra: recusar manda a carta para a lixeira e não aplica o efeito", () => {
