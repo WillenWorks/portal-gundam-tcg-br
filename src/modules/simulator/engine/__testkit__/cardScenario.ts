@@ -42,6 +42,40 @@ export function richBoard(state: GameState, user: PlayerId, trashMaterial: reado
   state.players[enemy].deck.push(...shields.splice(3).map((c) => ({ ...c, zone: "deck" as const })));
 }
 
+/**
+ * O par da carta, montado a partir do que o próprio spec pede: Piloto com o trait/cor/nível do qualificador
+ * (【When Paired･(Newtype) Pilot】, "Purple Pilot", "Lv.4 or Higher Pilot") e Unit com o trait/cor que a habilidade do
+ * Piloto exige ("If this is a (CB) Unit", "friendly (Marine) Unit"). Sem habilidade própria.
+ */
+export function partnerFor(specs: readonly EffectSpec[], card?: CardDef): { pilot: CardDef; unit: CardDef } {
+  const pilotTraits = new Set<string>();
+  const unitTraits = new Set<string>();
+  let pilotColor: CardDef["color"] = "colorless";
+  let unitColor: CardDef["color"] = ST01_CARD_DEFS.GM.color;
+  let pilotLevel = 1;
+  for (const spec of specs) {
+    const parts = [...(spec.condition?.predicate.split(";") ?? []), ...(spec.targetFilter?.split(";") ?? [])];
+    for (const part of parts) {
+      const [key, value = ""] = part.split(":");
+      if (key === "pairedPilotHasTrait" || key === "pairedPilotHasAnyTrait") value.split(",").forEach((t) => pilotTraits.add(t));
+      if (key === "selfHasTrait" || key === "controllerUnitWithTraitInPlay" || key === "trait") unitTraits.add(value);
+      if (key === "pairedPilotColorIs") pilotColor = value as CardDef["color"];
+      if (key === "selfColorIs") unitColor = value as CardDef["color"];
+      if (key === "pairedPilotLevelAtLeast") pilotLevel = Number(value);
+    }
+  }
+  // 【During Link】: o Piloto de teste cumpre o Link da Unit da carta; a Unit de teste tem Link com o Piloto da carta
+  let pilotName = "Test Pilot";
+  const link = card?.cardType === "UNIT" ? card.link : undefined;
+  if (link?.kind === "pilotName") pilotName = link.values[0];
+  else if (link) pilotTraits.add(link.values[0]);
+  const unitLink: CardDef["link"] = card && card.cardType !== "UNIT" ? { kind: "pilotName", values: [card.nameEn] } : undefined;
+  return {
+    pilot: { code: "CA-PILOT", nameEn: pilotName, cardType: "PILOT", color: pilotColor, level: pilotLevel, cost: 1, ap: 1, hp: 1, traits: [...pilotTraits] },
+    unit: { ...ST01_CARD_DEFS.GM, code: "CA-UNIT", nameEn: "Test Unit", color: unitColor, traits: [...unitTraits], ...(unitLink ? { link: unitLink } : {}) },
+  };
+}
+
 /** resolve as decisões pendentes pela 1ª jogada legal que ativa, preferindo escolher algo quando dá */
 export function settleDecisions(state: GameState, specs: EffectSpec[]): GameState {
   let next = state;

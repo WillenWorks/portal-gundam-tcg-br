@@ -8,7 +8,7 @@ import { advanceToMainPhase } from "./phases";
 import { applyPlayerAction, type PlayerAction } from "./actions";
 import { enumerateLegalActions } from "./legalActions";
 import { placeCard } from "./__testkit__/cardHarness";
-import { fingerprint, richBoard, scenarioOpts, settleDecisions, trashMaterialFor } from "./__testkit__/cardScenario";
+import { fingerprint, partnerFor, richBoard, scenarioOpts, settleDecisions, trashMaterialFor } from "./__testkit__/cardScenario";
 import type { EffectSpec } from "./effectSpec";
 import type { CardDef, GameState } from "./types";
 import { buildSt01DeckList, ST01_CARD_DEFS } from "../fixtures/st01Deck";
@@ -20,38 +20,10 @@ const PAIRED_SPECS = ALL_EFFECT_SPECS.filter((s) => s.trigger === "When Paired")
 const PAIRED_CARDS = [...new Set(PAIRED_SPECS.map((s) => s.cardCode))].sort().filter((code) => ALL_CARD_DEFS[code]);
 const TRASH_MATERIAL = trashMaterialFor(PAIRED_SPECS);
 const RESOURCE: CardDef = { code: "CA-RES", nameEn: "Resource", cardType: "RESOURCE", color: "colorless" };
-/**
- * O par da carta, montado a partir do que o próprio spec pede: Piloto com o trait/cor/nível do qualificador
- * (【When Paired･(Newtype) Pilot】, "Purple Pilot", "Lv.4 or Higher Pilot") e Unit com o trait/cor que a habilidade do
- * Piloto exige ("If this is a (CB) Unit", "friendly (Marine) Unit"). Sem habilidade própria.
- */
-function partnerFor(code: string): { pilot: CardDef; unit: CardDef } {
-  const pilotTraits = new Set<string>();
-  const unitTraits = new Set<string>();
-  let pilotColor: CardDef["color"] = "colorless";
-  let unitColor: CardDef["color"] = ST01_CARD_DEFS.GM.color;
-  let pilotLevel = 1;
-  for (const spec of PAIRED_SPECS.filter((sp) => sp.cardCode === code)) {
-    const parts = [...(spec.condition?.predicate.split(";") ?? []), ...(spec.targetFilter?.split(";") ?? [])];
-    for (const part of parts) {
-      const [key, value = ""] = part.split(":");
-      if (key === "pairedPilotHasTrait" || key === "pairedPilotHasAnyTrait") value.split(",").forEach((t) => pilotTraits.add(t));
-      if (key === "selfHasTrait" || key === "controllerUnitWithTraitInPlay" || key === "trait") unitTraits.add(value);
-      if (key === "pairedPilotColorIs") pilotColor = value as CardDef["color"];
-      if (key === "selfColorIs") unitColor = value as CardDef["color"];
-      if (key === "pairedPilotLevelAtLeast") pilotLevel = Number(value);
-    }
-  }
-  return {
-    pilot: { code: "CA-PILOT", nameEn: "Test Pilot", cardType: "PILOT", color: pilotColor, level: pilotLevel, cost: 1, ap: 1, hp: 1, traits: [...pilotTraits] },
-    unit: { ...ST01_CARD_DEFS.GM, code: "CA-UNIT", nameEn: "Test Unit", color: unitColor, traits: [...unitTraits] },
-  };
-}
-
 /** a carta e o par dela prontos: Unit em campo + Piloto na mão, ou Piloto na mão + Unit em campo */
 function readyToPair(code: string): { state: GameState; pilotId: string; unitId: string } {
   const def = ALL_CARD_DEFS[code];
-  const partner = partnerFor(code);
+  const partner = partnerFor(PAIRED_SPECS.filter((sp) => sp.cardCode === code));
   const state = advanceToMainPhase(createGame(buildSt01DeckList(), buildSt02DeckList(), { seed: 7, firstPlayer: "A" }));
   for (let i = 0; i < 10; i++) placeCard(state, "A", RESOURCE, "resourceArea");
   richBoard(state, "A", TRASH_MATERIAL);
