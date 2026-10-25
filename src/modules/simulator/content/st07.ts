@@ -26,7 +26,8 @@ export const GUNDAM_EXIA_WHEN_PAIRED: EffectSpec = {
 export const GUNDAM_EXIA_END_OF_TURN: EffectSpec = {
   id: "ST07-001-EndOfTurn",
   cardCode: "ST07-001",
-  trigger: "EndOfTurn",
+  trigger: "Reaction:endOfTurn",
+  reaction: { event: "endOfTurn", subject: "self", turn: "yours" },
   condition: {
     predicate: "controllerTrashCardCountWithTraitAtLeast:CB:7",
     then: [{ op: "setActive", target: { kind: "named", name: "target" } }],

@@ -11,7 +11,7 @@
  * (`scripts/gundam-coverage.mjs`, `server/deckCoverageGate.ts`) passa o texto.
  */
 import type { CardDef } from "../../engine/types";
-import type { EffectSpec } from "../../engine/effectSpec";
+import { isDispatchedTrigger, type EffectSpec } from "../../engine/effectSpec";
 import type { DeferredClause } from "../deferred";
 
 export type ClauseKind = "keyword" | "pilotMode" | "bespoke";
@@ -269,7 +269,8 @@ export function auditCard(input: CardAuditInput): CardAudit {
     );
     if (matching.length && covered >= FULL_COVERAGE) {
       matching.forEach((i) => usedSpecs.add(i));
-      const specTriggers = new Set(matching.map((i) => canonicalTrigger(specs[i].trigger)));
+      // gatilho com grafia que o motor não despacha ("Activate: Main") não cobre nada: o spec nunca roda
+      const specTriggers = new Set(matching.filter((i) => isDispatchedTrigger(specs[i].trigger)).map((i) => specs[i].trigger));
       const missingTriggers = clause.triggers.filter((t) => !specTriggers.has(t));
       if (missingTriggers.length === 0) return { ...clause, by: "spec", refs: matching.map((i) => specs[i].id) };
       const deferred = deferralFor(clause, deferrals);
