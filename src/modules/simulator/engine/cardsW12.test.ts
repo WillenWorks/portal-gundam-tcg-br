@@ -417,10 +417,14 @@ describe("ST13", () => {
       const offered = enumerateLegalActions(s, "A", ALL_EFFECT_SPECS, opts);
       expect(offered.some((a) => a.kind === "activateAbility" && a.sourceInstanceId === aerial)).toBe(true);
       let next = act(s, "A", { kind: "activateAbility", sourceInstanceId: aerial });
+      // 1º o custo (só Units amigas), 2º o alvo do efeito
       const q = entry(next, "A", "ST13-006-ActivateAction");
-      expect(q?.legalTargets).toContain(enemy);
+      expect(q?.costStage).toBe(true);
       expect(q?.secondaryTarget?.legalTargets).toContain(costUnit);
-      next = resolveWith(next, "A", { specId: "ST13-006-ActivateAction", targetIds: [enemy], secondaryTargetIds: [costUnit] });
+      next = resolveWith(next, "A", { specId: "ST13-006-ActivateAction", targetIds: [], secondaryTargetIds: [costUnit] });
+      expect(findCard(next, costUnit).rested).toBe(true);
+      expect(entry(next, "A", "ST13-006-ActivateAction")?.legalTargets).toContain(enemy);
+      next = resolveWith(next, "A", { specId: "ST13-006-ActivateAction", targetIds: [enemy] });
       expect(findCard(next, enemy).damage).toBe(1);
       expect(findCard(next, costUnit).rested).toBe(true);
     });
@@ -429,7 +433,8 @@ describe("ST13", () => {
       const { s, aerial, enemy } = actionStepForA();
       let next = act(s, "A", { kind: "activateAbility", sourceInstanceId: aerial });
       expect(entry(next, "A", "ST13-006-ActivateAction")?.secondaryTarget?.legalTargets).toContain(aerial);
-      next = resolveWith(next, "A", { specId: "ST13-006-ActivateAction", targetIds: [enemy], secondaryTargetIds: [aerial] });
+      next = resolveWith(next, "A", { specId: "ST13-006-ActivateAction", targetIds: [], secondaryTargetIds: [aerial] });
+      next = resolveWith(next, "A", { specId: "ST13-006-ActivateAction", targetIds: [enemy] });
       expect(findCard(next, enemy).damage).toBe(1);
       expect(findCard(next, aerial).rested).toBe(true);
     });

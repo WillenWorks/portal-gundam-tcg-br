@@ -29,6 +29,7 @@ import {
   trashExileChoice,
 } from "./effectSpec";
 import type { EffectContext, EffectSpec, PredicateResolver, PrimitiveCall, ReactionEvent, TargetFilterResolver } from "./effectSpec";
+import { compileActions } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
 import { TOKEN_EX_RESOURCE_CODE } from "./setup";
 import type { CardInstance, DestroyedInBattle, GameEvent, GameState, PendingDecision, PlayerId, QueuedTrigger } from "./types";
@@ -389,6 +390,83 @@ export function deferOrDispatchAbilities(
         queue: interactive.map(({ spec, sourceInstanceId, activeCalls, implicitTargets }) =>
           buildQueueEntry(state, player, spec, sourceInstanceId, opts.targetFilterResolver, activeCalls, implicitTargets, specs),
         ),
+      },
+    },
+  ]);
+}
+
+/**
+ * Paga o custo de `spec` e só então abre (ou resolve) o efeito, sem cobrar de novo (`costPaid`). Regra do "：": o
+ * custo se cumpre antes da escolha do alvo — "Rest this Base：Choose 1…" descansa a Base antes de pedir o alvo.
+ * `targets` traz as escolhas do custo já feitas (Unit do custo, cartas a exilar).
+ */
+export function payCostThenDefer(
+  state: GameState,
+  player: PlayerId,
+  trigger: string,
+  spec: EffectSpec,
+  sourceInstanceId: string,
+  opts: {
+    targets?: Record<string, string[]>;
+    costResourceIds?: string[];
+    predicateResolver?: PredicateResolver;
+    targetFilterResolver?: TargetFilterResolver;
+  } = {},
+): GameState {
+  const ctx: EffectContext = {
+    state,
+    controller: player,
+    sourceInstanceId,
+    turnNumber: state.turnNumber,
+    targets: opts.targets ?? {},
+    costResourceIds: opts.costResourceIds,
+  };
+  let next = applyEvents(state, compileActions(spec.cost ?? [], ctx));
+  // o 2º alvo só sai junto com o custo quando ELE é a escolha do custo ("Rest 1 friendly Unit："); em
+  // "①：Choose 1 of your Unit tokens and 1 enemy Unit" (ST13-001) ele é do efeito e fica
+  const costless: EffectSpec = { ...spec, cost: undefined, ...(costRestsSecondaryTarget(spec) ? { secondaryTarget: undefined } : {}) };
+  const implicitTargets =
+    costRestsSecondaryTarget(spec) && spec.secondaryTarget && opts.targets?.[spec.secondaryTarget.name]
+      ? { [spec.secondaryTarget.name]: opts.targets[spec.secondaryTarget.name] }
+      : undefined;
+  next = deferOrDispatchAbilities(next, player, trigger, [{ code: findCard(next, sourceInstanceId).def.code, instanceId: sourceInstanceId, implicitTargets }], [costless], {
+    predicateResolver: opts.predicateResolver,
+    targetFilterResolver: opts.targetFilterResolver,
+  });
+  const effectStage = next.pendingDecision[player];
+  if (effectStage?.kind !== "abilityResolution") return next;
+  return applyEvents(next, [
+    {
+      type: "SET_PENDING_DECISION",
+      player,
+      decision: { ...effectStage, queue: effectStage.queue.map((e) => (e.specId === spec.id ? { ...e, costPaid: true } : e)) },
+    },
+  ]);
+}
+
+/**
+ * Ativação com custo de escolha ("Rest 1 friendly Unit：Choose 1 enemy Unit…"): primeiro só o custo. A decisão traz a
+ * escolha da Unit do custo (`secondaryTarget`), sem o alvo do efeito — ele é escolhido depois do custo pago (ver
+ * `resolveAbility`, `costStage`). Pedido do Willen (2026-10-25): o que vem antes do "：" é custo e se cumpre primeiro.
+ */
+export function openCostStage(
+  state: GameState,
+  player: PlayerId,
+  trigger: string,
+  spec: EffectSpec,
+  sourceInstanceId: string,
+  specs: EffectSpec[],
+  opts: { predicateResolver?: PredicateResolver; targetFilterResolver?: TargetFilterResolver } = {},
+): GameState {
+  const entry = buildQueueEntry(state, player, spec, sourceInstanceId, opts.targetFilterResolver, undefined, undefined, specs);
+  return applyEvents(state, [
+    {
+      type: "SET_PENDING_DECISION",
+      player,
+      decision: {
+        kind: "abilityResolution",
+        trigger,
+        queue: [{ ...entry, optional: false, needsTarget: false, legalTargets: [], targetCount: undefined, costStage: true }],
       },
     },
   ]);

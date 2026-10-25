@@ -119,12 +119,18 @@ describe("legalMenuFor — casos que já quebraram na tela", () => {
     expect(legalMenuFor(s, "B", ALL_EFFECT_SPECS, opts).active).toBe(false);
   });
 
-  it("ST06-014 Clan Battle na Main Phase: entrada de 【Activate·Main】 com os alvos", () => {
+  it("ST06-014 Clan Battle na Main Phase: entrada de 【Activate·Main】; \"Rest this Base：\" se paga antes do alvo", () => {
     const s = game();
     const base = placeCard(s, "A", ST06_CARD_DEFS["ST06-014"], "baseSection");
     const unit = placeCard(s, "A", UNIT(), "battleArea");
     const entry = legalMenuFor(s, "A", ALL_EFFECT_SPECS, opts).entries.find((e) => e.kind === "activateAbility" && e.sourceInstanceId === base);
-    expect(entry).toMatchObject({ trigger: "Activate·Main", slots: [{ name: "target", legalTargets: [unit], min: 1, max: 1 }] });
+    // o alvo não é pré-escolhido: ativar descansa a Base (custo) e só então pede o alvo
+    expect(entry).toMatchObject({ trigger: "Activate·Main", slots: [] });
+    // sem (Clan) Link Unit a condição falha: o custo foi pago (Base descansada) e o efeito não faz nada
+    const activated = apply(s, "A", { kind: "activateAbility", sourceInstanceId: base });
+    expect(findCard(activated, base).rested).toBe(true);
+    expect(activated.pendingDecision.A).toBeNull();
+    expect(findCard(activated, unit).statModifiers).toEqual([]);
   });
 
   it("GD01-002 Unicorn (Destroy Mode): sacrificar a Link Unit (Unicorn Mode) Lv.5 aparece no menu mesmo sem recurso", () => {

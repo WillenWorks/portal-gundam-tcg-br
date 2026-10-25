@@ -197,7 +197,8 @@ export function AbilityResolutionModal({
   // A página reaproveita este componente entre decisões (sem `key`): quando a fila muda — continuação "Then:", 【Main】
   // ativado pelo efeito —, o estado local ainda apontava os efeitos da decisão anterior e `itemFor` voltava undefined
   // (relato: Domon Kasshu descartando um Special Move → "reading 'trashExile'"). Reinicia antes de desenhar.
-  const queueKey = decision.queue.map((q) => q.specId).join("|");
+  // a etapa entra na chave: custo e efeito da mesma ativação têm o mesmo specId
+  const queueKey = decision.queue.map((q) => `${q.specId}${q.costStage ? "#custo" : ""}`).join("|");
   const [stateKey, setStateKey] = useState(queueKey);
   if (stateKey !== queueKey) {
     setStateKey(queueKey);
@@ -441,8 +442,8 @@ export function AbilityResolutionModal({
                         <BoardTargetHint
                           side={q.secondaryTarget.targetScope === "friendlyUnit" ? "ally" : q.secondaryTarget.targetScope === "enemyUnit" ? "enemy" : "both"}
                           count={(secondaryTargets[specId] ?? []).length}
-                          max={1}
-                          label={strings.boardSecondaryTargetPrompt}
+                          max={q.secondaryTarget.count ?? 1}
+                          label={q.costStage ? strings.costStagePrompt : strings.boardSecondaryTargetPrompt}
                           compact={isSingle}
                           allyLabel={strings.ally}
                           enemyLabel={strings.enemy}

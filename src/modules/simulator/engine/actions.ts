@@ -1,7 +1,7 @@
 import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PendingDecision, PlayerId, QueuedTrigger } from "./types";
 import { isHiddenCard, type ViewGameState } from "./viewState";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { actionsBeforeChoice, costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, isFollowUpTrigger, specNeedsChoice, trashExileChoice } from "./effectSpec";
+import { actionsBeforeChoice, costRestsSecondaryTarget, costTargetShortfall, specNeedsNamedTarget, exileCostShortfall, isFollowUpTrigger, specNeedsChoice, trashExileChoice } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
 import { canPayLevel, deployCard, playCommand } from "./deploy";
 import { costRestsSelf, specResourceCost } from "./costs";
@@ -14,6 +14,8 @@ import {
   collectDestroyedInBattle,
   dispatchAfterMain,
   deferOrDispatchAbilities,
+  openCostStage,
+  payCostThenDefer,
   dispatchCommandActivated,
   dispatchDestroyedFromEffect,
   dispatchDestroyedTriggers,
@@ -452,7 +454,28 @@ function applyPlayerActionInner(
           (usable.some(specNeedsChoice) && !action.targets) ||
           // W9 — custo/efeito de exilar do trash com mais elegíveis que o necessário: o jogador escolhe quais
           (usable.some((s) => trashExileChoice(state, s, actingPlayer)) && !action.targets?.trashExile);
-        if ((costTarget && !action.targets?.[costTarget]?.length) || choiceMissing) {
+        // custo com escolha e sem a Unit do custo na ação: primeiro só o custo (o alvo do efeito vem depois de pagar)
+        const costSpec = usable.find(costRestsSecondaryTarget);
+        if (costTarget && costSpec && !action.targets?.[costTarget]?.length) {
+          return openCostStage(announced(state), actingPlayer, trigger, costSpec, action.sourceInstanceId, specs, { predicateResolver, targetFilterResolver });
+        }
+        // demais custos ("Rest this Base：", "②：", "Exile N … from your trash：", "Discard 1：") com escolha no efeito:
+        // o custo se paga ANTES de escolher o alvo — se o próprio custo pede escolha (exílio), ela vem primeiro
+        const payFirst = usable.find((s) => (s.cost ?? []).length > 0 && (specNeedsNamedTarget(s) || specNeedsChoice(s)));
+        // escolhas já prontas na ação (bot/legado) seguem de uma vez, como antes
+        const preChosen = Object.values(action.targets ?? {}).some((ids) => ids.length > 0);
+        if (payFirst && !preChosen) {
+          if (trashExileChoice(state, payFirst, actingPlayer, []) && !action.targets?.trashExile) {
+            return openCostStage(announced(state), actingPlayer, trigger, payFirst, action.sourceInstanceId, specs, { predicateResolver, targetFilterResolver });
+          }
+          return payCostThenDefer(announced(state), actingPlayer, trigger, payFirst, action.sourceInstanceId, {
+            targets: action.targets,
+            costResourceIds: action.resourceInstanceIds,
+            predicateResolver,
+            targetFilterResolver,
+          });
+        }
+        if (choiceMissing) {
           return deferOrDispatchAbilities(announced(state), actingPlayer, trigger, [{ code: source.def.code, instanceId: action.sourceInstanceId }], specs, {
             predicateResolver,
             targetFilterResolver,
@@ -650,6 +673,31 @@ function applyPlayerActionInner(
         // docs/47 Fase 5 — 2º pool de alvo (ST05-010 Mikazuki Augus 【When Paired】).
         const secondaryIds = r.secondaryTargetIds ?? [];
 
+        // etapa de custo: paga o custo com as escolhas dele (Unit do custo, cartas a exilar) e abre a escolha do efeito
+        if (q.costStage) {
+          const spec = specs.find((s) => s.id === r.specId);
+          if (!spec) throw new Error(`Custo sem definição pra ${r.specId}`);
+          const st = q.secondaryTarget;
+          const costTargets: Record<string, string[]> = {};
+          if (st) {
+            const want = Math.min(st.count ?? 1, st.legalTargets.length);
+            if (secondaryIds.length !== want || new Set(secondaryIds).size !== secondaryIds.length || !secondaryIds.every((id) => st.legalTargets.includes(id))) {
+              throw new Error(`Custo inválido pra ${r.specId} — escolha ${want} Unit${want > 1 ? "s" : ""} diferente${want > 1 ? "s" : ""} para pagar o custo.`);
+            }
+            costTargets[st.name] = secondaryIds;
+          }
+          const exileChoice = r.trashExileIds ?? [];
+          if (q.trashExile && exileChoice.length > 0) {
+            const legal = q.trashExile.legalTrashIds;
+            if (exileChoice.length !== q.trashExile.count || new Set(exileChoice).size !== exileChoice.length || !exileChoice.every((id) => legal.includes(id))) {
+              throw new Error(`Exílio inválido pra ${r.specId} — escolha ${q.trashExile.count} carta(s) elegíveis do trash.`);
+            }
+            costTargets.trashExile = exileChoice;
+          }
+          next = payCostThenDefer(next, actingPlayer, decision.trigger, spec, q.sourceInstanceId, { targets: costTargets, predicateResolver, targetFilterResolver });
+          continue;
+        }
+
         // "Não revelar" ainda dispara `lookAtTopFilterReveal` (as N cartas vão
         // pro fundo). `handDiscard`/`deckReorder`/`enumChoice` são MANDATÓRIOS
         // (não é "may") — não caem nos `continue` de skip; a validação abaixo
@@ -797,7 +845,11 @@ function applyPlayerActionInner(
         }
 
         if (flowTrigger === "Main" || flowTrigger === "Action") commandSources.add(q.sourceInstanceId);
-        next = dispatchTrigger(next, q.sourceInstanceId, decision.trigger, specs.filter((s) => s.id === r.specId), {
+        // custo já pago na etapa anterior (`costStage`): só o efeito
+        const toDispatch = specs
+          .filter((s) => s.id === r.specId)
+          .map((s) => (q.costPaid ? { ...s, cost: undefined, ...(costRestsSecondaryTarget(s) ? { secondaryTarget: undefined } : {}) } : s));
+        next = dispatchTrigger(next, q.sourceInstanceId, decision.trigger, toDispatch, {
           targets,
           predicateResolver,
           targetFilterResolver,

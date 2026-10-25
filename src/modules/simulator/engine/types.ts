@@ -1651,6 +1651,14 @@ export type PendingDecision =
          * `resolution.specId` — nunca existe em `specs`.
          */
         combatTrigger?: PendingCombatTriggerChoice;
+        /**
+         * Custo com escolha ("Rest 1 friendly Unit：…", "Destroy 1 friendly Unit token：…") — o que vem antes do "：" é
+         * CUSTO e se paga primeiro: esta etapa só escolhe a Unit do custo (`secondaryTarget`); ao confirmar, o custo é
+         * pago e a escolha do efeito abre numa decisão nova, já com o tabuleiro depois do custo.
+         */
+        costStage?: true;
+        /** etapa de efeito de uma ativação cujo custo já foi pago na etapa anterior — não se cobra de novo */
+        costPaid?: true;
       }>;
       /**
        * docs/45 — 【Destroyed】 que PAUSA do OUTRO jogador, disparado no MESMO

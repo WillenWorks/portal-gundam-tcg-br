@@ -276,6 +276,8 @@ export interface DecisionModalStrings {
   none: string;
   boardTargetPrompt: string;
   boardSecondaryTargetPrompt: string;
+  /** etapa de custo ("Rest 1 friendly Unit："): o custo se paga antes de escolher o alvo do efeito */
+  costStagePrompt: string;
   also: string;
   ally: string;
   enemy: string;
@@ -313,6 +315,7 @@ export const DECISION_MODAL_STRINGS: Record<CardLanguage, DecisionModalStrings> 
     none: "Nenhuma",
     boardTargetPrompt: "Selecione no tabuleiro ou abaixo:",
     boardSecondaryTargetPrompt: "E também (no tabuleiro ou abaixo):",
+    costStagePrompt: "Primeiro o custo — escolha no tabuleiro ou abaixo:",
     also: "E também:",
     ally: "aliado",
     enemy: "inimigo",
@@ -350,6 +353,7 @@ export const DECISION_MODAL_STRINGS: Record<CardLanguage, DecisionModalStrings> 
     none: "None",
     boardTargetPrompt: "Select on the board or below:",
     boardSecondaryTargetPrompt: "And also (on board or below):",
+    costStagePrompt: "Pay the cost first — choose on the board or below:",
     also: "And also:",
     ally: "ally",
     enemy: "enemy",

@@ -437,9 +437,11 @@ describe("W5c — custo de descansar Unit e gatilhos atrasados", () => {
     placeCard(state, "B", UNIT({ hp: 5 }), "battleArea");
     state = act(state, "A", { kind: "activateAbility", sourceInstanceId: self });
     const d = pending(state, "A");
-    expect(d?.queue[0].legalTargets).toEqual([enemy]);
+    expect(d?.queue[0].costStage).toBe(true);
     expect(d?.queue[0].secondaryTarget?.legalTargets).toEqual([lm]);
-    state = act(state, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD04-006-ActivateMain", activate: true, targetIds: [enemy], secondaryTargetIds: [lm] }] });
+    state = act(state, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD04-006-ActivateMain", activate: true, targetIds: [], secondaryTargetIds: [lm] }] });
+    expect(pending(state, "A")?.queue[0].legalTargets).toEqual([enemy]);
+    state = act(state, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD04-006-ActivateMain", activate: true, targetIds: [enemy] }] });
     expect(findCard(state, lm).rested).toBe(true);
     expect(findCard(state, enemy).rested).toBe(true);
     expect(findCard(state, self).rested).toBe(false);
@@ -461,7 +463,8 @@ describe("W5c — custo de descansar Unit e gatilhos atrasados", () => {
     const cb = placeCard(state, "A", UNIT({ traits: ["CB"] }), "battleArea");
     const enemy = placeCard(state, "B", UNIT({ hp: 3, level: 5 }), "battleArea");
     state = act(state, "A", { kind: "activateAbility", sourceInstanceId: base });
-    state = act(state, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD04-125-ActivateMain", activate: true, targetIds: [enemy], secondaryTargetIds: [cb] }] });
+    state = act(state, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD04-125-ActivateMain", activate: true, targetIds: [], secondaryTargetIds: [cb] }] });
+    state = act(state, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD04-125-ActivateMain", activate: true, targetIds: [enemy] }] });
     expect(dmg(state, enemy)).toBe(1);
     expect(findCard(state, cb).rested).toBe(true);
     expect(state.players.A.resourceArea.filter((r) => r.rested).length).toBe(1);

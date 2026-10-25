@@ -292,6 +292,11 @@ export function runGoldenGame(pair: GoldenPair): GameState {
     predicateResolver: defaultPredicateResolver,
     targetFilterResolver: defaultTargetFilterResolver,
   });
+  // partida travada ou que quebrou NÃO é resultado de regra: o golden gravou uma assim sem ninguém ver (ST13 × ST14
+  // parou no turno 17 com decisão sem jogada legal, 2026-10-25) — falha no check e no --update
+  if (result.crashed || result.illegalState) {
+    throw new Error(`golden ${pair.key}: partida não terminou direito — ${result.illegalState ?? result.crashed?.error}`);
+  }
   return result.finalState;
 }
 

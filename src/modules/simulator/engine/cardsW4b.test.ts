@@ -411,9 +411,11 @@ describe("GD04-122 Jaburo (Base) 【Activate･Main】【Once per Turn】", () =
     placeCard(state, "B", UNIT({ level: 4 }), "battleArea");
     state = act(state, "A", { kind: "activateAbility", sourceInstanceId: base });
     const e = entry(state, "A", "GD04-122-ActivateMain");
-    expect(e?.legalTargets).toEqual([lv3]);
+    expect(e?.costStage).toBe(true);
     expect(e?.secondaryTarget?.legalTargets).toEqual([ef]);
-    state = resolve(state, "A", "GD04-122-ActivateMain", [lv3], { secondaryTargetIds: [ef] });
+    state = resolve(state, "A", "GD04-122-ActivateMain", [], { secondaryTargetIds: [ef] });
+    expect(entry(state, "A", "GD04-122-ActivateMain")?.legalTargets).toEqual([lv3]);
+    state = resolve(state, "A", "GD04-122-ActivateMain", [lv3]);
     expect(findCard(state, lv3).rested).toBe(true);
     expect(findCard(state, ef).rested).toBe(true);
     // 【Once per Turn】: não é ofertada de novo neste turno
@@ -440,6 +442,7 @@ describe("GD04-122 Jaburo (Base) 【Activate･Main】【Once per Turn】", () =
     placeCard(state, "B", UNIT({ level: 3 }), "battleArea");
     const lv4 = placeCard(state, "B", UNIT({ level: 4 }), "battleArea");
     state = act(state, "A", { kind: "activateAbility", sourceInstanceId: base });
-    expect(() => resolve(state, "A", "GD04-122-ActivateMain", [lv4], { secondaryTargetIds: [ef] })).toThrow();
+    state = resolve(state, "A", "GD04-122-ActivateMain", [], { secondaryTargetIds: [ef] });
+    expect(() => resolve(state, "A", "GD04-122-ActivateMain", [lv4])).toThrow();
   });
 });

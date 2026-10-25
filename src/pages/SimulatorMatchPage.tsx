@@ -568,7 +568,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const abilityDecisionSignatureRef = useRef<string | null>(null);
   useEffect(() => {
     const decision = matchView?.view.pendingDecision[matchView.seat];
-    const signature = decision?.kind === "abilityResolution" ? decision.queue.map((q) => q.specId).join(",") : null;
+    // a etapa entra na assinatura: o custo ("Rest 1 friendly Unit：") e o efeito da mesma ativação têm o mesmo specId
+    const signature =
+      decision?.kind === "abilityResolution" ? decision.queue.map((q) => `${q.specId}${q.costStage ? "#custo" : ""}`).join(",") : null;
     if (signature === abilityDecisionSignatureRef.current) return;
     abilityDecisionSignatureRef.current = signature;
     setAbilityTargets({});
