@@ -57,7 +57,7 @@ export function partnerFor(specs: readonly EffectSpec[], card?: CardDef): { pilo
     const parts = [...(spec.condition?.predicate.split(";") ?? []), ...(spec.targetFilter?.split(";") ?? [])];
     for (const part of parts) {
       const [key, value = ""] = part.split(":");
-      if (key === "pairedPilotHasTrait" || key === "pairedPilotHasAnyTrait") value.split(",").forEach((t) => pilotTraits.add(t));
+      if (key === "pairedPilotHasTrait" || key === "pairedPilotHasAnyTrait" || key === "formerPairedPilotHasTrait") value.split(",").forEach((t) => pilotTraits.add(t));
       if (key === "selfHasTrait" || key === "controllerUnitWithTraitInPlay" || key === "trait") unitTraits.add(value);
       if (key === "pairedPilotColorIs") pilotColor = value as CardDef["color"];
       if (key === "selfColorIs") unitColor = value as CardDef["color"];
