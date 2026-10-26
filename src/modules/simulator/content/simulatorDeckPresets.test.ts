@@ -9,7 +9,8 @@ import { GD05_DECKS } from "../fixtures/gd05Decks";
 import { ST10_TEST_DECKS } from "../fixtures/st10Decks";
 import { EB01_TEST_DECKS } from "../fixtures/eb01Decks";
 import { ST11_TO_14_DECKS } from "../fixtures/st11to14Decks";
-import { SIMULATOR_DECK_PRESETS } from "./simulatorDeckPresets";
+import { TEST_VER_DECKS } from "../fixtures/testVerDecks";
+import { SIMULATOR_DECK_PRESETS, TEST_DECK_PRESETS } from "./simulatorDeckPresets";
 import { VALIDATED_DECKS, checkDeckListLegality } from "./validatedDecks";
 
 // Mesmo conjunto que `SIMULATOR_DECKS` em `server/index.ts` resolve — preset que não estiver
@@ -25,6 +26,7 @@ const REGISTRIES: Record<string, { build: () => DeckList }>[] = [
   ST10_TEST_DECKS,
   EB01_TEST_DECKS,
   ST11_TO_14_DECKS,
+  TEST_VER_DECKS,
 ];
 
 function resolvePreset(key: string): (() => DeckList) | undefined {
@@ -46,6 +48,12 @@ describe("SIMULATOR_DECK_PRESETS", () => {
     for (const key of closing.flatMap((r) => Object.keys(r))) {
       expect(keys.has(key), key).toBe(true);
     }
+  });
+
+  it("os decks \"Test ver.\" estão nos presets, com o mesmo nome do registro", () => {
+    expect(TEST_DECK_PRESETS.map((p) => [p.key, p.label])).toEqual(Object.values(TEST_VER_DECKS).map((d) => [d.id, d.label]));
+    const keys = new Set(SIMULATOR_DECK_PRESETS.map((p) => p.key));
+    for (const p of TEST_DECK_PRESETS) expect(keys.has(p.key), p.key).toBe(true);
   });
 
   for (const preset of SIMULATOR_DECK_PRESETS) {

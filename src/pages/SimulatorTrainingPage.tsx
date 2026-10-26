@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { Bot, Loader2, Swords, User, ShieldCheck, ArrowLeft, CircleCheck, CircleX } from "lucide-react";
 
 import { api, type SimulatorTrainingLevel } from "@/lib/api";
-import { SIMULATOR_DECK_PRESETS, STARTER_DECK_PRESETS } from "@/modules/simulator/content/simulatorDeckPresets";
+import { SIMULATOR_DECK_PRESETS, STARTER_DECK_PRESETS, TEST_DECK_PRESETS } from "@/modules/simulator/content/simulatorDeckPresets";
 import { useMySimulatorDecks } from "@/modules/simulator/ui/useMySimulatorDecks";
 import { SimulatorDeckCoverageNotice } from "@/modules/simulator/ui/SimulatorDeckCoverageNotice";
 import { PublicShell } from "@/components/layout/PublicShell";
@@ -43,7 +43,8 @@ export default function SimulatorTrainingPage() {
   const { tr } = useSiteLanguage();
   const [, navigate] = useLocation();
   const starters = STARTER_DECK_PRESETS;
-  const nonStarterPresets = SIMULATOR_DECK_PRESETS.filter((d) => !d.key.startsWith("ST"));
+  const testDecks = TEST_DECK_PRESETS;
+  const nonStarterPresets = SIMULATOR_DECK_PRESETS.filter((d) => !d.key.startsWith("ST") && !testDecks.some((t) => t.key === d.key));
   const { decks: myDecks, loading: myDecksLoading } = useMySimulatorDecks();
   const urlDeckParam = new URLSearchParams(window.location.search).get("deck");
   // `?deck=<id>` vem do atalho "Treinar com este deck" do deckbuilder (roteamento por hash: a query fica em location.search).
@@ -183,6 +184,16 @@ export default function SimulatorTrainingPage() {
                         )}
                         <SelectGroup>
                           <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
+                            {tr("Decks de Teste", "Test Decks")}
+                          </SelectLabel>
+                          {testDecks.map((deck) => (
+                            <SelectItem key={deck.key} value={deck.key} className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
+                              {deck.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                        <SelectGroup>
+                          <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
                             {tr("Starter Decks Oficiais", "Official Starter Decks")}
                           </SelectLabel>
                           {starters.map((deck) => (
@@ -231,6 +242,16 @@ export default function SimulatorTrainingPage() {
                             ))}
                           </SelectGroup>
                         )}
+                        <SelectGroup>
+                          <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
+                            {tr("Decks de Teste", "Test Decks")}
+                          </SelectLabel>
+                          {testDecks.map((deck) => (
+                            <SelectItem key={deck.key} value={deck.key} className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
+                              {deck.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
                         <SelectGroup>
                           <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
                             {tr("Starter Decks Oficiais", "Official Starter Decks")}
