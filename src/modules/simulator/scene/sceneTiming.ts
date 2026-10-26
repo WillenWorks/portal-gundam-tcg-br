@@ -1,0 +1,132 @@
+/* Spec simulador-cadencia-de-mesa (P0): quanto tempo cada coisa leva na tela. A tabela é uma só — os componentes
+ * tocam com estes números e o servidor usa os mesmos para saber quando a cena termina (o bot espera, o prazo de
+ * decisão só começa a contar depois). A duração não depende de quem vê: a cena dura o tempo da visão mais longa
+ * (a minha jogada eu não vejo de novo; o oponente vê), e as duas telas liberam a mesa no mesmo instante. */
+import { PLAYER_IDS, type GameEvent, type Phase } from "../engine/types";
+import { planChoreography, tempoFor, type Beat, type PendingAttack } from "./choreography";
+
+/** ritmo da cena. "classic" = o ritmo de antes do #228 (ninguém espera a tela) — também é a reversão */
+export type ScenePace = "cinematic" | "normal" | "classic";
+
+export const SCENE_PACES: readonly ScenePace[] = ["cinematic", "normal", "classic"];
+
+/** multiplica os tempos que seguram a fila (anúncio, entrada, efeitos, saídas); 0 = sem espera */
+export const SCENE_PACE_FACTOR: Record<ScenePace, number> = { cinematic: 1, normal: 0.7, classic: 0 };
+
+export function isScenePace(value: unknown): value is ScenePace {
+  return typeof value === "string" && (SCENE_PACES as readonly string[]).includes(value);
+}
+
+/** o ritmo mais lento entre os jogadores: ninguém tem a cena cortada pela pressa do outro */
+export function slowestPace(paces: readonly (ScenePace | undefined)[]): ScenePace {
+  const known = paces.map((p) => p ?? "cinematic");
+  if (known.length === 0) return "cinematic";
+  return known.reduce((slow, p) => (SCENE_PACE_FACTOR[p] > SCENE_PACE_FACTOR[slow] ? p : slow));
+}
+
+/** ms base (antes da velocidade de animação do jogador) */
+export const SCENE_MS = {
+  /** `ActivationAnnouncement`: sobe, segura, sai */
+  announce: { rise: 280, hold: 760, out: 240 },
+  /** entrada em campo usa o mesmo componente, com espera menor */
+  deployHold: 420,
+  /** `CommandCastAnimation` */
+  command: { rise: 320, hold: 700, fly: 360, settle: 160 },
+  /** `DeckDealAnimation` modo "single-draw" */
+  draw: 750,
+  /** `executeAttackStrike`: avança, golpe, volta */
+  strike: { advance: 260, hit: 220, back: 280 },
+  /** cues do que um efeito fez */
+  effects: 700,
+  /** cartas saindo para a lixeira/exílio, shields quebradas */
+  departure: 520,
+  /** `PhaseAnnouncementBanner` */
+  banner: 750,
+  /** `BurstRevealStage`: escudo voa, vira, segura */
+  burstReveal: { fly: 420, flip: 500, hold: 550 },
+  /** o modal da escolha espera a minha carta pousar */
+  modalHold: 420,
+  /** folga para a rede e o React aplicarem a visão */
+  margin: 200,
+} as const;
+
+/** banners da virada de turno: "seu turno / turno do oponente" + recuperação + compra + principal */
+const TURN_START_BANNERS = 4;
+
+/** tempos cuja espera segue o `tempo` do lote (e o ritmo); golpe, Command e compra têm duração própria */
+const TEMPO_SCALED = new Set<Beat["kind"]>(["announce", "deploy", "effects", "departure"]);
+
+export function beatBaseMs(beat: Beat): number {
+  switch (beat.kind) {
+    case "announce":
+      return SCENE_MS.announce.rise + SCENE_MS.announce.hold + SCENE_MS.announce.out;
+    case "deploy":
+      return SCENE_MS.announce.rise + SCENE_MS.deployHold + SCENE_MS.announce.out;
+    case "opponentCommand":
+      return SCENE_MS.command.rise + SCENE_MS.command.hold + SCENE_MS.command.fly;
+    case "draw":
+      return SCENE_MS.draw;
+    case "strike":
+      return SCENE_MS.strike.advance + SCENE_MS.strike.hit + SCENE_MS.strike.back;
+    case "effects":
+      return SCENE_MS.effects;
+    case "departure":
+      return SCENE_MS.departure;
+  }
+}
+
+/** quanto os tempos de uma visão seguram a fila, já com o `tempo` do lote e o ritmo */
+export function beatsDurationMs(beats: readonly Beat[], pace: ScenePace): number {
+  const factor = SCENE_PACE_FACTOR[pace];
+  const tempo = tempoFor(beats) * factor;
+  return beats.reduce((ms, beat) => ms + beatBaseMs(beat) * (TEMPO_SCALED.has(beat.kind) ? tempo : 1), 0);
+}
+
+export interface SceneInput {
+  /** eventos desde a última transmissão */
+  events: readonly GameEvent[];
+  /** combate aberto antes do lote cujo golpe ainda não tocou */
+  pendingAttack: PendingAttack | null;
+  /** fase em que o lote começa */
+  phase: Phase;
+  /** recursos em jogo no começo do lote (pagar custo não é efeito) */
+  resourceIds?: ReadonlySet<string>;
+  /** o lote começa ainda na preparação (mulligan): a abertura tem coreografia própria */
+  fromSetup: boolean;
+  /** depois do lote alguém decide um 【Burst】: o escudo é revelado antes do modal */
+  endsWithBurstDecision: boolean;
+  /** depois do lote há escolha de efeito pendente para quem acabou de pôr uma carta em campo */
+  endsWithDeployChoice: boolean;
+  pace: ScenePace;
+}
+
+/**
+ * Quanto a cena deste lote dura na tela (ms) e o combate que segue aberto para o próximo. 0 = nada a esperar
+ * (ritmo "classic", abertura, lote sem nada visível).
+ */
+export function sceneDurationMs(input: SceneInput): { durationMs: number; pendingAttack: PendingAttack | null } {
+  let pendingAttack = input.pendingAttack;
+  let longest = 0;
+  for (const viewerSeat of PLAYER_IDS) {
+    const plan = planChoreography({
+      events: input.events,
+      viewerSeat,
+      pendingAttack: input.pendingAttack,
+      phase: input.phase,
+      resourceIds: input.resourceIds,
+    });
+    pendingAttack = plan.pendingAttack;
+    longest = Math.max(longest, beatsDurationMs(plan.beats, input.pace));
+  }
+  if (input.pace === "classic" || input.fromSetup) return { durationMs: 0, pendingAttack };
+
+  let ms = longest;
+  if (input.events.some((e) => e.type === "TURN_CHANGE")) {
+    // o fim do turno anterior: "fim de turno", mais "fase de ações" se ela não foi anunciada antes do lote
+    const endBanners = input.phase === "end" ? 1 : 2;
+    ms += (endBanners + TURN_START_BANNERS) * SCENE_MS.banner;
+  }
+  if (input.endsWithBurstDecision) ms += SCENE_MS.burstReveal.fly + SCENE_MS.burstReveal.flip + SCENE_MS.burstReveal.hold;
+  if (input.endsWithDeployChoice) ms += SCENE_MS.modalHold;
+  return { durationMs: ms > 0 ? Math.round(ms + SCENE_MS.margin) : 0, pendingAttack };
+}

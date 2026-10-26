@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { CardDef } from "@/modules/simulator/engine/types";
 import { getScaledDuration } from "./animationSettings";
+import { SCENE_MS } from "../scene/sceneTiming";
 import { artSrc, cardBackUrl, isGenericArtCard, type ArtLookup } from "./cardArt";
 import { sfx } from "../audio/soundEffects";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
@@ -30,9 +31,7 @@ interface BurstRevealStageProps {
   onDone: () => void;
 }
 
-const FLY_BASE_MS = 420;
-const FLIP_BASE_MS = 500;
-const HOLD_BASE_MS = 550;
+const { fly: FLY_BASE_MS, flip: FLIP_BASE_MS, hold: HOLD_BASE_MS } = SCENE_MS.burstReveal;
 
 export function BurstRevealStage({ cardDef, art, origin, cardW, onDone }: BurstRevealStageProps) {
   const { tr } = useSiteLanguage();

@@ -5,6 +5,7 @@
  * `calc(280ms / var(--sim-anim-speed-mult, 1))`) acompanharem exatamente o
  * mesmo valor que `getScaledDuration` aplica nos `setTimeout`/`setInterval`
  * de JS — uma única fonte de verdade pros dois mundos. */
+import { isScenePace, type ScenePace } from "../scene/sceneTiming";
 
 export const ANIM_SPEEDS = [0.75, 1, 1.5, 2] as const;
 export type AnimSpeed = (typeof ANIM_SPEEDS)[number];
@@ -71,18 +72,17 @@ applySpeedCssVar(getSavedAnimSpeed());
  * (anúncio da habilidade, compra, dano, saída), igual para jogador e bot. "classic" = o ritmo anterior (golpe, Command
  * e saídas animados; os efeitos todos de uma vez) — também é a reversão sem deploy: cada jogador troca no menu, e o
  * padrão do build sai de `VITE_SIM_RESOLUTION_PACING`. */
-export type ResolutionPacing = "cinematic" | "classic";
+export type ResolutionPacing = ScenePace;
 
 export const RESOLUTION_PACING_LABELS: Record<ResolutionPacing, { pt: string; en: string }> = {
   cinematic: { pt: "Cinemático (um efeito por vez)", en: "Cinematic (one effect at a time)" },
+  normal: { pt: "Normal (um efeito por vez, mais curto)", en: "Normal (one effect at a time, shorter)" },
   classic: { pt: "Rápido (efeitos juntos)", en: "Fast (effects together)" },
 };
 
 const PACING_STORAGE_KEY = "portal_gundam_sim_resolution_pacing";
 
-function isPacing(value: unknown): value is ResolutionPacing {
-  return value === "cinematic" || value === "classic";
-}
+const isPacing = isScenePace;
 
 /** padrão do build: `VITE_SIM_RESOLUTION_PACING=classic` desliga o cinemático para quem nunca escolheu */
 export function defaultResolutionPacing(env: Record<string, unknown> = import.meta.env ?? {}): ResolutionPacing {

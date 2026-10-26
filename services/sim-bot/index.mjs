@@ -5,7 +5,7 @@ import { PrismaClient } from "@prisma/client";
 
 import { hydrateMatch } from "../../src/modules/simulator/server/hydrateMatch.ts";
 import { botSeatFromSeats } from "../../src/modules/simulator/server/trainingMatch.ts";
-import { driveBotTurn, humanizedThinkDelay } from "./driveBotTurn.mjs";
+import { driveBotTurn, sceneAwareThinkDelay } from "./driveBotTurn.mjs";
 
 /**
  * Worker do bot de treino (docs/44 Fase 2 §10.2). Faz polling da tabela
@@ -45,6 +45,9 @@ function turnSeed(matchId, turnNumber, attempts) {
   return parseInt(hex, 16) >>> 0;
 }
 
+/** fim da cena da última jogada aplicada (relógio local), pela resposta do servidor — spec simulador-cadencia-de-mesa */
+let sceneEndsAtLocal = 0;
+
 async function commitAction(matchId, action) {
   const resp = await fetch(`${API_URL}/api/simulator/matches/${matchId}/actions`, {
     method: "POST",
@@ -54,6 +57,10 @@ async function commitAction(matchId, action) {
   if (!resp.ok) {
     const body = await resp.text().catch(() => "");
     throw new Error(`POST /matches/${matchId}/actions -> ${resp.status} ${body.slice(0, 300)}`);
+  }
+  const view = await resp.json().catch(() => null);
+  if (view && typeof view.sceneEndsAt === "number" && typeof view.serverNow === "number") {
+    sceneEndsAtLocal = Date.now() + Math.max(0, view.sceneEndsAt - view.serverNow);
   }
 }
 
@@ -100,7 +107,7 @@ async function processTurn(turn) {
     level,
     persona,
     seed: turnSeed(turn.matchId, state.turnNumber, turn.attempts),
-    beforeCommit: humanizedThinkDelay,
+    beforeCommit: sceneAwareThinkDelay(() => Math.max(0, sceneEndsAtLocal - Date.now())),
     commit: (action) => commitAction(turn.matchId, action),
   });
 

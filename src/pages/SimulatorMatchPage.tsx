@@ -132,8 +132,11 @@ import {
 } from "@/modules/simulator/ui/menuIntent";
 import type { BurstTargetChoice } from "@/modules/simulator/ui/BurstModal";
 import { findAltDiscardCandidates, findEligibleSacrifices, playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
-import { getResolutionPacing, getScaledDuration } from "@/modules/simulator/ui/animationSettings";
-import { BEAT_HOLD_MS, hasOwnDeploy, planChoreography, tempoFor } from "@/modules/simulator/ui/choreography";
+import { getResolutionPacing, getScaledDuration, type ResolutionPacing } from "@/modules/simulator/ui/animationSettings";
+import { hasOwnDeploy, planChoreography, tempoFor } from "@/modules/simulator/scene/choreography";
+import { SCENE_MS, SCENE_PACE_FACTOR } from "@/modules/simulator/scene/sceneTiming";
+import { localSceneEnd, sceneLockWaitMs } from "@/modules/simulator/scene/sceneLock";
+import { revealBeat } from "@/modules/simulator/scene/viewPatcher";
 import {
   handleOpponentCommandCast,
   resolveCommandAnimationPoints,
@@ -550,6 +553,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   /** limiares de aviso do timer de turno já disparados NESTE prazo (reseta quando `turnDeadlineAt` muda). */
   const turnWarningsRef = useRef<{ deadline: number | null; fired: Set<number> }>({ deadline: null, fired: new Set() });
   const [busy, setBusy] = useState(false);
+  // spec simulador-cadencia-de-mesa — a mesa fica travada enquanto a cena toca: a fila de visões tocando e, depois
+  // dela, até o fim da cena contado pelo servidor (a minha jogada eu não vejo de novo, o oponente vê; as duas telas
+  // liberam juntas). Fim da cena no relógio LOCAL.
+  const [sceneLocked, setSceneLocked] = useState(false);
+  const sceneEndsAtLocalRef = useRef<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
   const [pending, setPending] = useState<PendingAction | null>(null);
@@ -1003,6 +1011,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       if (typeof incoming.serverNow === "number") {
         clockOffsetRef.current = incoming.serverNow - Date.now();
       }
+      if (incoming.sceneEndsAt != null) sceneEndsAtLocalRef.current = localSceneEnd(incoming.sceneEndsAt, clockOffsetRef.current, Date.now());
 
       // spec simulador-animacao-pelo-log, fase 3 — com eventos contínuos, a tela toca o que o motor fez, na ordem
       // (vários ataques/Commands no mesmo lote do bot; a Unit destruída sai depois do golpe). Visão repetida (POST
@@ -1026,7 +1035,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       // spec simulador-ritmo-de-resolucao — ritmo cinemático: um tempo por coisa que o motor fez (abertura e mulligan
       // têm coreografia própria). O "rápido" é o caminho anterior, intacto.
       const cinematicFrom =
-        timeline && getResolutionPacing() === "cinematic" && prevViewForQueueRef.current && isPostSetupView(prevViewForQueueRef.current)
+        timeline && getResolutionPacing() !== "classic" && prevViewForQueueRef.current && isPostSetupView(prevViewForQueueRef.current)
           ? prevViewForQueueRef.current
           : null;
       setCueBatch(
@@ -1044,6 +1053,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         y: typeof window !== "undefined" && window.innerHeight ? window.innerHeight / 2 : 350,
       };
       const prevView = prevViewForQueueRef.current;
+      // a mesa que a tela mostra quando os tempos acabam (a virada de turno parte dela)
+      let shownAfterBeats = prevView;
       prevViewForQueueRef.current = incoming.view;
       const animateCommand = ({ cardDef, origin, dest }: { cardDef: CardDef; origin: { x: number; y: number }; dest: { x: number; y: number } }) =>
         new Promise<void>((resolve) => {
@@ -1078,7 +1089,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           resourceIds,
         });
         pendingAttackRef.current = pendingAttack;
-        const tempo = tempoFor(beats);
+        const tempo = tempoFor(beats) * SCENE_PACE_FACTOR[getResolutionPacing()];
         const hold = (baseMs: number) => new Promise<void>((resolve) => setTimeout(resolve, getScaledDuration(baseMs * tempo)));
         const opponentSeat: PlayerId = incoming.seat === "A" ? "B" : "A";
         const defOf = (id: string) => cardDefInView(incoming.view, id) ?? cardDefInView(cinematicFrom, id);
@@ -1090,6 +1101,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           const src = code ? artSrc(art, code, "lg") : undefined;
           if (src && typeof Image !== "undefined") new Image().src = src;
         }
+        // spec simulador-cadencia-de-mesa — a mesa entre um tempo e outro: cada tempo que termina mostra o que ele
+        // fez (o dano do 1º efeito antes do 2º começar); a visão do servidor fecha a cena no fim
+        let shown: ViewGameState = cinematicFrom;
         for (const beat of beats) {
           switch (beat.kind) {
             case "strike":
@@ -1097,7 +1111,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               break;
             case "effects":
               setCueBatch({ key: -++beatKeyRef.current, events: beat.events });
-              await hold(BEAT_HOLD_MS.effects);
+              await hold(SCENE_MS.effects);
               break;
             case "departure": {
               const ids = beat.shieldsOf
@@ -1107,7 +1121,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 : beat.ids;
               if (beat.shieldsOf) sfx.playShieldBurst();
               launchDepartures(prevDepartureView, incoming, new Set(ids));
-              await hold(BEAT_HOLD_MS.departure);
+              await hold(SCENE_MS.departure);
               break;
             }
             case "opponentCommand": {
@@ -1148,7 +1162,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 dest: rectCenter(board.rectOf(playerAreaKey(beat.player))),
                 label: beat.as === "pilot" ? { pt: "Piloto", en: "Pilot" } : beat.as === "base" ? { pt: "Base", en: "Base" } : { pt: "Unit", en: "Unit" },
                 caption: mine ? { pt: "Você implanta", en: "You deploy" } : { pt: "Oponente implanta", en: "Opponent deploys" },
-                holdBaseMs: 420,
+                holdBaseMs: SCENE_MS.deployHold,
                 tempo,
               });
               break;
@@ -1162,6 +1176,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               await playOverlay(setEffectDraw, effectDrawResolveRef, { key: ++beatKeyRef.current, player: beat.player, card });
               break;
             }
+          }
+          if (beat.kind !== "announce" && beat.kind !== "strike") {
+            const staged = revealBeat(shown, incoming.view, beat);
+            shown = staged;
+            shownAfterBeats = staged;
+            setMatchView((prev) => (prev ? { ...prev, ...heldFromMenu(prev), view: staged } : prev));
           }
         }
       } else if (timeline) {
@@ -1221,7 +1241,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         (incoming.view.turnNumber > prevView.turnNumber || incoming.view.activePlayer !== prevView.activePlayer);
 
       if (isTurnChange) {
-        const staged = buildTurnStagedViews(prevView, incoming);
+        const staged = buildTurnStagedViews(shownAfterBeats ?? prevView, incoming);
         // Fecha o turno anterior ANTES de armar turnStagedViewsRef e mostrar a mesa do novo turno.
         enqueuePhaseBanners(endOfTurnBanners(prevView));
         await waitForPhaseBanners();
@@ -1255,7 +1275,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         const pendingForMe = incoming.view.pendingDecision[incoming.seat];
         if (pendingForMe && pendingForMe.kind !== "burst") {
           setModalHold(true);
-          await new Promise((resolve) => setTimeout(resolve, getScaledDuration(420)));
+          await new Promise((resolve) => setTimeout(resolve, getScaledDuration(SCENE_MS.modalHold)));
           setModalHold(false);
         }
       }
@@ -1281,7 +1301,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const drainViewQueue = useCallback(async () => {
     if (isDrainingViewQueueRef.current) return;
     isDrainingViewQueueRef.current = true;
+    setSceneLocked(true);
     try {
+      for (;;) {
       while (viewQueueRef.current.length > 0) {
         const peekNext = viewQueueRef.current[0];
         // Se a próxima view já é pós-setup (Fase Principal, jogadas de turno 1, ou bot agindo),
@@ -1317,8 +1339,16 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           break;
         }
       }
+        // a minha tela terminou a fila; a cena do servidor pode durar mais (a minha jogada eu não vejo de novo):
+        // a mesa espera o fim dela, acordando a cada pouco para tocar uma visão que chegue no meio
+        const wait = getResolutionPacing() === "classic" ? 0 : sceneLockWaitMs(sceneEndsAtLocalRef.current, Date.now());
+        if (wait <= 0 || prevViewForQueueRef.current?.gameOver) break;
+        await new Promise((resolve) => setTimeout(resolve, Math.min(wait, 250)));
+        if (viewQueueRef.current.length === 0 && sceneLockWaitMs(sceneEndsAtLocalRef.current, Date.now()) <= 0) break;
+      }
     } finally {
       isDrainingViewQueueRef.current = false;
+      setSceneLocked(false);
     }
   }, [processIncomingView, waitForPhaseBanners]);
 
@@ -1331,6 +1361,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       // senão a 2ª view (já pela fila) achava que também era "a primeira".
       if (!hasAppliedFirstViewRef.current) {
         hasAppliedFirstViewRef.current = true;
+        if (typeof incoming.serverNow === "number") {
+          sceneEndsAtLocalRef.current = localSceneEnd(incoming.sceneEndsAt, incoming.serverNow - Date.now(), Date.now());
+        }
         prevViewForQueueRef.current = incoming.view;
         lastEventSeqRef.current = incoming.eventSeq ?? null;
         detectDepartures(incoming);
@@ -1514,6 +1547,21 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     },
     [matchId, applyIncomingView],
   );
+
+  // o servidor espera a cena no ritmo de quem joga (o mais lento dos dois): avisa a escolha deste jogador
+  const syncScenePace = useCallback(
+    (value: ResolutionPacing) => {
+      api.setSimulatorScenePace(matchId, value).catch((err) => console.warn("[SIMULADOR] ritmo da cena não salvo", err));
+    },
+    [matchId],
+  );
+  const scenePaceSyncedRef = useRef(false);
+  useEffect(() => {
+    if (!matchView || scenePaceSyncedRef.current) return;
+    scenePaceSyncedRef.current = true;
+    const local = getResolutionPacing();
+    if ((matchView.scenePace ?? "cinematic") !== local) syncScenePace(local);
+  }, [matchView, syncScenePace]);
 
   const toggleAutoPass = async (value: boolean) => {
     try {
@@ -1923,19 +1971,19 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const autoPassSentForVersionRef = useRef<number | null>(null);
   const { language: cardLanguage } = useCardLanguage();
   useEffect(() => {
-    if (!matchView || introStage !== "complete" || busy) return;
+    if (!matchView || introStage !== "complete" || busy || sceneLocked) return;
     if (autoPassSentForVersionRef.current === matchView.version) return;
     const pass = actionStepAutoPass(matchView.view, matchView.seat, ALL_EFFECT_SPECS);
     if (!pass) return;
     autoPassSentForVersionRef.current = matchView.version;
     runAction(pass);
-  }, [matchView, introStage, busy, runAction]);
+  }, [matchView, introStage, busy, sceneLocked, runAction]);
 
   // docs/55 tarefa 3 — Auto-pass do Passo de Bloqueio: se o defensor não tem
   // NENHUMA Unit ativa com <Blocker>, pula sozinho — não trava o jogo
   // esperando um bloqueio que não existe.
   useEffect(() => {
-    if (!matchView || introStage !== "complete" || busy) return;
+    if (!matchView || introStage !== "complete" || busy || sceneLocked) return;
     const v = matchView.view;
     const meSeat = matchView.seat;
     const combatNow = v.combat;
@@ -1945,7 +1993,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     const hasActiveBlocker = myUnits.some((u) => !u.rested && hasKeyword(u, "Blocker", boardNow));
     if (hasActiveBlocker) return;
     runAction({ kind: "skipBlock" });
-  }, [matchView, introStage, busy, runAction]);
+  }, [matchView, introStage, busy, sceneLocked, runAction]);
 
   if (!matchView || artLoading) {
     if (!matchView && loadTimedOut) {
@@ -2601,6 +2649,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     iAmDefending,
   );
   const isPhaseBannerActive = phaseBannerQueue.length > 0;
+  // nada se faz na mesa enquanto a cena toca (banners de fase ou a fila de visões). O 【Burst】 é a exceção: a fila
+  // para nele de propósito, e o alvo dele é escolhido na mesa.
+  const tableLocked = isPhaseBannerActive || (sceneLocked && !myBurstDecision);
 
   /** "Nova leva de correções" (item 4, plano v2) — decisão `abilityResolution`
    *  pendente com alvo em Unit (ex.: ST05-010 Mikazuki Augus): glow inline no
@@ -2775,7 +2826,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               ? { towardX: activeStrike.towardX, towardY: activeStrike.towardY, phase: activeStrike.phase }
               : undefined
           }
-          busy={busy || isPhaseBannerActive}
+          busy={busy || tableLocked}
           state={boardForStats}
           abilityTargetPool={abilityTarget?.side ?? null}
           abilitySelected={isAbilitySelected}
@@ -2968,7 +3019,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           onInspect={setInspect}
           onHoverCard={isWide ? setHoveredCard : undefined}
           onActivate={canActivateBase && baseAbility ? (b) => startActivateAbility(b, baseAbility) : undefined}
-          busy={busy}
+          busy={busy || tableLocked}
           struck={Boolean(activeStrike?.phase === "strike" && activeStrike.shieldsOf === pid)}
         />
       ),
@@ -3230,6 +3281,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           <SettingsMenu
             autoPass={dockAutoPass}
             onToggleAutoPass={(v) => toggleAutoPass(v)}
+            onPacingChange={syncScenePace}
             onLeave={exitToLobby}
             gameOver={Boolean(matchView?.view.gameOver)}
             busy={busy}
@@ -3397,7 +3449,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 }
                 art={art}
                 onPeek={(c) => {
-                  if (busy || isPhaseBannerActive) return;
+                  if (busy || tableLocked) return;
                   const { modes, blockedReason } = describeHandCard(c);
                   // "Jogar" (Sprint 5) — modo único: joga direto (o TopTacticalHUD guia alvo/custo).
                   if (modes.length === 1) {
@@ -3612,7 +3664,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           // rodadas de gatilho seguidas: remonta, senão a ordem da rodada anterior ia junto
           key={myPendingDecision.triggers.map((t) => t.specId).join("|")}
           decision={myPendingDecision}
-          busy={busy || answeredThisVersion}
+          busy={busy || answeredThisVersion || sceneLocked}
           onResolve={(orderedSpecIds) => runAction({ kind: "resolveTriggerOrder", orderedSpecIds })}
         />
       ) : null}
@@ -3670,7 +3722,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             }
             return "Carta";
           }}
-          busy={busy || answeredThisVersion}
+          busy={busy || answeredThisVersion || sceneLocked}
           devTrashCount={view.players[seat].trash.filter((c) => !isHidden(c) && c.def?.traits?.includes("G Generation")).length}
           targets={abilityTargets}
           setTargets={setAbilityTargets}
@@ -3686,7 +3738,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           // V2 (docs/27): `legalTargets` são sempre as próprias Units — sempre
           // públicas na view (nunca precisa de resolveLabel/lookup escondido).
           units={publicUnits(view.players[seat]).filter((u) => myPendingDecision.legalTargets.includes(u.instanceId))}
-          busy={busy || answeredThisVersion}
+          busy={busy || answeredThisVersion || sceneLocked}
           getEffectiveStats={(u) => ({
             ap: effectiveAp(u, view as unknown as GameState),
             hp: effectiveHp(u, view as unknown as GameState),
@@ -3762,7 +3814,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       <MatchPrompt
         message={matchPrompt}
         tone={combat || iAmDefending || inActionStep ? "warn" : "info"}
-        busy={busy || isPhaseBannerActive}
+        busy={busy || tableLocked}
         onConfirm={hudConfirm}
         canConfirm={hudCanConfirm}
         onCancel={hudCancel}
@@ -3964,7 +4016,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           }
           timerSeconds={turnSecondsLeft}
           turnNumber={view.turnNumber}
-          busy={busy || isPhaseBannerActive}
+          busy={busy || tableLocked}
           autoPass={dockAutoPass}
           pingMs={transportKind === "socket" ? lastPingMs : null}
           logOpen={logOpen}

@@ -3,10 +3,16 @@
  * fez (dano, buff, compra), as cartas que saíram, o golpe do combate. Mesma régua para o jogador e para o bot: as
  * duas jogadas chegam pela mesma fila de visões e tocam o mesmo plano. Puro/testável — a página só executa.
  *
- * O caminho antigo (`planAnimations` + todos os cues de uma vez) continua em `timelinePlayback.ts` e é o que roda com
+ * O caminho antigo (`planAnimations` + todos os cues de uma vez) continua em `ui/timelinePlayback.ts` e é o que roda com
  * o ritmo "rápido" (`getResolutionPacing() === "classic"`), que serve também de reversão sem deploy. */
 import type { AttackTarget, GameEvent, Phase, PlayerId } from "../engine/types";
-import type { PendingAttack } from "./timelinePlayback";
+
+/** combate aberto numa visão anterior cujo golpe ainda não tocou */
+export interface PendingAttack {
+  attackerId: string;
+  target: AttackTarget;
+  defendingPlayer: PlayerId;
+}
 
 export type Beat =
   /** Unit/Base/Piloto entrando em campo — só quando há mais tempos depois (o anúncio do 【Deploy】 vem depois dela) */
@@ -53,9 +59,6 @@ export const LONG_BATCH_TEMPO = 0.65;
 export function tempoFor(beats: readonly Beat[]): number {
   return beats.length > LONG_BATCH_BEATS ? LONG_BATCH_TEMPO : 1;
 }
-
-/** quanto cada tempo segura a fila (ms, antes da velocidade do jogador); os de componente esperam o próprio `onDone` */
-export const BEAT_HOLD_MS = { effects: 700, departure: 520 } as const;
 
 export interface ChoreographyInput {
   events: readonly GameEvent[];
