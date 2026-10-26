@@ -29,6 +29,7 @@ import { GD05_DECKS } from "../src/modules/simulator/fixtures/gd05Decks.ts";
 import { ST10_TEST_DECKS } from "../src/modules/simulator/fixtures/st10Decks.ts";
 import { EB01_TEST_DECKS } from "../src/modules/simulator/fixtures/eb01Decks.ts";
 import { ST11_TO_14_DECKS } from "../src/modules/simulator/fixtures/st11to14Decks.ts";
+import { TEST_VER_DECKS } from "../src/modules/simulator/fixtures/testVerDecks.ts";
 import { validateDeckPayload, checkUserDeckSimulatorCoverage } from "./deckCoverageGate.ts";
 import { gzipJson } from "./jsonCompression.ts";
 import {
@@ -5191,6 +5192,7 @@ const SIMULATOR_DECKS: Record<string, () => DeckList> = {
   ...Object.fromEntries(Object.entries(ST10_TEST_DECKS).map(([key, deck]) => [key, deck.build])),
   ...Object.fromEntries(Object.entries(EB01_TEST_DECKS).map(([key, deck]) => [key, deck.build])),
   ...Object.fromEntries(Object.entries(ST11_TO_14_DECKS).map(([key, deck]) => [key, deck.build])),
+  ...Object.fromEntries(Object.entries(TEST_VER_DECKS).map(([key, deck]) => [key, deck.build])),
 };
 
 function resolveDeckKey(raw: unknown): { key: string; build: () => DeckList } | null {
@@ -5368,6 +5370,10 @@ app.post("/api/simulator/training/new", authRequired, async (req: RequestWithUse
       if (Object.hasOwn(ST11_TO_14_DECKS, upper)) {
         return { key: upper, list: ST11_TO_14_DECKS[upper].build() };
       }
+      // Os 2 decks "Test ver." — fixos no modo contra o bot
+      if (Object.hasOwn(TEST_VER_DECKS, upper)) {
+        return { key: upper, list: TEST_VER_DECKS[upper].build() };
+      }
       // Busca deck do usuário no banco
       const dbDeck = await prisma.deck.findFirst({
         where: { id, userId: req.user!.userId },
@@ -5375,7 +5381,7 @@ app.post("/api/simulator/training/new", authRequired, async (req: RequestWithUse
       });
       if (!dbDeck) {
         throw new TrainingMatchError(
-          `Deck "${id}" não encontrado no seu perfil nem entre os starters (${[...Object.keys(VALIDATED_DECKS), ...Object.keys(GD01_TEST_DECKS), ...Object.keys(META_DECKS_GD02_ERA), ...Object.keys(GD03_TEST_DECKS), ...Object.keys(GD04_TEST_DECKS), ...Object.keys(ST09_DECKS), ...Object.keys(GD05_DECKS), ...Object.keys(ST10_TEST_DECKS), ...Object.keys(EB01_TEST_DECKS), ...Object.keys(ST11_TO_14_DECKS)].sort().join(", ")}).`,
+          `Deck "${id}" não encontrado no seu perfil nem entre os starters (${[...Object.keys(VALIDATED_DECKS), ...Object.keys(GD01_TEST_DECKS), ...Object.keys(META_DECKS_GD02_ERA), ...Object.keys(GD03_TEST_DECKS), ...Object.keys(GD04_TEST_DECKS), ...Object.keys(ST09_DECKS), ...Object.keys(GD05_DECKS), ...Object.keys(ST10_TEST_DECKS), ...Object.keys(EB01_TEST_DECKS), ...Object.keys(ST11_TO_14_DECKS), ...Object.keys(TEST_VER_DECKS)].sort().join(", ")}).`,
         );
       }
       const list = buildDeckListFromUserDeck(dbDeck);
