@@ -121,6 +121,7 @@ import {
   altDiscardIdsFromMenu,
   attackTargetsFromMenu,
   blockerIdsFromMenu,
+  burstTargetsFromMenu,
   commandSecondaryFromMenu,
   commandTargetsFromMenu,
   fieldAbilityFromMenu,
@@ -129,6 +130,7 @@ import {
   pairTargetsFromMenu,
   sacrificeIdsFromMenu,
 } from "@/modules/simulator/ui/menuIntent";
+import type { BurstTargetChoice } from "@/modules/simulator/ui/BurstModal";
 import { findAltDiscardCandidates, findEligibleSacrifices, playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
 import { getScaledDuration } from "@/modules/simulator/ui/animationSettings";
 import {
@@ -226,6 +228,8 @@ const PHASE_LABEL: Record<string, Localized> = {
 };
 /** Espelha `ABANDON_THRESHOLD_MS` do servidor (matchStore.ts) -- só usado aqui pra habilitar o botão na hora certa; quem decide de verdade é sempre o servidor. */
 const ABANDON_THRESHOLD_MS = 180_000;
+/** chave do alvo do 【Burst】 no mapa de alvos clicáveis do tabuleiro (não colide com specId, que tem o código da carta) */
+const BURST_TARGET_KEY = "burst";
 /** Retrato + tela pequena: em vez de girar o board via CSS (bugava toque/overflow),
  *  mostramos o `RotateDevicePrompt` pedindo o modo paisagem (Sprint 4). */
 const PORTRAIT_QUERY = "(max-width: 900px) and (orientation: portrait)";
@@ -581,6 +585,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         : {},
     );
   }, [matchView]);
+  /** BUG-QW8NEV — alvo(s) do efeito do 【Burst】 pendente ("Choose 1 enemy Unit"), escolhidos na faixa do Burst ou
+   *  clicando na Unit do tabuleiro. A escolha fica presa à shield quebrada: na próxima da fila, começa vazia. */
+  const [burstSelection, setBurstSelection] = useState<{ decisionId: string | null; ids: string[] }>({ decisionId: null, ids: [] });
+  const burstDecisionId = (() => {
+    const decision = matchView?.view.pendingDecision[matchView.seat];
+    return decision?.kind === "burst" ? decision.cardInstanceId : null;
+  })();
+  const burstTargets = burstSelection.decisionId === burstDecisionId ? burstSelection.ids : [];
   /** instanceIds dos Recursos ativos escolhidos pra restar/pagar o custo da carta em `pending` (seleção manual — 2026-09-01). */
   const [selectedResources, setSelectedResources] = useState<string[]>([]);
   const [attackerId, setAttackerId] = useState<string | null>(null);
@@ -1853,6 +1865,30 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const myPendingDecision = view.pendingDecision[seat];
   const oppPendingDecision = view.pendingDecision[opponentSeat];
   const myBurstDecision = myPendingDecision?.kind === "burst" ? myPendingDecision : null;
+  // BUG-QW8NEV — 【Burst】 cujo efeito escolhe alvo: a decisão só diz "ativar ou não"; os alvos vêm do menu do motor
+  const burstTargetChoice: BurstTargetChoice | null = (() => {
+    if (!myBurstDecision) return null;
+    if (legalMenu) {
+      const fromMenu = burstTargetsFromMenu(legalMenu);
+      return fromMenu
+        ? { legalTargetIds: [...fromMenu.legalTargetInstanceIds], min: fromMenu.requiredTargetCount, max: fromMenu.maxTargetCount }
+        : null;
+    }
+    const needing = findTriggerSpecs(ALL_EFFECT_SPECS, myBurstDecision.cardDef.code, "Burst").filter((s) => specNeedsNamedTarget(s));
+    if (needing.length === 0) return null;
+    const ids = new Set<string>();
+    for (const spec of needing) {
+      for (const id of computeLegalTargets(boardForStats, spec, seat, defaultTargetFilterResolver, myBurstDecision.cardInstanceId)) ids.add(id);
+    }
+    const count = needing[0].targetCount ?? { min: 1, max: 1 };
+    return { legalTargetIds: [...ids], min: count.min, max: count.max };
+  })();
+  const toggleBurstTarget = (instanceId: string) => {
+    const max = burstTargetChoice?.max ?? 1;
+    const cur = { [BURST_TARGET_KEY]: burstTargets };
+    const next = max > 1 ? toggleMultiTarget(cur, BURST_TARGET_KEY, instanceId, max) : pickSingleTarget(cur, BURST_TARGET_KEY, instanceId);
+    setBurstSelection({ decisionId: burstDecisionId, ids: next[BURST_TARGET_KEY] ?? [] });
+  };
 
   // `serverClockNow` = relógio do cliente corrigido pro do servidor — o timer e o
   // "oponente inativo" comparam contra epochs do servidor (`turnDeadlineAt`/`lastSeenAt`).
@@ -2424,6 +2460,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     string,
     { specId: string; pool: "primary" | "secondary"; side: "ally" | "enemy"; max: number }
   >();
+  for (const id of burstTargetChoice?.legalTargetIds ?? []) {
+    const side = sideOfUnit(id);
+    if (side) abilityUnitTargetsByInstance.set(id, { specId: BURST_TARGET_KEY, pool: "primary", side, max: burstTargetChoice?.max ?? 1 });
+  }
   if (abilityDecision) {
     for (const q of abilityDecision.queue) {
       const isOn = abilityActivate[q.specId] ?? true;
@@ -2542,9 +2582,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       const isAbilitySelected = Boolean(
         unit &&
           abilityTarget &&
-          (abilityTarget.pool === "primary" ? abilityTargets[abilityTarget.specId] : abilitySecondaryTargets[abilityTarget.specId])?.includes(
-            unit.instanceId,
-          ),
+          (abilityTarget.specId === BURST_TARGET_KEY
+            ? burstTargets
+            : abilityTarget.pool === "primary"
+              ? abilityTargets[abilityTarget.specId]
+              : abilitySecondaryTargets[abilityTarget.specId]
+          )?.includes(unit.instanceId),
       );
 
       return (
@@ -2576,7 +2619,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             // seleção: escreve direto no estado controlado que o
             // `AbilityResolutionModal` também lê, igual clicar numa pill lá dentro.
             if (abilityTarget) {
-              if (abilityTarget.pool === "secondary") {
+              if (abilityTarget.specId === BURST_TARGET_KEY) {
+                toggleBurstTarget(u.instanceId);
+              } else if (abilityTarget.pool === "secondary") {
                 setAbilitySecondaryTargets((s) => pickSecondaryTarget(s, abilityTarget.specId, u.instanceId, abilityTarget.max));
               } else if (abilityTarget.max > 1) {
                 setAbilityTargets((s) => toggleMultiTarget(s, abilityTarget.specId, u.instanceId, abilityTarget.max));
@@ -3363,7 +3408,17 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           decision={myBurstDecision}
           art={art}
           busy={busy}
-          onResolve={(activate) => runAction({ kind: "resolveBurstDecision", activate })}
+          target={burstTargetChoice}
+          selectedTargets={burstTargets}
+          onToggleTarget={toggleBurstTarget}
+          resolveLabel={(id) => publicUnits(view.players[opponentSeat]).concat(publicUnits(view.players[seat])).find((u) => u.instanceId === id)?.def.nameEn ?? tr("Carta", "Card")}
+          onResolve={(activate) =>
+            runAction(
+              activate && burstTargets.length > 0
+                ? { kind: "resolveBurstDecision", activate, targets: { target: burstTargets } }
+                : { kind: "resolveBurstDecision", activate },
+            )
+          }
         />
       ) : null}
       {myPendingDecision?.kind === "triggerOrder" ? (
@@ -3533,7 +3588,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           abaixo do `MatchPrompt`), longe do log (direita) e do `ActionDock`
           (canto). Some sozinho em 4s; clique fecha na hora. */}
       {actionError ? (
-        <div className="fixed inset-x-0 top-16 z-[46] flex justify-center px-3">
+        <div className={`fixed inset-x-0 flex justify-center px-3 ${myBurstDecision ? "top-28 z-[85]" : "top-16 z-[46]"}`}>
           <button
             type="button"
             onClick={() => setActionError(null)}
