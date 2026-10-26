@@ -15,6 +15,12 @@ export interface SimulatorDeckPreset {
   label: string;
 }
 
+/** Os 2 decks "Test ver." (`fixtures/testVerDecks.ts`) — fixos no topo dos seletores do modo contra o bot. */
+export const TEST_DECK_PRESETS: SimulatorDeckPreset[] = [
+  { key: "TEST-LONDO-BELL-ORB", label: "Londo Bell & Orb Azul/Verde - Test ver." },
+  { key: "TEST-SHUFFLE-ALLIANCE", label: "Shuffle Alliance Vermelho/Branco - Test ver." },
+];
+
 export const SIMULATOR_DECK_PRESETS: SimulatorDeckPreset[] = [
   { key: "ST01", label: 'ST01 "Heroic Beginnings"' },
   { key: "ST02", label: 'ST02 "Wings of Advance"' },
@@ -52,6 +58,7 @@ export const SIMULATOR_DECK_PRESETS: SimulatorDeckPreset[] = [
   { key: "ST12-CLOSE-COMBAT", label: "Close Combat Vermelho/Roxo (ST12)" },
   { key: "ST13-BIT-FUNNEL", label: "Bit / Funnel Verde/Vermelho (ST13)" },
   { key: "ST14-HEAVY-ARMED", label: "Heavy Armed Branco/Verde (ST14)" },
+  ...TEST_DECK_PRESETS,
 ];
 
 export const STARTER_DECK_PRESETS: SimulatorDeckPreset[] = SIMULATOR_DECK_PRESETS.filter((d) =>
