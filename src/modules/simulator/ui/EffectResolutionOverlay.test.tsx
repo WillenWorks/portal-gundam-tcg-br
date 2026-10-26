@@ -61,6 +61,17 @@ describe("EffectResolutionOverlay (Fase 3)", () => {
     cleanup();
   });
 
+  it("com lote, a visão final aplicada depois (mesmos eventos no eventLog) não repete os cues", () => {
+    const rectOf = (key: string) => (key === "u7" ? mockRect(150, 250) : null);
+    const damage: GameEvent = { type: "DAMAGE_UNIT", instanceId: "u7", amount: 4 };
+    const batch = { key: 7, events: [damage] };
+    const { rerender } = render(<EffectResolutionOverlay eventLog={[]} rectOf={rectOf} viewerSeat="A" />);
+    rerender(<EffectResolutionOverlay eventLog={[]} eventsBatch={batch} rectOf={rectOf} viewerSeat="A" />);
+    expect(screen.getAllByText("-4")).toHaveLength(1);
+    rerender(<EffectResolutionOverlay eventLog={[damage]} eventsBatch={batch} rectOf={rectOf} viewerSeat="A" />);
+    expect(screen.getAllByText("-4")).toHaveLength(1);
+  });
+
   it("renderiza cue de destruição e de exílio de carta", () => {
     const rectOf = (_key: string) => mockRect(100, 100);
     const events: GameEvent[] = [

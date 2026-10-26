@@ -128,6 +128,17 @@ export function specOncePerTurnMarker(spec: EffectSpec): string {
   return `oncePerTurn:${spec.trigger}`;
 }
 
+/**
+ * O gatilho resolvido aqui precisa do próprio `ABILITY_ACTIVATED`? Não quando quem chamou já narrou (Command jogada
+ * = `CARD_PLAYED`; 【Activate】 e 【Burst】 = `ABILITY_ACTIVATED` na ativação) nem na continuação de uma habilidade
+ * já anunciada ("Then:N", modo escolhido da Command).
+ */
+export function narratesOwnActivation(trigger: string): boolean {
+  if (trigger === "Main" || trigger === "Action" || trigger === "Burst") return false;
+  if (trigger === "Activate·Main" || trigger === "Activate·Action") return false;
+  return !trigger.startsWith("Then:") && !trigger.startsWith("Mode:");
+}
+
 export function dispatchTrigger(
   state: GameState,
   sourceInstanceId: string,
@@ -167,7 +178,9 @@ export function dispatchTrigger(
     };
     const before = next;
     const events = resolveEffectSpec(spec, ctx, opts.predicateResolver);
-    next = applyEvents(next, events);
+    // narração (spec simulador-ritmo-de-resolucao): a tela anuncia "carta X — 【Deploy】" antes do que o efeito fez
+    const announce = events.length > 0 && narratesOwnActivation(trigger);
+    next = applyEvents(next, announce ? [{ type: "ABILITY_ACTIVATED", player: current.owner, instanceId: sourceInstanceId, trigger }, ...events] : events);
     // 【Once per Turn】: o uso é a ativação em si — marca ANTES das cascatas (Destroyed, reações,
     // pareamento), que podem pausar pra decisão e sair do loop sem voltar aqui.
     if (current.def.oncePerTurn) {

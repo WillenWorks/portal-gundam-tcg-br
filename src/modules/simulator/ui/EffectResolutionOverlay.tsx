@@ -115,6 +115,8 @@ export function EffectResolutionOverlay({
     if (prevLog === eventLog && !freshBatch) return;
     processedLogRef.current = eventLog;
     if (eventsBatch) processedBatchKeyRef.current = eventsBatch.key;
+    // com lote, os cues saem só dele: a visão final aplicada depois traz no `eventLog` os mesmos eventos já mostrados
+    if (eventsBatch && !freshBatch) return;
 
     // Limitar o lote de eventos novos para evitar sobrecarga de animações simultâneas
     const batch = (freshBatch ? freshBatch.events : newEventsSince(prevLog, eventLog)).slice(-MAX_CUES_PER_BATCH);

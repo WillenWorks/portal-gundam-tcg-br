@@ -62,7 +62,13 @@ describe("isDecisionResponse (BUG-HGGAG0)", () => {
     expect(isDecisionResponse({ kind: "resolveAbility", resolutions: [] })).toBe(true);
     expect(isDecisionResponse({ kind: "resolveZoneOverflow", instanceId: "x" })).toBe(true);
     expect(isDecisionResponse({ kind: "resolveMulligan", keep: true })).toBe(true);
-    expect(isDecisionResponse({ kind: "passAction" })).toBe(false);
     expect(isDecisionResponse({ kind: "finishTurn" })).toBe(false);
+  });
+
+  it("não bloquear e passar o Action Step também: o 2º clique na mesma versão voltava erro", () => {
+    expect(isDecisionResponse({ kind: "skipBlock" })).toBe(true);
+    expect(isDecisionResponse({ kind: "passAction" })).toBe(true);
+    expect(isDecisionResponse({ kind: "passEndPhaseAction" })).toBe(true);
+    expect(isDecisionResponse({ kind: "declareAttack", attackerId: "u1", target: "player" })).toBe(false);
   });
 });
