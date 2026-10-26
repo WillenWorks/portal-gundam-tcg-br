@@ -381,7 +381,12 @@ describe("W6c — GD05-125 Ra Cailum (Base)", () => {
     const lb = placeCard(state, "A", UNIT({ hp: 9, traits: ["Londo Bell"] }), "battleArea");
     const other = placeCard(state, "A", UNIT({ hp: 9 }), "battleArea");
     const offers = legal(state, "A").flatMap((a) => (a.kind === "activateAbility" && a.sourceInstanceId === base ? [a.targets ?? {}] : []));
-    expect(offers).toEqual([{ target: [lb] }]);
+    // "Rest this Base：" se paga antes do alvo: a jogada vai sem alvo e o motor pergunta depois de descansar a Base
+    expect(offers).toEqual([{}]);
+    const paid = act(state, "A", { kind: "activateAbility", sourceInstanceId: base });
+    expect(findCard(paid, base).rested).toBe(true);
+    const d = paid.pendingDecision.A;
+    expect(d?.kind === "abilityResolution" ? d.queue[0].legalTargets : null).toEqual([lb]);
     expect(() => act(state, "A", { kind: "activateAbility", sourceInstanceId: base, targets: { target: [other] } })).toThrow(/Alvo inválido/);
     state = act(state, "A", { kind: "activateAbility", sourceInstanceId: base, targets: { target: [lb] } });
     expect(findCard(state, base).rested).toBe(true);

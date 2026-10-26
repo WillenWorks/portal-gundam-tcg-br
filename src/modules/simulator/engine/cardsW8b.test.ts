@@ -123,10 +123,8 @@ describe("custo \"Rest N of your Units\"", () => {
     const cbs = [1, 2, 3].map((i) => placeCard(s, "A", UNIT({ code: `TEST-CB${i}`, traits: ["CB"] }), "battleArea"));
     const enemy = placeCard(s, "B", UNIT({ hp: 5 }), "battleArea");
     s = act(s, "A", { kind: "activateAbility", sourceInstanceId: eins });
-    s = act(s, "A", {
-      kind: "resolveAbility",
-      resolutions: [{ specId: "GD05-038-ActivateMain", activate: true, targetIds: [enemy], secondaryTargetIds: cbs }],
-    });
+    s = act(s, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD05-038-ActivateMain", activate: true, targetIds: [], secondaryTargetIds: cbs }] });
+    s = act(s, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD05-038-ActivateMain", activate: true, targetIds: [enemy] }] });
     expect(cbs.every((id) => findCard(s, id).rested)).toBe(true);
     expect(findCard(s, enemy).damage).toBe(4);
   });

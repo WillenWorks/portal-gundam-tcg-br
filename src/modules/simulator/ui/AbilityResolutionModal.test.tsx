@@ -959,3 +959,34 @@ describe("decisão trocada no mesmo modal (relato: Domon Kasshu → descarte de 
     expect(onResolve).toHaveBeenLastCalledWith([expect.objectContaining({ specId: "GD05-097-Then" })]);
   });
 });
+
+describe("etapa de custo (\"Rest 1 friendly Unit：\" — o custo antes do alvo)", () => {
+  it("Gundam Aerial: pede só a Unit do custo, com o texto de custo, e só confirma depois de escolher", () => {
+    const costStage: AR = {
+      kind: "abilityResolution",
+      trigger: "Activate·Action",
+      queue: [
+        {
+          sourceInstanceId: "aerial",
+          specId: "ST13-006-ActivateAction",
+          label: "【Activate･Action】【Once per Turn】Rest 1 friendly Unit：Choose 1 enemy Unit that is Lv.4 or lower. Deal 1 damage to it.",
+          optional: false,
+          needsTarget: false,
+          targetScope: "enemyUnit",
+          legalTargets: [],
+          secondaryTarget: { name: "costUnit", targetScope: "friendlyUnit", legalTargets: ["a1", "a2"] },
+          costStage: true,
+        },
+      ],
+    };
+    const onResolve = vi.fn();
+    render(<Harness decision={costStage} onResolve={onResolve} />);
+    expect(screen.getByText(/Primeiro o custo/)).toBeInTheDocument();
+    const confirm = screen.getByRole("button", { name: "Confirmar" });
+    expect(confirm).toBeDisabled();
+    fireEvent.click(screen.getAllByRole("button", { name: /a1/ })[0]);
+    expect(confirm).not.toBeDisabled();
+    fireEvent.click(confirm);
+    expect(onResolve).toHaveBeenCalledWith([expect.objectContaining({ specId: "ST13-006-ActivateAction", activate: true, secondaryTargetIds: ["a1"] })]);
+  });
+});

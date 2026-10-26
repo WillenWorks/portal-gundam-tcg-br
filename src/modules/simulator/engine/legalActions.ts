@@ -236,6 +236,12 @@ function activateAbilityCandidates(
           opts.targetFilterResolver,
           card.instanceId,
         );
+        // custo + alvo: o custo se paga antes de escolher o alvo (regra do "：") — a ativação vai sem alvo
+        const costFirst = payableAbilitySpecs.some((s) => (s.cost ?? []).length > 0);
+        if (costFirst && someSpecNeeds && ids.length > 0) {
+          out.push({ kind: "activateAbility", sourceInstanceId: card.instanceId });
+          continue;
+        }
         if (someSpecNeeds && ids.length > 0) {
           if (targetCount.max > 1) {
             out.push({ kind: "activateAbility", sourceInstanceId: card.instanceId, targets: { target: ids.slice(0, targetCount.max) } });

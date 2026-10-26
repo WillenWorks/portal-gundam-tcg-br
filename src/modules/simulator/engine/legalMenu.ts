@@ -1,6 +1,6 @@
 import type { AttackTarget, GameState, PlayerId } from "./types";
 import type { EffectSpec } from "./effectSpec";
-import { computeLegalTargets, trashExileChoice } from "./effectSpec";
+import { computeLegalTargets, costRestsSecondaryTarget, trashExileChoice } from "./effectSpec";
 import { findTriggerSpecs } from "./dispatcher";
 import { specResourceCost } from "./costs";
 import { applyPlayerAction, type PlayerAction } from "./actions";
@@ -126,7 +126,11 @@ function abilitySlots(
   if (!source) return { slots: [], resourceCost: 0 };
   const abilitySpecs = findTriggerSpecs(specs, source.def.code, trigger);
   const slots: LegalMenuSlot[] = [];
-  const target = abilitySpecs.length
+  // custo com escolha ("Rest 1 friendly Unit：…"): a ativação pede a Unit do custo e DEPOIS o alvo — nada pré-escolhido
+  const costFirst = abilitySpecs.some(costRestsSecondaryTarget);
+  const target = costFirst
+    ? null
+    : abilitySpecs.length
     ? targetSlot(state, seat, source.def.code, trigger, sourceId, actions, specs, opts)
     : // <Support N>: os alvos já vêm validados um a um pela enumeração
       { name: "target", legalTargets: uniq(actions.flatMap((a) => ("targets" in a && a.targets?.target) || [])), min: 1, max: 1 };
