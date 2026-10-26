@@ -5,6 +5,7 @@ import {
   altDiscardIdsFromMenu,
   attackTargetsFromMenu,
   blockerIdsFromMenu,
+  burstTargetsFromMenu,
   commandSecondaryFromMenu,
   commandTargetsFromMenu,
   fieldAbilityFromMenu,
@@ -102,5 +103,14 @@ describe("menuIntent — combate", () => {
 
   it("bloqueadores vêm do motor", () => {
     expect(blockerIdsFromMenu(combat)).toEqual(new Set(["b1"]));
+  });
+});
+
+describe("menuIntent — 【Burst】 (BUG-QW8NEV)", () => {
+  it("alvo do efeito do 【Burst】 vem do slot `burstTarget`; sem slot, o Burst não pede alvo", () => {
+    const burst: LegalMenu = { active: false, entries: [], passes: [], burstTarget: { name: "target", legalTargets: ["e1", "e2"], min: 1, max: 2 } };
+    expect(burstTargetsFromMenu(burst)).toEqual({ legalTargetInstanceIds: new Set(["e1", "e2"]), requiredTargetCount: 1, maxTargetCount: 2 });
+    expect(burstTargetsFromMenu({ active: false, entries: [], passes: [] })).toBeNull();
+    expect(burstTargetsFromMenu(undefined)).toBeNull();
   });
 });
