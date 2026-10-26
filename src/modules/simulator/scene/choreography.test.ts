@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LONG_BATCH_BEATS, LONG_BATCH_TEMPO, hasOwnDeploy, planChoreography, tempoFor, triggerLabel, type Beat } from "./choreography";
-import type { PendingAttack } from "./timelinePlayback";
+import { LONG_BATCH_BEATS, LONG_BATCH_TEMPO, hasOwnDeploy, planChoreography, tempoFor, triggerLabel, type Beat, type PendingAttack } from "./choreography";
 import type { GameEvent, GameState, Phase, PlayerId } from "../engine/types";
 import { PLAYER_IDS } from "../engine/types";
 import { createGame } from "../engine/setup";

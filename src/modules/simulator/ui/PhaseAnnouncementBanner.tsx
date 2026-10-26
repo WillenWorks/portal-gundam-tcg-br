@@ -4,6 +4,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { getScaledDuration } from "./animationSettings";
+import { SCENE_MS } from "../scene/sceneTiming";
 import { sfx } from "../audio/soundEffects";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
 
@@ -31,7 +32,7 @@ export function PhaseAnnouncementBanner({
   sub,
   // docs/56 (revisão do plano) — sem `durationMs` explícito, escala pela
   // velocidade escolhida em `SettingsMenu` (0.75x segura mais, 2x quase não pausa).
-  durationMs = getScaledDuration(750),
+  durationMs = getScaledDuration(SCENE_MS.banner),
   onDone,
 }: PhaseAnnouncementBannerProps) {
   const { tr } = useSiteLanguage();

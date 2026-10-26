@@ -9,7 +9,8 @@ import { cn } from "@/lib/utils";
 import type { CardDef } from "@/modules/simulator/engine/types";
 import { getScaledDuration } from "./animationSettings";
 import { artSrc, cardBackUrl, isGenericArtCard, type ArtLookup } from "./cardArt";
-import { triggerLabel } from "./choreography";
+import { triggerLabel } from "../scene/choreography";
+import { SCENE_MS } from "../scene/sceneTiming";
 import { sfx } from "../audio/soundEffects";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
 
@@ -38,9 +39,7 @@ interface ActivationAnnouncementProps {
   onDone: () => void;
 }
 
-const RISE_BASE_MS = 280;
-const HOLD_BASE_MS = 760;
-const OUT_BASE_MS = 240;
+const { rise: RISE_BASE_MS, hold: HOLD_BASE_MS, out: OUT_BASE_MS } = SCENE_MS.announce;
 
 function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);

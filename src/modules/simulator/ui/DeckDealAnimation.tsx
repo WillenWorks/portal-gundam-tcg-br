@@ -13,6 +13,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getScaledDuration } from "./animationSettings";
+import { SCENE_MS } from "../scene/sceneTiming";
 import { cardBackUrl, isGenericArtCard, type ArtLookup } from "./cardArt";
 import { CardFace } from "./CardFace";
 import { sfx } from "../audio/soundEffects";
@@ -118,7 +119,7 @@ const SHUFFLE_BASE_MS = 1300;
  *  polimento: 400ms cortava a carta antes do jogador conseguir ler o que
  *  comprou; 750ms (escalado por `getScaledDuration`, ver `animationSettings.ts`)
  *  dá tempo de ver a face real sem segurar o jogo. */
-const SINGLE_DRAW_BASE_MS = 750;
+const SINGLE_DRAW_BASE_MS = SCENE_MS.draw;
 
 export function DeckDealAnimation({
   mode,

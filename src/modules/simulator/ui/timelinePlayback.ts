@@ -6,6 +6,9 @@ import type { ViewGameState } from "../engine/viewState";
 import { isHiddenCard } from "../engine/viewState";
 import { timelineFromEvents, type AnimationStep } from "./eventTimeline";
 import type { SimulatorMatchView } from "@/lib/api";
+import type { PendingAttack } from "../scene/choreography";
+
+export type { PendingAttack };
 
 /**
  * Os passos desta visão, se ela continua exatamente a última aplicada (`eventsFromSeq === lastSeq`). `null` = sem
@@ -38,12 +41,6 @@ export function sequenceStatus(incoming: Pick<SimulatorMatchView, "eventSeq" | "
 export type SequenceStats = Record<SequenceStatus, number>;
 
 export const emptySequenceStats = (): SequenceStats => ({ continuous: 0, repeated: 0, noEvents: 0, gap: 0 });
-
-export interface PendingAttack {
-  attackerId: string;
-  target: AttackTarget;
-  defendingPlayer: PlayerId;
-}
 
 export type PlannedAnimation =
   | { kind: "opponentCommand"; instanceId: string }

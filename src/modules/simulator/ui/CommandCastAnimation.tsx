@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { CardDef } from "@/modules/simulator/engine/types";
 import { getScaledDuration } from "./animationSettings";
+import { SCENE_MS } from "../scene/sceneTiming";
 import { artSrc, cardBackUrl, isGenericArtCard, type ArtLookup } from "./cardArt";
 import { sfx } from "../audio/soundEffects";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
@@ -29,10 +30,7 @@ interface CommandCastAnimationProps {
   onDone: () => void;
 }
 
-const RISE_BASE_MS = 320;
-const HOLD_BASE_MS = 700;
-const FLY_BASE_MS = 360;
-const HOLD_SETTLE_BASE_MS = 160;
+const { rise: RISE_BASE_MS, hold: HOLD_BASE_MS, fly: FLY_BASE_MS, settle: HOLD_SETTLE_BASE_MS } = SCENE_MS.command;
 
 export function CommandCastAnimation({ cardDef, art, origin, dest, cardW, onDone }: CommandCastAnimationProps) {
   const { tr } = useSiteLanguage();

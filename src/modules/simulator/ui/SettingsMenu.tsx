@@ -28,9 +28,11 @@ interface SettingsMenuProps {
   onLeave: () => void;
   gameOver: boolean;
   busy?: boolean;
+  /** o servidor espera a cena no ritmo escolhido (bot e prazo de decisão) */
+  onPacingChange?: (value: ResolutionPacing) => void;
 }
 
-export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, busy }: SettingsMenuProps) {
+export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, busy, onPacingChange }: SettingsMenuProps) {
   const { tr } = useSiteLanguage();
   const [currentSkin, setCurrentSkin] = useState<PlaymatSkinId>(getSavedPlaymatSkin);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => sfx.isEnabled());
@@ -40,6 +42,7 @@ export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, bu
   const handlePacingChange = (value: ResolutionPacing) => {
     setPacing(value);
     saveResolutionPacing(value);
+    onPacingChange?.(value);
   };
 
   const handleAnimSpeedChange = (speed: AnimSpeed) => {

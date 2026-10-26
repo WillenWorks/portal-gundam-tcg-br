@@ -82,6 +82,22 @@ export function humanizedThinkDelay(ctx) {
 }
 
 /**
+ * spec simulador-cadencia-de-mesa — o bot espera a cena da jogada anterior terminar na tela (`waitMs()`, do
+ * `matchStore`) e só então "pensa" os 1–2s inteiros, como quem olha a mesa antes de jogar. Sem cena, segue o
+ * `humanizedThinkDelay` (que desconta o que a policy já gastou).
+ * @param {() => number} waitMs
+ * @param {(ms: number) => Promise<void>} [sleep]
+ * @returns {(ctx?: { thinkingMs?: number }) => Promise<void>}
+ */
+export function sceneAwareThinkDelay(waitMs, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))) {
+  return async (ctx) => {
+    const scene = waitMs();
+    if (scene > 0) await sleep(scene);
+    await sleep(Math.max(0, humanizedThinkDelayMs() - (scene > 0 ? 0 : (ctx?.thinkingMs ?? 0))));
+  };
+}
+
+/**
  * @param {object} opts
  * @param {import("../../src/modules/simulator/engine/types.ts").GameState} opts.initialState
  * @param {"A"|"B"} opts.seat

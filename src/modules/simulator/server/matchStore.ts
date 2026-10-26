@@ -1,4 +1,4 @@
-import type { GameEvent, GameState, PlayerId } from "../engine/types";
+import { PLAYER_IDS, type GameEvent, type GameState, type Phase, type PlayerId } from "../engine/types";
 import { createGame, type DeckList } from "../engine/setup";
 import { advanceToMainPhase } from "../engine/phases";
 import { applyPlayerAction, playerHasActionStepPlay, type PlayerAction } from "../engine/actions";
@@ -9,6 +9,8 @@ import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver
 import { buildBattleLog, type BattleLogEntry } from "../ui/battleLog";
 import type { HeuristicLevel } from "../engine/bot";
 import type { ZeroCounterSummary } from "../engine/bot/zeroCounter";
+import { hasOwnDeploy, type PendingAttack } from "../scene/choreography";
+import { sceneDurationMs, slowestPace, type ScenePace } from "../scene/sceneTiming";
 import {
   applySideboardSwap,
   type DeckListWithSideboard,
@@ -64,6 +66,8 @@ export interface MatchSeat {
     level: HeuristicLevel | "dificil" | "zero_system";
     persona?: "amuro" | "char" | "heero" | "adaptive";
   };
+  /** spec simulador-cadencia-de-mesa — ritmo da cena escolhido por este jogador (ausente = cinemático) */
+  scenePace?: ScenePace;
 }
 
 /**
@@ -166,6 +170,22 @@ export interface MatchRecord {
   loggedAt?: number;
   /** Counter do Zero System (spec bot-zero-system-forte): o deck do bot foi escolhido contra o do jogador. */
   botCounter?: ZeroCounterSummary;
+  /**
+   * spec simulador-cadencia-de-mesa — quando a cena das últimas transmissões termina na tela (epoch ms). O bot só
+   * pensa depois dela e o prazo de decisão começa a contar nela. Só em memória (`null`/ausente = nada a esperar).
+   */
+  sceneEndsAt?: number | null;
+  /** onde a próxima cena começa: o que a última conta de cena deixou na mesa */
+  sceneCursor?: SceneCursor;
+}
+
+interface SceneCursor {
+  /** `eventLog.length` já contado */
+  seq: number;
+  phase: Phase;
+  resourceIds: string[];
+  pendingAttack: PendingAttack | null;
+  fromSetup: boolean;
 }
 
 /** carta da lista do bot mostrada no fim da partida (agrupada por código) */
@@ -259,6 +279,10 @@ export interface MatchView {
   eventsSince?: GameEvent[];
   /** `eventSeq` da visão que `eventsSince` continua — a tela confere com a última que aplicou */
   eventsFromSeq?: number;
+  /** spec simulador-cadencia-de-mesa — fim da cena em andamento (relógio do servidor); a mesa fica travada até lá */
+  sceneEndsAt: number | null;
+  /** ritmo da cena deste assento (o servidor usa o mais lento dos dois jogadores) */
+  scenePace: ScenePace;
 }
 
 /** `eventsFrom`: só a transmissão passa — o `eventSeq` da transmissão anterior (ver `notify`) */
@@ -286,6 +310,8 @@ export function matchViewFor(match: MatchRecord, seat: PlayerId, eventsFrom?: nu
     legalMenu: legalMenuFor(match.state, seat, ALL_EFFECT_SPECS, { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver }),
     eventSeq: match.state.eventLog.length,
     ...(eventsSince ? { eventsSince, eventsFromSeq: eventsFrom } : {}),
+    sceneEndsAt: match.sceneEndsAt ?? null,
+    scenePace: match.seats[seat]?.scenePace ?? "cinematic",
   };
 }
 
@@ -661,6 +687,17 @@ export function setAutoPass(matchId: string, userId: string, value: boolean): Ma
   armTurnTimer(match);
   persist(match);
   notify(match);
+  return match;
+}
+
+/** Ritmo da cena deste jogador (menu "Ritmo dos efeitos"). Vale a partir da próxima cena; não muda o jogo. */
+export function setScenePace(matchId: string, userId: string, pace: ScenePace): MatchRecord {
+  const match = requireMatch(matchId);
+  const seat = seatFor(match, userId);
+  if (!seat) throw new MatchError("Esse usuário não é jogador desta partida.", 403);
+  match.seats[seat] = { ...match.seats[seat]!, scenePace: pace };
+  match.updatedAt = Date.now();
+  persist(match);
   return match;
 }
 
@@ -1140,6 +1177,7 @@ function settleAutoPasses(match: MatchRecord): void {
 /** Cancela e reagenda o timer de turno pro estado atual da partida — chamar depois de QUALQUER mutação de `match.state`. */
 function armTurnTimer(match: MatchRecord): void {
   settleAutoPasses(match);
+  refreshScene(match);
   maybeEnqueueBotTurn(match);
   clearTurnTimer(match.id);
 
@@ -1148,11 +1186,81 @@ function armTurnTimer(match: MatchRecord): void {
     return;
   }
 
-  const durationMs = decisionDurationMs(match.state);
+  // o prazo começa quando a cena termina na tela: ninguém perde tempo de decisão assistindo
+  const durationMs = decisionDurationMs(match.state) + sceneWaitMs(match);
   const deadline = Date.now() + durationMs;
   match.turnDeadlineAt = deadline;
   const handle = setTimeout(() => onTurnTimeout(match.id, deadline), durationMs);
   turnTimeouts.set(match.id, handle);
+}
+
+// ---------------------------------------------------------------------------
+// Cena (spec simulador-cadencia-de-mesa, P0). O motor é instantâneo; a tela toca cada coisa no seu tempo. O servidor
+// conta quanto a cena de cada lote dura (a mesma tabela da tela, `scene/sceneTiming.ts`) e guarda o fim dela: o bot
+// só age depois, e o prazo de decisão começa ali. Desligado por padrão — o `server/index.ts` liga no boot (testes e
+// ferramentas que usam o store direto continuam instantâneos); `SIM_SCENE_PACING=off` mantém desligado em produção.
+// ---------------------------------------------------------------------------
+
+let scenePacingEnabled = false;
+
+export function setScenePacingEnabled(enabled: boolean): void {
+  scenePacingEnabled = enabled;
+}
+
+function isSetupState(state: GameState): boolean {
+  return PLAYER_IDS.some((p) => state.pendingDecision[p]?.kind === "mulligan");
+}
+
+function sceneCursorFor(state: GameState, pendingAttack: PendingAttack | null): SceneCursor {
+  return {
+    seq: state.eventLog.length,
+    phase: state.phase,
+    resourceIds: PLAYER_IDS.flatMap((p) => state.players[p].resourceArea.map((c) => c.instanceId)),
+    pendingAttack: state.combat ? pendingAttack : null,
+    fromSetup: isSetupState(state),
+  };
+}
+
+/** conta a cena dos eventos novos desde a última conta (idempotente: sem eventos novos, nada muda) */
+function refreshScene(match: MatchRecord): void {
+  const state = match.state;
+  const cursor = match.sceneCursor;
+  if (cursor && cursor.seq === state.eventLog.length) return;
+  // 1ª conta (partida nova, re-hidratada, ou jogo novo do Bo3 com log zerado): só marca o ponto de partida
+  if (!scenePacingEnabled || !cursor || cursor.seq > state.eventLog.length) {
+    match.sceneCursor = sceneCursorFor(state, null);
+    return;
+  }
+  const events = state.eventLog.slice(cursor.seq);
+  const humanSeats = PLAYER_IDS.map((p) => match.seats[p]).filter((s) => s && !s.bot);
+  const { durationMs, pendingAttack } = sceneDurationMs({
+    events,
+    pendingAttack: cursor.pendingAttack,
+    phase: cursor.phase,
+    resourceIds: new Set(cursor.resourceIds),
+    fromSetup: cursor.fromSetup,
+    endsWithBurstDecision: PLAYER_IDS.some((p) => state.pendingDecision[p]?.kind === "burst"),
+    endsWithDeployChoice: PLAYER_IDS.some((p) => {
+      const decision = state.pendingDecision[p];
+      return Boolean(decision && decision.kind !== "burst" && hasOwnDeploy(events, p));
+    }),
+    pace: slowestPace(humanSeats.map((s) => s?.scenePace)),
+  });
+  if (durationMs > 0) {
+    // a tela toca os lotes em fila: uma cena nova começa quando a anterior acabar
+    match.sceneEndsAt = Math.max(Date.now(), match.sceneEndsAt ?? 0) + durationMs;
+  }
+  match.sceneCursor = sceneCursorFor(state, pendingAttack);
+}
+
+function sceneWaitMs(match: MatchRecord): number {
+  return match.sceneEndsAt ? Math.max(0, match.sceneEndsAt - Date.now()) : 0;
+}
+
+/** quanto falta para a cena em andamento terminar na tela (0 = nada) — o bot espera isso antes de pensar */
+export function sceneWaitMsFor(matchId: string): number {
+  const match = matches.get(matchId);
+  return match ? sceneWaitMs(match) : 0;
 }
 
 function onTurnTimeout(matchId: string, expectedDeadline: number): void {
@@ -1410,6 +1518,7 @@ function logGameOverOnce(match: MatchRecord): void {
 }
 
 function notify(match: MatchRecord): void {
+  refreshScene(match);
   logGameOverOnce(match);
   if (globalMatchListeners.size === 0) return;
   // os dois assentos recebem toda transmissão, então um marcador por partida basta
@@ -1458,4 +1567,5 @@ export function _resetAllMatchesForTests(): void {
   bugReportSink = null;
   botTurnSink = null;
   matchLogSink = null;
+  scenePacingEnabled = false;
 }
