@@ -132,7 +132,8 @@ import {
 } from "@/modules/simulator/ui/menuIntent";
 import type { BurstTargetChoice } from "@/modules/simulator/ui/BurstModal";
 import { findAltDiscardCandidates, findEligibleSacrifices, playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
-import { getScaledDuration } from "@/modules/simulator/ui/animationSettings";
+import { getResolutionPacing, getScaledDuration } from "@/modules/simulator/ui/animationSettings";
+import { BEAT_HOLD_MS, hasOwnDeploy, planChoreography, tempoFor } from "@/modules/simulator/ui/choreography";
 import {
   handleOpponentCommandCast,
   resolveCommandAnimationPoints,
@@ -159,7 +160,9 @@ import {
 } from "@/modules/simulator/ui/commandSecondaryTarget";
 import { canAddTarget, targetsReadyToAutoResolve } from "@/modules/simulator/ui/targetSelection";
 import {
+  ActivationAnnouncement,
   ActionDock,
+  artSrc,
   type ActionDockState,
   ArenaPlaymat,
   AbilityTargetLane,
@@ -816,6 +819,44 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   } | null>(null);
   const commandCastResolveRef = useRef<(() => void) | null>(null);
 
+  // spec simulador-ritmo-de-resolucao — os tempos do ritmo cinemático que esperam um componente terminar: o anúncio
+  // da habilidade (ou da carta entrando em campo) e a compra por efeito. Cada um com o resolver num ref (o `onDone`
+  // inline seria recriado a cada tick do relógio).
+  const [announcement, setAnnouncement] = useState<{
+    key: number;
+    cardDef: CardDef;
+    trigger: string;
+    mine: boolean;
+    origin: { x: number; y: number } | null;
+    dest?: { x: number; y: number } | null;
+    label?: { pt: string; en: string };
+    caption?: { pt: string; en: string };
+    holdBaseMs?: number;
+    tempo: number;
+  } | null>(null);
+  const announcementResolveRef = useRef<(() => void) | null>(null);
+  const [effectDraw, setEffectDraw] = useState<{ key: number; player: PlayerId; card?: CardInstance } | null>(null);
+  const effectDrawResolveRef = useRef<(() => void) | null>(null);
+  /** o modal de escolha espera a minha carta pousar (a escolha do 【Deploy】 vem depois da carta em campo) */
+  const [modalHold, setModalHold] = useState(false);
+  const beatKeyRef = useRef(0);
+  const playOverlay = useCallback(
+    <T,>(set: (value: T | null) => void, resolveRef: { current: (() => void) | null }, value: T) =>
+      new Promise<void>((resolve) => {
+        let timer: ReturnType<typeof setTimeout> | null = null;
+        const finish = () => {
+          if (timer) clearTimeout(timer);
+          resolveRef.current = null;
+          set(null);
+          resolve();
+        };
+        resolveRef.current = finish;
+        timer = setTimeout(finish, VIEW_QUEUE_ITEM_TIMEOUT_MS);
+        set(value);
+      }),
+    [],
+  );
+
   const executeAttackStrike = useCallback(
     async (attackerId: string, currentTarget: AttackTarget, defendingPlayer: PlayerId) => {
       const reduced =
@@ -982,7 +1023,19 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       const prevDepartureView = prevDepartureViewRef.current;
       if (timeline) prevDepartureViewRef.current = incoming.view;
       else detectDepartures(incoming);
-      setCueBatch(timeline && incoming.eventsSince && incoming.eventSeq !== undefined ? { key: incoming.eventSeq, events: incoming.eventsSince } : null);
+      // spec simulador-ritmo-de-resolucao — ritmo cinemático: um tempo por coisa que o motor fez (abertura e mulligan
+      // têm coreografia própria). O "rápido" é o caminho anterior, intacto.
+      const cinematicFrom =
+        timeline && getResolutionPacing() === "cinematic" && prevViewForQueueRef.current && isPostSetupView(prevViewForQueueRef.current)
+          ? prevViewForQueueRef.current
+          : null;
+      setCueBatch(
+        cinematicFrom
+          ? { key: -++beatKeyRef.current, events: [] }
+          : timeline && incoming.eventsSince && incoming.eventSeq !== undefined
+            ? { key: incoming.eventSeq, events: incoming.eventsSince }
+            : null,
+      );
 
       // Animação de Comando jogado pelo oponente/bot: deve rodar e esperar antes
       // de setMatchView para que o efeito do Comando na arena só apareça resolvido após o onDone.
@@ -1014,7 +1067,104 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       const prevCombat = prevCombatRef.current;
       prevCombatRef.current = incoming.view.combat;
 
-      if (timeline) {
+      if (cinematicFrom) {
+        const events = incoming.eventsSince ?? [];
+        const resourceIds = new Set(Object.values(cinematicFrom.players).flatMap((p) => p.resourceArea.map((c) => c.instanceId)));
+        const { beats, pendingAttack } = planChoreography({
+          events,
+          viewerSeat: incoming.seat,
+          pendingAttack: pendingAttackRef.current,
+          phase: cinematicFrom.phase,
+          resourceIds,
+        });
+        pendingAttackRef.current = pendingAttack;
+        const tempo = tempoFor(beats);
+        const hold = (baseMs: number) => new Promise<void>((resolve) => setTimeout(resolve, getScaledDuration(baseMs * tempo)));
+        const opponentSeat: PlayerId = incoming.seat === "A" ? "B" : "A";
+        const defOf = (id: string) => cardDefInView(incoming.view, id) ?? cardDefInView(cinematicFrom, id);
+        const shieldsTaken: Record<PlayerId, number> = { A: 0, B: 0 };
+        // a arte grande dos anúncios começa a baixar já, enquanto os tempos anteriores tocam
+        for (const beat of beats) {
+          if (beat.kind !== "announce" && beat.kind !== "deploy") continue;
+          const code = defOf(beat.instanceId)?.code;
+          const src = code ? artSrc(art, code, "lg") : undefined;
+          if (src && typeof Image !== "undefined") new Image().src = src;
+        }
+        for (const beat of beats) {
+          switch (beat.kind) {
+            case "strike":
+              await strike(beat.attackerId, beat.target, beat.defendingPlayer);
+              break;
+            case "effects":
+              setCueBatch({ key: -++beatKeyRef.current, events: beat.events });
+              await hold(BEAT_HOLD_MS.effects);
+              break;
+            case "departure": {
+              const ids = beat.shieldsOf
+                ? (prevDepartureView?.players[beat.shieldsOf].shields ?? [])
+                    .slice(shieldsTaken[beat.shieldsOf], (shieldsTaken[beat.shieldsOf] += beat.count ?? 0))
+                    .map((c) => c.instanceId)
+                : beat.ids;
+              if (beat.shieldsOf) sfx.playShieldBurst();
+              launchDepartures(prevDepartureView, incoming, new Set(ids));
+              await hold(BEAT_HOLD_MS.departure);
+              break;
+            }
+            case "opponentCommand": {
+              const cardDef = defOf(beat.instanceId);
+              if (!cardDef) break;
+              const { origin, dest } = resolveCommandAnimationPoints(board, opponentSeat, fallbackCenter);
+              await animateCommand({ cardDef, origin, dest });
+              break;
+            }
+            case "announce": {
+              const cardDef = defOf(beat.instanceId);
+              if (!cardDef) break;
+              const origin =
+                rectCenter(board.rectOf(beat.instanceId)) ??
+                (beat.trigger === "Burst" ? rectCenter(board.rectOf(`shieldRail:${beat.player}`)) : null);
+              await playOverlay(setAnnouncement, announcementResolveRef, {
+                key: ++beatKeyRef.current,
+                cardDef,
+                trigger: beat.trigger,
+                mine: beat.player === incoming.seat,
+                origin,
+                tempo,
+              });
+              break;
+            }
+            case "deploy": {
+              const cardDef = defOf(beat.instanceId);
+              if (!cardDef) break;
+              const mine = beat.player === incoming.seat;
+              const handRect = mine ? board.rectOf("hand:self") : (board.rectOf("hand:opponent") ?? board.rectOf(`hand:${opponentSeat}`));
+              sfx.playDeploy();
+              await playOverlay(setAnnouncement, announcementResolveRef, {
+                key: ++beatKeyRef.current,
+                cardDef,
+                trigger: "",
+                mine,
+                origin: rectCenter(handRect),
+                dest: rectCenter(board.rectOf(playerAreaKey(beat.player))),
+                label: beat.as === "pilot" ? { pt: "Piloto", en: "Pilot" } : beat.as === "base" ? { pt: "Base", en: "Base" } : { pt: "Unit", en: "Unit" },
+                caption: mine ? { pt: "Você implanta", en: "You deploy" } : { pt: "Oponente implanta", en: "Opponent deploys" },
+                holdBaseMs: 420,
+                tempo,
+              });
+              break;
+            }
+            case "draw": {
+              const card =
+                beat.player === incoming.seat && beat.instanceId
+                  ? (incoming.view.players[incoming.seat].hand.find((c) => !isHidden(c) && c.instanceId === beat.instanceId) as CardInstance | undefined)
+                  : undefined;
+              sfx.playCardDraw();
+              await playOverlay(setEffectDraw, effectDrawResolveRef, { key: ++beatKeyRef.current, player: beat.player, card });
+              break;
+            }
+          }
+        }
+      } else if (timeline) {
         const { plan, pendingAttack } = planAnimations(timeline, incoming.seat, pendingAttackRef.current);
         pendingAttackRef.current = pendingAttack;
         const opponentSeat: PlayerId = incoming.seat === "A" ? "B" : "A";
@@ -1100,6 +1250,16 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         });
       }
 
+      // ritmo cinemático: a minha carta pousa antes do modal da escolha do efeito dela abrir
+      if (cinematicFrom && hasOwnDeploy(incoming.eventsSince ?? [], incoming.seat)) {
+        const pendingForMe = incoming.view.pendingDecision[incoming.seat];
+        if (pendingForMe && pendingForMe.kind !== "burst") {
+          setModalHold(true);
+          await new Promise((resolve) => setTimeout(resolve, getScaledDuration(420)));
+          setModalHold(false);
+        }
+      }
+
       // Só DEPOIS de aplicar a view é que `myBurstDecision` (derivado dela)
       // passa a existir pro render — por isso a espera do reveal vem depois do
       // `setMatchView`, nunca antes (não tem o que esperar até a view aplicar).
@@ -1115,7 +1275,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         });
       }
     },
-    [executeAttackStrike, detectDepartures, launchDepartures, waitForBurstReveal, board, enqueuePhaseBanners, waitForPhaseBanners],
+    [executeAttackStrike, detectDepartures, launchDepartures, waitForBurstReveal, board, enqueuePhaseBanners, waitForPhaseBanners, playOverlay, art],
   );
 
   const drainViewQueue = useCallback(async () => {
@@ -1262,11 +1422,16 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   // cartas exiladas, banners) e o modal antigo segue clicável. Um 2º clique reenviava a mesma resposta para uma decisão
   // que o servidor já tinha trocado (passo 2 do Development) e voltava erro. Uma resposta de decisão por versão.
   const decisionSentForVersionRef = useRef<number | null>(null);
+  // espelho em estado da trava acima: a resposta enviada some da tela (botão/modal) até a visão seguinte aplicar
+  const [answeredVersion, setAnsweredVersion] = useState<number | null>(null);
   const runAction = useCallback(
     async (action: PlayerAction) => {
       const resolvesDecision = isDecisionResponse(action);
       if (resolvesDecision && matchView && decisionSentForVersionRef.current === matchView.version) return;
-      if (resolvesDecision && matchView) decisionSentForVersionRef.current = matchView.version;
+      if (resolvesDecision && matchView) {
+        decisionSentForVersionRef.current = matchView.version;
+        setAnsweredVersion(matchView.version);
+      }
       setBusy(true);
       try {
         // Áudio e feedback sensorial Gundam com micro-delays antes do despacho
@@ -1323,7 +1488,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         // própria no topo, não `toast` no canto (que tapava o log — Feedback.pdf §5).
         showActionError(errorMessage(err, tr("Ação inválida.", "Invalid action.")));
         // recusada: a mesma decisão continua pendente e pode ser respondida de novo
-        if (resolvesDecision) decisionSentForVersionRef.current = null;
+        if (resolvesDecision) {
+          decisionSentForVersionRef.current = null;
+          setAnsweredVersion(null);
+        }
       } finally {
         setBusy(false);
       }
@@ -2977,8 +3145,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const hudCancel = pending ? clearSelection : attackerId ? () => setAttackerId(null) : undefined;
   const hudConfirm = pending ? confirmPending : undefined;
   const hudCanConfirm = pending ? !(pendingCost > 0 && !resourcesReady) : true;
-  const hudSkipBlock = iAmDefending ? () => runAction({ kind: "skipBlock" }) : undefined;
-  const hudPassAction = inActionStep
+  const answeredThisVersion = answeredVersion !== null && answeredVersion === matchView.version;
+  const hudSkipBlock = iAmDefending && !answeredThisVersion ? () => runAction({ kind: "skipBlock" }) : undefined;
+  const hudPassAction = inActionStep && !answeredThisVersion
     ? () => runAction(iHavePriority ? { kind: "passAction" } : { kind: "passEndPhaseAction" })
     : undefined;
 
@@ -3394,6 +3563,23 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           }}
         />
       ) : null}
+      {announcement ? (
+        <ActivationAnnouncement
+          key={announcement.key}
+          cardDef={announcement.cardDef}
+          art={art}
+          trigger={announcement.trigger}
+          mine={announcement.mine}
+          origin={announcement.origin}
+          dest={announcement.dest}
+          label={announcement.label}
+          caption={announcement.caption}
+          holdBaseMs={announcement.holdBaseMs}
+          tempo={announcement.tempo}
+          cardW={board.rectOf(`deckStation:${seat}`)?.width ?? 60}
+          onDone={() => announcementResolveRef.current?.()}
+        />
+      ) : null}
       {myBurstDecision && myBurstDecision.cardInstanceId !== burstRevealedId ? (
         <BurstRevealStage
           key={myBurstDecision.cardInstanceId}
@@ -3407,7 +3593,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         <BurstModal
           decision={myBurstDecision}
           art={art}
-          busy={busy}
+          busy={busy || answeredThisVersion}
           target={burstTargetChoice}
           selectedTargets={burstTargets}
           onToggleTarget={toggleBurstTarget}
@@ -3421,16 +3607,16 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           }
         />
       ) : null}
-      {myPendingDecision?.kind === "triggerOrder" ? (
+      {myPendingDecision?.kind === "triggerOrder" && !modalHold ? (
         <TriggerOrderModal
           // rodadas de gatilho seguidas: remonta, senão a ordem da rodada anterior ia junto
           key={myPendingDecision.triggers.map((t) => t.specId).join("|")}
           decision={myPendingDecision}
-          busy={busy}
+          busy={busy || answeredThisVersion}
           onResolve={(orderedSpecIds) => runAction({ kind: "resolveTriggerOrder", orderedSpecIds })}
         />
       ) : null}
-      {myPendingDecision?.kind === "abilityResolution" ? (
+      {myPendingDecision?.kind === "abilityResolution" && !modalHold ? (
         <AbilityResolutionModal
           decision={myPendingDecision}
           art={art}
@@ -3484,7 +3670,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             }
             return "Carta";
           }}
-          busy={busy}
+          busy={busy || answeredThisVersion}
           devTrashCount={view.players[seat].trash.filter((c) => !isHidden(c) && c.def?.traits?.includes("G Generation")).length}
           targets={abilityTargets}
           setTargets={setAbilityTargets}
@@ -3495,12 +3681,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           onResolve={(resolutions) => runAction({ kind: "resolveAbility", resolutions })}
         />
       ) : null}
-      {myPendingDecision?.kind === "zoneOverflow" ? (
+      {myPendingDecision?.kind === "zoneOverflow" && !modalHold ? (
         <ZoneOverflowModal
           // V2 (docs/27): `legalTargets` são sempre as próprias Units — sempre
           // públicas na view (nunca precisa de resolveLabel/lookup escondido).
           units={publicUnits(view.players[seat]).filter((u) => myPendingDecision.legalTargets.includes(u.instanceId))}
-          busy={busy}
+          busy={busy || answeredThisVersion}
           getEffectiveStats={(u) => ({
             ap: effectiveAp(u, view as unknown as GameState),
             hp: effectiveHp(u, view as unknown as GameState),
@@ -3715,6 +3901,24 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             </>
           )}
         </>
+      ) : null}
+
+      {/* spec simulador-ritmo-de-resolucao — compra por efeito: o mesmo saque da Draw Phase, do deck de quem comprou */}
+      {effectDraw ? (
+        <DeckDealAnimation
+          key={`effect-draw-${effectDraw.key}`}
+          mode="single-draw"
+          label={effectDraw.player === seat ? tr("Comprando…", "Drawing…") : tr("Oponente comprando…", "Opponent drawing…")}
+          origin={deckCenter(board.rectOf(`deckStation:${effectDraw.player}`), effectDraw.player !== seat)}
+          cardW={board.rectOf(`deckStation:${effectDraw.player}`)?.width}
+          dest={handCenter(
+            effectDraw.player === seat ? board.rectOf("hand:self") : (board.rectOf("hand:opponent") ?? board.rectOf(`hand:${effectDraw.player}`)),
+            board.rectOf(`deckStation:${effectDraw.player}`)?.width,
+          )}
+          cards={effectDraw.card ? [effectDraw.card] : undefined}
+          art={art}
+          onDone={() => effectDrawResolveRef.current?.()}
+        />
       ) : null}
 
       {/* docs/56 tarefa 1 — clones voando pro Trash/Exílio (Unit destruída,

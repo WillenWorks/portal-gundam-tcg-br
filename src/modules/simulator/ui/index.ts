@@ -38,6 +38,7 @@ export { EffectResolutionOverlay, type EffectResolutionCue } from "./EffectResol
 export { DeckDealAnimation, type DeckDealMode, type DeckDealPoint } from "./DeckDealAnimation";
 export { CardDepartureAnimation, type DepartingCard, type DepartureDest } from "./CardDepartureAnimation";
 export { CommandCastAnimation, type CommandCastPoint } from "./CommandCastAnimation";
+export { ActivationAnnouncement, type ActivationPoint } from "./ActivationAnnouncement";
 export { HandDrawer } from "./HandDrawer";
 export { ActionDock, type ActionDockState } from "./ActionDock";
 export { CenterDecisionModal, type CenterDecisionModalProps } from "./CenterDecisionModal";

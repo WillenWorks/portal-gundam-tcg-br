@@ -1,12 +1,23 @@
 /* SettingsMenu v9.0 — configurações de partida com skins de tabuleiro,
  * controle de efeitos sonoros táticos e ações de jogo. */
 import { useState } from "react";
-import { Gauge, LogOut, Palette, Settings, Volume2, VolumeX } from "lucide-react";
+import { Film, Gauge, LogOut, Palette, Settings, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { sfx } from "../audio/soundEffects";
-import { ANIM_SPEED_LABELS, ANIM_SPEED_LABELS_EN, ANIM_SPEEDS, getSavedAnimSpeed, saveAnimSpeed, type AnimSpeed } from "./animationSettings";
+import {
+  ANIM_SPEED_LABELS,
+  ANIM_SPEED_LABELS_EN,
+  ANIM_SPEEDS,
+  getResolutionPacing,
+  getSavedAnimSpeed,
+  RESOLUTION_PACING_LABELS,
+  saveAnimSpeed,
+  saveResolutionPacing,
+  type AnimSpeed,
+  type ResolutionPacing,
+} from "./animationSettings";
 import { getSavedPlaymatSkin, PLAYMAT_SKINS, savePlaymatSkin, type PlaymatSkinId } from "./playmatSkins";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
 
@@ -24,6 +35,12 @@ export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, bu
   const [currentSkin, setCurrentSkin] = useState<PlaymatSkinId>(getSavedPlaymatSkin);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => sfx.isEnabled());
   const [animSpeed, setAnimSpeed] = useState<AnimSpeed>(getSavedAnimSpeed);
+  const [pacing, setPacing] = useState<ResolutionPacing>(getResolutionPacing);
+
+  const handlePacingChange = (value: ResolutionPacing) => {
+    setPacing(value);
+    saveResolutionPacing(value);
+  };
 
   const handleAnimSpeedChange = (speed: AnimSpeed) => {
     setAnimSpeed(speed);
@@ -94,6 +111,26 @@ export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, bu
               {ANIM_SPEEDS.map((speed) => (
                 <option key={speed} value={speed}>
                   {tr(ANIM_SPEED_LABELS[speed], ANIM_SPEED_LABELS_EN[speed])}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Ritmo da resolução (spec simulador-ritmo-de-resolucao) — vale a partir da próxima jogada */}
+          <div className="space-y-1.5 border-b border-white/10 pb-3">
+            <label className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
+              <Film className="size-3.5 text-accent" />
+              {tr("Ritmo dos efeitos", "Effect pacing")}
+            </label>
+            <select
+              value={pacing}
+              onChange={(e) => handlePacingChange(e.target.value as ResolutionPacing)}
+              className="field-shell h-8 w-full px-2 text-xs"
+              aria-label={tr("Ritmo dos efeitos", "Effect pacing")}
+            >
+              {(Object.keys(RESOLUTION_PACING_LABELS) as ResolutionPacing[]).map((value) => (
+                <option key={value} value={value}>
+                  {tr(RESOLUTION_PACING_LABELS[value].pt, RESOLUTION_PACING_LABELS[value].en)}
                 </option>
               ))}
             </select>

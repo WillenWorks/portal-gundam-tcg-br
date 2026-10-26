@@ -66,3 +66,44 @@ export function getScaledDuration(baseMs: number): number {
 // `SettingsMenu` (que é quem inicializa o `useState` — mas outras telas do
 // simulador podem montar animações antes dele).
 applySpeedCssVar(getSavedAnimSpeed());
+
+/* Ritmo da resolução (spec simulador-ritmo-de-resolucao). "cinematic" = cada coisa que o motor fez toca no seu tempo
+ * (anúncio da habilidade, compra, dano, saída), igual para jogador e bot. "classic" = o ritmo anterior (golpe, Command
+ * e saídas animados; os efeitos todos de uma vez) — também é a reversão sem deploy: cada jogador troca no menu, e o
+ * padrão do build sai de `VITE_SIM_RESOLUTION_PACING`. */
+export type ResolutionPacing = "cinematic" | "classic";
+
+export const RESOLUTION_PACING_LABELS: Record<ResolutionPacing, { pt: string; en: string }> = {
+  cinematic: { pt: "Cinemático (um efeito por vez)", en: "Cinematic (one effect at a time)" },
+  classic: { pt: "Rápido (efeitos juntos)", en: "Fast (effects together)" },
+};
+
+const PACING_STORAGE_KEY = "portal_gundam_sim_resolution_pacing";
+
+function isPacing(value: unknown): value is ResolutionPacing {
+  return value === "cinematic" || value === "classic";
+}
+
+/** padrão do build: `VITE_SIM_RESOLUTION_PACING=classic` desliga o cinemático para quem nunca escolheu */
+export function defaultResolutionPacing(env: Record<string, unknown> = import.meta.env ?? {}): ResolutionPacing {
+  const fromEnv = env.VITE_SIM_RESOLUTION_PACING;
+  return isPacing(fromEnv) ? fromEnv : "cinematic";
+}
+
+export function getResolutionPacing(): ResolutionPacing {
+  try {
+    const saved = typeof window !== "undefined" ? window.localStorage.getItem(PACING_STORAGE_KEY) : null;
+    if (isPacing(saved)) return saved;
+  } catch {
+    // armazenamento bloqueado (aba privada): fica o padrão do build
+  }
+  return defaultResolutionPacing();
+}
+
+export function saveResolutionPacing(pacing: ResolutionPacing) {
+  try {
+    if (typeof window !== "undefined") window.localStorage.setItem(PACING_STORAGE_KEY, pacing);
+  } catch {
+    // sem armazenamento a escolha vale só até recarregar
+  }
+}

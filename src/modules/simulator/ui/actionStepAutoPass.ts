@@ -29,9 +29,14 @@ const DECISION_RESPONSES = new Set<PlayerAction["kind"]>([
   "resolveTriggerOrder",
   "resolveMulligan",
   "resolveZoneOverflow",
+  // resposta à prioridade (não bloquear, passar o Action Step): depois dela a vez é do outro. Com o ritmo cinemático a
+  // visão seguinte demora mais na fila e o botão antigo segue na tela — o 2º clique voltava "Nenhum combate em andamento".
+  "skipBlock",
+  "passAction",
+  "passEndPhaseAction",
 ]);
 
-/** Ação que responde a uma `pendingDecision` — vale uma só por versão da partida (ver `runAction`). */
+/** Ação que responde a uma `pendingDecision` ou à prioridade — vale uma só por versão da partida (ver `runAction`). */
 export function isDecisionResponse(action: PlayerAction): boolean {
   return DECISION_RESPONSES.has(action.kind);
 }

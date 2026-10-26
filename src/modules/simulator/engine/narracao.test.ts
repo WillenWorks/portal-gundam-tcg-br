@@ -65,6 +65,36 @@ describe("narração no log: carta jogada e habilidade ativada", () => {
     expect(events[0]).toEqual({ type: "ABILITY_ACTIVATED", player: "A", instanceId: base, trigger: "Activate·Main" });
   });
 
+  it("efeito disparado (【Deploy】 com escolha) anuncia a carta e o gatilho antes do que o efeito fez", () => {
+    const state = board();
+    const strike = placeCard(state, "A", ALL_CARD_DEFS["ST04-002"], "hand");
+    const deployed = applyPlayerAction(
+      state,
+      "A",
+      enumerateLegalActions(state, "A", ALL_EFFECT_SPECS, scenarioOpts).find((a) => a.kind === "deployCard" && a.cardInstanceId === strike)!,
+      ALL_EFFECT_SPECS,
+      defaultPredicateResolver,
+      defaultTargetFilterResolver,
+    );
+    // a escolha do descarte fica pendente: nada resolveu, nada anunciado ainda
+    expect(deployed.eventLog.slice(state.eventLog.length).some((e) => e.type === "ABILITY_ACTIVATED")).toBe(false);
+    const events = play(deployed, (a) => a.kind === "resolveAbility");
+    const announced = events.findIndex((e) => e.type === "ABILITY_ACTIVATED");
+    expect(events[announced]).toEqual({ type: "ABILITY_ACTIVATED", player: "A", instanceId: strike, trigger: "Deploy" });
+    expect(events.findIndex((e) => e.type === "DRAW_CARD")).toBeGreaterThan(announced);
+    expect(events.filter((e) => e.type === "ABILITY_ACTIVATED")).toHaveLength(1);
+  });
+
+  it("【Activate】 e Command não são anunciados de novo na resolução", () => {
+    const state = board();
+    state.players.A.baseSection = [];
+    const base = placeCard(state, "A", ALL_CARD_DEFS["ST01-015"], "baseSection");
+    placeCard(state, "A", ST01_CARD_DEFS.GM, "battleArea", { damage: 1 });
+    expect(play(state, (a) => a.kind === "activateAbility" && a.sourceInstanceId === base).filter((e) => e.type === "ABILITY_ACTIVATED")).toHaveLength(1);
+    const cmd = placeCard(state, "A", ALL_CARD_DEFS["ST01-013"], "hand");
+    expect(play(state, (a) => a.kind === "playCommand" && a.cardInstanceId === cmd).some((e) => e.type === "ABILITY_ACTIVATED")).toBe(false);
+  });
+
   it("os eventos de narração não mudam o estado: só entram no log", () => {
     const state = board();
     const id = state.players.A.hand[0].instanceId;
