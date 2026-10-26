@@ -9,16 +9,30 @@ import { CardFace } from "./CardFace";
 import type { PendingDecision } from "@/modules/simulator/engine/types";
 import { useCardLanguage } from "@/i18n/useCardLanguage";
 
+export interface BurstTargetChoice {
+  /** alvos que o motor aceita pro efeito (`LegalMenu.burstTarget`) */
+  legalTargetIds: string[];
+  min: number;
+  max: number;
+}
+
 interface BurstModalProps {
   decision: Extract<PendingDecision, { kind: "burst" }>;
   art: ArtLookup;
   busy?: boolean;
+  /** BUG-QW8NEV — efeito com alvo ("Choose 1 enemy Unit"): sem escolher, o motor recusa a ativação */
+  target?: BurstTargetChoice | null;
+  selectedTargets?: string[];
+  onToggleTarget?: (instanceId: string) => void;
+  resolveLabel?: (instanceId: string) => string;
   onResolve: (activate: boolean) => void;
 }
 
-export function BurstModal({ decision, art, busy, onResolve }: BurstModalProps) {
+export function BurstModal({ decision, art, busy, target, selectedTargets = [], onToggleTarget, resolveLabel, onResolve }: BurstModalProps) {
   const { language } = useCardLanguage();
   const isEn = language === "EN";
+  const needsTarget = Boolean(target && target.legalTargetIds.length > 0);
+  const missingTargets = needsTarget && target ? Math.max(0, target.min - selectedTargets.length) : 0;
 
   const queueSuffix =
     decision.queuedInstanceIds?.length > 0
@@ -55,11 +69,45 @@ export function BurstModal({ decision, art, busy, onResolve }: BurstModalProps) 
           </div>
         </div>
 
+        {needsTarget && target ? (
+          <div className="order-last basis-full">
+            <p className="text-[10px] font-semibold text-amber-200">
+              {target.max > 1
+                ? isEn
+                  ? `Choose ${target.min} to ${target.max} targets — click the Unit on the board or below:`
+                  : `Escolha de ${target.min} a ${target.max} alvos — clique na Unit no tabuleiro ou abaixo:`
+                : isEn
+                  ? "Choose the target — click the Unit on the board or below:"
+                  : "Escolha o alvo — clique na Unit no tabuleiro ou abaixo:"}
+            </p>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {target.legalTargetIds.map((id) => {
+                const on = selectedTargets.includes(id);
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={on}
+                    disabled={busy}
+                    onClick={() => onToggleTarget?.(id)}
+                    className={`min-h-8 rounded-arena border px-2 py-0.5 text-[11px] font-semibold transition-colors disabled:opacity-50 ${
+                      on ? "border-amber-300 bg-amber-400 text-black" : "border-white/20 text-slate-200 hover:border-amber-300/70 hover:bg-white/5"
+                    }`}
+                  >
+                    {resolveLabel?.(id) ?? id}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
         {/* Lado Direito: Ações Imediatas */}
         <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
           <Button
             className="min-h-11 flex-1 rounded-arena bg-amber-400 px-3.5 text-xs font-black text-black shadow-[0_0_14px_rgba(251,191,36,0.5)] hover:bg-amber-300 sm:h-8 sm:min-h-0 sm:flex-initial"
-            disabled={busy}
+            disabled={busy || missingTargets > 0}
+            title={missingTargets > 0 ? (isEn ? "Choose the target first" : "Escolha o alvo primeiro") : undefined}
             onClick={() => onResolve(true)}
           >
             {isEn ? "Activate effect" : "Ativar efeito"}

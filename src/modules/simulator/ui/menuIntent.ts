@@ -109,3 +109,8 @@ export function blockerIdsFromMenu(menu: LegalMenu): Set<string> {
 export function sacrificeIdsFromMenu(menu: LegalMenu, cardId: string): string[] {
   return menu.entries.flatMap((e) => (e.kind === "deployCard" && e.cardInstanceId === cardId ? e.sacrificeIds : []));
 }
+
+/** alvo do efeito do 【Burst】 pendente (BUG-QW8NEV) — `null` quando o "Ativar efeito" não pede alvo */
+export function burstTargetsFromMenu(menu: LegalMenu | undefined): MenuTargets | null {
+  return fromSlot(menu?.burstTarget);
+}

@@ -12,7 +12,8 @@ import { actionOwner, enumerateLegalActions, neededTargetIds, type EnumerateOpti
  * continua sendo `enumerateLegalActions`: o menu só agrupa as jogadas legais e, onde a enumeração corta
  * combinações (alvo múltiplo, 2º alvo), devolve o conjunto inteiro de alvos que o motor calcula.
  *
- * Decisão pendente (`pendingDecision`) não entra: a própria decisão já carrega opções e alvos legais.
+ * Decisão pendente (`pendingDecision`) não entra: a própria decisão já carrega opções e alvos legais. Exceção: o
+ * 【Burst】, cuja decisão é só "ativar ou mandar pro trash" — o alvo do efeito sai no `burstTarget` (BUG-QW8NEV).
  */
 
 export interface LegalMenuSlot {
@@ -52,6 +53,8 @@ export interface LegalMenu {
   active: boolean;
   entries: LegalMenuEntry[];
   passes: LegalMenuPass[];
+  /** 【Burst】 pendente cujo efeito escolhe alvo ("Choose 1 enemy Unit"): o "Ativar efeito" manda `targets.target` daqui */
+  burstTarget?: LegalMenuSlot;
 }
 
 const EMPTY: LegalMenu = { active: false, entries: [], passes: [] };
@@ -144,7 +147,13 @@ function abilitySlots(
 }
 
 export function legalMenuFor(state: GameState, seat: PlayerId, specs: EffectSpec[] = [], opts: EnumerateOptions = {}): LegalMenu {
-  if (actionOwner(state) !== seat || state.pendingDecision[seat]) return EMPTY;
+  const decision = state.pendingDecision[seat];
+  if (decision?.kind === "burst" && actionOwner(state) === seat) {
+    const actions = enumerateLegalActions(state, seat, specs, opts).filter((a) => a.kind === "resolveBurstDecision" && a.activate);
+    const slot = targetSlot(state, seat, decision.cardDef.code, "Burst", decision.cardInstanceId, actions, specs, opts);
+    return slot ? { ...EMPTY, burstTarget: slot } : EMPTY;
+  }
+  if (actionOwner(state) !== seat || decision) return EMPTY;
   const legal = enumerateLegalActions(state, seat, specs, opts);
 
   const passes: LegalMenuPass[] = [];

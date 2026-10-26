@@ -59,4 +59,34 @@ describe("BurstModal", () => {
     expect(screen.getByRole("button", { name: /ativar efeito/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /mandar pro trash/i })).toBeDisabled();
   });
+
+  it("BUG-QW8NEV — Burst com alvo: lista os alvos legais e só libera 'Ativar efeito' depois da escolha", () => {
+    const onResolve = vi.fn();
+    const onToggleTarget = vi.fn();
+    const target = { legalTargetIds: ["e1", "e2"], min: 1, max: 1 };
+    const labels: Record<string, string> = { e1: "Jegan", e2: "Kayra's Re-GZ" };
+    const { rerender } = render(
+      <BurstModal decision={baseDecision} art={{}} target={target} selectedTargets={[]} onToggleTarget={onToggleTarget} resolveLabel={(id) => labels[id]} onResolve={onResolve} />,
+    );
+
+    expect(screen.getByText(/Escolha o alvo/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ativar efeito/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /mandar pro trash/i })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Jegan" }));
+    expect(onToggleTarget).toHaveBeenCalledWith("e1");
+
+    rerender(
+      <BurstModal decision={baseDecision} art={{}} target={target} selectedTargets={["e1"]} onToggleTarget={onToggleTarget} resolveLabel={(id) => labels[id]} onResolve={onResolve} />,
+    );
+    expect(screen.getByRole("button", { name: "Jegan" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: /ativar efeito/i }));
+    expect(onResolve).toHaveBeenCalledWith(true);
+  });
+
+  it("Burst com alvo mas sem alvo legal em campo: nada a escolher, 'Ativar efeito' segue liberado", () => {
+    render(<BurstModal decision={baseDecision} art={{}} target={{ legalTargetIds: [], min: 1, max: 1 }} onResolve={vi.fn()} />);
+    expect(screen.queryByText(/Escolha o alvo/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ativar efeito/i })).toBeEnabled();
+  });
 });
