@@ -81,19 +81,23 @@ export function humanizedThinkDelay(ctx) {
   return new Promise((resolve) => setTimeout(resolve, remaining));
 }
 
+/** a mão inicial é olhada com calma antes de decidir o Mulligan (a tela mostra "Oponente avaliando a mão…") */
+export const BOT_MULLIGAN_EVAL_EXTRA_MS = 1500;
+
 /**
  * spec simulador-cadencia-de-mesa — o bot espera a cena da jogada anterior terminar na tela (`waitMs()`, do
  * `matchStore`) e só então "pensa" os 1–2s inteiros, como quem olha a mesa antes de jogar. Sem cena, segue o
  * `humanizedThinkDelay` (que desconta o que a policy já gastou).
  * @param {() => number} waitMs
  * @param {(ms: number) => Promise<void>} [sleep]
- * @returns {(ctx?: { thinkingMs?: number }) => Promise<void>}
+ * @returns {(ctx?: { thinkingMs?: number, action?: { kind?: string } }) => Promise<void>}
  */
 export function sceneAwareThinkDelay(waitMs, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))) {
   return async (ctx) => {
     const scene = waitMs();
     if (scene > 0) await sleep(scene);
-    await sleep(Math.max(0, humanizedThinkDelayMs() - (scene > 0 ? 0 : (ctx?.thinkingMs ?? 0))));
+    const extra = ctx?.action?.kind === "resolveMulligan" ? BOT_MULLIGAN_EVAL_EXTRA_MS : 0;
+    await sleep(Math.max(0, humanizedThinkDelayMs() + extra - (scene > 0 ? 0 : (ctx?.thinkingMs ?? 0))));
   };
 }
 
@@ -105,7 +109,7 @@ export function sceneAwareThinkDelay(waitMs, sleep = (ms) => new Promise((resolv
  * @param {"amuro"|"char"|"heero"|"treize"|"adaptive"} [opts.persona]
  * @param {number} opts.seed
  * @param {(action: unknown) => unknown} opts.commit — pode devolver o `GameState` autoritativo atualizado
- * @param {(ctx: { thinkingMs: number }) => (void | Promise<void>)} [opts.beforeCommit] — "tempo de pensar" antes de cada commit (ex. `humanizedThinkDelay`, que desconta `thinkingMs`); testes omitem
+ * @param {(ctx: { thinkingMs: number, action: unknown }) => (void | Promise<void>)} [opts.beforeCommit] — "tempo de pensar" antes de cada commit (ex. `humanizedThinkDelay`, que desconta `thinkingMs`); testes omitem
  * @param {number} [opts.maxActions]
  * @returns {Promise<{ actionsApplied: number, finalState: object, done: boolean }>}
  */
@@ -161,7 +165,7 @@ export async function driveBotTurn({ initialState, seat, level, persona = "adapt
     const thinkStart = Date.now();
     const action = policy(view, legal, rng);
 
-    if (beforeCommit) await beforeCommit({ thinkingMs: Date.now() - thinkStart });
+    if (beforeCommit) await beforeCommit({ thinkingMs: Date.now() - thinkStart, action });
     const committedState = await commit(action); // caminho autoritativo — pode lançar (motor recusou / rede)
     if (committedState && typeof committedState === "object" && committedState.players) {
       state = committedState;

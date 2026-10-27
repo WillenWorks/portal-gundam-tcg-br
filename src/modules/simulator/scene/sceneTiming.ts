@@ -48,10 +48,63 @@ export const SCENE_MS = {
   modalHold: 420,
   /** folga para a rede e o React aplicarem a visão */
   margin: 200,
+  /** abertura da partida (P1): moeda → decks → embaralhar → 5 cartas → mulligan → escudos → EX → turno 1 */
+  opening: {
+    /** mesa aparece antes da moeda */
+    fieldReady: 650,
+    /** `CoinToss`: parada no lado inicial, sobe girando, cai girando, assenta, mostra quem começa */
+    coin: { idle: 350, up: 850, down: 850, settle: 300, result: 1500 },
+    /** destaque do lado de quem começa */
+    fieldHighlight: 1250,
+    /** decks pousando nas zonas */
+    deckAppear: 650,
+    shuffle: 1300,
+    dealStagger: 90,
+    flight: 450,
+    handRevealHold: 340,
+    /** mão revelada antes da decisão */
+    handRevealed: 550,
+    /** mulligan: a mão volta ao deck antes de embaralhar */
+    mulliganReturn: 340,
+    shieldStagger: 160,
+    shieldStackHold: 250,
+    /** EX Base (e EX Resource de quem joga em 2º) aparecendo */
+    exReveal: 1000,
+  },
 } as const;
 
 /** banners da virada de turno: "seu turno / turno do oponente" + recuperação + compra + principal */
 const TURN_START_BANNERS = 4;
+
+const O = SCENE_MS.opening;
+
+export function coinTossMs(): number {
+  return O.coin.idle + O.coin.up + O.coin.down + O.coin.settle + O.coin.result;
+}
+
+/** 5 cartas saindo do deck para a mão, uma atrás da outra, e o instante de olhar para elas */
+export function dealHandMs(): number {
+  return 4 * O.dealStagger + O.flight + O.handRevealHold;
+}
+
+export function dealShieldsMs(): number {
+  return 6 * O.shieldStagger + O.flight + O.shieldStackHold;
+}
+
+/** da mesa vazia até as duas mãos reveladas (a 1ª decisão de mulligan começa aqui) */
+export function openingIntroMs(): number {
+  return O.fieldReady + coinTossMs() + O.fieldHighlight + O.deckAppear + O.shuffle + dealHandMs() + O.handRevealed;
+}
+
+/** a mão volta, o deck embaralha e 5 novas saem (visto pelos dois) */
+export function mulliganRedrawMs(): number {
+  return O.mulliganReturn + O.shuffle + dealHandMs();
+}
+
+/** fim do mulligan até a Main Phase do turno 1: escudos, EX, banners do turno */
+export function setupFinishMs(): number {
+  return dealShieldsMs() + O.exReveal + TURN_START_BANNERS * SCENE_MS.banner;
+}
 
 /** tempos cuja espera segue o `tempo` do lote (e o ritmo); golpe, Command e compra têm duração própria */
 const TEMPO_SCALED = new Set<Beat["kind"]>(["announce", "deploy", "effects", "departure"]);

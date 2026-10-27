@@ -594,6 +594,7 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
     }
     case "CARD_PLAYED":
     case "ABILITY_ACTIVATED":
+    case "MULLIGAN_RESOLVED":
       // narração: só entra no log
       return state;
     case "SPAWN_TOKEN": {

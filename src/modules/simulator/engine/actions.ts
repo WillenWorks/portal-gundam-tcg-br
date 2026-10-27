@@ -954,6 +954,7 @@ function applyPlayerActionInner(
         throw new Error("Não há Mulligan pendente pra esse jogador");
       }
       let next = applyEvent(state, { type: "CLEAR_PENDING_DECISION", player: actingPlayer });
+      next = applyEvent(next, { type: "MULLIGAN_RESOLVED", player: actingPlayer, redraw: !action.keep });
       if (!action.keep) {
         // shuffle + redraw ficam no reducer (não há evento SHUFFLE), sobre o
         // clone que `applyEvent` acabou de devolver — determinístico via seed.
