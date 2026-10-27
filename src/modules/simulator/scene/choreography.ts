@@ -57,6 +57,8 @@ const CUE_EVENTS = new Set<GameEvent["type"]>([
   "MODIFY_STAT",
   "GRANT_KEYWORD",
   "SPAWN_TOKEN",
+  // olhar o topo e devolver (RE-GZ): sem isto o efeito anunciado parecia não ter feito nada
+  "MOVE_WITHIN_DECK",
 ]);
 
 /** fases de estrutura do turno: o que acontece nelas já é contado pelos banners e pela compra da virada de turno */

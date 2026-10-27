@@ -12,6 +12,7 @@ import {
   handModesFromMenu,
   normalCommandFromMenu,
   pairTargetsFromMenu,
+  pendingPlayStillLegal,
   sacrificeIdsFromMenu,
 } from "./menuIntent";
 
@@ -112,5 +113,24 @@ describe("menuIntent — 【Burst】 (BUG-QW8NEV)", () => {
     expect(burstTargetsFromMenu(burst)).toEqual({ legalTargetInstanceIds: new Set(["e1", "e2"]), requiredTargetCount: 1, maxTargetCount: 2 });
     expect(burstTargetsFromMenu({ active: false, entries: [], passes: [] })).toBeNull();
     expect(burstTargetsFromMenu(undefined)).toBeNull();
+  });
+});
+
+describe("pendingPlayStillLegal — a jogada em montagem ainda existe? (BUG-TARWMX)", () => {
+  it("some do menu quando o prazo do Action Step acaba e o servidor passa sozinho", () => {
+    const menu = {
+      active: true,
+      passes: [],
+      entries: [
+        { kind: "playCommand", cardInstanceId: "c1", trigger: "Action", slots: [] },
+        { kind: "deployCard", cardInstanceId: "u1", standalone: true, pairWithUnitIds: [], slots: [] },
+      ],
+    } as unknown as Parameters<typeof pendingPlayStillLegal>[0];
+    expect(pendingPlayStillLegal(menu, { kind: "command", cardInstanceId: "c1", trigger: "Action" })).toBe(true);
+    expect(pendingPlayStillLegal(menu, { kind: "command", cardInstanceId: "c1", trigger: "Main" })).toBe(false);
+    expect(pendingPlayStillLegal(menu, { kind: "deploy", cardInstanceId: "u1" })).toBe(true);
+    const afterTimeout = { ...menu, entries: [] };
+    expect(pendingPlayStillLegal(afterTimeout, { kind: "command", cardInstanceId: "c1", trigger: "Action" })).toBe(false);
+    expect(pendingPlayStillLegal(afterTimeout, { kind: "activateAbility", cardInstanceId: "u1" })).toBe(false);
   });
 });

@@ -13,7 +13,7 @@ afterEach(() => {
 
 describe("coinRotation — a moeda para no lado de quem começa", () => {
   it("de qualquer lado inicial, gira várias voltas e termina no lado certo", () => {
-    for (const start of ["rx78", "federation"] as const) {
+    for (const start of ["heads", "tails"] as const) {
       for (const goesFirst of [true, false]) {
         const r = coinRotation(start, goesFirst);
         expect(((r.finalDeg % 360) + 360) % 360).toBe(goesFirst ? 0 : 180);
@@ -32,7 +32,7 @@ describe("CoinToss", () => {
     const next = () => (
       <CoinToss
         goesFirst={false}
-        startFace="rx78"
+        startFace="heads"
         onDone={() => {
           calls += 1;
         }}
@@ -47,7 +47,7 @@ describe("CoinToss", () => {
     }
     act(() => vi.advanceTimersByTime(600));
     expect(screen.getByText("Oponente começa")).toBeInTheDocument();
-    expect(screen.getByTestId("coin")).toHaveAttribute("data-face", "federation");
+    expect(screen.getByTestId("coin")).toHaveAttribute("data-face", "tails");
     expect(calls).toBe(0);
     act(() => vi.advanceTimersByTime(coinTossMs()));
     expect(calls).toBe(1);
