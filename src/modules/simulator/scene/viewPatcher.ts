@@ -173,6 +173,9 @@ export function revealBeat(shown: ViewGameState, final: ViewGameState, beat: Bea
       // o custo da habilidade ativada fica deitado
       for (const id of beat.paid) patchCard(view, id, (c) => ({ ...c, rested: true }));
       break;
+    case "toHand":
+      reveal(view, final, beat.instanceId, false);
+      break;
     case "declare":
       // o atacante deita e o combate aparece na mesa (a linha de mira), mesmo quando o ataque inteiro veio num lote só
       if (beat.rests) patchCard(view, beat.attackerId, (c) => ({ ...c, rested: true }));

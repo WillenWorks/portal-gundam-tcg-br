@@ -95,6 +95,15 @@ describe("planChoreography — uma coisa de cada vez, na ordem do motor", () => 
     expect(beats[1]).toEqual({ kind: "effects", events: [{ type: "SET_ACTIVE", instanceId: "r2" }] });
   });
 
+  it("P5: carta indo para a mão fora da compra (【Burst】 à mão, Unit que volta) tem o tempo dela", () => {
+    const { beats } = plan([
+      { type: "ABILITY_ACTIVATED", player: "B", instanceId: "s1", trigger: "Burst" },
+      { type: "MOVE_CARD", instanceId: "s1", toZone: "hand" },
+    ]);
+    expect(kinds(beats)).toEqual(["announce", "toHand"]);
+    expect(beats[1]).toEqual({ kind: "toHand", instanceId: "s1" });
+  });
+
   it("【Burst】: o do oponente é anunciado; o meu já teve revelação e modal", () => {
     const burst = (player: PlayerId): GameEvent => ({ type: "ABILITY_ACTIVATED", player, instanceId: "s1", trigger: "Burst" });
     expect(kinds(plan([burst("B")]).beats)).toEqual(["announce"]);

@@ -138,6 +138,8 @@ import { SCENE_MS, SCENE_PACE_FACTOR, destroyMs, drawMs, landsHeavy, shieldRevea
 import { drawnCard, placedResource, unrestedIds } from "@/modules/simulator/scene/turnStart";
 import { CardTravel, centerCardWidth, type TravelPoint } from "@/modules/simulator/ui/CardTravel";
 import { PlayCardStage, type PlayStage } from "@/modules/simulator/ui/PlayCardStage";
+import { BurstDecisionStage } from "@/modules/simulator/ui/BurstDecisionStage";
+import { triggerEffectText } from "@/modules/simulator/scene/effectText";
 import { mulliganRedraws } from "@/modules/simulator/scene/openingScene";
 import { localSceneEnd, sceneLockWaitMs } from "@/modules/simulator/scene/sceneLock";
 import { restChanges, revealBeat, withRested } from "@/modules/simulator/scene/viewPatcher";
@@ -317,6 +319,18 @@ function handLandingPoint(cardW: number | null | undefined): TravelPoint | null 
   const r = last.getBoundingClientRect();
   const w = cardW && cardW > 0 ? cardW : r.width;
   return { x: r.right + w * 0.55, y: r.top + r.height / 2 };
+}
+
+/** âncora da zona onde a carta está na mesa mostrada (de onde ela sai quando vai para a mão) */
+function zoneAnchorOf(view: ViewGameState, instanceId: string, fallbackOwner: PlayerId): string | null {
+  for (const pid of ["A", "B"] as PlayerId[]) {
+    const p = view.players[pid];
+    if (p.trash.some((c) => c.instanceId === instanceId)) return `trashStation:${pid}`;
+    if (p.exile.some((c) => c.instanceId === instanceId)) return `exileStation:${pid}`;
+    if (p.shields.some((c) => c.instanceId === instanceId)) return `shieldRail:${pid}`;
+    if (p.deck.some((c) => c.instanceId === instanceId)) return `deckStation:${pid}`;
+  }
+  return `deckStation:${fallbackOwner}`;
 }
 
 /** centro da carta da minha mão (a jogada sai dela) */
@@ -886,6 +900,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [resourceTravel, setResourceTravel] = useState<{ key: number; player: PlayerId; card: CardInstance } | null>(null);
   // P3 — carta jogada da mão, cartas sendo deitadas (custo, efeito) e o tremor da Unit pesada
   const [playStage, setPlayStage] = useState<PlayStage | null>(null);
+  // P5 — carta indo para a mão fora da compra (【Burst】 que vai à mão, Unit que volta, busca)
+  const [handTravel, setHandTravel] = useState<{ key: number; player: PlayerId; card: CardInstance | null; from: TravelPoint | null; fromW: number } | null>(null);
+  const handTravelResolveRef = useRef<(() => void) | null>(null);
+  // P5 — o 【Burst】 cujo alvo está sendo escolhido no campo (a mesa fica livre enquanto isso)
+  const [burstTargetingFor, setBurstTargetingFor] = useState<string | null>(null);
   // P4 — shield quebrada: sai da trilha, vai ao centro, vira para os dois verem e cai na lixeira
   const [shieldTravel, setShieldTravel] = useState<{ key: number; player: PlayerId; card: CardInstance | null } | null>(null);
   const shieldTravelResolveRef = useRef<(() => void) | null>(null);
@@ -1290,6 +1309,23 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               await hold(beat.destroyed ? destroyMs() : SCENE_MS.departure);
               break;
             }
+            case "toHand": {
+              // P5 — de onde a carta está (campo, lixeira, deck, shields) até a direita da mão de quem a recebe
+              const owner = (["A", "B"] as PlayerId[]).find((pid) => incoming.view.players[pid].hand.some((c) => c.instanceId === beat.instanceId)) ?? incoming.seat;
+              const inHand = incoming.view.players[owner].hand.find((c) => c.instanceId === beat.instanceId);
+              const fromKey = zoneAnchorOf(shown, beat.instanceId, owner);
+              const fromRect = board.rectOf(beat.instanceId) ?? (fromKey ? board.rectOf(fromKey) : null);
+              sfx.playCardDraw();
+              await playOverlay(setHandTravel, handTravelResolveRef, {
+                key: ++beatKeyRef.current,
+                player: owner,
+                card: inHand && !isHidden(inHand) ? (inHand as CardInstance) : null,
+                from: rectCenter(fromRect),
+                fromW: fromRect?.width ?? board.rectOf(`deckStation:${owner}`)?.width ?? 60,
+              });
+              showTable(revealBeat(shown, incoming.view, beat));
+              break;
+            }
             case "declare":
               // P4 — o atacante deita e a linha de mira vai até o alvo
               if (beat.rests) setRestIds(new Set([beat.attackerId]));
@@ -1396,7 +1432,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             }
           }
           // `play` revela a mesa por conta própria (a carta aparece quando pousa); o custo do `announce` já foi mostrado
-          const revealsItself = beat.kind === "play" || beat.kind === "declare" || beat.kind === "block" || (beat.kind === "departure" && beat.shieldsOf);
+          const revealsItself = beat.kind === "play" || beat.kind === "declare" || beat.kind === "block" || beat.kind === "toHand" || (beat.kind === "departure" && beat.shieldsOf);
           if (beat.kind !== "announce" && beat.kind !== "strike" && !revealsItself) showTable(revealBeat(shown, incoming.view, beat));
         }
       } else if (timeline) {
@@ -2863,7 +2899,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     string,
     { specId: string; pool: "primary" | "secondary"; side: "ally" | "enemy"; max: number }
   >();
-  for (const id of burstTargetChoice?.legalTargetIds ?? []) {
+  const burstTargeting = Boolean(myBurstDecision && burstTargetingFor === myBurstDecision.cardInstanceId);
+  // P5 — escolhendo alvo no campo: a mesa fica livre (mão recolhida, painel e log escondidos)
+  const tableClear = burstTargeting || Boolean(abilityDecision?.queue.some((q) => usesBoardTargetingForPrimary(q) || usesBoardTargetingForSecondary(q)));
+  const cinematicBurst = getResolutionPacing() !== "classic";
+  for (const id of cinematicBurst && !burstTargeting ? [] : (burstTargetChoice?.legalTargetIds ?? [])) {
     const side = sideOfUnit(id);
     if (side) abilityUnitTargetsByInstance.set(id, { specId: BURST_TARGET_KEY, pool: "primary", side, max: burstTargetChoice?.max ?? 1 });
   }
@@ -3645,6 +3685,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 aria-hidden
                 className="pointer-events-none invisible absolute left-0 top-0 aspect-[63/88] w-[var(--card-w-std,2.17rem)]"
               />
+              <div className={tableClear ? "pointer-events-none translate-y-[70%] opacity-25 transition-all duration-300" : "transition-all duration-300"}>
               <HandFan
                 anchored
                 cards={
@@ -3688,6 +3729,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 }}
                 onHoverCard={isWide ? setHoveredCard : undefined}
               />
+              </div>
               </>
             }
           />
@@ -3856,6 +3898,30 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           cardW={board.rectOf(`deckStation:${seat}`)?.width ?? 60}
           onDone={() => setBurstRevealedId(myBurstDecision.cardInstanceId)}
         />
+      ) : myBurstDecision && cinematicBurst ? (
+        <BurstDecisionStage
+          key={myBurstDecision.cardInstanceId}
+          decision={myBurstDecision}
+          art={art}
+          effectText={triggerEffectText(
+            (cardLanguage === "EN" ? cardText[myBurstDecision.cardDef?.code ?? ""]?.en : cardText[myBurstDecision.cardDef?.code ?? ""]?.pt) ??
+              cardText[myBurstDecision.cardDef?.code ?? ""]?.en,
+            "Burst",
+          )}
+          target={burstTargetChoice}
+          selectedCount={burstTargets.length}
+          busy={busy || answeredThisVersion}
+          trashAt={rectCenter(board.rectOf(`trashStation:${seat}`))}
+          trashW={board.rectOf(`trashStation:${seat}`)?.width ?? 60}
+          onTargetingChange={(on) => setBurstTargetingFor(on ? myBurstDecision.cardInstanceId : null)}
+          onResolve={(activate) =>
+            runAction(
+              activate && burstTargets.length > 0
+                ? { kind: "resolveBurstDecision", activate, targets: { target: burstTargets } }
+                : { kind: "resolveBurstDecision", activate },
+            )
+          }
+        />
       ) : myBurstDecision ? (
         <BurstModal
           decision={myBurstDecision}
@@ -4008,8 +4074,18 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         />
       ) : null}
 
-      {/* docs/19, Sessão 4 — feed de log de batalha (painel lateral retrátil / gaveta). */}
-      <BattleLogDrawer entries={battleLog} open={logOpen} onToggle={() => setLogOpen((o) => !o)} />
+      {oppPendingDecision?.kind === "burst" && !sceneLocked ? (
+        <div className="pointer-events-none fixed inset-x-0 top-3 z-[48] flex justify-center px-3" data-testid="opp-burst-notice">
+          <div className="flex items-center gap-2 rounded-arena border border-amber-400/50 bg-slate-950/90 px-3 py-1.5 text-xs font-bold text-amber-200 shadow-[0_0_18px_rgba(251,191,36,0.3)]">
+            <span className="size-2 animate-pulse rounded-full bg-amber-400" />
+            {tr(`Oponente decidindo o 【Burst】 · ${oppPendingDecision.cardDef?.nameEn ?? ""}`, `Opponent deciding the 【Burst】 · ${oppPendingDecision.cardDef?.nameEn ?? ""}`)}
+          </div>
+        </div>
+      ) : null}
+
+      {/* docs/19, Sessão 4 — feed de log de batalha (painel lateral retrátil / gaveta). P5: recolhido enquanto se escolhe
+          um alvo no campo (a mesa fica livre) */}
+      {tableClear ? null : <BattleLogDrawer entries={battleLog} open={logOpen} onToggle={() => setLogOpen((o) => !o)} />}
 
       {/* ZERO SYSTEM — Zero Coach HUD (Atalho 'Z') */}
       <ZeroCoachHud
@@ -4196,6 +4272,21 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         />
       ) : null}
       {playStage ? <PlayCardStage key={playStage.key} stage={playStage} art={art} /> : null}
+      {handTravel ? (
+        <CardTravel
+          key={`to-hand-${handTravel.key}`}
+          from={handTravel.from}
+          to={handTravel.player === seat ? handLandingPoint(handCardW(seat)) : rightEdgeOf(board.rectOf("hand:opponent") ?? board.rectOf(`hand:${handTravel.player}`))}
+          fromW={handTravel.fromW}
+          toW={handCardW(handTravel.player) ?? 60}
+          card={handTravel.card}
+          art={art}
+          flipOnArrival
+          timings={{ rise: SCENE_MS.toHand.rise, flip: 0, hold: 0, land: SCENE_MS.toHand.land }}
+          totalMs={SCENE_MS.toHand.rise + SCENE_MS.toHand.land + SCENE_MS.toHand.settle}
+          onDone={() => handTravelResolveRef.current?.()}
+        />
+      ) : null}
       {shieldTravel ? (
         <CardTravel
           key={`shield-${shieldTravel.key}`}
@@ -4257,7 +4348,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       {/* Slim Floating Action Ribbon (docs/52) — canto: fase/turno/timer,
           Passar turno, toggle de log e indicador discreto de ping/auto-pass.
           As decisões de jogada regular vivem no TopTacticalHUD acima. */}
-      {!gameOverResult && introStage === "complete" ? (
+      {!gameOverResult && introStage === "complete" && !tableClear ? (
         <ActionDock
           yourTurn={myTurnMain}
           turnIsMine={view.activePlayer === seat}

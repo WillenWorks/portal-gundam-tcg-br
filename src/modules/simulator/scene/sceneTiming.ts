@@ -44,6 +44,8 @@ export const SCENE_MS = {
   unrest: 600,
   /** Resource Phase: a carta do deck de recursos vira e pousa na área de recursos */
   resource: 700,
+  /** P5 — carta indo para a mão fora da compra */
+  toHand: { rise: 300, land: 300, settle: 50 },
   /** `executeAttackStrike`: avança, golpe, volta */
   strike: { advance: 260, hit: 220, back: 280 },
   /** cues do que um efeito fez (o número de dano sobe sobre o HP; o HP novo aparece no fim) */
@@ -173,6 +175,8 @@ export function beatBaseMs(beat: Beat, levelOf?: LevelOf): number {
     }
     case "draw":
       return drawMs();
+    case "toHand":
+      return SCENE_MS.toHand.rise + SCENE_MS.toHand.land + SCENE_MS.toHand.settle;
     case "strike":
       return SCENE_MS.strike.advance + SCENE_MS.strike.hit + SCENE_MS.strike.back;
     case "effects":
