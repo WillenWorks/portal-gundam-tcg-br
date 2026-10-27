@@ -1970,7 +1970,12 @@ export type GameEvent =
    */
   | { type: "CARD_PLAYED"; player: PlayerId; instanceId: string; as: "unit" | "base" | "pilot" | "command"; trigger?: "Main" | "Action" }
   /** Narração, sem efeito no estado: habilidade ativada (【Activate･Main/Action】, <Support>, 【Burst】). */
-  | { type: "ABILITY_ACTIVATED"; player: PlayerId; instanceId: string; trigger: string };
+  | { type: "ABILITY_ACTIVATED"; player: PlayerId; instanceId: string; trigger: string }
+  /**
+   * Narração, sem efeito no estado (spec simulador-cadencia-de-mesa, P1): o jogador decidiu o Mulligan. É público
+   * na mesa (todos veem a mão voltar ao deck); sem isto a troca não aparece, porque as cartas da mão são renumeradas.
+   */
+  | { type: "MULLIGAN_RESOLVED"; player: PlayerId; redraw: boolean };
 
 /**
  * Comprehensive Rules 3-3-6: Pilot pareado segue a Unit pro mesmo destino

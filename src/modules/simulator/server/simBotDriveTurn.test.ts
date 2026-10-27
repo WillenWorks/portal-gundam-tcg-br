@@ -8,7 +8,7 @@ import {
   getMatch,
 } from "./matchStore";
 import { SIM_BOT_USER_ID, createTrainingMatch } from "./trainingMatch";
-import { driveBotTurn, humanizedThinkDelay, humanizedThinkDelayMs, sceneAwareThinkDelay } from "../../../../services/sim-bot/driveBotTurn.mjs";
+import { driveBotTurn, humanizedThinkDelay, humanizedThinkDelayMs, sceneAwareThinkDelay, BOT_MULLIGAN_EVAL_EXTRA_MS } from "../../../../services/sim-bot/driveBotTurn.mjs";
 
 afterEach(() => {
   _resetAllMatchesForTests();
@@ -69,6 +69,15 @@ describe("driveBotTurn — worker sim-bot", () => {
     sleeps.length = 0;
     await sceneAwareThinkDelay(() => 0, sleep)({ thinkingMs: 5_000 });
     expect(sleeps).toEqual([0]);
+  });
+
+  it("sceneAwareThinkDelay: a mão inicial é avaliada com mais calma antes do Mulligan", async () => {
+    const sleeps: number[] = [];
+    const sleep = async (ms: number) => {
+      sleeps.push(ms);
+    };
+    await sceneAwareThinkDelay(() => 0, sleep)({ thinkingMs: 0, action: { kind: "resolveMulligan" } });
+    expect(sleeps[0]).toBeGreaterThanOrEqual(1000 + BOT_MULLIGAN_EVAL_EXTRA_MS);
   });
 
   it("humanizedThinkDelayMs fica sempre entre 1s e 2s", () => {

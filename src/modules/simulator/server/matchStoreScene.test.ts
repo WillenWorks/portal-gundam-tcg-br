@@ -11,7 +11,7 @@ import {
   setScenePace,
   setScenePacingEnabled,
 } from "./matchStore";
-import { SCENE_MS } from "../scene/sceneTiming";
+import { SCENE_MS, mulliganRedrawMs, openingIntroMs, setupFinishMs } from "../scene/sceneTiming";
 
 afterEach(() => {
   _resetAllMatchesForTests();
@@ -67,6 +67,35 @@ describe("cena no servidor (spec simulador-cadencia-de-mesa)", () => {
     expect(sceneWaitMsFor(match.id)).toBeGreaterThan(0);
     expect(matchViewFor(match, "B").scenePace).toBe("cinematic");
     expect(matchViewFor(match, "A").scenePace).toBe("classic");
+  });
+
+  it("abertura: moeda e mão inicial antes da 1ª decisão; troca de mão e o fim da preparação também viram cena", () => {
+    setScenePacingEnabled(true);
+    const match = createMatch({ deckA: buildSt01DeckList(), deckB: buildSt02DeckList(), seed: 1, firstPlayer: "A" });
+    joinMatch(match.id, "A", { userId: "user-1", displayName: "A" });
+    expect(sceneWaitMsFor(match.id)).toBe(0); // um assento só: ninguém vê a abertura ainda
+    joinMatch(match.id, "B", { userId: "user-2", displayName: "B" });
+    const opening = sceneWaitMsFor(match.id);
+    expect(opening).toBeGreaterThan(openingIntroMs() - 100);
+    expect(opening).toBeLessThanOrEqual(openingIntroMs());
+    // o 1º jogador troca a mão: os dois veem a mão voltar, embaralhar e 5 novas saírem
+    applyAction(match.id, "user-1", { kind: "resolveMulligan", keep: false });
+    const afterRedraw = sceneWaitMsFor(match.id);
+    expect(afterRedraw).toBeGreaterThanOrEqual(opening + mulliganRedrawMs() - 100);
+    // o 2º fica com a mão: escudos, EX e os banners do turno 1
+    applyAction(match.id, "user-2", { kind: "resolveMulligan", keep: true });
+    expect(sceneWaitMsFor(match.id)).toBeGreaterThanOrEqual(afterRedraw + setupFinishMs() - 100);
+  });
+
+  it("abertura no ritmo rápido não segura ninguém", () => {
+    setScenePacingEnabled(true);
+    const match = createMatch({ deckA: buildSt01DeckList(), deckB: buildSt02DeckList(), seed: 1, firstPlayer: "A" });
+    joinMatch(match.id, "A", { userId: "user-1", displayName: "A", scenePace: "classic" });
+    joinMatch(match.id, "B", { userId: "user-2", displayName: "B", scenePace: "classic" });
+    expect(sceneWaitMsFor(match.id)).toBe(0);
+    applyAction(match.id, "user-1", { kind: "resolveMulligan", keep: false });
+    applyAction(match.id, "user-2", { kind: "resolveMulligan", keep: true });
+    expect(sceneWaitMsFor(match.id)).toBe(0);
   });
 
   it("cenas em sequência se somam (a tela toca os lotes em fila)", () => {

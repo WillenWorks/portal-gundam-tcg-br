@@ -105,20 +105,18 @@ function targets(
 // revisão do plano de polimento, item 2 — valores-base a 1x. Escalados por
 // `getScaledDuration` no CORPO do componente (não aqui: `const` de módulo só
 // roda 1x no import, antes de qualquer velocidade salva existir).
-const DEAL_STAGGER_BASE_MS = 90;
-/** docs/53 — escudos usam um stagger mais lento que a mão: 6 cartas empilhando
- *  em 90ms cada ficavam borradas/quase simultâneas; 160ms deixa cada uma
- *  visivelmente voar e pousar antes da próxima sair da pilha. */
-const SHIELD_STAGGER_BASE_MS = 160;
-const FLIGHT_BASE_MS = 450;
-const HAND_REVEAL_HOLD_BASE_MS = 340;
-const SHIELD_STACK_HOLD_BASE_MS = 250;
-const RETURN_BASE_MS = 340;
-const SHUFFLE_BASE_MS = 1300;
-/** docs/56 tarefa 2 — saque de 1 carta por turno. Revisão do plano de
- *  polimento: 400ms cortava a carta antes do jogador conseguir ler o que
- *  comprou; 750ms (escalado por `getScaledDuration`, ver `animationSettings.ts`)
- *  dá tempo de ver a face real sem segurar o jogo. */
+// spec simulador-cadencia-de-mesa (P1) — os tempos da abertura moram em `SCENE_MS.opening` (o servidor espera os
+// mesmos). Escudos usam um stagger mais lento que a mão (docs/53): cada um voa e pousa antes do próximo sair.
+const {
+  dealStagger: DEAL_STAGGER_BASE_MS,
+  shieldStagger: SHIELD_STAGGER_BASE_MS,
+  flight: FLIGHT_BASE_MS,
+  handRevealHold: HAND_REVEAL_HOLD_BASE_MS,
+  shieldStackHold: SHIELD_STACK_HOLD_BASE_MS,
+  mulliganReturn: RETURN_BASE_MS,
+  shuffle: SHUFFLE_BASE_MS,
+} = SCENE_MS.opening;
+/** docs/56 tarefa 2 — saque de 1 carta por turno: 750ms dá tempo de ver a face real sem segurar o jogo. */
 const SINGLE_DRAW_BASE_MS = SCENE_MS.draw;
 
 export function DeckDealAnimation({

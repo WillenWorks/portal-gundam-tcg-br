@@ -10,7 +10,8 @@ import { buildBattleLog, type BattleLogEntry } from "../ui/battleLog";
 import type { HeuristicLevel } from "../engine/bot";
 import type { ZeroCounterSummary } from "../engine/bot/zeroCounter";
 import { hasOwnDeploy, type PendingAttack } from "../scene/choreography";
-import { sceneDurationMs, slowestPace, type ScenePace } from "../scene/sceneTiming";
+import { mulliganRedrawMs, openingIntroMs, sceneDurationMs, setupFinishMs, slowestPace, type ScenePace } from "../scene/sceneTiming";
+import { mulliganRedraws } from "../scene/openingScene";
 import {
   applySideboardSwap,
   type DeckListWithSideboard,
@@ -177,6 +178,8 @@ export interface MatchRecord {
   sceneEndsAt?: number | null;
   /** onde a próxima cena começa: o que a última conta de cena deixou na mesa */
   sceneCursor?: SceneCursor;
+  /** a abertura (moeda, decks, embaralhar, mão inicial) já entrou na conta deste jogo */
+  sceneOpeningCounted?: boolean;
 }
 
 interface SceneCursor {
@@ -1221,9 +1224,24 @@ function sceneCursorFor(state: GameState, pendingAttack: PendingAttack | null): 
   };
 }
 
+/** a tela toca as cenas em fila: uma nova começa quando a anterior acabar */
+function extendScene(match: MatchRecord, durationMs: number): void {
+  if (durationMs <= 0) return;
+  match.sceneEndsAt = Math.max(Date.now(), match.sceneEndsAt ?? 0) + durationMs;
+}
+
+function matchScenePace(match: MatchRecord): ScenePace {
+  return slowestPace(PLAYER_IDS.map((p) => match.seats[p]).filter((s) => s && !s.bot).map((s) => s?.scenePace));
+}
+
 /** conta a cena dos eventos novos desde a última conta (idempotente: sem eventos novos, nada muda) */
 function refreshScene(match: MatchRecord): void {
   const state = match.state;
+  // P1: com os dois assentos ocupados, as duas telas tocam a abertura antes da 1ª decisão de Mulligan
+  if (scenePacingEnabled && !match.sceneOpeningCounted && isSetupState(state) && match.seats.A && match.seats.B) {
+    match.sceneOpeningCounted = true;
+    if (matchScenePace(match) !== "classic") extendScene(match, openingIntroMs());
+  }
   const cursor = match.sceneCursor;
   if (cursor && cursor.seq === state.eventLog.length) return;
   // 1ª conta (partida nova, re-hidratada, ou jogo novo do Bo3 com log zerado): só marca o ponto de partida
@@ -1232,7 +1250,7 @@ function refreshScene(match: MatchRecord): void {
     return;
   }
   const events = state.eventLog.slice(cursor.seq);
-  const humanSeats = PLAYER_IDS.map((p) => match.seats[p]).filter((s) => s && !s.bot);
+  const pace = matchScenePace(match);
   const { durationMs, pendingAttack } = sceneDurationMs({
     events,
     pendingAttack: cursor.pendingAttack,
@@ -1244,11 +1262,14 @@ function refreshScene(match: MatchRecord): void {
       const decision = state.pendingDecision[p];
       return Boolean(decision && decision.kind !== "burst" && hasOwnDeploy(events, p));
     }),
-    pace: slowestPace(humanSeats.map((s) => s?.scenePace)),
+    pace,
   });
-  if (durationMs > 0) {
-    // a tela toca os lotes em fila: uma cena nova começa quando a anterior acabar
-    match.sceneEndsAt = Math.max(Date.now(), match.sceneEndsAt ?? 0) + durationMs;
+  extendScene(match, durationMs);
+  // P1: a preparação tem coreografia própria — a troca de mão (vista pelos dois) e, quando os dois decidiram,
+  // escudos, EX Base/Resource e os banners do turno 1
+  if (cursor.fromSetup && pace !== "classic") {
+    extendScene(match, mulliganRedraws(events).length * mulliganRedrawMs());
+    if (!isSetupState(state)) extendScene(match, setupFinishMs());
   }
   match.sceneCursor = sceneCursorFor(state, pendingAttack);
 }
@@ -1438,6 +1459,8 @@ export function startNextBo3Game(match: MatchRecord, chooserFirstPlayer?: Player
     : createGame(deckA, deckB, { seed, firstPlayer, interactiveMulligan: true });
 
   match.state = newState;
+  // jogo novo do Bo3: a abertura toca de novo nas duas telas
+  match.sceneOpeningCounted = false;
   match.currentGameIndex = (match.currentGameIndex ?? 1) + 1;
   match.matchStatus = "PLAYING";
   match.sideboardDeadlineAt = null;

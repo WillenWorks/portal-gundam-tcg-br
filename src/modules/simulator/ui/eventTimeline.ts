@@ -80,6 +80,8 @@ const STEP_OF: Mapper = {
 
   // contabilidade do motor: passes, passos do combate, marcas de turno, reordenação oculta do deck
   ACTION_PASS: () => null,
+  // a abertura tem coreografia própria (spec simulador-cadencia-de-mesa, P1)
+  MULLIGAN_RESOLVED: () => null,
   COMBAT_STEP_CHANGE: () => null,
   BEGIN_END_PHASE_ACTION_STEP: () => null,
   END_PHASE_ACTION_PASS: () => null,

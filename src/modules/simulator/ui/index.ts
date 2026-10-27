@@ -16,6 +16,7 @@ export { BurstModal } from "./BurstModal";
 export { BurstRevealStage, type BurstRevealOrigin } from "./BurstRevealStage";
 export { MulliganModal } from "./MulliganModal";
 export { FirstPlayerReveal } from "./FirstPlayerReveal";
+export { CoinToss, coinRotation, type CoinFace } from "./CoinToss";
 export { TriggerOrderModal } from "./TriggerOrderModal";
 export {
   AbilityResolutionModal,
