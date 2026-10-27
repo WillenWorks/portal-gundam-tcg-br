@@ -65,6 +65,8 @@ interface BattleSlotProps {
   justDeployed?: "light" | "heavy";
   /** spec simulador-cadencia-de-mesa (P2) — a Unit está desvirando agora (Start Phase): gira da horizontal à vertical */
   unresting?: boolean;
+  /** P3 — a Unit está sendo deitada agora (custo, efeito): gira da vertical à horizontal */
+  resting?: boolean;
   /** Frente 4 — animação de ataque: avanço tático contra a unidade ou escudo inimigo,
    *  com fase de avanço/strike e fase de recuo de volta pro slot. */
   attacking?: { towardX: number; towardY: number; phase?: "advance" | "strike" | "return" } | null;
@@ -130,6 +132,7 @@ export function BattleSlot({
   registerRef,
   justDeployed,
   unresting,
+  resting,
   attacking,
   onEmptySlotClick,
   emptySlotActive,
@@ -156,6 +159,8 @@ export function BattleSlot({
       // ficaria mais alta só quando algum slot da fileira tem Piloto pareado,
       // e as vazias/sem-piloto pareciam "cair pra cima".
       <div
+        // a vaga vazia também é medida: a carta jogada (P3) pousa exatamente aqui
+        ref={registerRef}
         className={cn(
           "flex w-full flex-col transition-all duration-200",
           emptySlotActive && "cursor-pointer scale-[1.02]",
@@ -356,6 +361,7 @@ export function BattleSlot({
           legalTarget || isAbilityTarget || bodyInspects ? "cursor-pointer" : "cursor-default",
           justDeployed === "light" && "sim-anim-land-soft",
           unresting && "sim-anim-unrest",
+          resting && "sim-anim-rest",
           justDeployed === "heavy" && "sim-anim-drop-heavy",
         )}
       >

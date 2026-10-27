@@ -127,7 +127,7 @@ export function HandFan({
           return (
             <div
               key={card.instanceId}
-              data-hand-card
+              data-hand-card={card.instanceId}
               data-playable={playable}
               title={blockedReason}
               style={style}

@@ -9,7 +9,7 @@ import { createRng } from "../engine/rng";
 import { DECK_BUILDERS, GOLDEN_PAIRS } from "../engine/__golden__/harness";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
 import { planChoreography, type PendingAttack } from "./choreography";
-import { SCENE_MS, beatBaseMs, beatsDurationMs, drawMs, sceneDurationMs, slowestPace, turnStartMs, type SceneInput, type ScenePace } from "./sceneTiming";
+import { SCENE_MS, beatBaseMs, beatsDurationMs, drawMs, landsHeavy, payMs, sceneDurationMs, slowestPace, turnStartMs, type SceneInput, type ScenePace } from "./sceneTiming";
 import { SCENE_LOCK_MAX_WAIT_MS, localSceneEnd, sceneLockWaitMs } from "./sceneLock";
 
 const opts = { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver };
@@ -33,11 +33,25 @@ const deployWithEffect: GameEvent[] = [
 ];
 
 describe("sceneDurationMs — quanto a cena dura na tela, igual para quem vê", () => {
-  it("a cena dura o tempo da visão mais longa: a Command do A o oponente vê, o próprio A não vê de novo", () => {
-    const forB = planChoreography({ events: [command], viewerSeat: "B", pendingAttack: null, phase: "main" }).beats;
-    const forA = planChoreography({ events: [command], viewerSeat: "A", pendingAttack: null, phase: "main" }).beats;
+  it("a cena dura o tempo da visão mais longa: o 【Burst】 do A o oponente vê anunciado, o próprio A já viu", () => {
+    const burst: GameEvent = { type: "ABILITY_ACTIVATED", player: "A", instanceId: "s1", trigger: "Burst" };
+    const forB = planChoreography({ events: [burst], viewerSeat: "B", pendingAttack: null, phase: "main" }).beats;
+    const forA = planChoreography({ events: [burst], viewerSeat: "A", pendingAttack: null, phase: "main" }).beats;
     expect(forA).toEqual([]);
-    expect(scene([command])).toBe(beatsDurationMs(forB, "cinematic") + SCENE_MS.margin);
+    expect(scene([burst])).toBe(beatsDurationMs(forB, "cinematic") + SCENE_MS.margin);
+  });
+
+  it("P3: carta jogada — o custo gira um a um, a Unit do Lv 5+ cai pesada (dura mais), a Command é usada no centro", () => {
+    const p = SCENE_MS.play;
+    const unit = (paid: string[]) => ({ kind: "play" as const, player: "A" as const, instanceId: "u1", as: "unit" as const, paid });
+    expect(payMs(0)).toBe(0);
+    expect(payMs(3)).toBe(p.paySettle + 2 * p.payPerCard);
+    expect(beatBaseMs(unit(["r1"]), () => 3)).toBe(p.rise + p.hold + payMs(1) + p.drop + p.land);
+    expect(beatBaseMs(unit(["r1"]), () => 5)).toBe(p.rise + p.hold + payMs(1) + p.dropHeavy + p.landHeavy);
+    expect(landsHeavy(4)).toBe(false);
+    expect(landsHeavy(5)).toBe(true);
+    expect(beatBaseMs({ ...unit([]), as: "command" })).toBe(p.rise + p.hold + p.used);
+    expect(scene([command])).toBeGreaterThan(0);
   });
 
   it("ritmo rápido e a abertura não seguram ninguém", () => {

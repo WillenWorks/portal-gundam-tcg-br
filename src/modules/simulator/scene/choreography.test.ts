@@ -31,8 +31,8 @@ describe("planChoreography — uma coisa de cada vez, na ordem do motor", () => 
       { type: "DAMAGE_UNIT", instanceId: "a1", amount: 2 } as GameEvent,
       { type: "DAMAGE_UNIT", instanceId: "a2", amount: 2 } as GameEvent,
     ]);
-    expect(kinds(beats)).toEqual(["deploy", "announce", "effects"]);
-    expect(beats[1]).toEqual({ kind: "announce", player: "B", instanceId: "u1", trigger: "Deploy" });
+    expect(kinds(beats)).toEqual(["play", "announce", "effects"]);
+    expect(beats[1]).toEqual({ kind: "announce", player: "B", instanceId: "u1", trigger: "Deploy", paid: [] });
     // o mesmo efeito em dois alvos aparece junto (um tempo só)
     expect(beats[2].kind === "effects" && beats[2].events).toHaveLength(2);
   });
@@ -53,21 +53,46 @@ describe("planChoreography — uma coisa de cada vez, na ordem do motor", () => 
     expect(kinds(beats)).toEqual(["announce", "effects", "announce", "effects"]);
   });
 
-  it("minha jogada sozinha não segura a fila; seguida de efeito, entra antes dele", () => {
+  it("P3: a minha jogada também tem o tempo dela (igual à do oponente), com o custo pago junto", () => {
     const deploy: GameEvent = { type: "CARD_PLAYED", player: "A", instanceId: "u1", as: "unit" };
-    expect(plan([deploy, { type: "DEPLOY_AS_UNIT", instanceId: "u1" } as GameEvent]).beats).toEqual([]);
-    expect(kinds(plan([deploy, { type: "ABILITY_ACTIVATED", player: "A", instanceId: "u1", trigger: "Deploy" }]).beats)).toEqual(["deploy", "announce"]);
+    const paid: GameEvent[] = [
+      { type: "REST_CARD", instanceId: "r1" },
+      { type: "REST_CARD", instanceId: "r2" },
+    ];
+    const { beats } = plan([deploy, ...paid, { type: "MOVE_CARD", instanceId: "u1", toZone: "battleArea" }], "A", "main", null, new Set(["r1", "r2"]));
+    expect(beats).toEqual([{ kind: "play", player: "A", instanceId: "u1", as: "unit", paid: ["r1", "r2"] }]);
+    // o oponente vê o mesmo tempo
+    expect(plan([deploy, ...paid], "B", "main", null, new Set(["r1", "r2"])).beats).toEqual(beats);
+    expect(kinds(plan([deploy, { type: "ABILITY_ACTIVATED", player: "A", instanceId: "u1", trigger: "Deploy" }]).beats)).toEqual(["play", "announce"]);
     expect(hasOwnDeploy([deploy], "A")).toBe(true);
     expect(hasOwnDeploy([deploy], "B")).toBe(false);
   });
 
-  it("Command: a do oponente tem o lançamento (a minha tocou antes do envio); os efeitos dela vêm em seguida", () => {
+  it("Command: o mesmo tempo para os dois lados; os efeitos vêm em seguida e ela vai à lixeira sem voo", () => {
     const cmd = (player: PlayerId): GameEvent[] => [
       { type: "CARD_PLAYED", player, instanceId: "c1", as: "command", trigger: "Main" },
       { type: "HEAL_UNIT", instanceId: "u1", amount: 2 } as GameEvent,
+      { type: "MOVE_CARD", instanceId: "c1", toZone: "trash" },
     ];
-    expect(kinds(plan(cmd("B")).beats)).toEqual(["opponentCommand", "effects"]);
-    expect(kinds(plan(cmd("A")).beats)).toEqual(["effects"]);
+    expect(kinds(plan(cmd("B")).beats)).toEqual(["play", "effects"]);
+    expect(kinds(plan(cmd("A")).beats)).toEqual(["play", "effects"]);
+  });
+
+  it("【Activate】: o custo pago vai com o anúncio; recurso deitado/levantado por efeito vira tempo (gira na mesa)", () => {
+    const resources = new Set(["r1", "r2"]);
+    const { beats } = plan(
+      [
+        { type: "ABILITY_ACTIVATED", player: "A", instanceId: "u1", trigger: "Activate·Main" },
+        { type: "REST_CARD", instanceId: "r1" },
+        { type: "SET_ACTIVE", instanceId: "r2" },
+      ],
+      "B",
+      "main",
+      null,
+      resources,
+    );
+    expect(beats[0]).toEqual({ kind: "announce", player: "A", instanceId: "u1", trigger: "Activate·Main", paid: ["r1"] });
+    expect(beats[1]).toEqual({ kind: "effects", events: [{ type: "SET_ACTIVE", instanceId: "r2" }] });
   });
 
   it("【Burst】: o do oponente é anunciado; o meu já teve revelação e modal", () => {
@@ -107,9 +132,11 @@ describe("planChoreography — uma coisa de cada vez, na ordem do motor", () => 
     expect(kinds(plan([{ type: "COMBAT_ENDED" }], "A", "main", first.pendingAttack).beats)).toEqual(["strike"]);
   });
 
-  it("estrutura do turno (ativar tudo no Start, recurso pago) não vira cue", () => {
+  it("estrutura do turno (ativar tudo no Start) não vira cue; o recurso pago vai com a carta", () => {
     expect(plan([{ type: "SET_ACTIVE", instanceId: "u1" }], "A", "start").beats).toEqual([]);
-    expect(plan([{ type: "REST_CARD", instanceId: "r1" }], "A", "main", null, new Set(["r1"])).beats).toEqual([]);
+    expect(
+      kinds(plan([{ type: "CARD_PLAYED", player: "A", instanceId: "u1", as: "unit" }, { type: "REST_CARD", instanceId: "r1" }], "A", "main", null, new Set(["r1"])).beats),
+    ).toEqual(["play"]);
     expect(kinds(plan([{ type: "REST_CARD", instanceId: "u9" }]).beats)).toEqual(["effects"]);
   });
 

@@ -28,8 +28,13 @@ export function slowestPace(paces: readonly (ScenePace | undefined)[]): ScenePac
 export const SCENE_MS = {
   /** `ActivationAnnouncement`: sobe, segura, sai */
   announce: { rise: 280, hold: 760, out: 240 },
-  /** entrada em campo usa o mesmo componente, com espera menor */
+  /** entrada em campo usa o mesmo componente, com espera menor (ritmo rápido) */
   deployHold: 420,
+  /**
+   * P3 — carta jogada da mão (`PlayCardStage`): sobe à mostra, os recursos pagos giram um a um, e ela cai no campo
+   * (suave até Lv 4, pesada do Lv 5 em diante, com tremor) ou é usada no centro (Command)
+   */
+  play: { rise: 420, hold: 380, payPerCard: 170, paySettle: 450, drop: 420, dropHeavy: 520, land: 500, landHeavy: 700, used: 520 },
   /** `CommandCastAnimation` */
   command: { rise: 320, hold: 700, fly: 360, settle: 160 },
   /** compra (P2, `CardTravel`): a minha sai do deck, vem ao centro, vira, fica à mostra e pousa à direita da mão; a do
@@ -120,17 +125,33 @@ export function setupFinishMs(): number {
   return dealShieldsMs() + O.exReveal + turnStartMs();
 }
 
-/** tempos cuja espera segue o `tempo` do lote (e o ritmo); golpe, Command e compra têm duração própria */
-const TEMPO_SCALED = new Set<Beat["kind"]>(["announce", "deploy", "effects", "departure"]);
+/** tempos cuja espera segue o `tempo` do lote (e o ritmo); a carta jogada, o golpe e a compra têm duração própria */
+const TEMPO_SCALED = new Set<Beat["kind"]>(["announce", "effects", "departure"]);
 
-export function beatBaseMs(beat: Beat): number {
+/** Unit do Lv 5 em diante cai pesada na mesa (com tremor); até o Lv 4, pousa suave */
+export function landsHeavy(level: number | undefined): boolean {
+  return (level ?? 0) >= 5;
+}
+
+/** os recursos pagos giram um a um; o último ainda termina de girar */
+export function payMs(count: number): number {
+  return count > 0 ? SCENE_MS.play.paySettle + (count - 1) * SCENE_MS.play.payPerCard : 0;
+}
+
+/** nível da carta pelo id (a tela e o servidor conhecem as definições); sem ele, a conta usa o pouso suave */
+export type LevelOf = (instanceId: string) => number | undefined;
+
+export function beatBaseMs(beat: Beat, levelOf?: LevelOf): number {
   switch (beat.kind) {
     case "announce":
-      return SCENE_MS.announce.rise + SCENE_MS.announce.hold + SCENE_MS.announce.out;
-    case "deploy":
-      return SCENE_MS.announce.rise + SCENE_MS.deployHold + SCENE_MS.announce.out;
-    case "opponentCommand":
-      return SCENE_MS.command.rise + SCENE_MS.command.hold + SCENE_MS.command.fly;
+      return SCENE_MS.announce.rise + SCENE_MS.announce.hold + SCENE_MS.announce.out + payMs(beat.paid.length);
+    case "play": {
+      const p = SCENE_MS.play;
+      const shown = p.rise + p.hold + payMs(beat.paid.length);
+      if (beat.as === "command") return shown + p.used;
+      if (beat.as === "unit" && landsHeavy(levelOf?.(beat.instanceId))) return shown + p.dropHeavy + p.landHeavy;
+      return shown + p.drop + p.land;
+    }
     case "draw":
       return drawMs();
     case "strike":
@@ -143,10 +164,10 @@ export function beatBaseMs(beat: Beat): number {
 }
 
 /** quanto os tempos de uma visão seguram a fila, já com o `tempo` do lote e o ritmo */
-export function beatsDurationMs(beats: readonly Beat[], pace: ScenePace): number {
+export function beatsDurationMs(beats: readonly Beat[], pace: ScenePace, levelOf?: LevelOf): number {
   const factor = SCENE_PACE_FACTOR[pace];
   const tempo = tempoFor(beats) * factor;
-  return beats.reduce((ms, beat) => ms + beatBaseMs(beat) * (TEMPO_SCALED.has(beat.kind) ? tempo : 1), 0);
+  return beats.reduce((ms, beat) => ms + beatBaseMs(beat, levelOf) * (TEMPO_SCALED.has(beat.kind) ? tempo : 1), 0);
 }
 
 export interface SceneInput {
@@ -165,6 +186,8 @@ export interface SceneInput {
   /** depois do lote há escolha de efeito pendente para quem acabou de pôr uma carta em campo */
   endsWithDeployChoice: boolean;
   pace: ScenePace;
+  /** nível das cartas jogadas (pouso pesado dura mais) */
+  levelOf?: LevelOf;
 }
 
 /**
@@ -183,7 +206,7 @@ export function sceneDurationMs(input: SceneInput): { durationMs: number; pendin
       resourceIds: input.resourceIds,
     });
     pendingAttack = plan.pendingAttack;
-    longest = Math.max(longest, beatsDurationMs(plan.beats, input.pace));
+    longest = Math.max(longest, beatsDurationMs(plan.beats, input.pace, input.levelOf));
   }
   if (input.pace === "classic" || input.fromSetup) return { durationMs: 0, pendingAttack };
 
