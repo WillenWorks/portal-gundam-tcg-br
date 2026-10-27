@@ -9,7 +9,7 @@ import { createRng } from "../engine/rng";
 import { DECK_BUILDERS, GOLDEN_PAIRS } from "../engine/__golden__/harness";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
 import { planChoreography, type PendingAttack } from "./choreography";
-import { SCENE_MS, beatBaseMs, beatsDurationMs, sceneDurationMs, slowestPace, type SceneInput, type ScenePace } from "./sceneTiming";
+import { SCENE_MS, beatBaseMs, beatsDurationMs, drawMs, sceneDurationMs, slowestPace, turnStartMs, type SceneInput, type ScenePace } from "./sceneTiming";
 import { SCENE_LOCK_MAX_WAIT_MS, localSceneEnd, sceneLockWaitMs } from "./sceneLock";
 
 const opts = { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver };
@@ -63,8 +63,10 @@ describe("sceneDurationMs — quanto a cena dura na tela, igual para quem vê", 
 
   it("virada de turno soma os banners; revelação do 【Burst】 e o pouso antes do modal também", () => {
     const turn: GameEvent[] = [{ type: "TURN_CHANGE", turnNumber: 2, activePlayer: "B" }];
-    expect(scene(turn)).toBe(6 * SCENE_MS.banner + SCENE_MS.margin);
-    expect(scene(turn, { phase: "end" })).toBe(5 * SCENE_MS.banner + SCENE_MS.margin);
+    // fim do turno anterior (1 ou 2 banners) + começo do novo: 5 banners, desvirar, comprar, pôr o recurso
+    expect(scene(turn)).toBe(2 * SCENE_MS.banner + turnStartMs() + SCENE_MS.margin);
+    expect(scene(turn, { phase: "end" })).toBe(SCENE_MS.banner + turnStartMs() + SCENE_MS.margin);
+    expect(turnStartMs()).toBe(5 * SCENE_MS.banner + SCENE_MS.unrest + drawMs() + SCENE_MS.resource);
     const burst = SCENE_MS.burstReveal.fly + SCENE_MS.burstReveal.flip + SCENE_MS.burstReveal.hold;
     expect(scene(deployWithEffect, { endsWithBurstDecision: true }) - scene(deployWithEffect)).toBe(burst);
     expect(scene(deployWithEffect, { endsWithDeployChoice: true }) - scene(deployWithEffect)).toBe(SCENE_MS.modalHold);

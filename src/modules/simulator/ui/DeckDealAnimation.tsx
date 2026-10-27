@@ -116,8 +116,8 @@ const {
   mulliganReturn: RETURN_BASE_MS,
   shuffle: SHUFFLE_BASE_MS,
 } = SCENE_MS.opening;
-/** docs/56 tarefa 2 — saque de 1 carta por turno: 750ms dá tempo de ver a face real sem segurar o jogo. */
-const SINGLE_DRAW_BASE_MS = SCENE_MS.draw;
+/** docs/56 tarefa 2 — saque simples de 1 carta (a compra do turno e a por efeito usam `CardTravel` desde o P2). */
+const SINGLE_DRAW_BASE_MS = 750;
 
 export function DeckDealAnimation({
   mode,

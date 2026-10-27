@@ -134,7 +134,9 @@ import type { BurstTargetChoice } from "@/modules/simulator/ui/BurstModal";
 import { findAltDiscardCandidates, findEligibleSacrifices, playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
 import { getResolutionPacing, getScaledDuration, type ResolutionPacing } from "@/modules/simulator/ui/animationSettings";
 import { hasOwnDeploy, planChoreography, tempoFor } from "@/modules/simulator/scene/choreography";
-import { SCENE_MS, SCENE_PACE_FACTOR } from "@/modules/simulator/scene/sceneTiming";
+import { SCENE_MS, SCENE_PACE_FACTOR, drawMs } from "@/modules/simulator/scene/sceneTiming";
+import { drawnCard, placedResource, unrestedIds } from "@/modules/simulator/scene/turnStart";
+import { CardTravel, type TravelPoint } from "@/modules/simulator/ui/CardTravel";
 import { mulliganRedraws } from "@/modules/simulator/scene/openingScene";
 import { localSceneEnd, sceneLockWaitMs } from "@/modules/simulator/scene/sceneLock";
 import { revealBeat } from "@/modules/simulator/scene/viewPatcher";
@@ -305,6 +307,23 @@ function handCenter(r: DOMRect | null, cardW?: number | null): { x: number; y: n
   };
 }
 
+/** ponto à direita da última carta da mão (onde a carta comprada entra); sem cartas, o meio da mão */
+function handLandingPoint(cardW: number | null | undefined): TravelPoint | null {
+  if (typeof document === "undefined") return null;
+  const cards = document.querySelectorAll("[data-hand-card]");
+  const last = cards[cards.length - 1];
+  if (!last) return null;
+  const r = last.getBoundingClientRect();
+  const w = cardW && cardW > 0 ? cardW : r.width;
+  return { x: r.right + w * 0.55, y: r.top + r.height / 2 };
+}
+
+/** borda direita de uma faixa (mão do oponente, linha de recursos): onde a carta nova entra */
+function rightEdgeOf(r: DOMRect | null): TravelPoint | null {
+  if (!r) return null;
+  return { x: r.right, y: r.top + r.height / 2 };
+}
+
 /**
  * View já saiu da preparação (mulligan). `Phase` não tem valor "setup" — a
  * preparação é só o período com mulligan pendente em algum assento.
@@ -466,6 +485,16 @@ export function buildTurn1StagedViews(current: SimulatorMatchView): {
     },
   };
 
+  // o recurso posto neste turno só aparece na Resource Phase (o EX Resource já estava na mesa)
+  const withoutPlacedResource = (p: ViewPlayerState): ViewPlayerState => {
+    const resourceArea = p.resourceArea.filter((c) => isHidden(c) || (c as CardInstance).def.isToken);
+    return { ...p, resourceArea, counts: { ...p.counts, resourceArea: resourceArea.length, resourceDeck: p.counts.resourceDeck + (p.resourceArea.length - resourceArea.length) } };
+  };
+  const viewBeforeResource = (v: SimulatorMatchView): SimulatorMatchView => ({
+    ...v,
+    view: { ...v.view, players: { ...v.view.players, [active]: withoutPlacedResource(v.view.players[active]) } },
+  });
+
   const viewDraw: SimulatorMatchView = {
     ...current,
     ...heldFromMenu(current),
@@ -476,9 +505,9 @@ export function buildTurn1StagedViews(current: SimulatorMatchView): {
   };
 
   return {
-    viewAnnounced: viewBeforeDraw,
-    viewRecovery: viewBeforeDraw,
-    viewDraw,
+    viewAnnounced: viewBeforeResource(viewBeforeDraw),
+    viewRecovery: viewBeforeResource(viewBeforeDraw),
+    viewDraw: viewBeforeResource(viewDraw),
     viewMain: current,
   };
 }
@@ -736,13 +765,6 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     });
   }, []);
 
-  interface TurnStagedViews {
-    actingPlayer: PlayerId;
-    viewRecovery: SimulatorMatchView;
-    viewDraw: SimulatorMatchView;
-    viewMain: SimulatorMatchView;
-  }
-  const turnStagedViewsRef = useRef<TurnStagedViews | null>(null);
 
   // Confirmação explícita de encerramento de turno sob demanda (não trava a tela no idle)
   const [showEndTurnConfirm, setShowEndTurnConfirm] = useState(false);
@@ -850,6 +872,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const announcementResolveRef = useRef<(() => void) | null>(null);
   const [effectDraw, setEffectDraw] = useState<{ key: number; player: PlayerId; card?: CardInstance } | null>(null);
   const effectDrawResolveRef = useRef<(() => void) | null>(null);
+  // spec simulador-cadencia-de-mesa (P2) — começo de turno: cartas desvirando e o recurso entrando
+  const [unrestIds, setUnrestIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [resourceTravel, setResourceTravel] = useState<{ key: number; player: PlayerId; card: CardInstance } | null>(null);
+  const resourceTravelResolveRef = useRef<(() => void) | null>(null);
   /** o modal de escolha espera a minha carta pousar (a escolha do 【Deploy】 vem depois da carta em campo) */
   const [modalHold, setModalHold] = useState(false);
   const beatKeyRef = useRef(0);
@@ -869,6 +895,65 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       }),
     [],
   );
+
+  /**
+   * spec simulador-cadencia-de-mesa (P2) — começo de turno, na ordem da regra: cada banner sai e SÓ ENTÃO a fase
+   * acontece. Recuperação: as cartas descansadas giram de volta. Compra: a carta sai do deck (a minha passa pelo centro
+   * à mostra e pousa à direita da mão). Recurso: a carta do deck de recursos vira e pousa. Tempos de `SCENE_MS` (o
+   * servidor espera o mesmo, `turnStartMs`).
+   */
+  const playTurnStart = useCallback(
+    async (
+      staged: { viewAnnounced: SimulatorMatchView; viewRecovery: SimulatorMatchView; viewDraw: SimulatorMatchView; viewMain: SimulatorMatchView },
+      viewerSeat: PlayerId,
+    ) => {
+      const acting = staged.viewMain.view.activePlayer;
+      const isMyTurn = acting === viewerSeat;
+      const pause = (baseMs: number) => new Promise<void>((resolve) => setTimeout(resolve, getScaledDuration(baseMs)));
+      const banner = async (name: string) => {
+        enqueuePhaseBanners([name]);
+        await waitForPhaseBanners();
+      };
+      setMatchView(staged.viewAnnounced);
+      if (isMyTurn) sfx.playNewtypeFlash();
+      await banner(isMyTurn ? "SEU TURNO" : "TURNO DO OPONENTE");
+
+      await banner("FASE DE RECUPERAÇÃO");
+      const standing = unrestedIds(staged.viewAnnounced.view, staged.viewRecovery.view, acting);
+      setUnrestIds(standing);
+      setMatchView(staged.viewRecovery);
+      if (standing.size > 0) sfx.playDeploy();
+      await pause(SCENE_MS.unrest);
+      setUnrestIds(new Set());
+
+      await banner("FASE DE COMPRA");
+      const drawn = drawnCard(staged.viewRecovery.view, staged.viewDraw.view, acting);
+      if (drawn) {
+        sfx.playCardDraw();
+        await playOverlay(setEffectDraw, effectDrawResolveRef, {
+          key: ++beatKeyRef.current,
+          player: acting,
+          card: isHidden(drawn) ? undefined : (drawn as CardInstance),
+        });
+      } else {
+        await pause(drawMs());
+      }
+      setMatchView(staged.viewDraw);
+
+      await banner("FASE DE RECURSO");
+      const resource = placedResource(staged.viewDraw.view, staged.viewMain.view, acting);
+      if (resource) {
+        await playOverlay(setResourceTravel, resourceTravelResolveRef, { key: ++beatKeyRef.current, player: acting, card: resource });
+      } else {
+        await pause(SCENE_MS.resource);
+      }
+      setMatchView({ ...staged.viewMain, ...heldFromMenu(staged.viewMain) });
+
+      await banner("FASE PRINCIPAL");
+    },
+    [enqueuePhaseBanners, waitForPhaseBanners, playOverlay],
+  );
+
 
   const executeAttackStrike = useCallback(
     async (attackerId: string, currentTarget: AttackTarget, defendingPlayer: PlayerId) => {
@@ -1251,26 +1336,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
       if (isTurnChange) {
         const staged = buildTurnStagedViews(shownAfterBeats ?? prevView, incoming);
-        // Fecha o turno anterior ANTES de armar turnStagedViewsRef e mostrar a mesa do novo turno.
+        // Fecha o turno anterior ANTES de mostrar a mesa do novo turno.
         enqueuePhaseBanners(endOfTurnBanners(prevView));
         await waitForPhaseBanners();
-        turnStagedViewsRef.current = {
-          actingPlayer: incoming.view.activePlayer,
-          viewRecovery: staged.viewRecovery,
-          viewDraw: staged.viewDraw,
-          viewMain: staged.viewMain,
-        };
-        setMatchView(staged.viewAnnounced);
-        const isMyTurn = incoming.view.activePlayer === incoming.seat;
-        if (isMyTurn) sfx.playNewtypeFlash();
-        enqueuePhaseBanners([
-          isMyTurn ? "SEU TURNO" : "TURNO DO OPONENTE",
-          "FASE DE RECUPERAÇÃO",
-          "FASE DE COMPRA",
-          "FASE PRINCIPAL",
-        ]);
-        await waitForPhaseBanners();
-        turnStagedViewsRef.current = null;
+        await playTurnStart(staged, incoming.seat);
         setMatchView(incoming);
       } else {
         setMatchView((prev) => {
@@ -1304,7 +1373,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         });
       }
     },
-    [executeAttackStrike, detectDepartures, launchDepartures, waitForBurstReveal, board, enqueuePhaseBanners, waitForPhaseBanners, playOverlay, art],
+    [executeAttackStrike, detectDepartures, launchDepartures, waitForBurstReveal, board, enqueuePhaseBanners, waitForPhaseBanners, playOverlay, playTurnStart, art],
   );
 
   const drainViewQueue = useCallback(async () => {
@@ -1806,26 +1875,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   // fim da abertura: a mesa do turno 1 e os banners dele
   const startTurnOneBanners = useCallback(() => {
     const postSetupView = viewQueueRef.current.find((item) => isPostSetupView(item.view)) ?? matchView;
-    if (postSetupView) {
-      const staged = buildTurn1StagedViews(postSetupView);
-      turnStagedViewsRef.current = {
-        actingPlayer: postSetupView.view.activePlayer,
-        viewRecovery: staged.viewRecovery,
-        viewDraw: staged.viewDraw,
-        viewMain: staged.viewMain,
-      };
-      setMatchView(staged.viewAnnounced);
-    }
-    const isMyTurn = (postSetupView?.view ?? matchView?.view)?.activePlayer === matchView?.seat;
-    if (isMyTurn) sfx.playNewtypeFlash();
-    enqueuePhaseBanners([
-      isMyTurn ? "SEU TURNO" : "TURNO DO OPONENTE",
-      "FASE DE RECUPERAÇÃO",
-      "FASE DE COMPRA",
-      "FASE PRINCIPAL",
-    ]);
     setIntroStage("phase-banner");
-  }, [matchView, enqueuePhaseBanners]);
+    if (!postSetupView) {
+      setIntroStage("complete");
+      return;
+    }
+    void playTurnStart(buildTurn1StagedViews(postSetupView), postSetupView.seat).finally(() => setIntroStage("complete"));
+  }, [matchView, playTurnStart]);
 
   // Temporizadores automáticos das etapas sequenciais da abertura
   useEffect(() => {
@@ -1909,23 +1965,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       const next = prev.slice(1);
       phaseBannerQueueRef.current = next;
 
-      if (next.length > 0 && turnStagedViewsRef.current) {
-        const nextPhase = next[0];
-        if (nextPhase === "FASE DE RECUPERAÇÃO") {
-          setMatchView(turnStagedViewsRef.current.viewRecovery);
-          sfx.playDeploy();
-        } else if (nextPhase === "FASE DE COMPRA") {
-          setMatchView(turnStagedViewsRef.current.viewDraw);
-          setSetupAnim("single-draw");
-          sfx.playCardDraw();
-        } else if (nextPhase === "FASE PRINCIPAL") {
-          setMatchView(turnStagedViewsRef.current.viewMain);
-        }
-      }
-
       if (next.length === 0) {
-        turnStagedViewsRef.current = null;
-        setIntroStage("complete");
         phaseBannerResolveRef.current?.();
         phaseBannerResolveRef.current = null;
       }
@@ -2850,6 +2890,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           isAttacker={Boolean(unit && (attackerId === unit.instanceId || combat?.attackerId === unit.instanceId))}
           isBlocking={Boolean(unit && combat?.blockerUsedBy === unit.instanceId)}
           justDeployed={justDeployed}
+          unresting={Boolean(unit && unrestIds.has(unit.instanceId))}
           attacking={
             unit && activeStrike?.attackerId === unit.instanceId
               ? { towardX: activeStrike.towardX, towardY: activeStrike.towardY, phase: activeStrike.phase }
@@ -3068,7 +3109,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         <div className="flex items-end justify-start gap-2">
           {/* deck de recursos / deck: contagem visível dos 2 lados (decisão do
               Willen 2026-09-03 — sim de teste, não PvP com info oculta). */}
-          <CounterChip variant="stack" label={tr("Deck de Recursos", "Resource Deck")} count={player.counts.resourceDeck} />
+          <div ref={board.register(`resourceDeck:${pid}`)}>
+            <CounterChip variant="stack" label={tr("Deck de Recursos", "Resource Deck")} count={player.counts.resourceDeck} />
+          </div>
+          <div ref={board.register(`resourceArea:${pid}`)} className="min-w-0">
           <ResourceMeter
             resources={exVisible ? resources : []}
             level={exVisible ? player.counts.resourceArea : 0}
@@ -3079,10 +3123,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             selectedIds={isSelf ? selectedResources : undefined}
             onSelect={isSelf ? toggleResource : undefined}
             highlightTone={isSelf ? resourceHighlightTone : undefined}
+            unrestingIds={unrestIds}
             costProgress={
               isSelf && pending && pendingCost > 0 ? { paid: selectedResources.length, total: pendingCost } : undefined
             }
           />
+          </div>
         </div>
       ),
       deck: (
@@ -4016,20 +4062,36 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       ) : null}
 
       {/* spec simulador-ritmo-de-resolucao — compra por efeito: o mesmo saque da Draw Phase, do deck de quem comprou */}
+      {/* spec simulador-cadencia-de-mesa (P2) — compra (do turno e por efeito): a minha passa pelo centro à mostra e
+          pousa à direita da mão; a do oponente vai direto do deck dele para a mão dele. Mesma duração nas duas telas. */}
       {effectDraw ? (
-        <DeckDealAnimation
-          key={`effect-draw-${effectDraw.key}`}
-          mode="single-draw"
-          label={effectDraw.player === seat ? tr("Comprando…", "Drawing…") : tr("Oponente comprando…", "Opponent drawing…")}
-          origin={deckCenter(board.rectOf(`deckStation:${effectDraw.player}`), effectDraw.player !== seat)}
-          cardW={handCardW(effectDraw.player)}
-          dest={handCenter(
-            effectDraw.player === seat ? board.rectOf("hand:self") : (board.rectOf("hand:opponent") ?? board.rectOf(`hand:${effectDraw.player}`)),
-            handCardW(effectDraw.player),
-          )}
-          cards={effectDraw.card ? [effectDraw.card] : undefined}
+        <CardTravel
+          key={`draw-${effectDraw.key}`}
+          from={deckCenter(board.rectOf(`deckStation:${effectDraw.player}`), effectDraw.player !== seat)}
+          to={effectDraw.player === seat ? handLandingPoint(handCardW(seat)) : rightEdgeOf(board.rectOf("hand:opponent") ?? board.rectOf(`hand:${effectDraw.player}`))}
+          fromW={board.rectOf(`deckStation:${effectDraw.player}`)?.width ?? 60}
+          toW={handCardW(effectDraw.player) ?? 60}
+          card={effectDraw.player === seat ? effectDraw.card : null}
           art={art}
+          viaCenter={effectDraw.player === seat}
+          timings={SCENE_MS.draw}
+          totalMs={drawMs()}
           onDone={() => effectDrawResolveRef.current?.()}
+        />
+      ) : null}
+      {resourceTravel ? (
+        <CardTravel
+          key={`resource-${resourceTravel.key}`}
+          from={rectCenter(board.rectOf(`resourceDeck:${resourceTravel.player}`))}
+          to={rightEdgeOf(board.rectOf(`resourceArea:${resourceTravel.player}`))}
+          fromW={board.rectOf(`deckStation:${resourceTravel.player}`)?.width ?? 60}
+          toW={board.rectOf(`deckStation:${resourceTravel.player}`)?.width ?? 60}
+          card={resourceTravel.card}
+          art={art}
+          flipOnArrival
+          timings={{ rise: SCENE_MS.resource * 0.4, flip: 0, hold: 0, land: SCENE_MS.resource * 0.4 }}
+          totalMs={SCENE_MS.resource}
+          onDone={() => resourceTravelResolveRef.current?.()}
         />
       ) : null}
 

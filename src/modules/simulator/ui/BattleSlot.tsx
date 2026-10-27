@@ -63,6 +63,8 @@ interface BattleSlotProps {
    *  desliza e pousa; `"heavy"` (custo 4–10) cai com peso (impacto + shake).
    *  Roda 1× na montagem do slot. `motion-reduce` neutraliza (ver index.css). */
   justDeployed?: "light" | "heavy";
+  /** spec simulador-cadencia-de-mesa (P2) — a Unit está desvirando agora (Start Phase): gira da horizontal à vertical */
+  unresting?: boolean;
   /** Frente 4 — animação de ataque: avanço tático contra a unidade ou escudo inimigo,
    *  com fase de avanço/strike e fase de recuo de volta pro slot. */
   attacking?: { towardX: number; towardY: number; phase?: "advance" | "strike" | "return" } | null;
@@ -127,6 +129,7 @@ export function BattleSlot({
   actions,
   registerRef,
   justDeployed,
+  unresting,
   attacking,
   onEmptySlotClick,
   emptySlotActive,
@@ -352,6 +355,7 @@ export function BattleSlot({
           unit.rested ? "rotate-6 scale-[0.96]" : "rotate-0 scale-100",
           legalTarget || isAbilityTarget || bodyInspects ? "cursor-pointer" : "cursor-default",
           justDeployed === "light" && "sim-anim-land-soft",
+          unresting && "sim-anim-unrest",
           justDeployed === "heavy" && "sim-anim-drop-heavy",
         )}
       >
