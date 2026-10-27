@@ -4,11 +4,15 @@
 
 const TAG = /[【[]\s*([^】\]]+?)\s*[】\]]/g;
 
+/** texto puro: quebras viram linhas e qualquer tag sai (repetindo até não sobrar nenhuma, e sem `<`/`>` soltos) */
 function plain(text: string): string {
-  return text
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/\r/g, "");
+  let out = text.replace(/<br\s*\/?>/gi, "\n");
+  let before: string;
+  do {
+    before = out;
+    out = out.replace(/<[^<>]*>/g, "");
+  } while (out !== before);
+  return out.replace(/[<>]/g, "").replace(/\r/g, "");
 }
 
 /** o trecho de `trigger` (ex.: "Burst") no texto da carta; `null` se a carta não tem esse gatilho */
