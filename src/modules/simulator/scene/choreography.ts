@@ -23,6 +23,8 @@ export type Beat =
   /** habilidade resolvendo: 【Deploy】, 【Attack】, 【Activate】 (com o custo pago em `paid`), 【Burst】 do oponente… */
   | { kind: "announce"; player: PlayerId; instanceId: string; trigger: string; paid: string[] }
   | { kind: "draw"; player: PlayerId; instanceId: string | null }
+  /** P5 — carta indo para a mão fora da compra (【Burst】 que vai à mão, Unit que volta, busca): voa até a direita da mão */
+  | { kind: "toHand"; instanceId: string }
   /** P4 — ataque declarado: o atacante deita (`rests`) e a linha vai até o alvo */
   | { kind: "declare"; attackerId: string; target: AttackTarget; attackingPlayer: PlayerId; defendingPlayer: PlayerId; rests: boolean }
   /** P4 — bloqueio: o bloqueador deita e a linha muda para ele */
@@ -196,6 +198,11 @@ export function planChoreography({ events, viewerSeat, pendingAttack, phase: sta
         push({ kind: "departure", ids: [event.instanceId], destroyed: event.type === "DESTROY_CARD" });
         break;
       case "MOVE_CARD":
+        if (event.toZone === "hand") {
+          flushCues();
+          push({ kind: "toHand", instanceId: event.instanceId });
+          break;
+        }
         if (event.instanceId === playedCommand && event.toZone === "trash") {
           // a Command já sumiu no centro, usada; ela só chega à lixeira (sem voo)
           flushCues();
