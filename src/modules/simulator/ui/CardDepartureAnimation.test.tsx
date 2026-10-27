@@ -4,6 +4,7 @@ import "@testing-library/jest-dom/vitest";
 import { act, cleanup, render } from "@testing-library/react";
 import { CardDepartureAnimation, type DepartingCard } from "./CardDepartureAnimation";
 import { sfx } from "../audio/soundEffects";
+import { destroyMs } from "../scene/sceneTiming";
 
 function advance(ms: number) {
   act(() => {
@@ -50,17 +51,19 @@ describe("CardDepartureAnimation", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("Unit destruída: toca playExplosion e chama onDone(id) após a animação", () => {
+  it("Unit destruída (P4): quebra ao meio no lugar, é arrastada à lixeira e chama onDone(id) no tempo do servidor", () => {
     mockMatchMedia(false);
     const onDone = vi.fn();
     const explosionSpy = vi.spyOn(sfx, "playExplosion");
     const { container } = render(<CardDepartureAnimation cards={[CARD]} onDone={onDone} />);
 
-    expect(container.querySelector(".sim-anim-depart-destroy")).not.toBeNull();
+    expect(container.querySelector(".sim-anim-destroy-drag")).not.toBeNull();
+    expect(container.querySelector(".sim-anim-crack-left")).not.toBeNull();
+    expect(container.querySelector(".sim-anim-crack-right")).not.toBeNull();
     expect(explosionSpy).toHaveBeenCalledTimes(1);
-    expect(onDone).not.toHaveBeenCalled();
-
     advance(420);
+    expect(onDone).not.toHaveBeenCalled();
+    advance(destroyMs() - 420);
     expect(onDone).toHaveBeenCalledWith(CARD.id);
   });
 
@@ -69,7 +72,7 @@ describe("CardDepartureAnimation", () => {
     const discarded: DepartingCard = { ...CARD, id: "hand-1-v6", kind: "discarded" };
     const { container } = render(<CardDepartureAnimation cards={[discarded]} onDone={vi.fn()} />);
     expect(container.querySelector(".sim-anim-depart")).not.toBeNull();
-    expect(container.querySelector(".sim-anim-depart-destroy")).toBeNull();
+    expect(container.querySelector(".sim-anim-destroy-drag")).toBeNull();
   });
 
   it("posiciona o clone na origem e calcula --dx/--dy até o destino", () => {
@@ -86,7 +89,7 @@ describe("CardDepartureAnimation", () => {
     mockMatchMedia(false);
     const noDest: DepartingCard = { ...CARD, id: "x-v1", dest: null };
     const { container } = render(<CardDepartureAnimation cards={[noDest]} onDone={vi.fn()} />);
-    const ghost = container.querySelector(".sim-anim-depart-destroy") as HTMLElement;
+    const ghost = container.querySelector(".sim-anim-destroy-drag") as HTMLElement;
     expect(ghost.style.getPropertyValue("--dx")).toBe("0px");
     expect(Number(ghost.style.getPropertyValue("--dy").replace("px", ""))).toBeGreaterThan(0);
   });
@@ -97,8 +100,9 @@ describe("CardDepartureAnimation", () => {
     const second: DepartingCard = { ...CARD, id: "unit-2-v5", kind: "discarded" };
     render(<CardDepartureAnimation cards={[CARD, second]} onDone={onDone} />);
     advance(420);
-    expect(onDone).toHaveBeenCalledWith(CARD.id);
     expect(onDone).toHaveBeenCalledWith(second.id);
+    advance(destroyMs() - 420);
+    expect(onDone).toHaveBeenCalledWith(CARD.id);
     expect(onDone).toHaveBeenCalledTimes(2);
   });
 
@@ -106,7 +110,7 @@ describe("CardDepartureAnimation", () => {
     mockMatchMedia(true);
     const onDone = vi.fn();
     const { container } = render(<CardDepartureAnimation cards={[CARD]} onDone={onDone} />);
-    expect(container.querySelector(".sim-anim-depart-destroy")).toBeNull();
+    expect(container.querySelector(".sim-anim-destroy-drag")).toBeNull();
     expect(onDone).toHaveBeenCalledWith(CARD.id);
   });
 

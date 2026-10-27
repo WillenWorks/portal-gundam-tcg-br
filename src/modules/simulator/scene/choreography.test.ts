@@ -101,33 +101,40 @@ describe("planChoreography — uma coisa de cada vez, na ordem do motor", () => 
     expect(plan([burst("A")]).beats).toEqual([]);
   });
 
-  it("combate: o 【Attack】 resolve na hora; o dano e a Unit destruída vêm depois do golpe", () => {
+  it("combate (P4, na ordem do motor): declarar → 【Attack】 → bloquear → golpe → dano → a destruída quebra", () => {
     const { beats, pendingAttack } = plan([
-      attack("b1"),
+      // o motor deita o atacante ANTES de declarar, e o bloqueador ANTES de bloquear
       { type: "REST_CARD", instanceId: "b1" },
+      attack("b1"),
       { type: "ABILITY_ACTIVATED", player: "B", instanceId: "b1", trigger: "Attack" },
       { type: "MODIFY_STAT", instanceId: "b1", modifier: { stat: "ap", amount: 1, duration: "thisBattle", appliedOnTurn: 1 } } as GameEvent,
       { type: "COMBAT_STEP_CHANGE", step: "block" } as GameEvent,
+      { type: "REST_CARD", instanceId: "a1" },
       { type: "BLOCK_DECLARED", blockerId: "a1", newTarget: { unitId: "a1" } } as GameEvent,
       { type: "DAMAGE_UNIT", instanceId: "a1", amount: 4 } as GameEvent,
       { type: "DESTROY_CARD", instanceId: "a1" } as GameEvent,
       { type: "COMBAT_ENDED" },
     ]);
-    expect(kinds(beats)).toEqual(["announce", "effects", "effects", "strike", "effects", "departure"]);
-    expect(beats[3]).toMatchObject({ kind: "strike", attackerId: "b1", target: { unitId: "a1" } });
+    expect(kinds(beats)).toEqual(["declare", "announce", "effects", "block", "strike", "effects", "departure"]);
+    expect(beats[0]).toMatchObject({ kind: "declare", attackerId: "b1", target: "player", rests: true });
+    expect(beats[3]).toMatchObject({ kind: "block", blockerId: "a1", rests: true });
+    expect(beats[4]).toMatchObject({ kind: "strike", attackerId: "b1", target: { unitId: "a1" } });
+    expect(beats[6]).toMatchObject({ kind: "departure", ids: ["a1"], destroyed: true });
+    // o descanso do atacante/bloqueador não vira efeito solto
+    expect(beats.some((b) => b.kind === "effects" && b.events.some((e) => e.type === "REST_CARD"))).toBe(false);
     expect(pendingAttack).toBeNull();
   });
 
   it("dano de shield com 【Burst】 meu pendente: o golpe toca neste lote, antes da shield, e não toca de novo", () => {
     const first = plan([attack("b1"), { type: "DAMAGE_SHIELD", player: "A", count: 1 }, { type: "SET_PENDING_DECISION", player: "A" } as GameEvent]);
-    expect(kinds(first.beats)).toEqual(["strike", "effects", "departure"]);
+    expect(kinds(first.beats)).toEqual(["declare", "strike", "effects", "departure"]);
     expect(first.pendingAttack).toBeNull();
     expect(kinds(plan([{ type: "COMBAT_ENDED" }], "A", "main", first.pendingAttack).beats)).toEqual([]);
   });
 
   it("à espera do bloqueio, o combate fica pendente e o golpe sai quando ele terminar", () => {
-    const first = plan([attack("b1"), { type: "REST_CARD", instanceId: "b1" }]);
-    expect(first.beats).toEqual([]);
+    const first = plan([{ type: "REST_CARD", instanceId: "b1" }, attack("b1")]);
+    expect(kinds(first.beats)).toEqual(["declare"]);
     expect(first.pendingAttack).toMatchObject({ attackerId: "b1" });
     expect(kinds(plan([{ type: "COMBAT_ENDED" }], "A", "main", first.pendingAttack).beats)).toEqual(["strike"]);
   });

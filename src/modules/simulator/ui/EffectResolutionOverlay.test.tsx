@@ -40,8 +40,10 @@ describe("EffectResolutionOverlay (Fase 3)", () => {
 
     rerender(<EffectResolutionOverlay eventLog={events} rectOf={rectOf} viewerSeat="A" />);
 
+    // P4 — dano em Unit: só o número vermelho subindo do canto do HP (sem etiqueta)
     expect(screen.getByText("-3")).toBeInTheDocument();
-    expect(screen.getByText("DANO")).toBeInTheDocument();
+    expect(screen.getByTestId("damage-float")).toBeInTheDocument();
+    expect(screen.queryByText("DANO")).not.toBeInTheDocument();
   });
 
   it("com eventsBatch, os cues saem dos eventos do lote — mesmo com a janela do eventLog cheia e igual", () => {

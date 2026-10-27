@@ -46,10 +46,20 @@ export const SCENE_MS = {
   resource: 700,
   /** `executeAttackStrike`: avança, golpe, volta */
   strike: { advance: 260, hit: 220, back: 280 },
-  /** cues do que um efeito fez */
+  /** cues do que um efeito fez (o número de dano sobe sobre o HP; o HP novo aparece no fim) */
   effects: 700,
-  /** cartas saindo para a lixeira/exílio, shields quebradas */
+  /** cartas saindo para a lixeira/exílio (descarte, Command usada…) */
   departure: 520,
+  /**
+   * P4 — combate: o atacante deita e a linha vai ao alvo; o bloqueador deita e a linha muda; a Unit destruída quebra
+   * e é arrastada à lixeira; cada shield quebrada vai ao centro, vira para os dois verem e cai na lixeira
+   */
+  combat: {
+    declare: { rest: 450, line: 450 },
+    block: 750,
+    destroy: { crack: 320, drag: 460 },
+    shield: { fly: 420, flip: 400, hold: 600, toTrash: 420 },
+  },
   /** `PhaseAnnouncementBanner` */
   banner: 750,
   /** `BurstRevealStage`: escudo voa, vira, segura */
@@ -125,8 +135,17 @@ export function setupFinishMs(): number {
   return dealShieldsMs() + O.exReveal + turnStartMs();
 }
 
-/** tempos cuja espera segue o `tempo` do lote (e o ritmo); a carta jogada, o golpe e a compra têm duração própria */
+/** tempos cuja espera segue o `tempo` do lote (e o ritmo); a carta jogada, o combate e a compra têm duração própria */
 const TEMPO_SCALED = new Set<Beat["kind"]>(["announce", "effects", "departure"]);
+
+export function shieldRevealMs(): number {
+  const sh = SCENE_MS.combat.shield;
+  return sh.fly + sh.flip + sh.hold + sh.toTrash;
+}
+
+export function destroyMs(): number {
+  return SCENE_MS.combat.destroy.crack + SCENE_MS.combat.destroy.drag;
+}
 
 /** Unit do Lv 5 em diante cai pesada na mesa (com tremor); até o Lv 4, pousa suave */
 export function landsHeavy(level: number | undefined): boolean {
@@ -158,8 +177,13 @@ export function beatBaseMs(beat: Beat, levelOf?: LevelOf): number {
       return SCENE_MS.strike.advance + SCENE_MS.strike.hit + SCENE_MS.strike.back;
     case "effects":
       return SCENE_MS.effects;
+    case "declare":
+      return (beat.rests ? SCENE_MS.combat.declare.rest : 0) + SCENE_MS.combat.declare.line;
+    case "block":
+      return SCENE_MS.combat.block;
     case "departure":
-      return SCENE_MS.departure;
+      if (beat.shieldsOf) return (beat.count ?? 0) * shieldRevealMs();
+      return beat.destroyed ? destroyMs() : SCENE_MS.departure;
   }
 }
 
@@ -167,7 +191,10 @@ export function beatBaseMs(beat: Beat, levelOf?: LevelOf): number {
 export function beatsDurationMs(beats: readonly Beat[], pace: ScenePace, levelOf?: LevelOf): number {
   const factor = SCENE_PACE_FACTOR[pace];
   const tempo = tempoFor(beats) * factor;
-  return beats.reduce((ms, beat) => ms + beatBaseMs(beat, levelOf) * (TEMPO_SCALED.has(beat.kind) ? tempo : 1), 0);
+  return beats.reduce((ms, beat) => {
+    const scaled = TEMPO_SCALED.has(beat.kind) && !(beat.kind === "departure" && beat.shieldsOf);
+    return ms + beatBaseMs(beat, levelOf) * (scaled ? tempo : 1);
+  }, 0);
 }
 
 export interface SceneInput {

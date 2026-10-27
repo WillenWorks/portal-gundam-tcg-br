@@ -134,7 +134,7 @@ import type { BurstTargetChoice } from "@/modules/simulator/ui/BurstModal";
 import { findAltDiscardCandidates, findEligibleSacrifices, playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
 import { getResolutionPacing, getScaledDuration, type ResolutionPacing } from "@/modules/simulator/ui/animationSettings";
 import { hasOwnDeploy, planChoreography, tempoFor, type Beat } from "@/modules/simulator/scene/choreography";
-import { SCENE_MS, SCENE_PACE_FACTOR, drawMs, landsHeavy } from "@/modules/simulator/scene/sceneTiming";
+import { SCENE_MS, SCENE_PACE_FACTOR, destroyMs, drawMs, landsHeavy, shieldRevealMs } from "@/modules/simulator/scene/sceneTiming";
 import { drawnCard, placedResource, unrestedIds } from "@/modules/simulator/scene/turnStart";
 import { CardTravel, centerCardWidth, type TravelPoint } from "@/modules/simulator/ui/CardTravel";
 import { PlayCardStage, type PlayStage } from "@/modules/simulator/ui/PlayCardStage";
@@ -886,6 +886,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [resourceTravel, setResourceTravel] = useState<{ key: number; player: PlayerId; card: CardInstance } | null>(null);
   // P3 — carta jogada da mão, cartas sendo deitadas (custo, efeito) e o tremor da Unit pesada
   const [playStage, setPlayStage] = useState<PlayStage | null>(null);
+  // P4 — shield quebrada: sai da trilha, vai ao centro, vira para os dois verem e cai na lixeira
+  const [shieldTravel, setShieldTravel] = useState<{ key: number; player: PlayerId; card: CardInstance | null } | null>(null);
+  const shieldTravelResolveRef = useRef<(() => void) | null>(null);
   const [restIds, setRestIds] = useState<ReadonlySet<string>>(() => new Set());
   const [tableShake, setTableShake] = useState(false);
   const resourceTravelResolveRef = useRef<(() => void) | null>(null);
@@ -1264,16 +1267,45 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               break;
             }
             case "departure": {
-              const ids = beat.shieldsOf
-                ? (prevDepartureView?.players[beat.shieldsOf].shields ?? [])
-                    .slice(shieldsTaken[beat.shieldsOf], (shieldsTaken[beat.shieldsOf] += beat.count ?? 0))
-                    .map((c) => c.instanceId)
-                : beat.ids;
-              if (beat.shieldsOf) sfx.playShieldBurst();
-              launchDepartures(prevDepartureView, incoming, new Set(ids));
-              await hold(SCENE_MS.departure);
+              if (beat.shieldsOf) {
+                // P4 — cada shield quebrada vai ao centro e vira para os dois verem (a do meu 【Burst】 pendente tem a
+                // revelação própria logo em seguida, com o modal)
+                const owner = beat.shieldsOf;
+                const myBurst = incoming.view.pendingDecision[incoming.seat];
+                for (let k = 0; k < (beat.count ?? 0); k++) {
+                  const shieldId = shown.players[owner].shields[0]?.instanceId;
+                  shieldsTaken[owner] += 1;
+                  sfx.playShieldBurst();
+                  const isMyBurst = myBurst?.kind === "burst" && myBurst.cardInstanceId === shieldId;
+                  if (shieldId && !isMyBurst) {
+                    const revealed = findPublicCard(incoming.view, shieldId);
+                    await playOverlay(setShieldTravel, shieldTravelResolveRef, { key: ++beatKeyRef.current, player: owner, card: revealed });
+                  }
+                  showTable(revealBeat(shown, incoming.view, { kind: "departure", ids: [], shieldsOf: owner, count: 1 }));
+                }
+                break;
+              }
+              // destruída: quebra no lugar e é arrastada à lixeira; descarte e afins só deslizam
+              launchDepartures(prevDepartureView, incoming, new Set(beat.ids));
+              await hold(beat.destroyed ? destroyMs() : SCENE_MS.departure);
               break;
             }
+            case "declare":
+              // P4 — o atacante deita e a linha de mira vai até o alvo
+              if (beat.rests) setRestIds(new Set([beat.attackerId]));
+              showTable(revealBeat(shown, incoming.view, beat));
+              sfx.playClick();
+              await pace((beat.rests ? SCENE_MS.combat.declare.rest : 0) + SCENE_MS.combat.declare.line);
+              setRestIds(new Set());
+              break;
+            case "block":
+              // P4 — o bloqueador deita e a linha muda para ele
+              if (beat.rests) setRestIds(new Set([beat.blockerId]));
+              showTable(revealBeat(shown, incoming.view, beat));
+              sfx.playShieldBlock();
+              await pace(SCENE_MS.combat.block);
+              setRestIds(new Set());
+              break;
             case "announce": {
               const cardDef = defOf(beat.instanceId);
               if (!cardDef) break;
@@ -1364,7 +1396,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             }
           }
           // `play` revela a mesa por conta própria (a carta aparece quando pousa); o custo do `announce` já foi mostrado
-          if (beat.kind !== "announce" && beat.kind !== "strike" && beat.kind !== "play") showTable(revealBeat(shown, incoming.view, beat));
+          const revealsItself = beat.kind === "play" || beat.kind === "declare" || beat.kind === "block" || (beat.kind === "departure" && beat.shieldsOf);
+          if (beat.kind !== "announce" && beat.kind !== "strike" && !revealsItself) showTable(revealBeat(shown, incoming.view, beat));
         }
       } else if (timeline) {
         const { plan, pendingAttack } = planAnimations(timeline, incoming.seat, pendingAttackRef.current);
@@ -4163,6 +4196,21 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         />
       ) : null}
       {playStage ? <PlayCardStage key={playStage.key} stage={playStage} art={art} /> : null}
+      {shieldTravel ? (
+        <CardTravel
+          key={`shield-${shieldTravel.key}`}
+          from={shieldRailCenter(board.rectOf(`shieldRail:${shieldTravel.player}`))}
+          to={rectCenter(board.rectOf(`trashStation:${shieldTravel.player}`))}
+          fromW={board.rectOf(`shieldRail:${shieldTravel.player}`)?.width ?? 60}
+          toW={board.rectOf(`trashStation:${shieldTravel.player}`)?.width ?? 60}
+          card={shieldTravel.card}
+          art={art}
+          viaCenter
+          timings={{ rise: SCENE_MS.combat.shield.fly, flip: SCENE_MS.combat.shield.flip, hold: SCENE_MS.combat.shield.hold, land: SCENE_MS.combat.shield.toTrash }}
+          totalMs={shieldRevealMs()}
+          onDone={() => shieldTravelResolveRef.current?.()}
+        />
+      ) : null}
       {resourceTravel ? (
         <CardTravel
           key={`resource-${resourceTravel.key}`}
