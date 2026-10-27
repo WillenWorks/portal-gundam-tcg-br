@@ -90,13 +90,14 @@ export const BOT_MULLIGAN_EVAL_EXTRA_MS = 1500;
  * `humanizedThinkDelay` (que desconta o que a policy já gastou).
  * @param {() => number} waitMs
  * @param {(ms: number) => Promise<void>} [sleep]
- * @returns {(ctx?: { thinkingMs?: number, action?: { kind?: string } }) => Promise<void>}
+ * @returns {(ctx?: { thinkingMs?: number, action?: unknown }) => Promise<void>}
  */
 export function sceneAwareThinkDelay(waitMs, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))) {
   return async (ctx) => {
     const scene = waitMs();
     if (scene > 0) await sleep(scene);
-    const extra = ctx?.action?.kind === "resolveMulligan" ? BOT_MULLIGAN_EVAL_EXTRA_MS : 0;
+    const action = /** @type {{ kind?: string } | undefined} */ (ctx?.action);
+    const extra = action?.kind === "resolveMulligan" ? BOT_MULLIGAN_EVAL_EXTRA_MS : 0;
     await sleep(Math.max(0, humanizedThinkDelayMs() + extra - (scene > 0 ? 0 : (ctx?.thinkingMs ?? 0))));
   };
 }
