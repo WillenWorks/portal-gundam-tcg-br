@@ -46,6 +46,18 @@ describe("EffectResolutionOverlay (Fase 3)", () => {
     expect(screen.queryByText("DANO")).not.toBeInTheDocument();
   });
 
+  it("olhar o topo e devolver (RE-GZ): uma etiqueta só no deck, com a contagem", () => {
+    const rectOf = (key: string) => (key === "deckStation:B" ? mockRect(80, 120) : null);
+    const events: GameEvent[] = [
+      { type: "MOVE_WITHIN_DECK", instanceId: "B-74", position: "bottom" },
+      { type: "MOVE_WITHIN_DECK", instanceId: "B-75", position: "bottom" },
+      { type: "MOVE_WITHIN_DECK", instanceId: "B-76", position: "bottom" },
+    ];
+    const { rerender } = render(<EffectResolutionOverlay eventLog={[]} rectOf={rectOf} viewerSeat="A" />);
+    rerender(<EffectResolutionOverlay eventLog={events} rectOf={rectOf} viewerSeat="A" />);
+    expect(screen.getAllByText("3 ao fundo do deck")).toHaveLength(1);
+  });
+
   it("com eventsBatch, os cues saem dos eventos do lote — mesmo com a janela do eventLog cheia e igual", () => {
     const rectOf = (key: string) => (key === "u7" ? mockRect(150, 250) : null);
     // janela de 150 cheia: o eventLog não muda de tamanho nem de cauda entre as visões

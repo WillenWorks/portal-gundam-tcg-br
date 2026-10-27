@@ -126,6 +126,7 @@ import {
   commandTargetsFromMenu,
   fieldAbilityFromMenu,
   handModesFromMenu,
+  pendingPlayStillLegal,
   normalCommandFromMenu,
   pairTargetsFromMenu,
   sacrificeIdsFromMenu,
@@ -906,7 +907,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   // P5 — o 【Burst】 cujo alvo está sendo escolhido no campo (a mesa fica livre enquanto isso)
   const [burstTargetingFor, setBurstTargetingFor] = useState<string | null>(null);
   // P4 — shield quebrada: sai da trilha, vai ao centro, vira para os dois verem e cai na lixeira
-  const [shieldTravel, setShieldTravel] = useState<{ key: number; player: PlayerId; card: CardInstance | null } | null>(null);
+  const [shieldTravel, setShieldTravel] = useState<{ key: number; player: PlayerId; card: CardInstance | null; holdAtCenter?: boolean } | null>(null);
   const shieldTravelResolveRef = useRef<(() => void) | null>(null);
   const [restIds, setRestIds] = useState<ReadonlySet<string>>(() => new Set());
   const [tableShake, setTableShake] = useState(false);
@@ -1000,6 +1001,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       setMatchView({ ...staged.viewMain, ...heldFromMenu(staged.viewMain) });
 
       await banner("FASE PRINCIPAL");
+      // a Main Phase começa com o menu de jogadas real (as visões intermediárias suspendem o menu). Sem isto, no
+      // turno 1 de quem começa nada podia ser jogado até chegar outra visão (BUG-X7GJG4). Uma visão mais nova que já
+      // tenha chegado vale mais.
+      setMatchView((prev) => (prev && prev.matchId === staged.viewMain.matchId && prev.version > staged.viewMain.version ? prev : staged.viewMain));
     },
     [enqueuePhaseBanners, waitForPhaseBanners, playOverlay],
   );
@@ -1297,9 +1302,17 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                   shieldsTaken[owner] += 1;
                   sfx.playShieldBurst();
                   const isMyBurst = myBurst?.kind === "burst" && myBurst.cardInstanceId === shieldId;
+                  const ownerBurst = incoming.view.pendingDecision[owner];
+                  const isTheirPendingBurst = ownerBurst?.kind === "burst" && ownerBurst.cardInstanceId === shieldId;
                   if (shieldId && !isMyBurst) {
                     const revealed = findPublicCard(incoming.view, shieldId);
-                    await playOverlay(setShieldTravel, shieldTravelResolveRef, { key: ++beatKeyRef.current, player: owner, card: revealed });
+                    await playOverlay(setShieldTravel, shieldTravelResolveRef, {
+                      key: ++beatKeyRef.current,
+                      player: owner,
+                      card: revealed,
+                      // o 【Burst】 do oponente está sendo decidido: a carta fica no centro, não cai na lixeira
+                      holdAtCenter: isTheirPendingBurst,
+                    });
                   }
                   showTable(revealBeat(shown, incoming.view, { kind: "departure", ids: [], shieldsOf: owner, count: 1 }));
                 }
@@ -2217,6 +2230,18 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     runAction({ kind: "skipBlock" });
   }, [matchView, introStage, busy, sceneLocked, runAction]);
 
+  // BUG-TARWMX — a jogada que eu montava (recurso/alvo) sumiu do menu do motor: o prazo do Action Step acabou e o
+  // servidor passou sozinho. A montagem é largada (com aviso) em vez de deixar o modal de uma ação que não existe mais.
+  // Só com a mesa liberada: nas visões intermediárias da cena o menu fica suspenso de propósito.
+  useEffect(() => {
+    if (!pending || !matchView?.legalMenu || sceneLocked || busy) return;
+    if (pendingPlayStillLegal(matchView.legalMenu, pending)) return;
+    clearSelection();
+    showActionError(tr("O tempo dessa jogada acabou — ela foi cancelada.", "Time ran out for that play — it was cancelled."));
+    // `clearSelection`/`showActionError` são estáveis no que importa aqui; só a visão e a jogada disparam a checagem
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchView, pending, sceneLocked, busy]);
+
   if (!matchView || artLoading) {
     if (!matchView && loadTimedOut) {
       return (
@@ -2280,6 +2305,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const inActionStep = iHavePriority || iHaveEndPhasePriority;
   // jogadas legais calculadas pelo motor no servidor (`legalMenuFor`); servidor antigo sem o menu cai nas regras locais
   const legalMenu = matchView.legalMenu;
+  // a carta de um 【Burst】 em decisão ainda não foi para a lixeira (está no centro): a pilha não a mostra até a decisão
+  const pendingBurstIds = new Set(
+    (["A", "B"] as PlayerId[]).flatMap((pid) => {
+      const d = view.pendingDecision[pid];
+      return d?.kind === "burst" ? [d.cardInstanceId] : [];
+    }),
+  );
   const fieldAbilityOf = (card: CardInstance, timing: "main" | "action"): FieldAbility | null =>
     legalMenu ? fieldAbilityFromMenu(legalMenu, card.instanceId) : fieldAbilityFor(card, timing);
   const myHandCardsById = (id: string): CardInstance[] =>
@@ -3306,8 +3338,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         <div ref={board.register(`trashStation:${pid}`)}>
           <PileTray
             label="Trash"
-            count={player.trash.length}
-            cards={player.trash.filter((c) => !isHidden(c)) as CardInstance[]}
+            count={player.trash.filter((c) => !pendingBurstIds.has(c.instanceId)).length}
+            cards={player.trash.filter((c) => !isHidden(c) && !pendingBurstIds.has(c.instanceId)) as CardInstance[]}
             art={art}
             onInspect={setInspect}
           />
@@ -4294,9 +4326,17 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         <CardTravel
           key={`shield-${shieldTravel.key}`}
           from={shieldRailCenter(board.rectOf(`shieldRail:${shieldTravel.player}`))}
-          to={rectCenter(board.rectOf(`trashStation:${shieldTravel.player}`))}
+          to={
+            shieldTravel.holdAtCenter
+              ? { x: (typeof window !== "undefined" ? window.innerWidth : 1280) / 2, y: (typeof window !== "undefined" ? window.innerHeight : 800) / 2 }
+              : rectCenter(board.rectOf(`trashStation:${shieldTravel.player}`))
+          }
           fromW={board.rectOf(`shieldRail:${shieldTravel.player}`)?.width ?? 60}
-          toW={board.rectOf(`trashStation:${shieldTravel.player}`)?.width ?? 60}
+          toW={
+            shieldTravel.holdAtCenter
+              ? centerCardWidth(typeof window !== "undefined" ? window.innerWidth : 1280, typeof window !== "undefined" ? window.innerHeight : 800)
+              : (board.rectOf(`trashStation:${shieldTravel.player}`)?.width ?? 60)
+          }
           card={shieldTravel.card}
           art={art}
           viaCenter

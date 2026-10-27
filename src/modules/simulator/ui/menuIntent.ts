@@ -114,3 +114,19 @@ export function sacrificeIdsFromMenu(menu: LegalMenu, cardId: string): string[] 
 export function burstTargetsFromMenu(menu: LegalMenu | undefined): MenuTargets | null {
   return fromSlot(menu?.burstTarget);
 }
+
+/**
+ * A jogada que o jogador começou a montar (escolhendo recurso/alvo) ainda existe no menu do motor? Quando o prazo do
+ * Action Step acaba, o servidor passa sozinho e a jogada some do menu — a tela larga a montagem em vez de ficar com o
+ * modal de uma ação que não dá mais para fazer (BUG-TARWMX).
+ */
+export function pendingPlayStillLegal(
+  menu: LegalMenu,
+  pending: { kind: "deploy" | "command" | "activateAbility"; cardInstanceId: string; trigger?: "Main" | "Action" },
+): boolean {
+  return menu.entries.some((e) => {
+    if (pending.kind === "deploy") return e.kind === "deployCard" && e.cardInstanceId === pending.cardInstanceId;
+    if (pending.kind === "command") return e.kind === "playCommand" && e.cardInstanceId === pending.cardInstanceId && (!pending.trigger || e.trigger === pending.trigger);
+    return e.kind === "activateAbility" && e.sourceInstanceId === pending.cardInstanceId;
+  });
+}

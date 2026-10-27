@@ -127,6 +127,8 @@ export function EffectResolutionOverlay({
     const newCues: EffectResolutionCue[] = [];
     const reduced = prefersReducedMotion();
 
+    // cartas mandadas ao topo/fundo do deck (ex.: RE-GZ olha 3 e devolve): uma etiqueta só por deck, com a contagem
+    const deckMoves = new Set<string>();
     for (const ev of batch) {
       let targetKey: string | null = null;
       let type: EffectResolutionCue["type"] = "damage";
@@ -227,6 +229,19 @@ export function EffectResolutionOverlay({
             sublabel = "EX RESOURCE";
           }
           break;
+
+        case "MOVE_WITHIN_DECK": {
+          const owner = ev.instanceId.split("-")[0];
+          const key = `${owner}:${ev.position}`;
+          if (deckMoves.has(key)) break;
+          deckMoves.add(key);
+          const count = batch.filter((e) => e.type === "MOVE_WITHIN_DECK" && e.position === ev.position && e.instanceId.startsWith(`${owner}-`)).length;
+          targetKey = `deckStation:${owner}`;
+          type = "draw";
+          label = ev.position === "bottom" ? tr(`${count} ao fundo do deck`, `${count} to the bottom of the deck`) : tr(`${count} ao topo do deck`, `${count} to the top of the deck`);
+          sublabel = "DECK";
+          break;
+        }
 
         case "DRAW_CARD":
           targetKey = playerAreaKey(ev.player);
