@@ -5757,11 +5757,13 @@ app.post("/api/simulator/matches/:id/auto-pass", authRequired, async (req: Reque
 
 // Ritmo da cena do assento do usuário (menu "Ritmo dos efeitos") — spec simulador-cadencia-de-mesa.
 app.post("/api/simulator/matches/:id/scene-pace", authRequired, async (req: RequestWithUser, res) => {
-  const value = (req.body as { value?: unknown })?.value;
+  const { value, speed } = (req.body ?? {}) as { value?: unknown; speed?: unknown };
   if (!isScenePace(value)) return res.status(400).json({ error: "`value` precisa ser cinematic, normal ou classic." });
+  // velocidade de animação do menu (0,75× a 2×); fora disso é ignorada
+  const animSpeed = typeof speed === "number" && speed >= 0.5 && speed <= 3 ? speed : undefined;
   try {
     await loadMatch(String(req.params.id));
-    const match = setScenePace(String(req.params.id), req.user!.userId, value);
+    const match = setScenePace(String(req.params.id), req.user!.userId, value, animSpeed);
     const seat = seatFor(match, req.user!.userId)!;
     res.json(matchViewFor(match, seat));
   } catch (err) {

@@ -132,9 +132,9 @@ import {
 } from "@/modules/simulator/ui/menuIntent";
 import type { BurstTargetChoice } from "@/modules/simulator/ui/BurstModal";
 import { findAltDiscardCandidates, findEligibleSacrifices, playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
-import { getResolutionPacing, getScaledDuration, type ResolutionPacing } from "@/modules/simulator/ui/animationSettings";
+import { getResolutionPacing, getSavedAnimSpeed, getScaledDuration, type ResolutionPacing } from "@/modules/simulator/ui/animationSettings";
 import { hasOwnDeploy, planChoreography, tempoFor, type Beat } from "@/modules/simulator/scene/choreography";
-import { SCENE_MS, SCENE_PACE_FACTOR, destroyMs, drawMs, landsHeavy, shieldRevealMs } from "@/modules/simulator/scene/sceneTiming";
+import { SCENE_MS, destroyMs, drawMs, landsHeavy, shieldRevealMs } from "@/modules/simulator/scene/sceneTiming";
 import { drawnCard, placedResource, unrestedIds } from "@/modules/simulator/scene/turnStart";
 import { CardTravel, centerCardWidth, type TravelPoint } from "@/modules/simulator/ui/CardTravel";
 import { PlayCardStage, type PlayStage } from "@/modules/simulator/ui/PlayCardStage";
@@ -1233,7 +1233,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           resourceIds,
         });
         pendingAttackRef.current = pendingAttack;
-        const tempo = tempoFor(beats) * SCENE_PACE_FACTOR[getResolutionPacing()];
+        // o ritmo ("Normal") e a velocidade do menu já entram em `getScaledDuration`
+        const tempo = tempoFor(beats);
         const hold = (baseMs: number) => new Promise<void>((resolve) => setTimeout(resolve, getScaledDuration(baseMs * tempo)));
         const opponentSeat: PlayerId = incoming.seat === "A" ? "B" : "A";
         const defOf = (id: string) => cardDefInView(incoming.view, id) ?? cardDefInView(cinematicFrom, id);
@@ -1795,10 +1796,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     [matchId, applyIncomingView],
   );
 
-  // o servidor espera a cena no ritmo de quem joga (o mais lento dos dois): avisa a escolha deste jogador
+  // o servidor espera a cena no ritmo e na velocidade de animação de quem joga (o mais lento dos dois): avisa a escolha
+  // deste jogador
   const syncScenePace = useCallback(
-    (value: ResolutionPacing) => {
-      api.setSimulatorScenePace(matchId, value).catch((err) => console.warn("[SIMULADOR] ritmo da cena não salvo", err));
+    (value: ResolutionPacing = getResolutionPacing()) => {
+      api.setSimulatorScenePace(matchId, value, getSavedAnimSpeed()).catch((err) => console.warn("[SIMULADOR] ritmo da cena não salvo", err));
     },
     [matchId],
   );
@@ -1807,7 +1809,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     if (!matchView || scenePaceSyncedRef.current) return;
     scenePaceSyncedRef.current = true;
     const local = getResolutionPacing();
-    if ((matchView.scenePace ?? "cinematic") !== local) syncScenePace(local);
+    if ((matchView.scenePace ?? "cinematic") !== local || (matchView.sceneSpeed ?? 1) !== getSavedAnimSpeed()) syncScenePace(local);
   }, [matchView, syncScenePace]);
 
   const toggleAutoPass = async (value: boolean) => {
@@ -3529,6 +3531,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             autoPass={dockAutoPass}
             onToggleAutoPass={(v) => toggleAutoPass(v)}
             onPacingChange={syncScenePace}
+            onAnimSpeedChange={() => syncScenePace()}
             onLeave={exitToLobby}
             gameOver={Boolean(matchView?.view.gameOver)}
             busy={busy}

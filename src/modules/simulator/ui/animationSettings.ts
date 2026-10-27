@@ -5,7 +5,7 @@
  * `calc(280ms / var(--sim-anim-speed-mult, 1))`) acompanharem exatamente o
  * mesmo valor que `getScaledDuration` aplica nos `setTimeout`/`setInterval`
  * de JS — uma única fonte de verdade pros dois mundos. */
-import { isScenePace, type ScenePace } from "../scene/sceneTiming";
+import { SCENE_PACE_FACTOR, isScenePace, type ScenePace } from "../scene/sceneTiming";
 
 export const ANIM_SPEEDS = [0.75, 1, 1.5, 2] as const;
 export type AnimSpeed = (typeof ANIM_SPEEDS)[number];
@@ -40,7 +40,7 @@ export function getSavedAnimSpeed(): AnimSpeed {
   return isAnimSpeed(parsed) ? parsed : DEFAULT_SPEED;
 }
 
-function applySpeedCssVar(speed: AnimSpeed) {
+function applySpeedCssVar(speed: number) {
   if (typeof document !== "undefined") {
     document.documentElement.style.setProperty(CSS_VAR, String(speed));
   }
@@ -52,21 +52,23 @@ export function saveAnimSpeed(speed: AnimSpeed) {
   if (typeof window !== "undefined") {
     window.localStorage.setItem(STORAGE_KEY, String(speed));
   }
-  applySpeedCssVar(speed);
+  applySpeedCssVar(effectiveAnimSpeed());
 }
 
 /** escala uma duração-base (ms) pelo multiplicador salvo — 0.75x demora mais
  *  (didático), 2x demora menos (turbo). Use no lugar de constantes fixas em
  *  `setTimeout`/animações controladas por JS. */
 export function getScaledDuration(baseMs: number): number {
-  return Math.round(baseMs / getSavedAnimSpeed());
+  return Math.round(baseMs / effectiveAnimSpeed());
 }
 
-// aplica a velocidade salva assim que o módulo é importado, pra qualquer CSS
-// que já referencie `--sim-anim-speed-mult` não esperar o 1º render do
-// `SettingsMenu` (que é quem inicializa o `useState` — mas outras telas do
-// simulador podem montar animações antes dele).
-applySpeedCssVar(getSavedAnimSpeed());
+/**
+ * spec simulador-cadencia-de-mesa (P6) — a velocidade que a tela usa de fato: a escolhida pelo jogador vezes a do
+ * ritmo ("Normal" toca a cena inteira mais rápido; o servidor espera o mesmo, `scaleScene`).
+ */
+export function effectiveAnimSpeed(): number {
+  return getSavedAnimSpeed() / (getResolutionPacing() === "normal" ? SCENE_PACE_FACTOR.normal : 1);
+}
 
 /* Ritmo da resolução (spec simulador-ritmo-de-resolucao). "cinematic" = cada coisa que o motor fez toca no seu tempo
  * (anúncio da habilidade, compra, dano, saída), igual para jogador e bot. "classic" = o ritmo anterior (golpe, Command
@@ -106,4 +108,9 @@ export function saveResolutionPacing(pacing: ResolutionPacing) {
   } catch {
     // sem armazenamento a escolha vale só até recarregar
   }
+  applySpeedCssVar(effectiveAnimSpeed());
 }
+
+// aplica a velocidade assim que o módulo é importado (no fim: o ritmo salvo também entra na conta), pra qualquer CSS
+// que já referencie `--sim-anim-speed-mult` não esperar o 1º render do `SettingsMenu`.
+applySpeedCssVar(effectiveAnimSpeed());

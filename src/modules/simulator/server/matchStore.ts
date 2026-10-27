@@ -10,7 +10,7 @@ import { buildBattleLog, type BattleLogEntry } from "../ui/battleLog";
 import type { HeuristicLevel } from "../engine/bot";
 import type { ZeroCounterSummary } from "../engine/bot/zeroCounter";
 import { hasOwnDeploy, type PendingAttack } from "../scene/choreography";
-import { mulliganRedrawMs, openingIntroMs, sceneDurationMs, setupFinishMs, slowestPace, type ScenePace } from "../scene/sceneTiming";
+import { mulliganRedrawMs, openingIntroMs, scaleScene, sceneDurationMs, setupFinishMs, slowestPace, slowestSpeed, type ScenePace } from "../scene/sceneTiming";
 import { mulliganRedraws } from "../scene/openingScene";
 import {
   applySideboardSwap,
@@ -69,6 +69,8 @@ export interface MatchSeat {
   };
   /** spec simulador-cadencia-de-mesa — ritmo da cena escolhido por este jogador (ausente = cinemático) */
   scenePace?: ScenePace;
+  /** P6 — velocidade de animação deste jogador (menu; ausente = 1×): o servidor espera a tela mais lenta */
+  sceneSpeed?: number;
 }
 
 /**
@@ -286,6 +288,8 @@ export interface MatchView {
   sceneEndsAt: number | null;
   /** ritmo da cena deste assento (o servidor usa o mais lento dos dois jogadores) */
   scenePace: ScenePace;
+  /** velocidade de animação deste assento como o servidor guardou */
+  sceneSpeed: number;
 }
 
 /** `eventsFrom`: só a transmissão passa — o `eventSeq` da transmissão anterior (ver `notify`) */
@@ -315,6 +319,7 @@ export function matchViewFor(match: MatchRecord, seat: PlayerId, eventsFrom?: nu
     ...(eventsSince ? { eventsSince, eventsFromSeq: eventsFrom } : {}),
     sceneEndsAt: match.sceneEndsAt ?? null,
     scenePace: match.seats[seat]?.scenePace ?? "cinematic",
+    sceneSpeed: match.seats[seat]?.sceneSpeed ?? 1,
   };
 }
 
@@ -693,12 +698,13 @@ export function setAutoPass(matchId: string, userId: string, value: boolean): Ma
   return match;
 }
 
-/** Ritmo da cena deste jogador (menu "Ritmo dos efeitos"). Vale a partir da próxima cena; não muda o jogo. */
-export function setScenePace(matchId: string, userId: string, pace: ScenePace): MatchRecord {
+/** Ritmo da cena e velocidade de animação deste jogador (menu). Vale a partir da próxima cena; não muda o jogo. */
+export function setScenePace(matchId: string, userId: string, pace: ScenePace, speed?: number): MatchRecord {
   const match = requireMatch(matchId);
   const seat = seatFor(match, userId);
   if (!seat) throw new MatchError("Esse usuário não é jogador desta partida.", 403);
-  match.seats[seat] = { ...match.seats[seat]!, scenePace: pace };
+  const sceneSpeed = typeof speed === "number" && speed > 0 ? speed : match.seats[seat]!.sceneSpeed;
+  match.seats[seat] = { ...match.seats[seat]!, scenePace: pace, sceneSpeed };
   match.updatedAt = Date.now();
   persist(match);
   return match;
@@ -1246,13 +1252,18 @@ function matchScenePace(match: MatchRecord): ScenePace {
   return slowestPace(PLAYER_IDS.map((p) => match.seats[p]).filter((s) => s && !s.bot).map((s) => s?.scenePace));
 }
 
+function matchSceneSpeed(match: MatchRecord): number {
+  return slowestSpeed(PLAYER_IDS.map((p) => match.seats[p]).filter((s) => s && !s.bot).map((s) => s?.sceneSpeed));
+}
+
 /** conta a cena dos eventos novos desde a última conta (idempotente: sem eventos novos, nada muda) */
 function refreshScene(match: MatchRecord): void {
   const state = match.state;
   // P1: com os dois assentos ocupados, as duas telas tocam a abertura antes da 1ª decisão de Mulligan
   if (scenePacingEnabled && !match.sceneOpeningCounted && isSetupState(state) && match.seats.A && match.seats.B) {
     match.sceneOpeningCounted = true;
-    if (matchScenePace(match) !== "classic") extendScene(match, openingIntroMs());
+    const pace = matchScenePace(match);
+    if (pace !== "classic") extendScene(match, scaleScene(openingIntroMs(), pace, matchSceneSpeed(match)));
   }
   const cursor = match.sceneCursor;
   if (cursor && cursor.seq === state.eventLog.length) return;
@@ -1263,6 +1274,7 @@ function refreshScene(match: MatchRecord): void {
   }
   const events = state.eventLog.slice(cursor.seq);
   const pace = matchScenePace(match);
+  const speed = matchSceneSpeed(match);
   const { durationMs, pendingAttack } = sceneDurationMs({
     events,
     pendingAttack: cursor.pendingAttack,
@@ -1276,13 +1288,14 @@ function refreshScene(match: MatchRecord): void {
     }),
     pace,
     levelOf: (id) => levelInState(state, id),
+    speed,
   });
   extendScene(match, durationMs);
   // P1: a preparação tem coreografia própria — a troca de mão (vista pelos dois) e, quando os dois decidiram,
   // escudos, EX Base/Resource e os banners do turno 1
   if (cursor.fromSetup && pace !== "classic") {
-    extendScene(match, mulliganRedraws(events).length * mulliganRedrawMs());
-    if (!isSetupState(state)) extendScene(match, setupFinishMs());
+    extendScene(match, scaleScene(mulliganRedraws(events).length * mulliganRedrawMs(), pace, speed));
+    if (!isSetupState(state)) extendScene(match, scaleScene(setupFinishMs(), pace, speed));
   }
   match.sceneCursor = sceneCursorFor(state, pendingAttack);
 }

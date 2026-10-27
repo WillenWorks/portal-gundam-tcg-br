@@ -87,6 +87,17 @@ describe("cena no servidor (spec simulador-cadencia-de-mesa)", () => {
     expect(sceneWaitMsFor(match.id)).toBeGreaterThanOrEqual(afterRedraw + setupFinishMs() - 100);
   });
 
+  it("P6: o servidor espera a tela mais lenta (velocidade de animação do menu)", () => {
+    setScenePacingEnabled(true);
+    const match = createMatch({ deckA: buildSt01DeckList(), deckB: buildSt02DeckList(), seed: 1, firstPlayer: "A" });
+    joinMatch(match.id, "A", { userId: "user-1", displayName: "A", sceneSpeed: 0.75 });
+    joinMatch(match.id, "B", { userId: "user-2", displayName: "B", sceneSpeed: 2 });
+    expect(sceneWaitMsFor(match.id)).toBeGreaterThan(openingIntroMs() / 0.75 - 100);
+    setScenePace(match.id, "user-2", "normal", 1);
+    expect(matchViewFor(match, "B").sceneSpeed).toBe(1);
+    expect(matchViewFor(match, "B").scenePace).toBe("normal");
+  });
+
   it("abertura no ritmo rápido não segura ninguém", () => {
     setScenePacingEnabled(true);
     const match = createMatch({ deckA: buildSt01DeckList(), deckB: buildSt02DeckList(), seed: 1, firstPlayer: "A" });

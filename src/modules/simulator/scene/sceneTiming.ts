@@ -191,14 +191,31 @@ export function beatBaseMs(beat: Beat, levelOf?: LevelOf): number {
   }
 }
 
-/** quanto os tempos de uma visão seguram a fila, já com o `tempo` do lote e o ritmo */
+/**
+ * quanto os tempos de uma visão seguram a fila, com o `tempo` do lote e o ritmo. P6: o ritmo vale para a cena inteira
+ * (o "Normal" encurta tudo, não só os tempos de espera) — a tela faz o mesmo com `effectiveAnimSpeed`.
+ */
 export function beatsDurationMs(beats: readonly Beat[], pace: ScenePace, levelOf?: LevelOf): number {
-  const factor = SCENE_PACE_FACTOR[pace];
-  const tempo = tempoFor(beats) * factor;
-  return beats.reduce((ms, beat) => {
+  const tempo = tempoFor(beats);
+  const base = beats.reduce((ms, beat) => {
     const scaled = TEMPO_SCALED.has(beat.kind) && !(beat.kind === "departure" && beat.shieldsOf);
     return ms + beatBaseMs(beat, levelOf) * (scaled ? tempo : 1);
   }, 0);
+  return base * SCENE_PACE_FACTOR[pace];
+}
+
+/**
+ * P6 — uma duração-base de cena no ritmo e na velocidade de animação dos jogadores (o servidor usa a mais lenta: a
+ * tela de ninguém fica para trás).
+ */
+export function scaleScene(baseMs: number, pace: ScenePace, speed = 1): number {
+  return (baseMs * SCENE_PACE_FACTOR[pace]) / (speed > 0 ? speed : 1);
+}
+
+/** a velocidade de animação mais lenta entre os jogadores (sem escolha = 1×) */
+export function slowestSpeed(speeds: readonly (number | undefined)[]): number {
+  const known = speeds.filter((s): s is number => typeof s === "number" && s > 0);
+  return known.length ? Math.min(...known) : 1;
 }
 
 export interface SceneInput {
@@ -219,6 +236,8 @@ export interface SceneInput {
   pace: ScenePace;
   /** nível das cartas jogadas (pouso pesado dura mais) */
   levelOf?: LevelOf;
+  /** P6 — a velocidade de animação mais lenta entre os jogadores (1 = normal) */
+  speed?: number;
 }
 
 /**
@@ -241,13 +260,15 @@ export function sceneDurationMs(input: SceneInput): { durationMs: number; pendin
   }
   if (input.pace === "classic" || input.fromSetup) return { durationMs: 0, pendingAttack };
 
-  let ms = longest;
+  let extra = 0;
   if (input.events.some((e) => e.type === "TURN_CHANGE")) {
     // o fim do turno anterior: "fim de turno", mais "fase de ações" se ela não foi anunciada antes do lote
     const endBanners = input.phase === "end" ? 1 : 2;
-    ms += endBanners * SCENE_MS.banner + turnStartMs();
+    extra += endBanners * SCENE_MS.banner + turnStartMs();
   }
-  if (input.endsWithBurstDecision) ms += SCENE_MS.burstReveal.fly + SCENE_MS.burstReveal.flip + SCENE_MS.burstReveal.hold;
-  if (input.endsWithDeployChoice) ms += SCENE_MS.modalHold;
+  if (input.endsWithBurstDecision) extra += SCENE_MS.burstReveal.fly + SCENE_MS.burstReveal.flip + SCENE_MS.burstReveal.hold;
+  if (input.endsWithDeployChoice) extra += SCENE_MS.modalHold;
+  const speed = input.speed && input.speed > 0 ? input.speed : 1;
+  const ms = (longest + extra * SCENE_PACE_FACTOR[input.pace]) / speed;
   return { durationMs: ms > 0 ? Math.round(ms + SCENE_MS.margin) : 0, pendingAttack };
 }
