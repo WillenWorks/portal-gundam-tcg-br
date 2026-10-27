@@ -23,6 +23,7 @@ const PHASE_EN: Record<string, string> = {
   "TURNO DO OPONENTE": "OPPONENT'S TURN",
   "FASE DE COMPRA": "DRAW PHASE",
   "FASE DE RECUPERAÇÃO": "START PHASE",
+  "FASE DE RECURSO": "RESOURCE PHASE",
   "FASE PRINCIPAL": "MAIN PHASE",
   SIDEBOARDING: "SIDEBOARDING",
 };
@@ -68,6 +69,7 @@ export function PhaseAnnouncementBanner({
     else if (phase === "TURNO DO OPONENTE") displaySub = tr("POSTURA DEFENSIVA", "DEFENSIVE STANCE");
     else if (phase === "FASE DE COMPRA") displaySub = tr("DRAW PHASE · SACAR DO DECK", "DRAW FROM THE DECK");
     else if (phase === "FASE DE RECUPERAÇÃO") displaySub = tr("RECOVERY PHASE · DESTOMBAR & RECUPERAR", "SET YOUR CARDS ACTIVE");
+    else if (phase === "FASE DE RECURSO") displaySub = tr("RESOURCE PHASE · POSICIONAR RECURSO", "PLACE A RESOURCE");
     else if (phase === "FASE PRINCIPAL") displaySub = tr("MAIN PHASE · AÇÕES TÁTICAS", "PLAY CARDS AND ATTACK");
     else displaySub = tr("SISTEMA TÁTICO ATIVO", "IN PROGRESS");
   }

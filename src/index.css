@@ -555,6 +555,16 @@
    * origem até a pilha de Trash/Exílio. `depart` (descarte comum) é um
    * deslize liso; `depart-destroy` (Unit morta em combate/efeito) ganha um
    * tremor + rotação antes de desintegrar, coordenado com `sfx.playExplosion()`. */
+  /* spec simulador-cadencia-de-mesa (P2) — desvirar: a carta sai da horizontal e volta à vertical (90° → 0°); o
+   * descansar é o caminho inverso. Animação de um disparo por cima do estado final (o layout não muda). */
+  @keyframes sim-unrest {
+    from { transform: rotate(90deg) scale(0.92); }
+    to { transform: rotate(0deg) scale(1); }
+  }
+  @keyframes sim-rest {
+    from { transform: rotate(-90deg) scale(1.04); }
+    to { transform: rotate(0deg) scale(1); }
+  }
   @keyframes sim-card-depart {
     0% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); opacity: 0.95; }
     100% { transform: translate3d(var(--dx, 0px), var(--dy, 0px), 0) scale(0.55) rotate(-6deg); opacity: 0; }
@@ -591,6 +601,8 @@
   .sim-shield-barrier { animation: sim-shield-barrier calc(650ms / var(--sim-anim-speed-mult, 1)) ease-out forwards; }
   .sim-anim-depart { animation: sim-card-depart calc(420ms / var(--sim-anim-speed-mult, 1)) cubic-bezier(0.4, 0, 0.6, 1) both; }
   .sim-anim-depart-destroy { animation: sim-card-depart-destroy calc(420ms / var(--sim-anim-speed-mult, 1)) cubic-bezier(0.3, 0, 0.6, 1) both; }
+  .sim-anim-unrest { animation: sim-unrest calc(450ms / var(--sim-anim-speed-mult, 1)) cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+  .sim-anim-rest { animation: sim-rest calc(450ms / var(--sim-anim-speed-mult, 1)) cubic-bezier(0.2, 0.8, 0.3, 1) both; }
 
   @media (prefers-reduced-motion: reduce) {
     .sim-anim-land-soft,
@@ -606,7 +618,9 @@
     .sim-shockwave-amber,
     .sim-shield-barrier,
     .sim-anim-depart,
-    .sim-anim-depart-destroy {
+    .sim-anim-depart-destroy,
+    .sim-anim-unrest,
+    .sim-anim-rest {
       animation: none !important;
     }
   }

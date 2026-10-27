@@ -32,8 +32,13 @@ export const SCENE_MS = {
   deployHold: 420,
   /** `CommandCastAnimation` */
   command: { rise: 320, hold: 700, fly: 360, settle: 160 },
-  /** `DeckDealAnimation` modo "single-draw" */
-  draw: 750,
+  /** compra (P2, `CardTravel`): a minha sai do deck, vem ao centro, vira, fica à mostra e pousa à direita da mão; a do
+   *  oponente vai direto do deck dele para a mão dele — a cena dura o mesmo nas duas telas */
+  draw: { rise: 380, flip: 300, hold: 500, land: 380 },
+  /** Start Phase: banner sai, e as cartas descansadas giram de volta para a vertical */
+  unrest: 600,
+  /** Resource Phase: a carta do deck de recursos vira e pousa na área de recursos */
+  resource: 700,
   /** `executeAttackStrike`: avança, golpe, volta */
   strike: { advance: 260, hit: 220, back: 280 },
   /** cues do que um efeito fez */
@@ -73,8 +78,17 @@ export const SCENE_MS = {
   },
 } as const;
 
-/** banners da virada de turno: "seu turno / turno do oponente" + recuperação + compra + principal */
-const TURN_START_BANNERS = 4;
+/** banners da virada de turno: "seu turno / turno do oponente" + recuperação + compra + recurso + principal */
+const TURN_START_BANNERS = 5;
+
+export function drawMs(): number {
+  return SCENE_MS.draw.rise + SCENE_MS.draw.flip + SCENE_MS.draw.hold + SCENE_MS.draw.land;
+}
+
+/** começo de turno (P2): cada banner sai e só então a fase acontece — desvirar, comprar, pôr o recurso */
+export function turnStartMs(): number {
+  return TURN_START_BANNERS * SCENE_MS.banner + SCENE_MS.unrest + drawMs() + SCENE_MS.resource;
+}
 
 const O = SCENE_MS.opening;
 
@@ -103,7 +117,7 @@ export function mulliganRedrawMs(): number {
 
 /** fim do mulligan até a Main Phase do turno 1: escudos, EX, banners do turno */
 export function setupFinishMs(): number {
-  return dealShieldsMs() + O.exReveal + TURN_START_BANNERS * SCENE_MS.banner;
+  return dealShieldsMs() + O.exReveal + turnStartMs();
 }
 
 /** tempos cuja espera segue o `tempo` do lote (e o ritmo); golpe, Command e compra têm duração própria */
@@ -118,7 +132,7 @@ export function beatBaseMs(beat: Beat): number {
     case "opponentCommand":
       return SCENE_MS.command.rise + SCENE_MS.command.hold + SCENE_MS.command.fly;
     case "draw":
-      return SCENE_MS.draw;
+      return drawMs();
     case "strike":
       return SCENE_MS.strike.advance + SCENE_MS.strike.hit + SCENE_MS.strike.back;
     case "effects":
@@ -177,7 +191,7 @@ export function sceneDurationMs(input: SceneInput): { durationMs: number; pendin
   if (input.events.some((e) => e.type === "TURN_CHANGE")) {
     // o fim do turno anterior: "fim de turno", mais "fase de ações" se ela não foi anunciada antes do lote
     const endBanners = input.phase === "end" ? 1 : 2;
-    ms += (endBanners + TURN_START_BANNERS) * SCENE_MS.banner;
+    ms += endBanners * SCENE_MS.banner + turnStartMs();
   }
   if (input.endsWithBurstDecision) ms += SCENE_MS.burstReveal.fly + SCENE_MS.burstReveal.flip + SCENE_MS.burstReveal.hold;
   if (input.endsWithDeployChoice) ms += SCENE_MS.modalHold;
