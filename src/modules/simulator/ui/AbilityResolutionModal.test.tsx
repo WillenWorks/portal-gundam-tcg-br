@@ -990,3 +990,14 @@ describe("etapa de custo (\"Rest 1 friendly Unit：\" — o custo antes do alvo)
     expect(onResolve).toHaveBeenCalledWith([expect.objectContaining({ specId: "ST13-006-ActivateAction", activate: true, secondaryTargetIds: ["a1"] })]);
   });
 });
+
+describe("AbilityResolutionModal — posição (BUG-5AB7HM)", () => {
+  it("alvo escolhido no campo: no topo, sem tapar a mesa; sem alvo no campo: no centro", () => {
+    const { container, unmount } = render(<Harness decision={whenPaired} onResolve={vi.fn()} />);
+    expect(container.querySelector("[data-placement]")).toHaveAttribute("data-placement", "top");
+    unmount();
+    const yesNo: AR = { ...whenPaired, queue: [{ ...whenPaired.queue[0], needsTarget: false, optional: true, legalTargets: [] }] };
+    const { container: c2 } = render(<Harness decision={yesNo} onResolve={vi.fn()} />);
+    expect(c2.querySelector("[data-placement]")).toHaveAttribute("data-placement", "center");
+  });
+});

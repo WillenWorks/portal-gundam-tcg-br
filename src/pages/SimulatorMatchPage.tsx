@@ -141,6 +141,9 @@ import { CardTravel, centerCardWidth, type TravelPoint } from "@/modules/simulat
 import { PlayCardStage, type PlayStage } from "@/modules/simulator/ui/PlayCardStage";
 import { BurstDecisionStage } from "@/modules/simulator/ui/BurstDecisionStage";
 import { triggerEffectText } from "@/modules/simulator/scene/effectText";
+import { buildEffectLedger, effectTargetOf } from "@/modules/simulator/scene/effectLedger";
+import { effectAnchorKey, onFieldIds } from "@/modules/simulator/ui/effectAnchors";
+import { EffectLedgerTooltip } from "@/modules/simulator/ui/EffectLedgerTooltip";
 import { mulliganRedraws } from "@/modules/simulator/scene/openingScene";
 import { localSceneEnd, sceneLockWaitMs } from "@/modules/simulator/scene/sceneLock";
 import { restChanges, revealBeat, withRested } from "@/modules/simulator/scene/viewPatcher";
@@ -176,6 +179,7 @@ import {
   type ActionDockState,
   ArenaPlaymat,
   AbilityTargetLane,
+  type TargetLanePoint,
   type ArenaSide,
   BaseCardGauge,
   BattleLogDrawer,
@@ -670,6 +674,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [inspect, setInspect] = useState<CardInstance | null>(null);
   /** carta sob o cursor/foco — alimenta o `CardInspectorPanel` das asas largas (Sprint 3/4). */
   const [hoveredCard, setHoveredCard] = useState<CardInstance | null>(null);
+  /** spec simulador-efeitos-na-mesa — linha neon da carta-fonte até os alvos, enquanto o efeito toca na cena */
+  const [effectLane, setEffectLane] = useState<{ key: number; source: string; targets: TargetLanePoint[] } | null>(null);
   /** V6.1 (docs/32) — botão "Expandir tabuleiro" no widescreen: esconde o
    *  Detalhes da Carta (asas laterais) e deixa a arena usar a largura toda,
    *  com --card-w mais generoso. Só faz sentido quando `isWide` já mostra as
@@ -1283,8 +1289,21 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 setUnrestIds(new Set(turns.stand));
                 showTable(withRested(withRested(shown, turns.rest, true), turns.stand, false));
               }
+              // efeitos-na-mesa: a linha sai da carta que causou e vai até cada alvo no campo (não até ela mesma)
+              const laneSource = beat.source ? effectAnchorKey(shown, beat.source.instanceId, beat.source.player) : null;
+              const laneTargets: TargetLanePoint[] = [];
+              if (laneSource && beat.source) {
+                for (const id of new Set(beat.events.map(effectTargetOf))) {
+                  const key = id ? effectAnchorKey(shown, id) : null;
+                  if (!key || key === laneSource || laneTargets.some((t) => t.id === key)) continue;
+                  const owner = (["A", "B"] as PlayerId[]).find((pid) => key === `base:${pid}` || shown.players[pid].battleArea.some((c) => c.instanceId === key));
+                  laneTargets.push({ id: key, pool: owner === beat.source.player ? "ally" : "enemy" });
+                }
+              }
+              setEffectLane(laneSource && laneTargets.length > 0 ? { key: ++beatKeyRef.current, source: laneSource, targets: laneTargets } : null);
               setCueBatch({ key: -++beatKeyRef.current, events: beat.events });
               await hold(SCENE_MS.effects);
+              setEffectLane(null);
               if (turns.rest.length || turns.stand.length) {
                 setRestIds(new Set());
                 setUnrestIds(new Set());
@@ -2294,6 +2313,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   // cálculos de stat e deixa os badges incluírem 【During Pair】/【During Link】.
   const boardForStats = view as unknown as GameState;
   const battleLog = buildBattleLog(view, cardLanguage); // docs/19, Sessão 4 — feed traduzido; barato (eventLog é janelado no servidor)
+  // spec simulador-efeitos-na-mesa — efeitos deste turno em cartas do campo (quem causou, o quê, até quando)
+  const effectLedger = buildEffectLedger(view.eventLog, onFieldIds(view));
+  const effectNameOf = (id: string) => cardDefInView(view, id)?.nameEn;
   const combat = view.combat;
   const endPhaseAction = view.endPhaseAction;
   const myTurnMain = !combat && view.phase === "main" && view.activePlayer === seat;
@@ -3072,6 +3094,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           key={unit?.instanceId ?? `empty-${i}`}
           unit={unit}
           pilot={unit ? pairedPilotOf(player, unit) : null}
+          effectCount={unit ? effectLedger.filter((e) => e.targetId === unit.instanceId || (unit.pairedPilotId && e.targetId === unit.pairedPilotId)).length : 0}
           art={art}
           targetingActive={targetingActive}
           legalTarget={isLegal}
@@ -4152,7 +4175,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           abaixo do `MatchPrompt`), longe do log (direita) e do `ActionDock`
           (canto). Some sozinho em 4s; clique fecha na hora. */}
       {actionError ? (
-        <div className={`fixed inset-x-0 flex justify-center px-3 ${myBurstDecision ? "top-28 z-[85]" : "top-16 z-[46]"}`}>
+        <div className={`fixed inset-x-0 flex justify-center px-3 ${myBurstDecision ? "top-28 z-[85]" : "top-[clamp(4rem,2.5rem+2.5vw,8rem)] z-[46]"}`}>
           <button
             type="button"
             onClick={() => setActionError(null)}
@@ -4165,13 +4188,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         </div>
       ) : null}
 
-      {/* docs/54 tarefa 5 — carta híbrida (Piloto vs Comando): seletor suspenso
-          compacto no topo, no lugar do modal grande de inspeção. `Esc` ou o
-          botão Cancelar fecham sem escolher nada. */}
+      {/* docs/54 tarefa 5 — carta híbrida (Piloto vs Comando): seletor compacto, no lugar do modal grande de inspeção.
+          BUG-5AB7HM: escolha que não usa o campo — no centro. `Esc` ou o botão Cancelar fecham sem escolher nada. */}
       {handModeChoice ? (
-        <div className="pointer-events-none fixed inset-x-0 top-16 z-[46] flex justify-center px-3">
-          <div className="pointer-events-auto flex flex-wrap items-center gap-2 rounded-arena border border-primary/45 bg-slate-950/95 px-3.5 py-2 text-primary shadow-2xl backdrop-blur-sm">
-            <p className="text-xs font-bold uppercase leading-snug tracking-[0.04em] sm:text-sm">
+        <div data-placement="center" className="fixed inset-0 z-[46] flex items-center justify-center bg-black/45 px-3 animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none">
+          <div className="pointer-events-auto flex flex-wrap items-center gap-3 rounded-arena border-2 border-primary/60 bg-slate-950/95 px-5 py-4 text-primary shadow-2xl backdrop-blur-sm">
+            <p className="text-[clamp(0.875rem,0.6rem+0.5vw,1.5rem)] font-black uppercase leading-snug tracking-[0.04em]">
               {handModeChoice.card.def.nameEn} — escolha como jogar:
             </p>
             <div className="flex flex-wrap items-center gap-1.5">
@@ -4185,7 +4207,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                     setHandModeChoice(null);
                     run();
                   }}
-                  className="rounded-arena border border-primary/50 bg-primary/15 px-2 py-1 text-[10px] font-bold uppercase tracking-wide hover:bg-primary/25 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-arena border border-primary/60 bg-primary/15 px-3 py-2 text-[clamp(0.75rem,0.55rem+0.35vw,1.2rem)] font-bold uppercase tracking-wide hover:bg-primary/25 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {m.label}
                 </button>
@@ -4193,7 +4215,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               <button
                 type="button"
                 onClick={() => setHandModeChoice(null)}
-                className="rounded-arena border border-white/20 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-300 hover:bg-white/10"
+                className="rounded-arena border border-white/25 px-3 py-2 text-[clamp(0.75rem,0.55rem+0.35vw,1.2rem)] font-bold uppercase tracking-wide text-slate-300 hover:bg-white/10"
               >
                 Cancelar <span className="opacity-60">(Esc)</span>
               </button>
@@ -4372,6 +4394,38 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
       {/* Números/efeitos flutuantes por GameEvent (dano, buff, keyword, token, EX…) — CONTRATO-MOTOR §7. */}
       <EffectResolutionOverlay eventLog={view.eventLog} eventsBatch={cueBatch ?? undefined} rectOf={board.rectOf} viewerSeat={seat} />
+
+      {/* spec simulador-efeitos-na-mesa — durante o efeito, a linha da carta que o causou até os alvos */}
+      {effectLane ? <AbilityTargetLane key={effectLane.key} sourceId={effectLane.source} targets={effectLane.targets} rectOf={board.rectOf} /> : null}
+      {/* …e depois, no hover: quem causou o que está nesta carta (e o que ela causou), com a linha de cada fonte */}
+      {hoveredCard && !effectLane
+        ? (() => {
+            const hid = hoveredCard.instanceId;
+            const related = effectLedger.filter((e) => e.targetId === hid || e.source?.instanceId === hid);
+            const hoverKey = related.length > 0 ? effectAnchorKey(view, hid) : null;
+            if (!hoverKey) return null;
+            const ownerOfKey = (key: string) =>
+              (["A", "B"] as PlayerId[]).find((pid) => key === `base:${pid}` || view.players[pid].battleArea.some((c) => c.instanceId === key));
+            const lanes = new Map<string, TargetLanePoint[]>();
+            for (const e of related) {
+              if (!e.source) continue;
+              const from = effectAnchorKey(view, e.source.instanceId, e.source.player);
+              const to = e.targetId === hid ? hoverKey : effectAnchorKey(view, e.targetId);
+              if (!from || !to || from === to) continue;
+              const list = lanes.get(from) ?? [];
+              if (!list.some((t) => t.id === to)) list.push({ id: to, pool: ownerOfKey(to) === e.source.player ? "ally" : "enemy" });
+              lanes.set(from, list);
+            }
+            return (
+              <>
+                {[...lanes].map(([from, targets]) => (
+                  <AbilityTargetLane key={`fx:${from}`} sourceId={from} targets={targets} rectOf={board.rectOf} />
+                ))}
+                <EffectLedgerTooltip cardId={hid} entries={related} anchor={board.rectOf(hoverKey)} nameOf={effectNameOf} />
+              </>
+            );
+          })()
+        : null}
 
       {/* Linha de mira da carta de origem até os alvos já escolhidos na resolução da habilidade. */}
       {abilityDecision?.queue.map((q) => {

@@ -6,6 +6,7 @@
  * O caminho antigo (`planAnimations` + todos os cues de uma vez) continua em `ui/timelinePlayback.ts` e é o que roda com
  * o ritmo "rápido" (`getResolutionPacing() === "classic"`), que serve também de reversão sem deploy. */
 import type { AttackTarget, GameEvent, Phase, PlayerId } from "../engine/types";
+import { LASTING_EFFECT_EVENTS } from "./effectLedger";
 
 /** combate aberto numa visão anterior cujo golpe ainda não tocou */
 export interface PendingAttack {
@@ -30,8 +31,11 @@ export type Beat =
   /** P4 — bloqueio: o bloqueador deita e a linha muda para ele */
   | { kind: "block"; blockerId: string; newTarget: AttackTarget; rests: boolean }
   | { kind: "strike"; attackerId: string; target: AttackTarget; defendingPlayer: PlayerId }
-  /** o que um efeito fez, mostrado junto (os cues do `EffectResolutionOverlay`) */
-  | { kind: "effects"; events: GameEvent[] }
+  /**
+   * o que um efeito fez, mostrado junto (os cues do `EffectResolutionOverlay`); `source` = a carta da habilidade /
+   * Command que o causou (spec simulador-efeitos-na-mesa: a linha neon vai dela até cada alvo)
+   */
+  | { kind: "effects"; events: GameEvent[]; source?: { instanceId: string; player: PlayerId } }
   /**
    * cartas indo para a lixeira/exílio (`ids`; `destroyed` = destruída: quebra e é arrastada) ou shields quebradas
    * (`shieldsOf`/`count`: as do topo na visão anterior — P4: cada uma vai ao centro e vira para os dois verem)
@@ -59,6 +63,8 @@ const CUE_EVENTS = new Set<GameEvent["type"]>([
   "SPAWN_TOKEN",
   // olhar o topo e devolver (RE-GZ): sem isto o efeito anunciado parecia não ter feito nada
   "MOVE_WITHIN_DECK",
+  // efeitos sem número (Kayra's Jegan libera alvo de ataque, proteções…): também têm o tempo e a linha da fonte
+  ...LASTING_EFFECT_EVENTS,
 ]);
 
 /** fases de estrutura do turno: o que acontece nelas já é contado pelos banners e pela compra da virada de turno */
@@ -95,6 +101,8 @@ export function planChoreography({ events, viewerSeat, pendingAttack, phase: sta
   let cues: GameEvent[] = [];
   /** uma habilidade anunciada está resolvendo: o que vier é dela (toca na hora, mesmo dentro de combate) */
   let abilityOpen = false;
+  /** a carta dessa habilidade (ou a Command em uso) */
+  let abilitySource: { instanceId: string; player: PlayerId } | null = null;
   /** tempo que ainda junta o custo pago (os REST_CARD de recurso logo depois da carta jogada / habilidade ativada) */
   let paying: Extract<Beat, { paid: string[] }> | null = null;
   /** a Command em uso: ela some no centro (no tempo `play`), a ida dela para a lixeira não vira saída */
@@ -103,12 +111,13 @@ export function planChoreography({ events, viewerSeat, pendingAttack, phase: sta
   const holding = () => attack !== null && !abilityOpen;
   const push = (beat: Beat) => (holding() ? heldForStrike.push(beat) : beats.push(beat));
   const flushCues = () => {
-    if (cues.length > 0) push({ kind: "effects", events: cues });
+    if (cues.length > 0) push(abilityOpen && abilitySource ? { kind: "effects", events: cues, source: abilitySource } : { kind: "effects", events: cues });
     cues = [];
   };
   const closeAbility = () => {
     flushCues();
     abilityOpen = false;
+    abilitySource = null;
   };
 
   for (const [index, event] of events.entries()) {
@@ -137,6 +146,7 @@ export function planChoreography({ events, viewerSeat, pendingAttack, phase: sta
         if (event.as === "command") {
           // a Command é a própria habilidade: o que vier depois é dela
           abilityOpen = true;
+          abilitySource = { instanceId: event.instanceId, player: event.player };
           playedCommand = event.instanceId;
         }
         break;
@@ -150,6 +160,7 @@ export function planChoreography({ events, viewerSeat, pendingAttack, phase: sta
           paying = beat;
         }
         abilityOpen = true;
+        abilitySource = { instanceId: event.instanceId, player: event.player };
         break;
       case "ATTACK_DECLARED":
       case "BEGIN_DAMAGE_ONLY_BATTLE": {

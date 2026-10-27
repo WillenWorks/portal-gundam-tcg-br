@@ -46,3 +46,10 @@ describe("TriggerOrderModal", () => {
     expect(screen.getByRole("button", { name: /confirmar ordem/i })).toBeDisabled();
   });
 });
+
+describe("TriggerOrderModal — posição (BUG-5AB7HM)", () => {
+  it("não usa o campo: no centro", () => {
+    const { container } = render(<TriggerOrderModal decision={baseDecision} onResolve={vi.fn()} />);
+    expect(container.querySelector("[data-placement]")).toHaveAttribute("data-placement", "center");
+  });
+});

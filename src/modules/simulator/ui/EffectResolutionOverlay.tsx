@@ -281,6 +281,40 @@ export function EffectResolutionOverlay({
           sublabel = "SPAWN";
           break;
 
+        // spec simulador-efeitos-na-mesa — efeitos sem número também aparecem no alvo
+        case "GRANT_ATTACK_TARGET_RELAX":
+          targetKey = ev.instanceId;
+          type = "keyword";
+          label = tr("Alvo Ativo", "Active Target");
+          sublabel = tr("NESTE TURNO", "THIS TURN");
+          break;
+
+        case "PREVENT_BEING_ATTACK_TARGET":
+          targetKey = ev.instanceId;
+          type = "lock";
+          label = tr("Sem Alvo de Ataque", "Can't Be Attacked");
+          sublabel = tr("NESTE TURNO", "THIS TURN");
+          break;
+
+        case "SET_UNIT_DAMAGE_PROTECTION":
+        case "GRANT_BATTLE_DAMAGE_IMMUNITY_UNTIL_TURN":
+          targetKey = ev.instanceId;
+          type = "shield";
+          label = tr("Protegida", "Protected");
+          sublabel = tr("DANO DE BATALHA", "BATTLE DAMAGE");
+          break;
+
+        case "GRANT_DAMAGE_MODIFIER":
+          targetKey = ev.instanceId;
+          type = "shield";
+          label = ev.modifier.immune
+            ? tr("Imune a Dano", "Damage Immune")
+            : (ev.modifier.amount ?? 0) < 0
+              ? tr(`${ev.modifier.amount} de Dano`, `${ev.modifier.amount} Damage`)
+              : tr(`+${ev.modifier.amount ?? 0} de Dano`, `+${ev.modifier.amount ?? 0} Damage`);
+          sublabel = ev.modifier.scope === "next" ? tr("PRÓXIMO", "NEXT") : ev.modifier.scope === "battle" ? tr("Batalha", "Battle") : tr("Turno", "Turn");
+          break;
+
         default:
           break;
       }
