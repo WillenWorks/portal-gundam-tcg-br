@@ -10,7 +10,7 @@
  * esquerda dele quando a jogada é possível. Sem badge "BLK" na carta — o botão
  * de escudo só aparece quando é hora de bloquear. */
 import { useEffect } from "react";
-import { CheckCircle2, Crosshair, ShieldCheck, Swords, Zap } from "lucide-react";
+import { CheckCircle2, Crosshair, ShieldCheck, Sparkles, Swords, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardInstance, GameState } from "@/modules/simulator/engine/types";
 import { effectiveAp, effectiveHp, effectivePilotDef, hasKeyword, keywordValue, satisfiesLinkCondition } from "@/modules/simulator/engine/types";
@@ -19,6 +19,8 @@ import { isGenericArtCard, type ArtLookup } from "./cardArt";
 import { CardCornerActions, type CornerAction } from "./CardCornerActions";
 import { CardFace } from "./CardFace";
 import { DockedPilot } from "./DockedPilot";
+import { useCountingNumber } from "./useCountingNumber";
+import { relaxTargetEn, relaxTargetPt } from "../scene/effectLedger";
 import { sfx } from "../audio/soundEffects";
 import { useCardLanguage } from "@/i18n/useCardLanguage";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
@@ -85,6 +87,11 @@ interface BattleSlotProps {
   abilitySelected?: boolean;
   /** Fonte ativa disparando ou ativando efeito/habilidade. */
   isAbilitySource?: boolean;
+  /**
+   * spec simulador-efeitos-na-mesa — quantos efeitos deste turno estão nesta carta (selo ✦; o hover mostra quem
+   * causou e o que fazem)
+   */
+  effectCount?: number;
 }
 
 /** `transform` inline não responde a `motion-reduce:` do Tailwind — precisa do
@@ -139,11 +146,20 @@ export function BattleSlot({
   abilityTargetPool,
   abilitySelected,
   isAbilitySource,
+  effectCount = 0,
 }: BattleSlotProps) {
   const { tr } = useSiteLanguage();
   // Hooks precisam rodar em toda renderização, mesmo quando o slot está vazio
   // (early return abaixo) — Rules of Hooks.
   const { isPt } = useCardLanguage();
+  // spec simulador-efeitos-na-mesa — AP/HP contam até o valor novo (buff, debuff, dano e a volta na virada do turno).
+  // `state` (quando o pai passa) cobre os bônus estáticos 【During Pair】/【During Link】; o `pilot` direto cobre o
+  // modificador impresso do Piloto (Comprehensive Rules 3-3-5) mesmo sem `state`.
+  const apNow = unit ? effectiveAp(unit, state, pilot) : 0;
+  const hpMaxNow = unit ? effectiveHp(unit, state, pilot) : 0;
+  const hpLeftNow = unit ? Math.max(0, hpMaxNow - unit.damage) : 0;
+  const apCount = useCountingNumber(apNow, unit?.instanceId);
+  const hpCount = useCountingNumber(hpLeftNow, unit?.instanceId);
   useEffect(() => {
     if (justDeployed === "light") {
       sfx.playThrusterBoost();
@@ -201,12 +217,11 @@ export function BattleSlot({
     );
   }
 
-  // `state` (quando o pai passa) cobre os bônus estáticos 【During Pair】/
-  // 【During Link】; o `pilot` direto cobre o modificador impresso do Piloto
-  // (Comprehensive Rules 3-3-5) mesmo sem `state`.
-  const ap = effectiveAp(unit, state, pilot);
-  const hpRemaining = Math.max(0, effectiveHp(unit, state, pilot) - unit.damage);
-  const apBuffed = ap !== (unit.def.ap ?? 0);
+  const ap = apNow;
+  const hpRemaining = hpLeftNow;
+  // azul = acima do impresso, vermelho = abaixo (estilo Yu-Gi-Oh)
+  const apShift = Math.sign(ap - (unit.def.ap ?? 0));
+  const hpShift = Math.sign(hpMaxNow - (unit.def.hp ?? 0));
   const hpDamaged = unit.damage > 0;
   const isLinkUnit = Boolean(pilot) && satisfiesLinkCondition(effectivePilotDef(pilot!), unit.def);
 
@@ -238,7 +253,8 @@ export function BattleSlot({
   // Só um selo informativo; não esconde nenhuma ação (o que é legal vem de `actions`, calculado com o motor).
   const staysRestedNextStart = Boolean(unit.cannotActivateUntilTurn && unit.cannotActivateUntilTurn >= currentTurn);
   const cannotTargetPlayer = Boolean(unit.def.attackTargetRules?.cannotTargetPlayer);
-  const isAttackTargetRelax = Boolean(unit.attackTargetRelaxUntilTurn && unit.attackTargetRelaxUntilTurn.turn >= currentTurn);
+  const attackTargetRelax = unit.attackTargetRelaxUntilTurn && unit.attackTargetRelaxUntilTurn.turn >= currentTurn ? unit.attackTargetRelaxUntilTurn : null;
+  const isAttackTargetRelax = Boolean(attackTargetRelax);
 
   const showAttack = Boolean(actions?.onAttack) && !unit.rested && !isCannotAttack;
   // docs/55 tarefa 3 — botão "Blocker" VERDE (era "sky"/azul) e saliente: é a
@@ -438,6 +454,16 @@ export function BattleSlot({
           ) : null}
           {/* Micro-chips de status, keywords e tokens */}
           <div className="pointer-events-none absolute left-0 top-[clamp(0.95rem,calc(var(--card-w-std,2.17rem)*0.22),1.35rem)] z-10 flex flex-col items-start gap-0.5">
+            {effectCount > 0 ? (
+              <span
+                data-testid="effect-count"
+                className="flex items-center gap-0.5 rounded-r-xs bg-cyan-400/95 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-slate-950 shadow-[0_0_8px_rgba(34,211,238,0.8)]"
+                title={tr(`${effectCount} efeito(s) neste turno — passe o mouse para ver`, `${effectCount} effect(s) this turn — hover to see`)}
+              >
+                <Sparkles className="size-[1em]" aria-hidden />
+                {effectCount}
+              </span>
+            ) : null}
             {isToken ? (
               <span
                 className="rounded-r-xs bg-fuchsia-600/90 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-white shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
@@ -537,7 +563,13 @@ export function BattleSlot({
             {isAttackTargetRelax ? (
               <span
                 className="rounded-r-xs bg-emerald-700/95 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-emerald-100 shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
-                title={isPt ? "Pode escolher uma Unidade inimiga ativa como alvo de ataque neste turno" : "May choose an active enemy Unit as its attack target this turn"}
+                title={
+                  attackTargetRelax
+                    ? isPt
+                      ? `Pode atacar ${relaxTargetPt(attackTargetRelax)} neste turno`
+                      : `May attack ${relaxTargetEn(attackTargetRelax)} this turn`
+                    : undefined
+                }
               >
                 {isPt ? "ALVO ATIVO" : "ACTIVE TARGET"}
               </span>
@@ -550,20 +582,36 @@ export function BattleSlot({
           <span
             className={cn(
               "absolute bottom-0 left-0 z-10 min-w-[1.4em] px-1 py-0.5 text-center text-[clamp(0.8125rem,calc(var(--card-w-std,2.17rem)*0.22),1.375rem)] font-black leading-none tabular-nums",
-              apBuffed ? "bg-amber-500 text-black" : "bg-cyan-600/95 text-white",
+              "transition-transform duration-150 motion-reduce:transition-none",
+              apShift > 0
+                ? "bg-blue-600 text-white shadow-[0_0_10px_rgba(59,130,246,0.9)]"
+                : apShift < 0
+                  ? "bg-rose-600 text-white shadow-[0_0_10px_rgba(244,63,94,0.9)]"
+                  : "bg-cyan-600/95 text-white",
+              apCount.counting && "scale-125",
             )}
             aria-label={`AP ${ap}`}
+            data-shift={apShift > 0 ? "up" : apShift < 0 ? "down" : undefined}
           >
-            {ap}
+            {apCount.shown}
           </span>
           <span
             className={cn(
               "absolute bottom-0 right-0 z-10 flex items-baseline gap-0.5 px-1 py-0.5 text-[clamp(0.8125rem,calc(var(--card-w-std,2.17rem)*0.22),1.375rem)] font-black leading-none tabular-nums",
-              hpDamaged ? "bg-red-600/95 text-white" : "bg-slate-700/95 text-white",
+              "transition-transform duration-150 motion-reduce:transition-none",
+              hpShift > 0
+                ? "bg-blue-600 text-white shadow-[0_0_10px_rgba(59,130,246,0.9)]"
+                : hpShift < 0
+                  ? "bg-rose-700 text-white shadow-[0_0_10px_rgba(244,63,94,0.9)]"
+                  : hpDamaged
+                    ? "bg-red-600/95 text-white"
+                    : "bg-slate-700/95 text-white",
+              hpCount.counting && "scale-125",
             )}
             aria-label={`HP ${hpRemaining}`}
+            data-shift={hpShift > 0 ? "up" : hpShift < 0 ? "down" : undefined}
           >
-            {hpRemaining}
+            {hpCount.shown}
             {hpDamaged ? (
               <span className="text-[clamp(0.625rem,calc(var(--card-w-std,2.17rem)*0.16),1rem)] font-bold text-red-200">
                 -{unit.damage}

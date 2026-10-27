@@ -53,6 +53,26 @@ describe("planChoreography — uma coisa de cada vez, na ordem do motor", () => 
     expect(kinds(beats)).toEqual(["announce", "effects", "announce", "effects"]);
   });
 
+  it("efeitos-na-mesa: o tempo de efeito leva a carta que o causou (a linha neon sai dela)", () => {
+    const { beats } = plan([
+      { type: "CARD_PLAYED", player: "B", instanceId: "kayra", as: "unit" },
+      { type: "ABILITY_ACTIVATED", player: "B", instanceId: "kayra", trigger: "Deploy" },
+      { type: "GRANT_ATTACK_TARGET_RELAX", instanceId: "murasame", maxAp: 4, turn: 8 },
+    ]);
+    expect(kinds(beats)).toEqual(["play", "announce", "effects"]);
+    expect(beats[2]).toEqual({
+      kind: "effects",
+      events: [{ type: "GRANT_ATTACK_TARGET_RELAX", instanceId: "murasame", maxAp: 4, turn: 8 }],
+      source: { instanceId: "kayra", player: "B" },
+    });
+    // a Command em uso também é fonte
+    const cmd = plan([
+      { type: "CARD_PLAYED", player: "A", instanceId: "c1", as: "command", trigger: "Main" },
+      { type: "MODIFY_STAT", instanceId: "u1", modifier: { stat: "ap", amount: 2, duration: "endOfTurn", appliedOnTurn: 1 } } as GameEvent,
+    ]).beats;
+    expect(cmd[1]).toMatchObject({ kind: "effects", source: { instanceId: "c1", player: "A" } });
+  });
+
   it("P3: a minha jogada também tem o tempo dela (igual à do oponente), com o custo pago junto", () => {
     const deploy: GameEvent = { type: "CARD_PLAYED", player: "A", instanceId: "u1", as: "unit" };
     const paid: GameEvent[] = [
@@ -92,7 +112,7 @@ describe("planChoreography — uma coisa de cada vez, na ordem do motor", () => 
       resources,
     );
     expect(beats[0]).toEqual({ kind: "announce", player: "A", instanceId: "u1", trigger: "Activate·Main", paid: ["r1"] });
-    expect(beats[1]).toEqual({ kind: "effects", events: [{ type: "SET_ACTIVE", instanceId: "r2" }] });
+    expect(beats[1]).toEqual({ kind: "effects", events: [{ type: "SET_ACTIVE", instanceId: "r2" }], source: { instanceId: "u1", player: "A" } });
   });
 
   it("P5: carta indo para a mão fora da compra (【Burst】 à mão, Unit que volta) tem o tempo dela", () => {

@@ -303,8 +303,18 @@ export function AbilityResolutionModal({
     language,
   );
 
+  // BUG-5AB7HM — escolha que pede clicar no campo (alvo em Unit/Recurso) fica no topo, sem tapar a mesa; o resto
+  // (sim/não, opções, mão, lixeira, deck) vem no centro, onde o olho já está
+  const usesBoard = decision.queue.some((q) => usesBoardTargetingForPrimary(q) || usesBoardTargetingForSecondary(q));
+
   return (
-    <div className="fixed top-2 inset-x-0 z-[75] pointer-events-none flex justify-center px-2 animate-in slide-in-from-top-2 fade-in duration-200 motion-reduce:animate-none">
+    <div
+      data-placement={usesBoard ? "top" : "center"}
+      className={cn(
+        "fixed inset-x-0 z-[75] flex justify-center px-2 animate-in fade-in duration-200 motion-reduce:animate-none",
+        usesBoard ? "top-2 pointer-events-none slide-in-from-top-2" : "inset-y-0 items-center bg-black/45 zoom-in-95",
+      )}
+    >
       <div
         className={cn(
           "pointer-events-auto panel-cut hero-surface mx-auto flex flex-col border border-amber-400/70 bg-slate-950/95 shadow-2xl backdrop-blur-md transition-all duration-200",

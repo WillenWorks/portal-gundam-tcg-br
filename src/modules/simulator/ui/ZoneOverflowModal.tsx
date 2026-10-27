@@ -27,7 +27,8 @@ export function ZoneOverflowModal({ units, busy, onResolve, getEffectiveStats }:
   const isEn = language === "EN";
 
   return (
-    <div className="fixed inset-0 z-[60] flex justify-center px-3 pt-3 sm:pt-5 animate-in fade-in duration-200 motion-reduce:animate-none">
+    // BUG-5AB7HM — escolha numa lista (não no campo): no centro
+    <div data-placement="center" className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 px-3 animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none">
       <div className="pointer-events-auto panel-cut hero-surface mx-auto w-[min(94vw,40rem)] border border-primary/40 p-3 shadow-2xl backdrop-blur-md sm:p-4">
         <p className="flex items-center justify-center gap-1.5 text-center text-sm font-black uppercase tracking-[0.2em] text-primary">
           <Layers className="size-4" /> {isEn ? "Battle Area Full" : "Battle Area cheia"}
