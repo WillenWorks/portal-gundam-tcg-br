@@ -30,9 +30,11 @@ interface SettingsMenuProps {
   busy?: boolean;
   /** o servidor espera a cena no ritmo escolhido (bot e prazo de decisão) */
   onPacingChange?: (value: ResolutionPacing) => void;
+  /** a velocidade de animação também muda quanto a cena dura (P6) */
+  onAnimSpeedChange?: (speed: AnimSpeed) => void;
 }
 
-export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, busy, onPacingChange }: SettingsMenuProps) {
+export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, busy, onPacingChange, onAnimSpeedChange }: SettingsMenuProps) {
   const { tr } = useSiteLanguage();
   const [currentSkin, setCurrentSkin] = useState<PlaymatSkinId>(getSavedPlaymatSkin);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => sfx.isEnabled());
@@ -48,6 +50,7 @@ export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, bu
   const handleAnimSpeedChange = (speed: AnimSpeed) => {
     setAnimSpeed(speed);
     saveAnimSpeed(speed);
+    onAnimSpeedChange?.(speed);
   };
 
   const handleSkinChange = (skinId: PlaymatSkinId) => {

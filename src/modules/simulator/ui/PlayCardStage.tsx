@@ -34,9 +34,15 @@ export interface PlayStage {
 
 const ASPECT = 88 / 63;
 
+/** P6 — sem movimento: a carta aparece direto em cada posição (a cena dura o mesmo, só não anda) */
+function prefersReducedMotion(): boolean {
+  return typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+}
+
 export function PlayCardStage({ stage, art }: { stage: PlayStage; art?: ArtLookup }) {
+  const [reduced] = useState(prefersReducedMotion);
   // um quadro na mão antes de subir, para a transição ter de onde partir
-  const [left, setLeft] = useState(false);
+  const [left, setLeft] = useState(reduced);
   useEffect(() => {
     const t = setTimeout(() => setLeft(true), 30);
     return () => clearTimeout(t);
@@ -69,7 +75,7 @@ export function PlayCardStage({ stage, art }: { stage: PlayStage; art?: ArtLooku
           height: h,
           opacity: used ? 0 : 1,
           transform: used ? "scale(1.35)" : "scale(1)",
-          transition: [
+          transition: reduced ? undefined : [
             moveMs ? `left ${moveMs}ms ${ease}, top ${moveMs}ms ${ease}, width ${moveMs}ms ${ease}, height ${moveMs}ms ${ease}` : "",
             used ? `opacity ${usedMs}ms ease-out, transform ${usedMs}ms ease-out` : "",
           ]
@@ -79,7 +85,7 @@ export function PlayCardStage({ stage, art }: { stage: PlayStage; art?: ArtLooku
       >
         <div
           className="relative h-full w-full [transform-style:preserve-3d]"
-          style={{ transform: atHand ? "rotateY(0deg)" : "rotateY(180deg)", transition: `transform ${getScaledDuration(p.rise)}ms cubic-bezier(0.3, 0.7, 0.3, 1)` }}
+          style={{ transform: atHand ? "rotateY(0deg)" : "rotateY(180deg)", transition: reduced ? undefined : `transform ${getScaledDuration(p.rise)}ms cubic-bezier(0.3, 0.7, 0.3, 1)` }}
         >
           <div className="absolute inset-0 overflow-hidden rounded-arena border border-primary/50 bg-slate-950 [backface-visibility:hidden]">
             <img src={cardBackUrl} alt="" className="h-full w-full object-cover" />

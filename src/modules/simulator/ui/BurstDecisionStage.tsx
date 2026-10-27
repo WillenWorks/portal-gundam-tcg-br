@@ -39,6 +39,8 @@ interface BurstDecisionStageProps {
 export function BurstDecisionStage({ decision, art, effectText, target, selectedCount, busy, trashAt, trashW, onTargetingChange, onResolve }: BurstDecisionStageProps) {
   const { tr } = useSiteLanguage();
   const [phase, setPhase] = useState<Phase>("decide");
+  // P6 — sem movimento: a carta não voa nem amplia (a decisão segue igual)
+  const [reduced] = useState(() => typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches));
   const needsTarget = Boolean(target && target.legalTargetIds.length > 0);
   const min = target?.min ?? 0;
   const name = decision.cardDef?.nameEn ?? tr("Carta", "Card");
@@ -127,7 +129,9 @@ export function BurstDecisionStage({ decision, art, effectText, target, selected
           height: trashing ? Math.round(trashW * (88 / 63)) : h,
           opacity: phase === "used" ? 0 : 1,
           transform: phase === "used" ? "scale(1.35)" : "scale(1)",
-          transition: `left ${trashMs}ms ease-in, top ${trashMs}ms ease-in, width ${trashMs}ms ease-in, height ${trashMs}ms ease-in, opacity ${usedMs}ms ease-out, transform ${usedMs}ms ease-out`,
+          transition: reduced
+            ? undefined
+            : `left ${trashMs}ms ease-in, top ${trashMs}ms ease-in, width ${trashMs}ms ease-in, height ${trashMs}ms ease-in, opacity ${usedMs}ms ease-out, transform ${usedMs}ms ease-out`,
         }}
       >
         <div className="h-full w-full overflow-hidden rounded-arena border-2 border-amber-400 shadow-[0_0_30px_rgba(251,191,36,0.55)]">

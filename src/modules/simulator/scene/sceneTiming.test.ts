@@ -9,7 +9,7 @@ import { createRng } from "../engine/rng";
 import { DECK_BUILDERS, GOLDEN_PAIRS } from "../engine/__golden__/harness";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
 import { planChoreography, type PendingAttack } from "./choreography";
-import { SCENE_MS, beatBaseMs, beatsDurationMs, destroyMs, drawMs, landsHeavy, payMs, sceneDurationMs, shieldRevealMs, slowestPace, turnStartMs, type SceneInput, type ScenePace } from "./sceneTiming";
+import { SCENE_MS, beatBaseMs, beatsDurationMs, destroyMs, drawMs, landsHeavy, payMs, scaleScene, sceneDurationMs, shieldRevealMs, slowestPace, slowestSpeed, turnStartMs, type SceneInput, type ScenePace } from "./sceneTiming";
 import { SCENE_LOCK_MAX_WAIT_MS, localSceneEnd, sceneLockWaitMs } from "./sceneLock";
 
 const opts = { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver };
@@ -133,6 +133,30 @@ describe("P4 — combate: cada passo no seu tempo", () => {
     const many = Array.from({ length: 12 }, () => ({ kind: "effects" as const, events: [] }));
     const withShield = [...many, { kind: "departure" as const, ids: [], shieldsOf: "A" as const, count: 1 }];
     expect(beatsDurationMs(withShield, "cinematic") - beatsDurationMs(many, "cinematic")).toBe(shieldRevealMs());
+  });
+});
+
+describe("P6 — o ritmo e a velocidade valem para a cena inteira", () => {
+  it("o Normal encurta tudo (carta jogada, combate, banners), não só as esperas", () => {
+    const playUnit: GameEvent[] = [
+      { type: "CARD_PLAYED", player: "B", instanceId: "u1", as: "unit" },
+      { type: "MOVE_CARD", instanceId: "u1", toZone: "battleArea" },
+    ];
+    const cinematic = scene(playUnit) - SCENE_MS.margin;
+    const normal = scene(playUnit, { pace: "normal" }) - SCENE_MS.margin;
+    expect(normal).toBeCloseTo(cinematic * 0.7, -1);
+    const turn: GameEvent[] = [{ type: "TURN_CHANGE", turnNumber: 2, activePlayer: "B" }];
+    expect(scene(turn, { pace: "normal" }) - SCENE_MS.margin).toBeCloseTo((scene(turn) - SCENE_MS.margin) * 0.7, -1);
+  });
+
+  it("velocidade de animação mais lenta (0,75×) estica a cena; a mais rápida encurta", () => {
+    const base = scene(deployWithEffect) - SCENE_MS.margin;
+    expect(scene(deployWithEffect, { speed: 0.75 }) - SCENE_MS.margin).toBeCloseTo(base / 0.75, -1);
+    expect(scene(deployWithEffect, { speed: 2 }) - SCENE_MS.margin).toBeCloseTo(base / 2, -1);
+    expect(scaleScene(1000, "normal", 0.5)).toBe(1400);
+    expect(scaleScene(1000, "classic")).toBe(0);
+    expect(slowestSpeed([2, 0.75, undefined])).toBe(0.75);
+    expect(slowestSpeed([])).toBe(1);
   });
 });
 
