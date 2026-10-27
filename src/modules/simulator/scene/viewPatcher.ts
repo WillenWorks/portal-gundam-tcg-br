@@ -145,8 +145,12 @@ export function revealBeat(shown: ViewGameState, final: ViewGameState, beat: Bea
       if (beat.instanceId && locate(final, beat.instanceId)) reveal(view, final, beat.instanceId, false);
       else revealUnknownDraw(view, final, beat.player);
       break;
-    case "deploy": {
+    case "play": {
+      // o custo pago fica deitado
+      for (const id of beat.paid) patchCard(view, id, (c) => ({ ...c, rested: true }));
+      // a Command usada vai para a lixeira; Unit/Base/Piloto chegam ao campo
       reveal(view, final, beat.instanceId, false);
+      if (beat.as === "command") break;
       // carta que acabou de entrar não tem dano: o que vier no lote é de tempos seguintes
       patchCard(view, beat.instanceId, (c) => ({ ...c, damage: 0 }));
       if (beat.as === "pilot") {
@@ -157,9 +161,6 @@ export function revealBeat(shown: ViewGameState, final: ViewGameState, beat: Bea
       }
       break;
     }
-    case "opponentCommand":
-      reveal(view, final, beat.instanceId, false);
-      break;
     case "departure": {
       const ids = beat.shieldsOf ? view.players[beat.shieldsOf].shields.slice(0, beat.count ?? 0).map((c) => c.instanceId) : beat.ids;
       for (const id of ids) {
@@ -169,9 +170,30 @@ export function revealBeat(shown: ViewGameState, final: ViewGameState, beat: Bea
       break;
     }
     case "announce":
+      // o custo da habilidade ativada fica deitado
+      for (const id of beat.paid) patchCard(view, id, (c) => ({ ...c, rested: true }));
+      break;
     case "strike":
       break;
   }
   syncCounts(view);
   return view;
+}
+
+/** a mesa com estas cartas deitadas (`rested`) ou de pé — o pagamento gira os recursos um a um */
+export function withRested(shown: ViewGameState, ids: readonly string[], rested: boolean): ViewGameState {
+  const view = cloneView(shown);
+  for (const id of ids) patchCard(view, id, (c) => ({ ...c, rested }));
+  return view;
+}
+
+/** quem um tempo de efeito deita e levanta (o giro aparece na hora em que a mesa muda) */
+export function restChanges(events: readonly GameEvent[]): { rest: string[]; stand: string[] } {
+  const rest: string[] = [];
+  const stand: string[] = [];
+  for (const e of events) {
+    if (e.type === "REST_CARD") rest.push(e.instanceId);
+    else if (e.type === "SET_ACTIVE") stand.push(e.instanceId);
+  }
+  return { rest, stand };
 }

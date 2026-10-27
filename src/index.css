@@ -565,6 +565,14 @@
     from { transform: rotate(-90deg) scale(1.04); }
     to { transform: rotate(0deg) scale(1); }
   }
+  /* P3 — Unit pesada (Lv 5+) caindo: a mesa treme */
+  @keyframes sim-table-shake {
+    0%, 100% { transform: translate(0, 0); }
+    20% { transform: translate(-3px, 2px); }
+    40% { transform: translate(3px, -2px); }
+    60% { transform: translate(-2px, 1px); }
+    80% { transform: translate(2px, -1px); }
+  }
   @keyframes sim-card-depart {
     0% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); opacity: 0.95; }
     100% { transform: translate3d(var(--dx, 0px), var(--dy, 0px), 0) scale(0.55) rotate(-6deg); opacity: 0; }
@@ -603,6 +611,7 @@
   .sim-anim-depart-destroy { animation: sim-card-depart-destroy calc(420ms / var(--sim-anim-speed-mult, 1)) cubic-bezier(0.3, 0, 0.6, 1) both; }
   .sim-anim-unrest { animation: sim-unrest calc(450ms / var(--sim-anim-speed-mult, 1)) cubic-bezier(0.2, 0.8, 0.3, 1) both; }
   .sim-anim-rest { animation: sim-rest calc(450ms / var(--sim-anim-speed-mult, 1)) cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+  .sim-anim-table-shake { animation: sim-table-shake calc(380ms / var(--sim-anim-speed-mult, 1)) ease-out both; }
 
   @media (prefers-reduced-motion: reduce) {
     .sim-anim-land-soft,
@@ -620,7 +629,8 @@
     .sim-anim-depart,
     .sim-anim-depart-destroy,
     .sim-anim-unrest,
-    .sim-anim-rest {
+    .sim-anim-rest,
+    .sim-anim-table-shake {
       animation: none !important;
     }
   }

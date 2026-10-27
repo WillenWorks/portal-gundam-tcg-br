@@ -1224,6 +1224,18 @@ function sceneCursorFor(state: GameState, pendingAttack: PendingAttack | null): 
   };
 }
 
+/** nível da carta pelo id, em qualquer zona (o pouso da Unit pesada dura mais na tela) */
+function levelInState(state: GameState, instanceId: string): number | undefined {
+  for (const p of PLAYER_IDS) {
+    const player = state.players[p];
+    for (const zone of [player.battleArea, player.hand, player.baseSection, player.trash] as const) {
+      const card = zone.find((c) => c.instanceId === instanceId);
+      if (card) return card.def.level;
+    }
+  }
+  return undefined;
+}
+
 /** a tela toca as cenas em fila: uma nova começa quando a anterior acabar */
 function extendScene(match: MatchRecord, durationMs: number): void {
   if (durationMs <= 0) return;
@@ -1263,6 +1275,7 @@ function refreshScene(match: MatchRecord): void {
       return Boolean(decision && decision.kind !== "burst" && hasOwnDeploy(events, p));
     }),
     pace,
+    levelOf: (id) => levelInState(state, id),
   });
   extendScene(match, durationMs);
   // P1: a preparação tem coreografia própria — a troca de mão (vista pelos dois) e, quando os dois decidiram,

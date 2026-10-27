@@ -133,13 +133,14 @@ import {
 import type { BurstTargetChoice } from "@/modules/simulator/ui/BurstModal";
 import { findAltDiscardCandidates, findEligibleSacrifices, playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
 import { getResolutionPacing, getScaledDuration, type ResolutionPacing } from "@/modules/simulator/ui/animationSettings";
-import { hasOwnDeploy, planChoreography, tempoFor } from "@/modules/simulator/scene/choreography";
-import { SCENE_MS, SCENE_PACE_FACTOR, drawMs } from "@/modules/simulator/scene/sceneTiming";
+import { hasOwnDeploy, planChoreography, tempoFor, type Beat } from "@/modules/simulator/scene/choreography";
+import { SCENE_MS, SCENE_PACE_FACTOR, drawMs, landsHeavy } from "@/modules/simulator/scene/sceneTiming";
 import { drawnCard, placedResource, unrestedIds } from "@/modules/simulator/scene/turnStart";
-import { CardTravel, type TravelPoint } from "@/modules/simulator/ui/CardTravel";
+import { CardTravel, centerCardWidth, type TravelPoint } from "@/modules/simulator/ui/CardTravel";
+import { PlayCardStage, type PlayStage } from "@/modules/simulator/ui/PlayCardStage";
 import { mulliganRedraws } from "@/modules/simulator/scene/openingScene";
 import { localSceneEnd, sceneLockWaitMs } from "@/modules/simulator/scene/sceneLock";
-import { revealBeat } from "@/modules/simulator/scene/viewPatcher";
+import { restChanges, revealBeat, withRested } from "@/modules/simulator/scene/viewPatcher";
 import {
   handleOpponentCommandCast,
   resolveCommandAnimationPoints,
@@ -316,6 +317,15 @@ function handLandingPoint(cardW: number | null | undefined): TravelPoint | null 
   const r = last.getBoundingClientRect();
   const w = cardW && cardW > 0 ? cardW : r.width;
   return { x: r.right + w * 0.55, y: r.top + r.height / 2 };
+}
+
+/** centro da carta da minha mão (a jogada sai dela) */
+function handCardPoint(instanceId: string): TravelPoint | null {
+  if (typeof document === "undefined") return null;
+  const el = document.querySelector(`[data-hand-card="${CSS.escape(instanceId)}"]`);
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 }
 
 /** borda direita de uma faixa (mão do oponente, linha de recursos): onde a carta nova entra */
@@ -731,24 +741,23 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   introStageRef.current = introStage;
   const introStageResolveRef = useRef<(() => void) | null>(null);
 
+  // a fila de visões reavalia a cada etapa da abertura (ela pode passar a esperar justamente a visão que está na fila)
   useEffect(() => {
-    if (introStage === "complete") {
-      introStageResolveRef.current?.();
-      introStageResolveRef.current = null;
-    }
+    introStageResolveRef.current?.();
+    introStageResolveRef.current = null;
   }, [introStage]);
 
   const [phaseBannerQueue, setPhaseBannerQueue] = useState<string[]>([]);
   const phaseBannerQueueRef = useRef<string[]>([]);
-  phaseBannerQueueRef.current = phaseBannerQueue;
   const phaseBannerResolveRef = useRef<(() => void) | null>(null);
 
+  // A fila é lida pela espera (`waitForPhaseBanners`) logo depois de enfileirar: o ref muda NA HORA. Atualizar dentro
+  // do updater do setState deixava o ref vazio até o React renderizar, e a espera liberava sem banner nenhum (os
+  // banners do começo de turno tocavam por cima das fases — spec simulador-cadencia-de-mesa, P3).
   const enqueuePhaseBanners = useCallback((banners: string[]) => {
-    setPhaseBannerQueue((prev) => {
-      const next = [...prev, ...banners];
-      phaseBannerQueueRef.current = next;
-      return next;
-    });
+    const next = [...phaseBannerQueueRef.current, ...banners];
+    phaseBannerQueueRef.current = next;
+    setPhaseBannerQueue(next);
   }, []);
 
   const waitForPhaseBanners = useCallback(() => {
@@ -875,10 +884,29 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   // spec simulador-cadencia-de-mesa (P2) — começo de turno: cartas desvirando e o recurso entrando
   const [unrestIds, setUnrestIds] = useState<ReadonlySet<string>>(() => new Set());
   const [resourceTravel, setResourceTravel] = useState<{ key: number; player: PlayerId; card: CardInstance } | null>(null);
+  // P3 — carta jogada da mão, cartas sendo deitadas (custo, efeito) e o tremor da Unit pesada
+  const [playStage, setPlayStage] = useState<PlayStage | null>(null);
+  const [restIds, setRestIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [tableShake, setTableShake] = useState(false);
   const resourceTravelResolveRef = useRef<(() => void) | null>(null);
   /** o modal de escolha espera a minha carta pousar (a escolha do 【Deploy】 vem depois da carta em campo) */
   const [modalHold, setModalHold] = useState(false);
   const beatKeyRef = useRef(0);
+  // largura da carta NA MÃO de cada lado (medida na tela): toda carta que voa para a mão pousa neste tamanho
+  const handCardW = (pid: PlayerId) => board.rectOf(`handCardProbe:${pid}`)?.width ?? board.rectOf(`deckStation:${pid}`)?.width;
+
+  /** P3 — onde a carta jogada pousa: a próxima vaga livre do campo, a Base, ou a Unit que recebe o Piloto */
+  function playTarget(beat: Extract<Beat, { kind: "play" }>, shownView: ViewGameState, finalView: ViewGameState): DOMRect | null {
+    if (beat.as === "base") return board.rectOf(`base:${beat.player}`) ?? board.rectOf(playerAreaKey(beat.player));
+    if (beat.as === "pilot") {
+      const unit = finalView.players[beat.player].battleArea.find((c) => !isHidden(c) && (c as CardInstance).pairedPilotId === beat.instanceId);
+      return (unit && board.rectOf(unit.instanceId)) ?? board.rectOf(playerAreaKey(beat.player));
+    }
+    // mesma contagem das vagas desenhadas (`publicUnits`): só Units (o Piloto pareado também mora na Battle Area)
+    const nextSlot = shownView.players[beat.player].battleArea.filter((c) => !isHidden(c) && (c as CardInstance).def?.cardType === "UNIT").length;
+    return board.rectOf(`slot:${beat.player}:${nextSlot}`) ?? board.rectOf(playerAreaKey(beat.player));
+  }
+
   const playOverlay = useCallback(
     <T,>(set: (value: T | null) => void, resolveRef: { current: (() => void) | null }, value: T) =>
       new Promise<void>((resolve) => {
@@ -1190,7 +1218,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         const shieldsTaken: Record<PlayerId, number> = { A: 0, B: 0 };
         // a arte grande dos anúncios começa a baixar já, enquanto os tempos anteriores tocam
         for (const beat of beats) {
-          if (beat.kind !== "announce" && beat.kind !== "deploy") continue;
+          if (beat.kind !== "announce" && beat.kind !== "play") continue;
           const code = defOf(beat.instanceId)?.code;
           const src = code ? artSrc(art, code, "lg") : undefined;
           if (src && typeof Image !== "undefined") new Image().src = src;
@@ -1198,15 +1226,43 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         // spec simulador-cadencia-de-mesa — a mesa entre um tempo e outro: cada tempo que termina mostra o que ele
         // fez (o dano do 1º efeito antes do 2º começar); a visão do servidor fecha a cena no fim
         let shown: ViewGameState = cinematicFrom;
+        const pace = (baseMs: number) => new Promise<void>((resolve) => setTimeout(resolve, getScaledDuration(baseMs)));
+        const showTable = (view: ViewGameState) => {
+          shown = view;
+          shownAfterBeats = view;
+          setMatchView((prev) => (prev ? { ...prev, ...heldFromMenu(prev), view } : prev));
+        };
+        // P3 — o custo pago: os recursos giram para a horizontal um a um, e o último ainda termina de girar
+        const payOneByOne = async (ids: readonly string[]) => {
+          for (let i = 0; i < ids.length; i++) {
+            setRestIds(new Set(ids.slice(0, i + 1)));
+            showTable(withRested(shown, [ids[i]], true));
+            if (i === 0) sfx.playClick();
+            await pace(i < ids.length - 1 ? SCENE_MS.play.payPerCard : SCENE_MS.play.paySettle);
+          }
+          setRestIds(new Set());
+        };
         for (const beat of beats) {
           switch (beat.kind) {
             case "strike":
               await strike(beat.attackerId, beat.target, beat.defendingPlayer);
               break;
-            case "effects":
+            case "effects": {
+              // descansar/levantar por efeito gira na hora (ex.: o recurso escolhido pelo Shining Gundam com Domon)
+              const turns = restChanges(beat.events);
+              if (turns.rest.length || turns.stand.length) {
+                setRestIds(new Set(turns.rest));
+                setUnrestIds(new Set(turns.stand));
+                showTable(withRested(withRested(shown, turns.rest, true), turns.stand, false));
+              }
               setCueBatch({ key: -++beatKeyRef.current, events: beat.events });
               await hold(SCENE_MS.effects);
+              if (turns.rest.length || turns.stand.length) {
+                setRestIds(new Set());
+                setUnrestIds(new Set());
+              }
               break;
+            }
             case "departure": {
               const ids = beat.shieldsOf
                 ? (prevDepartureView?.players[beat.shieldsOf].shields ?? [])
@@ -1218,16 +1274,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               await hold(SCENE_MS.departure);
               break;
             }
-            case "opponentCommand": {
-              const cardDef = defOf(beat.instanceId);
-              if (!cardDef) break;
-              const { origin, dest } = resolveCommandAnimationPoints(board, opponentSeat, fallbackCenter);
-              await animateCommand({ cardDef, origin, dest });
-              break;
-            }
             case "announce": {
               const cardDef = defOf(beat.instanceId);
               if (!cardDef) break;
+              // o custo da habilidade ativada é pago antes dela resolver
+              await payOneByOne(beat.paid);
               const origin =
                 rectCenter(board.rectOf(beat.instanceId)) ??
                 (beat.trigger === "Burst" ? rectCenter(board.rectOf(`shieldRail:${beat.player}`)) : null);
@@ -1241,24 +1292,65 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               });
               break;
             }
-            case "deploy": {
+            case "play": {
+              // P3 — revelada da mão (a minha sobe ao centro; a do oponente aparece perto da mão dele; Command no
+              // centro), o custo gira um a um, e ela cai no lugar exato onde fica (ou some usada, se for Command)
               const cardDef = defOf(beat.instanceId);
-              if (!cardDef) break;
+              if (!cardDef) {
+                showTable(revealBeat(shown, incoming.view, beat));
+                break;
+              }
               const mine = beat.player === incoming.seat;
-              const handRect = mine ? board.rectOf("hand:self") : (board.rectOf("hand:opponent") ?? board.rectOf(`hand:${opponentSeat}`));
-              sfx.playDeploy();
-              await playOverlay(setAnnouncement, announcementResolveRef, {
+              const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
+              const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+              const centerW = centerCardWidth(vw, vh);
+              const oppHand = board.rectOf("hand:opponent") ?? board.rectOf(`hand:${opponentSeat}`);
+              const from = mine
+                ? (handCardPoint(beat.instanceId) ?? rectCenter(board.rectOf("hand:self")) ?? fallbackCenter)
+                : (rectCenter(oppHand) ?? fallbackCenter);
+              const nearHand = !mine && beat.as !== "command" && oppHand;
+              const holdW = nearHand ? Math.round(centerW * 0.72) : centerW;
+              const holdAt = nearHand
+                ? { x: oppHand.left + oppHand.width / 2, y: oppHand.bottom + (holdW * (88 / 63)) / 2 + 12 }
+                : { x: vw / 2, y: vh / 2 };
+              const heavy = beat.as === "unit" && landsHeavy(cardDef.level);
+              const stage: PlayStage = {
                 key: ++beatKeyRef.current,
-                cardDef,
-                trigger: "",
-                mine,
-                origin: rectCenter(handRect),
-                dest: rectCenter(board.rectOf(playerAreaKey(beat.player))),
-                label: beat.as === "pilot" ? { pt: "Piloto", en: "Pilot" } : beat.as === "base" ? { pt: "Base", en: "Base" } : { pt: "Unit", en: "Unit" },
-                caption: mine ? { pt: "Você implanta", en: "You deploy" } : { pt: "Oponente implanta", en: "Opponent deploys" },
-                holdBaseMs: SCENE_MS.deployHold,
-                tempo,
-              });
+                instanceId: beat.instanceId,
+                card: { def: cardDef },
+                phase: "rise",
+                from,
+                fromW: handCardW(beat.player) ?? 60,
+                hold: holdAt,
+                holdW,
+                heavy,
+                opponent: !mine,
+              };
+              sfx.playDeploy();
+              setPlayStage(stage);
+              await pace(SCENE_MS.play.rise + SCENE_MS.play.hold);
+              setPlayStage({ ...stage, phase: "hold" });
+              await payOneByOne(beat.paid);
+              if (beat.as === "command") {
+                setPlayStage({ ...stage, phase: "used" });
+                sfx.playNewtypeFlash();
+                await pace(SCENE_MS.play.used);
+                setPlayStage(null);
+                showTable(revealBeat(shown, incoming.view, beat));
+                break;
+              }
+              const target = playTarget(beat, shown, incoming.view);
+              setPlayStage({ ...stage, phase: "drop", target: rectCenter(target), targetW: target?.width ?? holdW });
+              await pace(heavy ? SCENE_MS.play.dropHeavy : SCENE_MS.play.drop);
+              setPlayStage(null);
+              // a carta pousa: a Unit aparece na vaga e toca o pouso (suave/pesado); a pesada treme a mesa
+              showTable(revealBeat(shown, incoming.view, beat));
+              if (heavy) {
+                setTableShake(true);
+                sfx.playShieldBlock();
+              }
+              await pace(heavy ? SCENE_MS.play.landHeavy : SCENE_MS.play.land);
+              if (heavy) setTableShake(false);
               break;
             }
             case "draw": {
@@ -1271,12 +1363,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               break;
             }
           }
-          if (beat.kind !== "announce" && beat.kind !== "strike") {
-            const staged = revealBeat(shown, incoming.view, beat);
-            shown = staged;
-            shownAfterBeats = staged;
-            setMatchView((prev) => (prev ? { ...prev, ...heldFromMenu(prev), view: staged } : prev));
-          }
+          // `play` revela a mesa por conta própria (a carta aparece quando pousa); o custo do `announce` já foi mostrado
+          if (beat.kind !== "announce" && beat.kind !== "strike" && beat.kind !== "play") showTable(revealBeat(shown, incoming.view, beat));
         }
       } else if (timeline) {
         const { plan, pendingAttack } = planAnimations(timeline, incoming.seat, pendingAttackRef.current);
@@ -1380,6 +1468,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     if (isDrainingViewQueueRef.current) return;
     isDrainingViewQueueRef.current = true;
     setSceneLocked(true);
+   
     try {
       for (;;) {
       while (viewQueueRef.current.length > 0) {
@@ -1389,10 +1478,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         // aguarda a abertura cinematográfica terminar para não atropelar a distribuição de shields!
         // A exceção é a visão que FECHA a preparação quando eu já decidi e espero o oponente: a abertura espera
         // justamente por ela (senão uma esperava a outra até o teto de 15 s).
-        const prevQueued = prevViewForQueueRef.current;
-        const closesSetupForMe =
-          introStageRef.current === "waiting-opponent-mulligan" && prevQueued !== null && !isPostSetupView(prevQueued);
-        if (isPostSetupView(peekNext.view) && introStageRef.current !== "complete" && !closesSetupForMe) {
+        const closesSetupForMe = () => {
+          const prevQueued = prevViewForQueueRef.current;
+          return introStageRef.current === "waiting-opponent-mulligan" && prevQueued !== null && !isPostSetupView(prevQueued);
+        };
+        const guardUntil = Date.now() + 15_000;
+        while (isPostSetupView(peekNext.view) && introStageRef.current !== "complete" && !closesSetupForMe() && Date.now() < guardUntil) {
           await Promise.race([
             new Promise<void>((resolve) => {
               const prev = introStageResolveRef.current;
@@ -1401,7 +1492,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 resolve();
               };
             }),
-            new Promise<void>((resolve) => setTimeout(resolve, 15_000)),
+            new Promise<void>((resolve) => setTimeout(resolve, Math.max(0, guardUntil - Date.now()))),
           ]);
         }
 
@@ -1425,6 +1516,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         // a minha tela terminou a fila; a cena do servidor pode durar mais (a minha jogada eu não vejo de novo):
         // a mesa espera o fim dela, acordando a cada pouco para tocar uma visão que chegue no meio
         const wait = getResolutionPacing() === "classic" ? 0 : sceneLockWaitMs(sceneEndsAtLocalRef.current, Date.now());
+       
         if (wait <= 0 || prevViewForQueueRef.current?.gameOver) break;
         await new Promise((resolve) => setTimeout(resolve, Math.min(wait, 250)));
         if (viewQueueRef.current.length === 0 && sceneLockWaitMs(sceneEndsAtLocalRef.current, Date.now()) <= 0) break;
@@ -1432,6 +1524,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     } finally {
       isDrainingViewQueueRef.current = false;
       setSceneLocked(false);
+     
     }
   }, [processIncomingView, waitForPhaseBanners]);
 
@@ -1561,9 +1654,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           // avançar pro Passo de Ação.
           sfx.playShieldBlock();
           await new Promise((r) => setTimeout(r, getScaledDuration(300)));
-        } else if (action.kind === "playCommand") {
-          // "Nova leva de correções" — revelação da carta de Comando antes do
-          // descarte (era só um `setTimeout(120)` sem nenhum feedback visual).
+        } else if (action.kind === "playCommand" && getResolutionPacing() === "classic") {
+          // ritmo rápido: a revelação da Command antes do envio (no cinemático ela toca a partir da visão, igual à do
+          // oponente — spec simulador-cadencia-de-mesa, P3)
           const currentView = matchView;
           const cardInHand = currentView?.view.players[currentView.seat].hand.find(
             (c) => !isHidden(c) && c.instanceId === action.cardInstanceId,
@@ -1579,6 +1672,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             sfx.playNewtypeFlash();
             await new Promise((r) => setTimeout(r, getScaledDuration(120)));
           }
+        } else if (action.kind === "playCommand") {
+          sfx.playClick();
         } else if (action.kind === "finishTurn") {
           sfx.playTurnStartAlert();
           await new Promise((r) => setTimeout(r, getScaledDuration(100)));
@@ -1945,15 +2040,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     } else if (introStage === "deal-hand") {
       setIntroStage("hand-revealed");
     } else if (introStage === "mulligan-anim") {
-      const v = matchView?.view;
-      const oppSeat = matchView ? otherPlayer(matchView.seat) : null;
-      const oppHasMulligan = oppSeat && v ? v.pendingDecision[oppSeat]?.kind === "mulligan" : false;
-      if (oppHasMulligan) {
-        setIntroStage("waiting-opponent-mulligan");
-      } else {
-        setIntroStage("deal-shields");
-        setSetupAnim("deal-shields");
-      }
+      // a preparação fecha quando os dois decidiram; o efeito abaixo segue para os escudos assim que a visão chegar
+      setIntroStage("waiting-opponent-mulligan");
     } else if (introStage === "deal-shields") {
       setIntroStage("ex-reveal");
     }
@@ -1961,27 +2049,23 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
   // Callback de término de cada banner de fase
   const handlePhaseBannerDone = useCallback(() => {
-    setPhaseBannerQueue((prev) => {
-      const next = prev.slice(1);
-      phaseBannerQueueRef.current = next;
-
-      if (next.length === 0) {
-        phaseBannerResolveRef.current?.();
-        phaseBannerResolveRef.current = null;
-      }
-      return next;
-    });
+    const next = phaseBannerQueueRef.current.slice(1);
+    phaseBannerQueueRef.current = next;
+    setPhaseBannerQueue(next);
+    if (next.length === 0) {
+      phaseBannerResolveRef.current?.();
+      phaseBannerResolveRef.current = null;
+    }
   }, []);
 
   // Sincronização de Mulligan: quando o oponente conclui o mulligan dele,
   // se o jogador local estava em waiting-opponent-mulligan, avança para deal-shields
   useEffect(() => {
     if (introStage !== "waiting-opponent-mulligan" || !matchView) return;
-    const v = matchView.view;
-    const oppSeat = otherPlayer(matchView.seat);
-    const oppHasMulligan = v.pendingDecision[oppSeat]?.kind === "mulligan";
-    // a troca de mão do oponente termina antes dos escudos saírem
-    if (!oppHasMulligan && oppMulliganKey === null) {
+    // só segue com a preparação fechada (ninguém com Mulligan pendente): quem começa decide primeiro, e a pendência do
+    // oponente só nasce depois da minha decisão — olhar só a dele fazia a abertura seguir sem esperar o bot.
+    // A troca de mão do oponente termina antes dos escudos saírem.
+    if (isPostSetupView(matchView.view) && oppMulliganKey === null) {
       setIntroStage("deal-shields");
       setSetupAnim("deal-shields");
     }
@@ -2716,8 +2800,6 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     iAmDefending,
   );
   const isPhaseBannerActive = phaseBannerQueue.length > 0;
-  // largura da carta NA MÃO de cada lado (medida na tela): toda carta que voa para a mão pousa neste tamanho
-  const handCardW = (pid: PlayerId) => board.rectOf(`handCardProbe:${pid}`)?.width ?? board.rectOf(`deckStation:${pid}`)?.width;
   // nada se faz na mesa enquanto a cena toca (banners de fase ou a fila de visões). O 【Burst】 é a exceção: a fila
   // para nele de propósito, e o alvo dele é escolhido na mesa.
   const tableLocked = isPhaseBannerActive || (sceneLocked && !myBurstDecision);
@@ -2811,13 +2893,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
     return Array.from({ length: 6 }).map((_, i) => {
       const unit = units[i] ?? null;
-      // Frente 4 (feedback Willen 4ª rodada) — Unit recém-posta neste turno que
-      // ainda não tocou a animação de pouso: `light` até custo 3, `heavy` acima.
+      // Unit recém-posta neste turno que ainda não tocou a animação de pouso: suave até Lv 4, pesada do Lv 5 em
+      // diante (spec simulador-cadencia-de-mesa, P3 — a mesma regra do tempo que o servidor espera)
       const justDeployed: "light" | "heavy" | undefined =
         unit && unit.enteredZoneOnTurn === view.turnNumber && !deployedSeenRef.current.has(unit.instanceId)
-          ? (unit.def?.cost ?? 0) <= 3
-            ? "light"
-            : "heavy"
+          ? landsHeavy(unit.def?.level)
+            ? "heavy"
+            : "light"
           : undefined;
       const ability = unit && canActivateHere ? fieldAbilityOf(unit, abilityTiming) : null;
       const canActivate = Boolean(ability && (legalMenu || myActiveResources >= ability.cost));
@@ -2891,6 +2973,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           isBlocking={Boolean(unit && combat?.blockerUsedBy === unit.instanceId)}
           justDeployed={justDeployed}
           unresting={Boolean(unit && unrestIds.has(unit.instanceId))}
+          resting={Boolean(unit && restIds.has(unit.instanceId))}
           attacking={
             unit && activeStrike?.attackerId === unit.instanceId
               ? { towardX: activeStrike.towardX, towardY: activeStrike.towardY, phase: activeStrike.phase }
@@ -2930,7 +3013,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           onInspect={setInspect}
           onHoverCard={isWide ? setHoveredCard : undefined}
           actions={actions}
-          registerRef={unit ? board.register(unit.instanceId) : undefined}
+          registerRef={(el) => {
+            board.register(`slot:${player.id}:${i}`)(el);
+            if (unit) board.register(unit.instanceId)(el);
+          }}
           emptySlotActive={isDeployingUnit}
           onEmptySlotClick={
             isDeployingUnit
@@ -3084,6 +3170,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         <BaseCardGauge
           base={exVisible ? base : null}
           revealing={exRevealing}
+          registerRef={board.register(`base:${pid}`)}
           art={art}
           targetingActive={targetingActive}
           legalTarget={Boolean(
@@ -3124,6 +3211,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             onSelect={isSelf ? toggleResource : undefined}
             highlightTone={isSelf ? resourceHighlightTone : undefined}
             unrestingIds={unrestIds}
+            restingIds={restIds}
             costProgress={
               isSelf && pending && pendingCost > 0 ? { paid: selectedResources.length, total: pendingCost } : undefined
             }
@@ -3500,7 +3588,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             permitiria. Pré-requisito pro `useArenaScale` medir uma caixa
             que não é mais circular (antes: caixa media o canvas, canvas
             media a caixa). */}
-        <div className="flex min-w-0 flex-1 justify-center">
+        <div className={`flex min-w-0 flex-1 justify-center${tableShake ? " sim-anim-table-shake" : ""}`}>
           <ArenaPlaymat
             // No mobile (< 1024px) solta a trava de 16:9 — a proporção fixa
             // sobrava altura/largura sem uso e forçava o `useArenaScale` a
@@ -3532,7 +3620,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                     ? []
                     : setupAnim === "deal-hand" || setupAnim === "mulligan"
                     ? []
-                    : myHandCards.map((c) => {
+                    : myHandCards.filter((c) => c.instanceId !== playStage?.instanceId).map((c) => {
                         const { playable, blockedReason, effectiveCost: effCost } = describeHandCard(c);
                         const actionStepPlayable = Boolean(
                           inActionStep && playable && handModesOf(c).includes("commandAction"),
@@ -3650,16 +3738,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           busy={busy}
           cardW={handCardW(seat) ?? 60}
           onResolve={(keep) => {
-            const oppSeat = otherPlayer(seat);
-            const oppHasMulligan = view.pendingDecision[oppSeat]?.kind === "mulligan";
             if (keep) {
               mulliganDidMulliganRef.current = false;
-              if (oppHasMulligan) {
-                setIntroStage("waiting-opponent-mulligan");
-              } else {
-                setIntroStage("deal-shields");
-                setSetupAnim("deal-shields");
-              }
+              // os escudos saem quando a preparação fechar (a visão que fecha é a minha resposta, se eu decidi por
+              // último, ou a decisão do oponente, se eu comecei)
+              setIntroStage("waiting-opponent-mulligan");
               runAction({ kind: "resolveMulligan", keep: true });
             } else {
               mulliganDidMulliganRef.current = true;
@@ -4079,6 +4162,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           onDone={() => effectDrawResolveRef.current?.()}
         />
       ) : null}
+      {playStage ? <PlayCardStage key={playStage.key} stage={playStage} art={art} /> : null}
       {resourceTravel ? (
         <CardTravel
           key={`resource-${resourceTravel.key}`}
@@ -4128,6 +4212,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       {!gameOverResult && introStage === "complete" ? (
         <ActionDock
           yourTurn={myTurnMain}
+          turnIsMine={view.activePlayer === seat}
           inActionStep={inActionStep}
           phaseLabel={
             inActionStep

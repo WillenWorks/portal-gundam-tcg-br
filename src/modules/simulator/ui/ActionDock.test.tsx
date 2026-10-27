@@ -30,6 +30,13 @@ describe("ActionDock", () => {
     expect(screen.getByRole("button", { name: /passar turno/i })).toBeInTheDocument();
   });
 
+  it("começo do meu turno (antes da Main Phase): diz que é a minha vez, mas ainda sem Passar turno", () => {
+    render(<ActionDock {...BASE} yourTurn={false} turnIsMine phaseLabel="Compra" onEndTurn={vi.fn()} />);
+    expect(screen.getByText(/sua vez · compra/i)).toBeInTheDocument();
+    expect(screen.queryByText(/vez do oponente/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /passar turno/i })).not.toBeInTheDocument();
+  });
+
   it("mostra o número do turno quando informado", () => {
     render(<ActionDock {...BASE} turnNumber={4} />);
     expect(screen.getByText(/turno 4/i)).toBeInTheDocument();

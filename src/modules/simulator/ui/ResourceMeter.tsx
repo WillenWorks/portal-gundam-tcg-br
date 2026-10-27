@@ -42,6 +42,8 @@ interface ResourceMeterProps {
   className?: string;
   /** spec simulador-cadencia-de-mesa (P2) — recursos desvirando agora (Start Phase): giram da horizontal à vertical */
   unrestingIds?: ReadonlySet<string>;
+  /** P3 — recursos sendo deitados agora (pagamento, efeito): giram um a um */
+  restingIds?: ReadonlySet<string>;
   /** docs/54 — halo piscante nas peças ATIVAS ainda não escolhidas, indicando
    *  que dá pra clicar nelas AGORA pra pagar o custo em andamento: ciano pra
    *  invocação direta (Unit/Base), âmbar pra Piloto/Comando (fluxo bidirecional
@@ -69,6 +71,7 @@ export function ResourceMeter({
   className,
   highlightTone,
   unrestingIds,
+  restingIds,
 }: ResourceMeterProps) {
   const { tr } = useSiteLanguage();
   const active = resources.filter((r) => !r.rested).length;
@@ -92,6 +95,7 @@ export function ResourceMeter({
     const shape = cn(
       "relative block shrink-0 overflow-hidden rounded-arena border transition-all duration-100 motion-reduce:transition-none",
       unrestingIds?.has(r.instanceId) && "sim-anim-unrest",
+      restingIds?.has(r.instanceId) && "sim-anim-rest",
       r.rested ? "aspect-[88/63]" : "aspect-[63/88]",
       tone,
       pickable && "cursor-pointer hover:border-emerald-300",
@@ -156,7 +160,7 @@ export function ResourceMeter({
       if (g) {
         g.count += 1;
         // na pilha, a peça que representa o grupo é a que está desvirando (o giro aparece mesmo empilhado)
-        if (unrestingIds?.has(r.instanceId)) g.sample = r;
+        if (unrestingIds?.has(r.instanceId) || restingIds?.has(r.instanceId)) g.sample = r;
       } else {
         byKey.set(key, { sample: r, count: 1 });
         order.push(key);
