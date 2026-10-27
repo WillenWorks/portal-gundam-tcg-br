@@ -9,7 +9,7 @@ import { createRng } from "../engine/rng";
 import { DECK_BUILDERS, GOLDEN_PAIRS } from "../engine/__golden__/harness";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
 import { planChoreography, type PendingAttack } from "./choreography";
-import { SCENE_MS, beatBaseMs, beatsDurationMs, drawMs, landsHeavy, payMs, sceneDurationMs, slowestPace, turnStartMs, type SceneInput, type ScenePace } from "./sceneTiming";
+import { SCENE_MS, beatBaseMs, beatsDurationMs, destroyMs, drawMs, landsHeavy, payMs, sceneDurationMs, shieldRevealMs, slowestPace, turnStartMs, type SceneInput, type ScenePace } from "./sceneTiming";
 import { SCENE_LOCK_MAX_WAIT_MS, localSceneEnd, sceneLockWaitMs } from "./sceneLock";
 
 const opts = { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver };
@@ -120,6 +120,20 @@ describe("sceneDurationMs — quanto a cena dura na tela, igual para quem vê", 
     expect(erros).toEqual([]);
     expect(lotes).toBeGreaterThan(200);
   }, 120_000);
+});
+
+describe("P4 — combate: cada passo no seu tempo", () => {
+  it("declarar (com o atacante deitando), bloquear, a destruída quebrando e cada shield revelada no centro", () => {
+    const c = SCENE_MS.combat;
+    expect(beatBaseMs({ kind: "declare", attackerId: "b1", target: "player", attackingPlayer: "B", defendingPlayer: "A", rests: true })).toBe(c.declare.rest + c.declare.line);
+    expect(beatBaseMs({ kind: "block", blockerId: "a1", newTarget: { unitId: "a1" }, rests: true })).toBe(c.block);
+    expect(beatBaseMs({ kind: "departure", ids: ["a1"], destroyed: true })).toBe(destroyMs());
+    expect(beatBaseMs({ kind: "departure", ids: [], shieldsOf: "A", count: 2 })).toBe(2 * shieldRevealMs());
+    // as shields são lidas no centro: o lote longo do bot não encurta esse tempo
+    const many = Array.from({ length: 12 }, () => ({ kind: "effects" as const, events: [] }));
+    const withShield = [...many, { kind: "departure" as const, ids: [], shieldsOf: "A" as const, count: 1 }];
+    expect(beatsDurationMs(withShield, "cinematic") - beatsDurationMs(many, "cinematic")).toBe(shieldRevealMs());
+  });
 });
 
 describe("slowestPace — ninguém tem a cena cortada pela pressa do outro", () => {

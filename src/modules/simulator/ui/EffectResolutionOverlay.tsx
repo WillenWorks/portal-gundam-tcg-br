@@ -46,6 +46,8 @@ export interface EffectResolutionCue {
   sublabel?: string;
   x: number;
   y: number;
+  /** P4 — dano em Unit: o número vermelho sobe sobre o HP dela (sem etiqueta) */
+  hp?: boolean;
 }
 
 interface EffectResolutionOverlayProps {
@@ -283,12 +285,14 @@ export function EffectResolutionOverlay({
       }
       if (!rect) continue;
 
+      // dano em Unit: o número sai do canto do HP (rodapé direito da carta)
+      const hp = ev.type === "DAMAGE_UNIT";
       // Adiciona leve variação de dispersão caso múltiplos efeitos caiam na mesma coordenada
-      const jitterX = (Math.random() - 0.5) * 16;
-      const jitterY = (Math.random() - 0.5) * 12;
+      const jitterX = hp ? 0 : (Math.random() - 0.5) * 16;
+      const jitterY = hp ? 0 : (Math.random() - 0.5) * 12;
 
-      const x = rect.left + rect.width / 2 + jitterX;
-      const y = rect.top + rect.height * 0.4 + jitterY;
+      const x = hp ? rect.right - rect.width * 0.2 : rect.left + rect.width / 2 + jitterX;
+      const y = hp ? rect.bottom - rect.height * 0.14 : rect.top + rect.height * 0.4 + jitterY;
 
       newCues.push({
         id: `cue-${++cueCounter}`,
@@ -297,6 +301,7 @@ export function EffectResolutionOverlay({
         sublabel,
         x,
         y,
+        hp,
       });
     }
 
@@ -396,6 +401,21 @@ export function EffectResolutionOverlay({
             toneClasses = "border-sky-400/70 bg-slate-950/90 text-sky-200 shadow-[0_0_10px_rgba(56,189,248,0.6)]";
             Icon = Layers;
             break;
+        }
+
+        if (cue.hp) {
+          return (
+            <div
+              key={cue.id}
+              data-testid="damage-float"
+              style={{ position: "absolute", left: cue.x, top: cue.y, transform: "translate(-50%, -50%)" }}
+              className="animate-out fade-out slide-out-to-top-10 duration-700 fill-mode-forwards"
+            >
+              <span className="font-mono text-[clamp(1.25rem,2.6vw,2.25rem)] font-black leading-none text-rose-500 [text-shadow:0_2px_0_#000,0_0_12px_rgba(244,63,94,0.9)]">
+                {cue.label}
+              </span>
+            </div>
+          );
         }
 
         return (
