@@ -40,8 +40,22 @@ describe("EffectResolutionOverlay (Fase 3)", () => {
 
     rerender(<EffectResolutionOverlay eventLog={events} rectOf={rectOf} viewerSeat="A" />);
 
+    // P4 — dano em Unit: só o número vermelho subindo do canto do HP (sem etiqueta)
     expect(screen.getByText("-3")).toBeInTheDocument();
-    expect(screen.getByText("DANO")).toBeInTheDocument();
+    expect(screen.getByTestId("damage-float")).toBeInTheDocument();
+    expect(screen.queryByText("DANO")).not.toBeInTheDocument();
+  });
+
+  it("olhar o topo e devolver (RE-GZ): uma etiqueta só no deck, com a contagem", () => {
+    const rectOf = (key: string) => (key === "deckStation:B" ? mockRect(80, 120) : null);
+    const events: GameEvent[] = [
+      { type: "MOVE_WITHIN_DECK", instanceId: "B-74", position: "bottom" },
+      { type: "MOVE_WITHIN_DECK", instanceId: "B-75", position: "bottom" },
+      { type: "MOVE_WITHIN_DECK", instanceId: "B-76", position: "bottom" },
+    ];
+    const { rerender } = render(<EffectResolutionOverlay eventLog={[]} rectOf={rectOf} viewerSeat="A" />);
+    rerender(<EffectResolutionOverlay eventLog={events} rectOf={rectOf} viewerSeat="A" />);
+    expect(screen.getAllByText("3 ao fundo do deck")).toHaveLength(1);
   });
 
   it("com eventsBatch, os cues saem dos eventos do lote — mesmo com a janela do eventLog cheia e igual", () => {

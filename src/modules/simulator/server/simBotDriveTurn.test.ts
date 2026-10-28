@@ -8,7 +8,7 @@ import {
   getMatch,
 } from "./matchStore";
 import { SIM_BOT_USER_ID, createTrainingMatch } from "./trainingMatch";
-import { driveBotTurn, humanizedThinkDelay, humanizedThinkDelayMs } from "../../../../services/sim-bot/driveBotTurn.mjs";
+import { driveBotTurn, humanizedThinkDelay, humanizedThinkDelayMs, sceneAwareThinkDelay, BOT_MULLIGAN_EVAL_EXTRA_MS } from "../../../../services/sim-bot/driveBotTurn.mjs";
 
 afterEach(() => {
   _resetAllMatchesForTests();
@@ -55,6 +55,29 @@ describe("driveBotTurn — worker sim-bot", () => {
     const t0 = Date.now();
     await humanizedThinkDelay({ thinkingMs: 5_000 });
     expect(Date.now() - t0).toBeLessThan(200);
+  });
+
+  it("sceneAwareThinkDelay: espera a cena terminar na tela e então pensa os 1–2s inteiros", async () => {
+    const sleeps: number[] = [];
+    const sleep = async (ms: number) => {
+      sleeps.push(ms);
+    };
+    await sceneAwareThinkDelay(() => 2_500, sleep)({ thinkingMs: 900 });
+    expect(sleeps[0]).toBe(2_500);
+    expect(sleeps[1]).toBeGreaterThanOrEqual(1000);
+    // sem cena: o pensar da policy é descontado, como antes
+    sleeps.length = 0;
+    await sceneAwareThinkDelay(() => 0, sleep)({ thinkingMs: 5_000 });
+    expect(sleeps).toEqual([0]);
+  });
+
+  it("sceneAwareThinkDelay: a mão inicial é avaliada com mais calma antes do Mulligan", async () => {
+    const sleeps: number[] = [];
+    const sleep = async (ms: number) => {
+      sleeps.push(ms);
+    };
+    await sceneAwareThinkDelay(() => 0, sleep)({ thinkingMs: 0, action: { kind: "resolveMulligan" } });
+    expect(sleeps[0]).toBeGreaterThanOrEqual(1000 + BOT_MULLIGAN_EVAL_EXTRA_MS);
   });
 
   it("humanizedThinkDelayMs fica sempre entre 1s e 2s", () => {

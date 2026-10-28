@@ -33,12 +33,14 @@ import {
   lastSpotlightTier,
   draftTournamentReport,
   draftDeckFeature,
+  draftCardRevealReel,
   startSocialPostDraft,
   socialGenerationState,
   resetSocialGenerationState,
   draftArticlePost,
   queueArticleSocialDraft,
 } from "./socialPublisherService";
+import { buildCardRevealReelHtml } from "./socialSlides";
 
 const cardRow = {
   code: "ST01-001",
@@ -195,11 +197,12 @@ describe("socialPublisherService", () => {
       expect(publish).not.toHaveBeenCalled();
     });
 
-    it("publica com a URL pública da imagem e marca PUBLISHED", async () => {
+    it("publica com a URL pública da imagem, passa altText e marca PUBLISHED", async () => {
       const prisma = makePrisma();
       const publish = vi.fn().mockResolvedValue({ mediaId: "999", permalink: "https://www.instagram.com/p/x/" });
       const result = await publishApprovedPost(prisma, "p1", { publish, publicAppUrl: "https://anaheimhub.com/" });
       expect(publish.mock.calls[0][1].imageUrl).toBe("https://anaheimhub.com/uploads/social/social-GD01-001-1.jpg");
+      expect(publish.mock.calls[0][1].altText).toContain("T");
       expect(result.status).toBe("PUBLISHED");
       expect(result.instagramPostId).toBe("999");
     });
@@ -222,7 +225,7 @@ describe("socialPublisherService", () => {
       expect(result.publishError).toContain("JPEG");
     });
 
-    it("post com várias imagens sai como carrossel, na ordem, com a URL pública", async () => {
+    it("post com várias imagens sai como carrossel, na ordem, com a URL pública e altTexts", async () => {
       const mediaUrls = ["/uploads/social/social-x-1.jpg", "/uploads/social/social-x-1-2.jpg", "/uploads/social/social-x-1-3.jpg"];
       const prisma = makePrisma(1, { ...basePost, imageUrl: mediaUrls[0], mediaUrls });
       const publish = vi.fn();
@@ -230,7 +233,29 @@ describe("socialPublisherService", () => {
       const result = await publishApprovedPost(prisma, "p1", { publish, publishCarousel, publicAppUrl: "https://anaheimhub.com" });
       expect(publish).not.toHaveBeenCalled();
       expect(publishCarousel.mock.calls[0][1].imageUrls).toEqual(mediaUrls.map((u) => `https://anaheimhub.com${u}`));
+      expect(publishCarousel.mock.calls[0][1].altTexts).toHaveLength(3);
       expect(result.status).toBe("PUBLISHED");
+    });
+
+    it("post de Reel (mediaUrls com .mp4) publica como REELS com videoUrl e coverUrl", async () => {
+      const reelPost = {
+        ...basePost,
+        imageUrl: "/uploads/social/social-reel-ST01-001-1-cover.jpg",
+        mediaUrls: ["/uploads/social/social-reel-ST01-001-1.mp4"],
+        metadata: JSON.stringify({ mediaKind: "REEL" }),
+      };
+      const prisma = makePrisma(1, reelPost);
+      const publish = vi.fn();
+      const publishReel = vi.fn().mockResolvedValue({ mediaId: "888", permalink: "https://www.instagram.com/reel/abc/" });
+      const result = await publishApprovedPost(prisma, "p1", { publish, publishReel, publicAppUrl: "https://anaheimhub.com" });
+      expect(publish).not.toHaveBeenCalled();
+      expect(publishReel.mock.calls[0][1]).toEqual({
+        videoUrl: "https://anaheimhub.com/uploads/social/social-reel-ST01-001-1.mp4",
+        coverUrl: "https://anaheimhub.com/uploads/social/social-reel-ST01-001-1-cover.jpg",
+        caption: "Legenda #GCG",
+      });
+      expect(result.status).toBe("PUBLISHED");
+      expect(result.instagramPostId).toBe("888");
     });
 
     it("erro do Instagram marca FAILED e guarda a mensagem", async () => {
@@ -308,7 +333,7 @@ describe("socialPublisherService", () => {
     });
   });
 
-  describe("carta do dia: rodízio de raridade e artes alternativas", () => {
+  describe("carta do dia: rodízio de raridade, artes alternativas e Reel de revelação", () => {
     it("pickCardForPost com rodízio: tenta a raridade da vez e pula a que não tem carta", async () => {
       const count = vi.fn(async ({ where }: { where: { rarity?: { in: string[] } } }) => (where.rarity?.in.includes("Uncommon") ? 0 : 5));
       const prisma = { card: { count, findFirst: vi.fn().mockResolvedValue({ ...cardRow, rarity: "Common" }) }, socialMediaPost: { findMany: vi.fn().mockResolvedValue([]) } } as any;
@@ -356,13 +381,42 @@ describe("socialPublisherService", () => {
       expect(html).toContain("1/2");
     });
 
-    it("Discord: carrossel avisa a quantidade e mostra as primeiras imagens em galeria", () => {
+    it("Reel de revelação da carta da semana: usa a última carta destacada quando não passa cardCode e direciona para o post completo no perfil @anaheimhub", async () => {
+      const prisma = {
+        socialMediaPost: {
+          findFirst: vi.fn().mockResolvedValue({ cardCode: "ST01-001", metadata: '{"rarityTier":"LR"}' }),
+          findMany: vi.fn().mockResolvedValue([]),
+        },
+        card: {
+          findFirst: vi.fn().mockResolvedValue({ ...cardRow, rarity: "Legend Rare" }),
+        },
+      } as any;
+      const draft = await draftCardRevealReel(prisma, { apiKeyGemini: "" });
+      expect(draft.type).toBe("CARD_SPOTLIGHT");
+      expect(draft.cardCode).toBe("ST01-001");
+      expect(draft.reelCard).toMatchObject({ code: "ST01-001", name: "Gundam", color: "blue", typeLabel: "Unidade", rarity: "LR" });
+      expect(draft.content.fullCaption).toContain("@anaheimhub");
+      expect(draft.content.fullCaption).toContain("CARTA DA SEMANA REVELADA");
+      expect(draft.metadata).toMatchObject({ mediaKind: "REEL", rarityTier: "LR" });
+      const reelHtml = buildCardRevealReelHtml(draft.reelCard!);
+      expect(reelHtml).toContain("window.__recordReel");
+      expect(reelHtml).toContain("@anaheimhub");
+    });
+
+    it("Discord: carrossel avisa a quantidade e mostra as primeiras imagens em galeria; Reel avisa o formato MP4", () => {
       const mediaUrls = ["/a.jpg", "/b.jpg", "/c.jpg", "/d.jpg", "/e.jpg"];
       const payload = buildDiscordSocialPayload({ id: "p1", title: "T", caption: "L", imageUrl: "/a.jpg", type: "CARD_SPOTLIGHT", mediaUrls }, "https://anaheimhub.com");
       expect(payload.embeds).toHaveLength(4);
       expect(payload.embeds.every((e) => e.url === "https://anaheimhub.com/admin#social")).toBe(true);
       expect(payload.embeds[1].image?.url).toBe("https://anaheimhub.com/b.jpg");
       expect(JSON.stringify(payload.embeds[0])).toContain("Carrossel com 5 imagens");
+
+      const reelPayload = buildDiscordSocialPayload(
+        { id: "p2", title: "Reel ST01-001", caption: "L", imageUrl: "/cover.jpg", type: "CARD_SPOTLIGHT", mediaUrls: ["/video.mp4"] },
+        "https://anaheimhub.com",
+      );
+      expect(JSON.stringify(reelPayload.embeds[0])).toContain("Reel (vídeo MP4)");
+      expect(JSON.stringify(reelPayload.embeds[0])).toContain("https://anaheimhub.com/video.mp4");
     });
   });
 
@@ -387,7 +441,7 @@ describe("socialPublisherService", () => {
     const index = (tournaments: ReturnType<typeof t>[], entries: ReturnType<typeof e>[]) =>
       new VedaIndex({ tournaments, entries, snapshots: new Map(), cards: new Map(), seasons: [] });
 
-    it("carrossel com capa, um slide por torneio e fechamento; legenda de reserva com os campeões", async () => {
+    it("carrossel com capa, um slide por torneio e fechamento; legenda de reserva com os campeões e @arroba das lojas", async () => {
       const ix = index([t("a", "2026-10-21", "Taverna Game House"), t("b", "2026-10-23", "Meruru")], [e("e1", "a", 1, "Johannjfs", "Blue / Green Nu Gundam"), e("e2", "b", 1, "Eddie", "Red / White MF")]);
       const draft = await draftTournamentReport({} as any, { scheduledFor: monday, apiKeyGemini: "" }, { index: ix });
       expect(draft.type).toBe("TOURNAMENT_REPORT");
@@ -397,6 +451,8 @@ describe("socialPublisherService", () => {
       expect(draft.slides[1]).toContain("Johannjfs");
       expect(draft.slides[3]).toContain("Quem venceu");
       expect(draft.metadata).toMatchObject({ weekStart: "2026-10-19", weekEnd: "2026-10-25", tournamentIds: ["a", "b"] });
+      expect(draft.content.fullCaption).toContain("Taverna Game House (@tavernagamehouse)");
+      expect(draft.content.fullCaption).toContain("Meruru (@merurutcg)");
       expect(draft.content.fullCaption).toContain("Johannjfs com Blue / Green Nu Gundam");
       expect(captionProblems(draft.content.fullCaption)).toEqual([]);
     });

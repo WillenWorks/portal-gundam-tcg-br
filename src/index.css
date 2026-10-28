@@ -555,6 +555,47 @@
    * origem até a pilha de Trash/Exílio. `depart` (descarte comum) é um
    * deslize liso; `depart-destroy` (Unit morta em combate/efeito) ganha um
    * tremor + rotação antes de desintegrar, coordenado com `sfx.playExplosion()`. */
+  /* spec simulador-cadencia-de-mesa (P2) — desvirar: a carta sai da horizontal e volta à vertical (90° → 0°); o
+   * descansar é o caminho inverso. Animação de um disparo por cima do estado final (o layout não muda). */
+  @keyframes sim-unrest {
+    from { transform: rotate(90deg) scale(0.92); }
+    to { transform: rotate(0deg) scale(1); }
+  }
+  @keyframes sim-rest {
+    from { transform: rotate(-90deg) scale(1.04); }
+    to { transform: rotate(0deg) scale(1); }
+  }
+  /* P3 — Unit pesada (Lv 5+) caindo: a mesa treme */
+  @keyframes sim-table-shake {
+    0%, 100% { transform: translate(0, 0); }
+    20% { transform: translate(-3px, 2px); }
+    40% { transform: translate(3px, -2px); }
+    60% { transform: translate(-2px, 1px); }
+    80% { transform: translate(2px, -1px); }
+  }
+  /* P4 — Unit destruída: quebra ao meio no lugar (41% ≈ 320ms de 780ms) e depois é arrastada à lixeira */
+  @keyframes sim-destroy-drag {
+    0% { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
+    10% { transform: translate3d(-2px, 1px, 0) scale(1.03); }
+    20% { transform: translate3d(2px, -1px, 0) scale(1.03); }
+    41% { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
+    100% { transform: translate3d(var(--dx, 0px), var(--dy, 0px), 0) scale(0.45) rotate(8deg); opacity: 0; }
+  }
+  @keyframes sim-crack-left {
+    0% { transform: none; }
+    15% { transform: translateX(-2%) rotate(-2deg); }
+    41%, 100% { transform: translate(-9%, 3%) rotate(-7deg); }
+  }
+  @keyframes sim-crack-right {
+    0% { transform: none; }
+    15% { transform: translateX(2%) rotate(2deg); }
+    41%, 100% { transform: translate(9%, 4%) rotate(8deg); }
+  }
+  @keyframes sim-crack-flash {
+    0% { opacity: 0; }
+    10% { opacity: 1; }
+    41%, 100% { opacity: 0; }
+  }
   @keyframes sim-card-depart {
     0% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); opacity: 0.95; }
     100% { transform: translate3d(var(--dx, 0px), var(--dy, 0px), 0) scale(0.55) rotate(-6deg); opacity: 0; }
@@ -591,6 +632,13 @@
   .sim-shield-barrier { animation: sim-shield-barrier calc(650ms / var(--sim-anim-speed-mult, 1)) ease-out forwards; }
   .sim-anim-depart { animation: sim-card-depart calc(420ms / var(--sim-anim-speed-mult, 1)) cubic-bezier(0.4, 0, 0.6, 1) both; }
   .sim-anim-depart-destroy { animation: sim-card-depart-destroy calc(420ms / var(--sim-anim-speed-mult, 1)) cubic-bezier(0.3, 0, 0.6, 1) both; }
+  .sim-anim-unrest { animation: sim-unrest calc(450ms / var(--sim-anim-speed-mult, 1)) cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+  .sim-anim-rest { animation: sim-rest calc(450ms / var(--sim-anim-speed-mult, 1)) cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+  .sim-anim-table-shake { animation: sim-table-shake calc(380ms / var(--sim-anim-speed-mult, 1)) ease-out both; }
+  .sim-anim-destroy-drag { animation: sim-destroy-drag calc(780ms / var(--sim-anim-speed-mult, 1)) cubic-bezier(0.4, 0, 0.6, 1) both; }
+  .sim-anim-crack-left { animation: sim-crack-left calc(780ms / var(--sim-anim-speed-mult, 1)) ease-out both; }
+  .sim-anim-crack-right { animation: sim-crack-right calc(780ms / var(--sim-anim-speed-mult, 1)) ease-out both; }
+  .sim-anim-crack-flash { animation: sim-crack-flash calc(780ms / var(--sim-anim-speed-mult, 1)) ease-out both; }
 
   @media (prefers-reduced-motion: reduce) {
     .sim-anim-land-soft,
@@ -606,7 +654,14 @@
     .sim-shockwave-amber,
     .sim-shield-barrier,
     .sim-anim-depart,
-    .sim-anim-depart-destroy {
+    .sim-anim-depart-destroy,
+    .sim-anim-unrest,
+    .sim-anim-rest,
+    .sim-anim-table-shake,
+    .sim-anim-destroy-drag,
+    .sim-anim-crack-left,
+    .sim-anim-crack-right,
+    .sim-anim-crack-flash {
       animation: none !important;
     }
   }

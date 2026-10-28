@@ -34,7 +34,10 @@ export type ActionDockState =
   | { kind: "gameOver"; won: boolean; reasonLabel: string; redirectSeconds: number | null };
 
 export interface ActionDockProps {
+  /** pode agir agora (Main Phase própria): mostra "Passar turno" */
   yourTurn: boolean;
+  /** o turno é deste jogador, em qualquer fase (o começo do turno toca antes da Main Phase) — só o rótulo */
+  turnIsMine?: boolean;
   /** Verdadeiro quando o jogador atual tem a prioridade do Passo de Ação (combate ou fim de turno). */
   inActionStep?: boolean;
   phaseLabel: string;
@@ -60,6 +63,7 @@ export interface ActionDockProps {
 
 export function ActionDock({
   yourTurn,
+  turnIsMine,
   inActionStep,
   phaseLabel,
   timerSeconds,
@@ -99,7 +103,7 @@ export function ActionDock({
                 ? "text-amber-300 flex items-center gap-1.5"
                 : oppDecisionLabel
                   ? "text-amber-200/90 flex items-center gap-1.5"
-                  : yourTurn || inActionStep
+                  : yourTurn || turnIsMine || inActionStep
                     ? "text-primary"
                     : "text-muted-portal",
             )}
@@ -116,7 +120,7 @@ export function ActionDock({
               </>
             ) : inActionStep ? (
               tr(`Sua vez · ${phaseLabel}`, `Your turn · ${phaseLabel}`)
-            ) : yourTurn ? (
+            ) : yourTurn || turnIsMine ? (
               tr(`Sua vez · ${phaseLabel}`, `Your turn · ${phaseLabel}`)
             ) : (
               tr("Vez do oponente", "Opponent's turn")

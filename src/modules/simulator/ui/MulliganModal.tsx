@@ -13,10 +13,8 @@ interface MulliganModalProps {
   hand: CardInstance[];
   art: ArtLookup;
   busy?: boolean;
-  /** largura real da carta (px), medida em `deckStation:${seat}` pelo pai —
-   *  `--card-w-std` só existe dentro da subtree do `<ArenaPlaymat>`; este modal
-   *  é um `fixed inset-0` irmão, fora dela, então a CSS var nunca resolve pro
-   *  valor real (revisão do plano de polimento, item 1). */
+  /** largura real da carta NA MÃO (px), medida pelo pai — `--card-w-std` só existe dentro do `<ArenaPlaymat>`; este
+   *  modal é um `fixed inset-0` irmão, fora dele. É o teto: num display estreito as 5 encolhem para caber na caixa. */
   cardW: number;
   onResolve: (keep: boolean) => void;
 }
@@ -25,7 +23,7 @@ export function MulliganModal({ hand, art, busy, cardW, onResolve }: MulliganMod
   const { tr } = useSiteLanguage();
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4">
-      <div className="panel-cut hero-surface w-full max-w-md border border-primary/45 p-4">
+      <div className="panel-cut hero-surface w-full max-w-xl border border-primary/45 p-4">
         <p className="flex items-center justify-center gap-1.5 text-center text-sm font-black uppercase tracking-[0.18em] text-primary">
           <RefreshCw className="size-4" /> {tr("Mão inicial", "Opening hand")}
         </p>
@@ -33,7 +31,13 @@ export function MulliganModal({ hand, art, busy, cardW, onResolve }: MulliganMod
           {tr("Você comprou 5 cartas. Quer ficar com esta mão ou trocá-la por 5 novas? Só uma vez.", "You drew 5 cards. Keep this hand or swap it for 5 new ones? Only once.")}
         </p>
 
-        <div className="my-3 flex items-end justify-center gap-1">
+        {/* spec simulador-cadencia-de-mesa (P1): 5 colunas iguais que nunca passam da largura da caixa nem do tamanho
+            da carta na mão (o modal não pode ter carta maior do que ela fica depois) */}
+        <div
+          data-testid="mulligan-hand"
+          className="mx-auto my-3 grid w-full items-end gap-1.5"
+          style={{ gridTemplateColumns: `repeat(${Math.max(1, hand.length)}, minmax(0, 1fr))`, maxWidth: cardW > 0 ? hand.length * cardW + (hand.length - 1) * 6 : undefined }}
+        >
           {hand.map((c) => (
             <CardFace
               key={c.instanceId}
@@ -41,11 +45,8 @@ export function MulliganModal({ hand, art, busy, cardW, onResolve }: MulliganMod
               code={c.def.code}
               art={art}
               size="md"
-              // `size="md"` só resolve a ARTE (63x88 vs demais resoluções); o
-              // LAYOUT usa `cardW` medido pelo pai (mesma fonte do
-              // `DeckDealAnimation`), senão a carta muda de tamanho assim que
-              // o modal fecha e a mão real aparece.
-              style={{ width: cardW || undefined }}
+              // `size="md"` só resolve a ARTE; o LAYOUT é a coluna da grade
+              style={{ width: "100%" }}
               className="border border-white/10"
             />
           ))}

@@ -126,14 +126,27 @@ import {
   commandTargetsFromMenu,
   fieldAbilityFromMenu,
   handModesFromMenu,
+  pendingPlayStillLegal,
   normalCommandFromMenu,
   pairTargetsFromMenu,
   sacrificeIdsFromMenu,
 } from "@/modules/simulator/ui/menuIntent";
 import type { BurstTargetChoice } from "@/modules/simulator/ui/BurstModal";
 import { findAltDiscardCandidates, findEligibleSacrifices, playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
-import { getResolutionPacing, getScaledDuration } from "@/modules/simulator/ui/animationSettings";
-import { BEAT_HOLD_MS, hasOwnDeploy, planChoreography, tempoFor } from "@/modules/simulator/ui/choreography";
+import { getResolutionPacing, getSavedAnimSpeed, getScaledDuration, type ResolutionPacing } from "@/modules/simulator/ui/animationSettings";
+import { hasOwnDeploy, planChoreography, tempoFor, type Beat } from "@/modules/simulator/scene/choreography";
+import { SCENE_MS, destroyMs, drawMs, landsHeavy, shieldRevealMs } from "@/modules/simulator/scene/sceneTiming";
+import { drawnCard, placedResource, unrestedIds } from "@/modules/simulator/scene/turnStart";
+import { CardTravel, centerCardWidth, type TravelPoint } from "@/modules/simulator/ui/CardTravel";
+import { PlayCardStage, type PlayStage } from "@/modules/simulator/ui/PlayCardStage";
+import { BurstDecisionStage } from "@/modules/simulator/ui/BurstDecisionStage";
+import { triggerEffectText } from "@/modules/simulator/scene/effectText";
+import { buildEffectLedger, effectTargetOf } from "@/modules/simulator/scene/effectLedger";
+import { effectAnchorKey, onFieldIds } from "@/modules/simulator/ui/effectAnchors";
+import { EffectLedgerTooltip } from "@/modules/simulator/ui/EffectLedgerTooltip";
+import { mulliganRedraws } from "@/modules/simulator/scene/openingScene";
+import { localSceneEnd, sceneLockWaitMs } from "@/modules/simulator/scene/sceneLock";
+import { restChanges, revealBeat, withRested } from "@/modules/simulator/scene/viewPatcher";
 import {
   handleOpponentCommandCast,
   resolveCommandAnimationPoints,
@@ -166,6 +179,7 @@ import {
   type ActionDockState,
   ArenaPlaymat,
   AbilityTargetLane,
+  type TargetLanePoint,
   type ArenaSide,
   BaseCardGauge,
   BattleLogDrawer,
@@ -211,7 +225,7 @@ import {
   MatchPrompt,
   SettingsMenu,
   MulliganModal,
-  FirstPlayerReveal,
+  CoinToss,
   SideboardModal,
   ZeroCoachHud,
   BattleLogPanel,
@@ -299,6 +313,44 @@ function handCenter(r: DOMRect | null, cardW?: number | null): { x: number; y: n
     x: r.left + r.width / 2,
     y: r.bottom - 4 - cardH / 2,
   };
+}
+
+/** ponto à direita da última carta da mão (onde a carta comprada entra); sem cartas, o meio da mão */
+function handLandingPoint(cardW: number | null | undefined): TravelPoint | null {
+  if (typeof document === "undefined") return null;
+  const cards = document.querySelectorAll("[data-hand-card]");
+  const last = cards[cards.length - 1];
+  if (!last) return null;
+  const r = last.getBoundingClientRect();
+  const w = cardW && cardW > 0 ? cardW : r.width;
+  return { x: r.right + w * 0.55, y: r.top + r.height / 2 };
+}
+
+/** âncora da zona onde a carta está na mesa mostrada (de onde ela sai quando vai para a mão) */
+function zoneAnchorOf(view: ViewGameState, instanceId: string, fallbackOwner: PlayerId): string | null {
+  for (const pid of ["A", "B"] as PlayerId[]) {
+    const p = view.players[pid];
+    if (p.trash.some((c) => c.instanceId === instanceId)) return `trashStation:${pid}`;
+    if (p.exile.some((c) => c.instanceId === instanceId)) return `exileStation:${pid}`;
+    if (p.shields.some((c) => c.instanceId === instanceId)) return `shieldRail:${pid}`;
+    if (p.deck.some((c) => c.instanceId === instanceId)) return `deckStation:${pid}`;
+  }
+  return `deckStation:${fallbackOwner}`;
+}
+
+/** centro da carta da minha mão (a jogada sai dela) */
+function handCardPoint(instanceId: string): TravelPoint | null {
+  if (typeof document === "undefined") return null;
+  const el = document.querySelector(`[data-hand-card="${CSS.escape(instanceId)}"]`);
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+
+/** borda direita de uma faixa (mão do oponente, linha de recursos): onde a carta nova entra */
+function rightEdgeOf(r: DOMRect | null): TravelPoint | null {
+  if (!r) return null;
+  return { x: r.right, y: r.top + r.height / 2 };
 }
 
 /**
@@ -462,6 +514,16 @@ export function buildTurn1StagedViews(current: SimulatorMatchView): {
     },
   };
 
+  // o recurso posto neste turno só aparece na Resource Phase (o EX Resource já estava na mesa)
+  const withoutPlacedResource = (p: ViewPlayerState): ViewPlayerState => {
+    const resourceArea = p.resourceArea.filter((c) => isHidden(c) || (c as CardInstance).def.isToken);
+    return { ...p, resourceArea, counts: { ...p.counts, resourceArea: resourceArea.length, resourceDeck: p.counts.resourceDeck + (p.resourceArea.length - resourceArea.length) } };
+  };
+  const viewBeforeResource = (v: SimulatorMatchView): SimulatorMatchView => ({
+    ...v,
+    view: { ...v.view, players: { ...v.view.players, [active]: withoutPlacedResource(v.view.players[active]) } },
+  });
+
   const viewDraw: SimulatorMatchView = {
     ...current,
     ...heldFromMenu(current),
@@ -472,9 +534,9 @@ export function buildTurn1StagedViews(current: SimulatorMatchView): {
   };
 
   return {
-    viewAnnounced: viewBeforeDraw,
-    viewRecovery: viewBeforeDraw,
-    viewDraw,
+    viewAnnounced: viewBeforeResource(viewBeforeDraw),
+    viewRecovery: viewBeforeResource(viewBeforeDraw),
+    viewDraw: viewBeforeResource(viewDraw),
     viewMain: current,
   };
 }
@@ -550,6 +612,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   /** limiares de aviso do timer de turno já disparados NESTE prazo (reseta quando `turnDeadlineAt` muda). */
   const turnWarningsRef = useRef<{ deadline: number | null; fired: Set<number> }>({ deadline: null, fired: new Set() });
   const [busy, setBusy] = useState(false);
+  // spec simulador-cadencia-de-mesa — a mesa fica travada enquanto a cena toca: a fila de visões tocando e, depois
+  // dela, até o fim da cena contado pelo servidor (a minha jogada eu não vejo de novo, o oponente vê; as duas telas
+  // liberam juntas). Fim da cena no relógio LOCAL.
+  const [sceneLocked, setSceneLocked] = useState(false);
+  const sceneEndsAtLocalRef = useRef<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
   const [pending, setPending] = useState<PendingAction | null>(null);
@@ -607,6 +674,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [inspect, setInspect] = useState<CardInstance | null>(null);
   /** carta sob o cursor/foco — alimenta o `CardInspectorPanel` das asas largas (Sprint 3/4). */
   const [hoveredCard, setHoveredCard] = useState<CardInstance | null>(null);
+  /** spec simulador-efeitos-na-mesa — linha neon da carta-fonte até os alvos, enquanto o efeito toca na cena */
+  const [effectLane, setEffectLane] = useState<{ key: number; source: string; targets: TargetLanePoint[] } | null>(null);
   /** V6.1 (docs/32) — botão "Expandir tabuleiro" no widescreen: esconde o
    *  Detalhes da Carta (asas laterais) e deixa a arena usar a largura toda,
    *  com --card-w mais generoso. Só faz sentido quando `isWide` já mostra as
@@ -680,33 +749,36 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     | "waiting-opponent-mulligan"
     | "mulligan-anim"
     | "deal-shields"
+    | "ex-reveal"
     | "phase-banner"
     | "complete"
   >("field-ready");
+  // spec simulador-cadencia-de-mesa (P1) — o oponente trocou a mão: os dois veem a mão dele voltar, o deck embaralhar
+  // e 5 novas saírem; a minha decisão espera essa cena
+  const [oppMulliganKey, setOppMulliganKey] = useState<number | null>(null);
   const introInitializedRef = useRef(false);
   const mulliganDidMulliganRef = useRef(false);
   const introStageRef = useRef(introStage);
   introStageRef.current = introStage;
   const introStageResolveRef = useRef<(() => void) | null>(null);
 
+  // a fila de visões reavalia a cada etapa da abertura (ela pode passar a esperar justamente a visão que está na fila)
   useEffect(() => {
-    if (introStage === "complete") {
-      introStageResolveRef.current?.();
-      introStageResolveRef.current = null;
-    }
+    introStageResolveRef.current?.();
+    introStageResolveRef.current = null;
   }, [introStage]);
 
   const [phaseBannerQueue, setPhaseBannerQueue] = useState<string[]>([]);
   const phaseBannerQueueRef = useRef<string[]>([]);
-  phaseBannerQueueRef.current = phaseBannerQueue;
   const phaseBannerResolveRef = useRef<(() => void) | null>(null);
 
+  // A fila é lida pela espera (`waitForPhaseBanners`) logo depois de enfileirar: o ref muda NA HORA. Atualizar dentro
+  // do updater do setState deixava o ref vazio até o React renderizar, e a espera liberava sem banner nenhum (os
+  // banners do começo de turno tocavam por cima das fases — spec simulador-cadencia-de-mesa, P3).
   const enqueuePhaseBanners = useCallback((banners: string[]) => {
-    setPhaseBannerQueue((prev) => {
-      const next = [...prev, ...banners];
-      phaseBannerQueueRef.current = next;
-      return next;
-    });
+    const next = [...phaseBannerQueueRef.current, ...banners];
+    phaseBannerQueueRef.current = next;
+    setPhaseBannerQueue(next);
   }, []);
 
   const waitForPhaseBanners = useCallback(() => {
@@ -723,13 +795,6 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     });
   }, []);
 
-  interface TurnStagedViews {
-    actingPlayer: PlayerId;
-    viewRecovery: SimulatorMatchView;
-    viewDraw: SimulatorMatchView;
-    viewMain: SimulatorMatchView;
-  }
-  const turnStagedViewsRef = useRef<TurnStagedViews | null>(null);
 
   // Confirmação explícita de encerramento de turno sob demanda (não trava a tela no idle)
   const [showEndTurnConfirm, setShowEndTurnConfirm] = useState(false);
@@ -837,9 +902,40 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const announcementResolveRef = useRef<(() => void) | null>(null);
   const [effectDraw, setEffectDraw] = useState<{ key: number; player: PlayerId; card?: CardInstance } | null>(null);
   const effectDrawResolveRef = useRef<(() => void) | null>(null);
+  // spec simulador-cadencia-de-mesa (P2) — começo de turno: cartas desvirando e o recurso entrando
+  const [unrestIds, setUnrestIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [resourceTravel, setResourceTravel] = useState<{ key: number; player: PlayerId; card: CardInstance } | null>(null);
+  // P3 — carta jogada da mão, cartas sendo deitadas (custo, efeito) e o tremor da Unit pesada
+  const [playStage, setPlayStage] = useState<PlayStage | null>(null);
+  // P5 — carta indo para a mão fora da compra (【Burst】 que vai à mão, Unit que volta, busca)
+  const [handTravel, setHandTravel] = useState<{ key: number; player: PlayerId; card: CardInstance | null; from: TravelPoint | null; fromW: number } | null>(null);
+  const handTravelResolveRef = useRef<(() => void) | null>(null);
+  // P5 — o 【Burst】 cujo alvo está sendo escolhido no campo (a mesa fica livre enquanto isso)
+  const [burstTargetingFor, setBurstTargetingFor] = useState<string | null>(null);
+  // P4 — shield quebrada: sai da trilha, vai ao centro, vira para os dois verem e cai na lixeira
+  const [shieldTravel, setShieldTravel] = useState<{ key: number; player: PlayerId; card: CardInstance | null; holdAtCenter?: boolean } | null>(null);
+  const shieldTravelResolveRef = useRef<(() => void) | null>(null);
+  const [restIds, setRestIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [tableShake, setTableShake] = useState(false);
+  const resourceTravelResolveRef = useRef<(() => void) | null>(null);
   /** o modal de escolha espera a minha carta pousar (a escolha do 【Deploy】 vem depois da carta em campo) */
   const [modalHold, setModalHold] = useState(false);
   const beatKeyRef = useRef(0);
+  // largura da carta NA MÃO de cada lado (medida na tela): toda carta que voa para a mão pousa neste tamanho
+  const handCardW = (pid: PlayerId) => board.rectOf(`handCardProbe:${pid}`)?.width ?? board.rectOf(`deckStation:${pid}`)?.width;
+
+  /** P3 — onde a carta jogada pousa: a próxima vaga livre do campo, a Base, ou a Unit que recebe o Piloto */
+  function playTarget(beat: Extract<Beat, { kind: "play" }>, shownView: ViewGameState, finalView: ViewGameState): DOMRect | null {
+    if (beat.as === "base") return board.rectOf(`base:${beat.player}`) ?? board.rectOf(playerAreaKey(beat.player));
+    if (beat.as === "pilot") {
+      const unit = finalView.players[beat.player].battleArea.find((c) => !isHidden(c) && (c as CardInstance).pairedPilotId === beat.instanceId);
+      return (unit && board.rectOf(unit.instanceId)) ?? board.rectOf(playerAreaKey(beat.player));
+    }
+    // mesma contagem das vagas desenhadas (`publicUnits`): só Units (o Piloto pareado também mora na Battle Area)
+    const nextSlot = shownView.players[beat.player].battleArea.filter((c) => !isHidden(c) && (c as CardInstance).def?.cardType === "UNIT").length;
+    return board.rectOf(`slot:${beat.player}:${nextSlot}`) ?? board.rectOf(playerAreaKey(beat.player));
+  }
+
   const playOverlay = useCallback(
     <T,>(set: (value: T | null) => void, resolveRef: { current: (() => void) | null }, value: T) =>
       new Promise<void>((resolve) => {
@@ -856,6 +952,69 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       }),
     [],
   );
+
+  /**
+   * spec simulador-cadencia-de-mesa (P2) — começo de turno, na ordem da regra: cada banner sai e SÓ ENTÃO a fase
+   * acontece. Recuperação: as cartas descansadas giram de volta. Compra: a carta sai do deck (a minha passa pelo centro
+   * à mostra e pousa à direita da mão). Recurso: a carta do deck de recursos vira e pousa. Tempos de `SCENE_MS` (o
+   * servidor espera o mesmo, `turnStartMs`).
+   */
+  const playTurnStart = useCallback(
+    async (
+      staged: { viewAnnounced: SimulatorMatchView; viewRecovery: SimulatorMatchView; viewDraw: SimulatorMatchView; viewMain: SimulatorMatchView },
+      viewerSeat: PlayerId,
+    ) => {
+      const acting = staged.viewMain.view.activePlayer;
+      const isMyTurn = acting === viewerSeat;
+      const pause = (baseMs: number) => new Promise<void>((resolve) => setTimeout(resolve, getScaledDuration(baseMs)));
+      const banner = async (name: string) => {
+        enqueuePhaseBanners([name]);
+        await waitForPhaseBanners();
+      };
+      setMatchView(staged.viewAnnounced);
+      if (isMyTurn) sfx.playNewtypeFlash();
+      await banner(isMyTurn ? "SEU TURNO" : "TURNO DO OPONENTE");
+
+      await banner("FASE DE RECUPERAÇÃO");
+      const standing = unrestedIds(staged.viewAnnounced.view, staged.viewRecovery.view, acting);
+      setUnrestIds(standing);
+      setMatchView(staged.viewRecovery);
+      if (standing.size > 0) sfx.playDeploy();
+      await pause(SCENE_MS.unrest);
+      setUnrestIds(new Set());
+
+      await banner("FASE DE COMPRA");
+      const drawn = drawnCard(staged.viewRecovery.view, staged.viewDraw.view, acting);
+      if (drawn) {
+        sfx.playCardDraw();
+        await playOverlay(setEffectDraw, effectDrawResolveRef, {
+          key: ++beatKeyRef.current,
+          player: acting,
+          card: isHidden(drawn) ? undefined : (drawn as CardInstance),
+        });
+      } else {
+        await pause(drawMs());
+      }
+      setMatchView(staged.viewDraw);
+
+      await banner("FASE DE RECURSO");
+      const resource = placedResource(staged.viewDraw.view, staged.viewMain.view, acting);
+      if (resource) {
+        await playOverlay(setResourceTravel, resourceTravelResolveRef, { key: ++beatKeyRef.current, player: acting, card: resource });
+      } else {
+        await pause(SCENE_MS.resource);
+      }
+      setMatchView({ ...staged.viewMain, ...heldFromMenu(staged.viewMain) });
+
+      await banner("FASE PRINCIPAL");
+      // a Main Phase começa com o menu de jogadas real (as visões intermediárias suspendem o menu). Sem isto, no
+      // turno 1 de quem começa nada podia ser jogado até chegar outra visão (BUG-X7GJG4). Uma visão mais nova que já
+      // tenha chegado vale mais.
+      setMatchView((prev) => (prev && prev.matchId === staged.viewMain.matchId && prev.version > staged.viewMain.version ? prev : staged.viewMain));
+    },
+    [enqueuePhaseBanners, waitForPhaseBanners, playOverlay],
+  );
+
 
   const executeAttackStrike = useCallback(
     async (attackerId: string, currentTarget: AttackTarget, defendingPlayer: PlayerId) => {
@@ -1003,6 +1162,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       if (typeof incoming.serverNow === "number") {
         clockOffsetRef.current = incoming.serverNow - Date.now();
       }
+      if (incoming.sceneEndsAt != null) sceneEndsAtLocalRef.current = localSceneEnd(incoming.sceneEndsAt, clockOffsetRef.current, Date.now());
 
       // spec simulador-animacao-pelo-log, fase 3 — com eventos contínuos, a tela toca o que o motor fez, na ordem
       // (vários ataques/Commands no mesmo lote do bot; a Unit destruída sai depois do golpe). Visão repetida (POST
@@ -1018,6 +1178,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         });
       }
       const repeated = status === "repeated";
+      // spec simulador-cadencia-de-mesa (P1): o oponente trocou a mão (narrado pelo motor) — a cena dele toca aqui
+      if (!repeated && mulliganRedraws(incoming.eventsSince ?? []).includes(otherPlayer(incoming.seat))) {
+        setOppMulliganKey((k) => (k ?? 0) + 1);
+      }
       const timeline = status === "continuous" ? timelineFor(incoming, lastEventSeqRef.current) : null;
       if (incoming.eventSeq !== undefined && !repeated) lastEventSeqRef.current = incoming.eventSeq;
       const prevDepartureView = prevDepartureViewRef.current;
@@ -1026,7 +1190,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       // spec simulador-ritmo-de-resolucao — ritmo cinemático: um tempo por coisa que o motor fez (abertura e mulligan
       // têm coreografia própria). O "rápido" é o caminho anterior, intacto.
       const cinematicFrom =
-        timeline && getResolutionPacing() === "cinematic" && prevViewForQueueRef.current && isPostSetupView(prevViewForQueueRef.current)
+        timeline && getResolutionPacing() !== "classic" && prevViewForQueueRef.current && isPostSetupView(prevViewForQueueRef.current)
           ? prevViewForQueueRef.current
           : null;
       setCueBatch(
@@ -1044,6 +1208,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         y: typeof window !== "undefined" && window.innerHeight ? window.innerHeight / 2 : 350,
       };
       const prevView = prevViewForQueueRef.current;
+      // a mesa que a tela mostra quando os tempos acabam (a virada de turno parte dela)
+      let shownAfterBeats = prevView;
       prevViewForQueueRef.current = incoming.view;
       const animateCommand = ({ cardDef, origin, dest }: { cardDef: CardDef; origin: { x: number; y: number }; dest: { x: number; y: number } }) =>
         new Promise<void>((resolve) => {
@@ -1078,6 +1244,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           resourceIds,
         });
         pendingAttackRef.current = pendingAttack;
+        // o ritmo ("Normal") e a velocidade do menu já entram em `getScaledDuration`
         const tempo = tempoFor(beats);
         const hold = (baseMs: number) => new Promise<void>((resolve) => setTimeout(resolve, getScaledDuration(baseMs * tempo)));
         const opponentSeat: PlayerId = incoming.seat === "A" ? "B" : "A";
@@ -1085,41 +1252,134 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         const shieldsTaken: Record<PlayerId, number> = { A: 0, B: 0 };
         // a arte grande dos anúncios começa a baixar já, enquanto os tempos anteriores tocam
         for (const beat of beats) {
-          if (beat.kind !== "announce" && beat.kind !== "deploy") continue;
+          if (beat.kind !== "announce" && beat.kind !== "play") continue;
           const code = defOf(beat.instanceId)?.code;
           const src = code ? artSrc(art, code, "lg") : undefined;
           if (src && typeof Image !== "undefined") new Image().src = src;
         }
+        // spec simulador-cadencia-de-mesa — a mesa entre um tempo e outro: cada tempo que termina mostra o que ele
+        // fez (o dano do 1º efeito antes do 2º começar); a visão do servidor fecha a cena no fim
+        let shown: ViewGameState = cinematicFrom;
+        const pace = (baseMs: number) => new Promise<void>((resolve) => setTimeout(resolve, getScaledDuration(baseMs)));
+        const showTable = (view: ViewGameState) => {
+          shown = view;
+          shownAfterBeats = view;
+          setMatchView((prev) => (prev ? { ...prev, ...heldFromMenu(prev), view } : prev));
+        };
+        // P3 — o custo pago: os recursos giram para a horizontal um a um, e o último ainda termina de girar
+        const payOneByOne = async (ids: readonly string[]) => {
+          for (let i = 0; i < ids.length; i++) {
+            setRestIds(new Set(ids.slice(0, i + 1)));
+            showTable(withRested(shown, [ids[i]], true));
+            if (i === 0) sfx.playClick();
+            await pace(i < ids.length - 1 ? SCENE_MS.play.payPerCard : SCENE_MS.play.paySettle);
+          }
+          setRestIds(new Set());
+        };
         for (const beat of beats) {
           switch (beat.kind) {
             case "strike":
               await strike(beat.attackerId, beat.target, beat.defendingPlayer);
               break;
-            case "effects":
+            case "effects": {
+              // descansar/levantar por efeito gira na hora (ex.: o recurso escolhido pelo Shining Gundam com Domon)
+              const turns = restChanges(beat.events);
+              if (turns.rest.length || turns.stand.length) {
+                setRestIds(new Set(turns.rest));
+                setUnrestIds(new Set(turns.stand));
+                showTable(withRested(withRested(shown, turns.rest, true), turns.stand, false));
+              }
+              // efeitos-na-mesa: a linha sai da carta que causou e vai até cada alvo no campo (não até ela mesma)
+              const laneSource = beat.source ? effectAnchorKey(shown, beat.source.instanceId, beat.source.player) : null;
+              const laneTargets: TargetLanePoint[] = [];
+              if (laneSource && beat.source) {
+                for (const id of new Set(beat.events.map(effectTargetOf))) {
+                  const key = id ? effectAnchorKey(shown, id) : null;
+                  if (!key || key === laneSource || laneTargets.some((t) => t.id === key)) continue;
+                  const owner = (["A", "B"] as PlayerId[]).find((pid) => key === `base:${pid}` || shown.players[pid].battleArea.some((c) => c.instanceId === key));
+                  laneTargets.push({ id: key, pool: owner === beat.source.player ? "ally" : "enemy" });
+                }
+              }
+              setEffectLane(laneSource && laneTargets.length > 0 ? { key: ++beatKeyRef.current, source: laneSource, targets: laneTargets } : null);
               setCueBatch({ key: -++beatKeyRef.current, events: beat.events });
-              await hold(BEAT_HOLD_MS.effects);
+              await hold(SCENE_MS.effects);
+              setEffectLane(null);
+              if (turns.rest.length || turns.stand.length) {
+                setRestIds(new Set());
+                setUnrestIds(new Set());
+              }
               break;
+            }
             case "departure": {
-              const ids = beat.shieldsOf
-                ? (prevDepartureView?.players[beat.shieldsOf].shields ?? [])
-                    .slice(shieldsTaken[beat.shieldsOf], (shieldsTaken[beat.shieldsOf] += beat.count ?? 0))
-                    .map((c) => c.instanceId)
-                : beat.ids;
-              if (beat.shieldsOf) sfx.playShieldBurst();
-              launchDepartures(prevDepartureView, incoming, new Set(ids));
-              await hold(BEAT_HOLD_MS.departure);
+              if (beat.shieldsOf) {
+                // P4 — cada shield quebrada vai ao centro e vira para os dois verem (a do meu 【Burst】 pendente tem a
+                // revelação própria logo em seguida, com o modal)
+                const owner = beat.shieldsOf;
+                const myBurst = incoming.view.pendingDecision[incoming.seat];
+                for (let k = 0; k < (beat.count ?? 0); k++) {
+                  const shieldId = shown.players[owner].shields[0]?.instanceId;
+                  shieldsTaken[owner] += 1;
+                  sfx.playShieldBurst();
+                  const isMyBurst = myBurst?.kind === "burst" && myBurst.cardInstanceId === shieldId;
+                  const ownerBurst = incoming.view.pendingDecision[owner];
+                  const isTheirPendingBurst = ownerBurst?.kind === "burst" && ownerBurst.cardInstanceId === shieldId;
+                  if (shieldId && !isMyBurst) {
+                    const revealed = findPublicCard(incoming.view, shieldId);
+                    await playOverlay(setShieldTravel, shieldTravelResolveRef, {
+                      key: ++beatKeyRef.current,
+                      player: owner,
+                      card: revealed,
+                      // o 【Burst】 do oponente está sendo decidido: a carta fica no centro, não cai na lixeira
+                      holdAtCenter: isTheirPendingBurst,
+                    });
+                  }
+                  showTable(revealBeat(shown, incoming.view, { kind: "departure", ids: [], shieldsOf: owner, count: 1 }));
+                }
+                break;
+              }
+              // destruída: quebra no lugar e é arrastada à lixeira; descarte e afins só deslizam
+              launchDepartures(prevDepartureView, incoming, new Set(beat.ids));
+              await hold(beat.destroyed ? destroyMs() : SCENE_MS.departure);
               break;
             }
-            case "opponentCommand": {
-              const cardDef = defOf(beat.instanceId);
-              if (!cardDef) break;
-              const { origin, dest } = resolveCommandAnimationPoints(board, opponentSeat, fallbackCenter);
-              await animateCommand({ cardDef, origin, dest });
+            case "toHand": {
+              // P5 — de onde a carta está (campo, lixeira, deck, shields) até a direita da mão de quem a recebe
+              const owner = (["A", "B"] as PlayerId[]).find((pid) => incoming.view.players[pid].hand.some((c) => c.instanceId === beat.instanceId)) ?? incoming.seat;
+              const inHand = incoming.view.players[owner].hand.find((c) => c.instanceId === beat.instanceId);
+              const fromKey = zoneAnchorOf(shown, beat.instanceId, owner);
+              const fromRect = board.rectOf(beat.instanceId) ?? (fromKey ? board.rectOf(fromKey) : null);
+              sfx.playCardDraw();
+              await playOverlay(setHandTravel, handTravelResolveRef, {
+                key: ++beatKeyRef.current,
+                player: owner,
+                card: inHand && !isHidden(inHand) ? (inHand as CardInstance) : null,
+                from: rectCenter(fromRect),
+                fromW: fromRect?.width ?? board.rectOf(`deckStation:${owner}`)?.width ?? 60,
+              });
+              showTable(revealBeat(shown, incoming.view, beat));
               break;
             }
+            case "declare":
+              // P4 — o atacante deita e a linha de mira vai até o alvo
+              if (beat.rests) setRestIds(new Set([beat.attackerId]));
+              showTable(revealBeat(shown, incoming.view, beat));
+              sfx.playClick();
+              await pace((beat.rests ? SCENE_MS.combat.declare.rest : 0) + SCENE_MS.combat.declare.line);
+              setRestIds(new Set());
+              break;
+            case "block":
+              // P4 — o bloqueador deita e a linha muda para ele
+              if (beat.rests) setRestIds(new Set([beat.blockerId]));
+              showTable(revealBeat(shown, incoming.view, beat));
+              sfx.playShieldBlock();
+              await pace(SCENE_MS.combat.block);
+              setRestIds(new Set());
+              break;
             case "announce": {
               const cardDef = defOf(beat.instanceId);
               if (!cardDef) break;
+              // o custo da habilidade ativada é pago antes dela resolver
+              await payOneByOne(beat.paid);
               const origin =
                 rectCenter(board.rectOf(beat.instanceId)) ??
                 (beat.trigger === "Burst" ? rectCenter(board.rectOf(`shieldRail:${beat.player}`)) : null);
@@ -1133,24 +1393,65 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               });
               break;
             }
-            case "deploy": {
+            case "play": {
+              // P3 — revelada da mão (a minha sobe ao centro; a do oponente aparece perto da mão dele; Command no
+              // centro), o custo gira um a um, e ela cai no lugar exato onde fica (ou some usada, se for Command)
               const cardDef = defOf(beat.instanceId);
-              if (!cardDef) break;
+              if (!cardDef) {
+                showTable(revealBeat(shown, incoming.view, beat));
+                break;
+              }
               const mine = beat.player === incoming.seat;
-              const handRect = mine ? board.rectOf("hand:self") : (board.rectOf("hand:opponent") ?? board.rectOf(`hand:${opponentSeat}`));
-              sfx.playDeploy();
-              await playOverlay(setAnnouncement, announcementResolveRef, {
+              const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
+              const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+              const centerW = centerCardWidth(vw, vh);
+              const oppHand = board.rectOf("hand:opponent") ?? board.rectOf(`hand:${opponentSeat}`);
+              const from = mine
+                ? (handCardPoint(beat.instanceId) ?? rectCenter(board.rectOf("hand:self")) ?? fallbackCenter)
+                : (rectCenter(oppHand) ?? fallbackCenter);
+              const nearHand = !mine && beat.as !== "command" && oppHand;
+              const holdW = nearHand ? Math.round(centerW * 0.72) : centerW;
+              const holdAt = nearHand
+                ? { x: oppHand.left + oppHand.width / 2, y: oppHand.bottom + (holdW * (88 / 63)) / 2 + 12 }
+                : { x: vw / 2, y: vh / 2 };
+              const heavy = beat.as === "unit" && landsHeavy(cardDef.level);
+              const stage: PlayStage = {
                 key: ++beatKeyRef.current,
-                cardDef,
-                trigger: "",
-                mine,
-                origin: rectCenter(handRect),
-                dest: rectCenter(board.rectOf(playerAreaKey(beat.player))),
-                label: beat.as === "pilot" ? { pt: "Piloto", en: "Pilot" } : beat.as === "base" ? { pt: "Base", en: "Base" } : { pt: "Unit", en: "Unit" },
-                caption: mine ? { pt: "Você implanta", en: "You deploy" } : { pt: "Oponente implanta", en: "Opponent deploys" },
-                holdBaseMs: 420,
-                tempo,
-              });
+                instanceId: beat.instanceId,
+                card: { def: cardDef },
+                phase: "rise",
+                from,
+                fromW: handCardW(beat.player) ?? 60,
+                hold: holdAt,
+                holdW,
+                heavy,
+                opponent: !mine,
+              };
+              sfx.playDeploy();
+              setPlayStage(stage);
+              await pace(SCENE_MS.play.rise + SCENE_MS.play.hold);
+              setPlayStage({ ...stage, phase: "hold" });
+              await payOneByOne(beat.paid);
+              if (beat.as === "command") {
+                setPlayStage({ ...stage, phase: "used" });
+                sfx.playNewtypeFlash();
+                await pace(SCENE_MS.play.used);
+                setPlayStage(null);
+                showTable(revealBeat(shown, incoming.view, beat));
+                break;
+              }
+              const target = playTarget(beat, shown, incoming.view);
+              setPlayStage({ ...stage, phase: "drop", target: rectCenter(target), targetW: target?.width ?? holdW });
+              await pace(heavy ? SCENE_MS.play.dropHeavy : SCENE_MS.play.drop);
+              setPlayStage(null);
+              // a carta pousa: a Unit aparece na vaga e toca o pouso (suave/pesado); a pesada treme a mesa
+              showTable(revealBeat(shown, incoming.view, beat));
+              if (heavy) {
+                setTableShake(true);
+                sfx.playShieldBlock();
+              }
+              await pace(heavy ? SCENE_MS.play.landHeavy : SCENE_MS.play.land);
+              if (heavy) setTableShake(false);
               break;
             }
             case "draw": {
@@ -1163,6 +1464,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               break;
             }
           }
+          // `play` revela a mesa por conta própria (a carta aparece quando pousa); o custo do `announce` já foi mostrado
+          const revealsItself = beat.kind === "play" || beat.kind === "declare" || beat.kind === "block" || beat.kind === "toHand" || (beat.kind === "departure" && beat.shieldsOf);
+          if (beat.kind !== "announce" && beat.kind !== "strike" && !revealsItself) showTable(revealBeat(shown, incoming.view, beat));
         }
       } else if (timeline) {
         const { plan, pendingAttack } = planAnimations(timeline, incoming.seat, pendingAttackRef.current);
@@ -1221,27 +1525,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         (incoming.view.turnNumber > prevView.turnNumber || incoming.view.activePlayer !== prevView.activePlayer);
 
       if (isTurnChange) {
-        const staged = buildTurnStagedViews(prevView, incoming);
-        // Fecha o turno anterior ANTES de armar turnStagedViewsRef e mostrar a mesa do novo turno.
+        const staged = buildTurnStagedViews(shownAfterBeats ?? prevView, incoming);
+        // Fecha o turno anterior ANTES de mostrar a mesa do novo turno.
         enqueuePhaseBanners(endOfTurnBanners(prevView));
         await waitForPhaseBanners();
-        turnStagedViewsRef.current = {
-          actingPlayer: incoming.view.activePlayer,
-          viewRecovery: staged.viewRecovery,
-          viewDraw: staged.viewDraw,
-          viewMain: staged.viewMain,
-        };
-        setMatchView(staged.viewAnnounced);
-        const isMyTurn = incoming.view.activePlayer === incoming.seat;
-        if (isMyTurn) sfx.playNewtypeFlash();
-        enqueuePhaseBanners([
-          isMyTurn ? "SEU TURNO" : "TURNO DO OPONENTE",
-          "FASE DE RECUPERAÇÃO",
-          "FASE DE COMPRA",
-          "FASE PRINCIPAL",
-        ]);
-        await waitForPhaseBanners();
-        turnStagedViewsRef.current = null;
+        await playTurnStart(staged, incoming.seat);
         setMatchView(incoming);
       } else {
         setMatchView((prev) => {
@@ -1255,7 +1543,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         const pendingForMe = incoming.view.pendingDecision[incoming.seat];
         if (pendingForMe && pendingForMe.kind !== "burst") {
           setModalHold(true);
-          await new Promise((resolve) => setTimeout(resolve, getScaledDuration(420)));
+          await new Promise((resolve) => setTimeout(resolve, getScaledDuration(SCENE_MS.modalHold)));
           setModalHold(false);
         }
       }
@@ -1275,19 +1563,29 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         });
       }
     },
-    [executeAttackStrike, detectDepartures, launchDepartures, waitForBurstReveal, board, enqueuePhaseBanners, waitForPhaseBanners, playOverlay, art],
+    [executeAttackStrike, detectDepartures, launchDepartures, waitForBurstReveal, board, enqueuePhaseBanners, waitForPhaseBanners, playOverlay, playTurnStart, art],
   );
 
   const drainViewQueue = useCallback(async () => {
     if (isDrainingViewQueueRef.current) return;
     isDrainingViewQueueRef.current = true;
+    setSceneLocked(true);
+   
     try {
+      for (;;) {
       while (viewQueueRef.current.length > 0) {
         const peekNext = viewQueueRef.current[0];
         // Se a próxima view já é pós-setup (Fase Principal, jogadas de turno 1, ou bot agindo),
         // mas a abertura inicial ainda não foi concluída (mulligan, deal-shields, phase-banner),
         // aguarda a abertura cinematográfica terminar para não atropelar a distribuição de shields!
-        if (isPostSetupView(peekNext.view) && introStageRef.current !== "complete") {
+        // A exceção é a visão que FECHA a preparação quando eu já decidi e espero o oponente: a abertura espera
+        // justamente por ela (senão uma esperava a outra até o teto de 15 s).
+        const closesSetupForMe = () => {
+          const prevQueued = prevViewForQueueRef.current;
+          return introStageRef.current === "waiting-opponent-mulligan" && prevQueued !== null && !isPostSetupView(prevQueued);
+        };
+        const guardUntil = Date.now() + 15_000;
+        while (isPostSetupView(peekNext.view) && introStageRef.current !== "complete" && !closesSetupForMe() && Date.now() < guardUntil) {
           await Promise.race([
             new Promise<void>((resolve) => {
               const prev = introStageResolveRef.current;
@@ -1296,7 +1594,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 resolve();
               };
             }),
-            new Promise<void>((resolve) => setTimeout(resolve, 15_000)),
+            new Promise<void>((resolve) => setTimeout(resolve, Math.max(0, guardUntil - Date.now()))),
           ]);
         }
 
@@ -1317,8 +1615,18 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           break;
         }
       }
+        // a minha tela terminou a fila; a cena do servidor pode durar mais (a minha jogada eu não vejo de novo):
+        // a mesa espera o fim dela, acordando a cada pouco para tocar uma visão que chegue no meio
+        const wait = getResolutionPacing() === "classic" ? 0 : sceneLockWaitMs(sceneEndsAtLocalRef.current, Date.now());
+       
+        if (wait <= 0 || prevViewForQueueRef.current?.gameOver) break;
+        await new Promise((resolve) => setTimeout(resolve, Math.min(wait, 250)));
+        if (viewQueueRef.current.length === 0 && sceneLockWaitMs(sceneEndsAtLocalRef.current, Date.now()) <= 0) break;
+      }
     } finally {
       isDrainingViewQueueRef.current = false;
+      setSceneLocked(false);
+     
     }
   }, [processIncomingView, waitForPhaseBanners]);
 
@@ -1331,6 +1639,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       // senão a 2ª view (já pela fila) achava que também era "a primeira".
       if (!hasAppliedFirstViewRef.current) {
         hasAppliedFirstViewRef.current = true;
+        if (typeof incoming.serverNow === "number") {
+          sceneEndsAtLocalRef.current = localSceneEnd(incoming.sceneEndsAt, incoming.serverNow - Date.now(), Date.now());
+        }
         prevViewForQueueRef.current = incoming.view;
         lastEventSeqRef.current = incoming.eventSeq ?? null;
         detectDepartures(incoming);
@@ -1445,9 +1756,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           // avançar pro Passo de Ação.
           sfx.playShieldBlock();
           await new Promise((r) => setTimeout(r, getScaledDuration(300)));
-        } else if (action.kind === "playCommand") {
-          // "Nova leva de correções" — revelação da carta de Comando antes do
-          // descarte (era só um `setTimeout(120)` sem nenhum feedback visual).
+        } else if (action.kind === "playCommand" && getResolutionPacing() === "classic") {
+          // ritmo rápido: a revelação da Command antes do envio (no cinemático ela toca a partir da visão, igual à do
+          // oponente — spec simulador-cadencia-de-mesa, P3)
           const currentView = matchView;
           const cardInHand = currentView?.view.players[currentView.seat].hand.find(
             (c) => !isHidden(c) && c.instanceId === action.cardInstanceId,
@@ -1463,6 +1774,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             sfx.playNewtypeFlash();
             await new Promise((r) => setTimeout(r, getScaledDuration(120)));
           }
+        } else if (action.kind === "playCommand") {
+          sfx.playClick();
         } else if (action.kind === "finishTurn") {
           sfx.playTurnStartAlert();
           await new Promise((r) => setTimeout(r, getScaledDuration(100)));
@@ -1514,6 +1827,22 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     },
     [matchId, applyIncomingView],
   );
+
+  // o servidor espera a cena no ritmo e na velocidade de animação de quem joga (o mais lento dos dois): avisa a escolha
+  // deste jogador
+  const syncScenePace = useCallback(
+    (value: ResolutionPacing = getResolutionPacing()) => {
+      api.setSimulatorScenePace(matchId, value, getSavedAnimSpeed()).catch((err) => console.warn("[SIMULADOR] ritmo da cena não salvo", err));
+    },
+    [matchId],
+  );
+  const scenePaceSyncedRef = useRef(false);
+  useEffect(() => {
+    if (!matchView || scenePaceSyncedRef.current) return;
+    scenePaceSyncedRef.current = true;
+    const local = getResolutionPacing();
+    if ((matchView.scenePace ?? "cinematic") !== local || (matchView.sceneSpeed ?? 1) !== getSavedAnimSpeed()) syncScenePace(local);
+  }, [matchView, syncScenePace]);
 
   const toggleAutoPass = async (value: boolean) => {
     try {
@@ -1741,6 +2070,17 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     }
   }, [matchView, introStage]);
 
+  // fim da abertura: a mesa do turno 1 e os banners dele
+  const startTurnOneBanners = useCallback(() => {
+    const postSetupView = viewQueueRef.current.find((item) => isPostSetupView(item.view)) ?? matchView;
+    setIntroStage("phase-banner");
+    if (!postSetupView) {
+      setIntroStage("complete");
+      return;
+    }
+    void playTurnStart(buildTurn1StagedViews(postSetupView), postSetupView.seat).finally(() => setIntroStage("complete"));
+  }, [matchView, playTurnStart]);
+
   // Temporizadores automáticos das etapas sequenciais da abertura
   useEffect(() => {
     if (!matchView || introStage === "complete") return;
@@ -1748,7 +2088,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     if (introStage === "field-ready") {
       const t = setTimeout(() => {
         setIntroStage("player-choice");
-      }, 650);
+      }, getScaledDuration(SCENE_MS.opening.fieldReady));
       return () => clearTimeout(t);
     }
 
@@ -1756,7 +2096,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       sfx.playNewtypeFlash();
       const t = setTimeout(() => {
         setIntroStage("deck-appear");
-      }, 1250);
+      }, getScaledDuration(SCENE_MS.opening.fieldHighlight));
       return () => clearTimeout(t);
     }
 
@@ -1765,17 +2105,24 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       const t = setTimeout(() => {
         setIntroStage("deck-shuffle");
         setSetupAnim("shuffle");
-      }, 650);
+      }, getScaledDuration(SCENE_MS.opening.deckAppear));
       return () => clearTimeout(t);
     }
 
     if (introStage === "hand-revealed") {
       const t = setTimeout(() => {
         setIntroStage("mulligan-decision");
-      }, 550);
+      }, getScaledDuration(SCENE_MS.opening.handRevealed));
       return () => clearTimeout(t);
     }
-  }, [introStage, matchView]);
+
+    // EX Base (e EX Resource de quem joga em 2º) aparecem depois dos escudos; então o turno 1 é anunciado
+    if (introStage === "ex-reveal") {
+      const t = setTimeout(() => startTurnOneBanners(), getScaledDuration(SCENE_MS.opening.exReveal));
+      return () => clearTimeout(t);
+    }
+  }, [introStage, matchView, startTurnOneBanners]);
+
 
   // Reseta confirmação de fim de turno quando deixa de ser o turno do jogador
   useEffect(() => {
@@ -1796,81 +2143,36 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     } else if (introStage === "deal-hand") {
       setIntroStage("hand-revealed");
     } else if (introStage === "mulligan-anim") {
-      const v = matchView?.view;
-      const oppSeat = matchView ? otherPlayer(matchView.seat) : null;
-      const oppHasMulligan = oppSeat && v ? v.pendingDecision[oppSeat]?.kind === "mulligan" : false;
-      if (oppHasMulligan) {
-        setIntroStage("waiting-opponent-mulligan");
-      } else {
-        setIntroStage("deal-shields");
-        setSetupAnim("deal-shields");
-      }
+      // a preparação fecha quando os dois decidiram; o efeito abaixo segue para os escudos assim que a visão chegar
+      setIntroStage("waiting-opponent-mulligan");
     } else if (introStage === "deal-shields") {
-      const postSetupView = viewQueueRef.current.find((item) => isPostSetupView(item.view)) ?? matchView;
-      if (postSetupView) {
-        const staged = buildTurn1StagedViews(postSetupView);
-        turnStagedViewsRef.current = {
-          actingPlayer: postSetupView.view.activePlayer,
-          viewRecovery: staged.viewRecovery,
-          viewDraw: staged.viewDraw,
-          viewMain: staged.viewMain,
-        };
-        setMatchView(staged.viewAnnounced);
-      }
-      const isMyTurn = (postSetupView?.view ?? matchView?.view)?.activePlayer === matchView?.seat;
-      if (isMyTurn) sfx.playNewtypeFlash();
-      enqueuePhaseBanners([
-        isMyTurn ? "SEU TURNO" : "TURNO DO OPONENTE",
-        "FASE DE RECUPERAÇÃO",
-        "FASE DE COMPRA",
-        "FASE PRINCIPAL",
-      ]);
-      setIntroStage("phase-banner");
+      setIntroStage("ex-reveal");
     }
-  }, [introStage, matchView, enqueuePhaseBanners]);
+  }, [introStage, matchView]);
 
   // Callback de término de cada banner de fase
   const handlePhaseBannerDone = useCallback(() => {
-    setPhaseBannerQueue((prev) => {
-      const next = prev.slice(1);
-      phaseBannerQueueRef.current = next;
-
-      if (next.length > 0 && turnStagedViewsRef.current) {
-        const nextPhase = next[0];
-        if (nextPhase === "FASE DE RECUPERAÇÃO") {
-          setMatchView(turnStagedViewsRef.current.viewRecovery);
-          sfx.playDeploy();
-        } else if (nextPhase === "FASE DE COMPRA") {
-          setMatchView(turnStagedViewsRef.current.viewDraw);
-          setSetupAnim("single-draw");
-          sfx.playCardDraw();
-        } else if (nextPhase === "FASE PRINCIPAL") {
-          setMatchView(turnStagedViewsRef.current.viewMain);
-        }
-      }
-
-      if (next.length === 0) {
-        turnStagedViewsRef.current = null;
-        setIntroStage("complete");
-        phaseBannerResolveRef.current?.();
-        phaseBannerResolveRef.current = null;
-      }
-      return next;
-    });
+    const next = phaseBannerQueueRef.current.slice(1);
+    phaseBannerQueueRef.current = next;
+    setPhaseBannerQueue(next);
+    if (next.length === 0) {
+      phaseBannerResolveRef.current?.();
+      phaseBannerResolveRef.current = null;
+    }
   }, []);
 
   // Sincronização de Mulligan: quando o oponente conclui o mulligan dele,
   // se o jogador local estava em waiting-opponent-mulligan, avança para deal-shields
   useEffect(() => {
     if (introStage !== "waiting-opponent-mulligan" || !matchView) return;
-    const v = matchView.view;
-    const oppSeat = otherPlayer(matchView.seat);
-    const oppHasMulligan = v.pendingDecision[oppSeat]?.kind === "mulligan";
-    if (!oppHasMulligan) {
+    // só segue com a preparação fechada (ninguém com Mulligan pendente): quem começa decide primeiro, e a pendência do
+    // oponente só nasce depois da minha decisão — olhar só a dele fazia a abertura seguir sem esperar o bot.
+    // A troca de mão do oponente termina antes dos escudos saírem.
+    if (isPostSetupView(matchView.view) && oppMulliganKey === null) {
       setIntroStage("deal-shields");
       setSetupAnim("deal-shields");
     }
-  }, [introStage, matchView]);
+  }, [introStage, matchView, oppMulliganKey]);
 
   // Banner da End Phase: o Action Step da End Phase SEMPRE existe pelas regras
   // (CR — End Phase: Action Step → End Step → Hand Step → Cleanup), então o
@@ -1923,19 +2225,19 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const autoPassSentForVersionRef = useRef<number | null>(null);
   const { language: cardLanguage } = useCardLanguage();
   useEffect(() => {
-    if (!matchView || introStage !== "complete" || busy) return;
+    if (!matchView || introStage !== "complete" || busy || sceneLocked) return;
     if (autoPassSentForVersionRef.current === matchView.version) return;
     const pass = actionStepAutoPass(matchView.view, matchView.seat, ALL_EFFECT_SPECS);
     if (!pass) return;
     autoPassSentForVersionRef.current = matchView.version;
     runAction(pass);
-  }, [matchView, introStage, busy, runAction]);
+  }, [matchView, introStage, busy, sceneLocked, runAction]);
 
   // docs/55 tarefa 3 — Auto-pass do Passo de Bloqueio: se o defensor não tem
   // NENHUMA Unit ativa com <Blocker>, pula sozinho — não trava o jogo
   // esperando um bloqueio que não existe.
   useEffect(() => {
-    if (!matchView || introStage !== "complete" || busy) return;
+    if (!matchView || introStage !== "complete" || busy || sceneLocked) return;
     const v = matchView.view;
     const meSeat = matchView.seat;
     const combatNow = v.combat;
@@ -1945,7 +2247,19 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     const hasActiveBlocker = myUnits.some((u) => !u.rested && hasKeyword(u, "Blocker", boardNow));
     if (hasActiveBlocker) return;
     runAction({ kind: "skipBlock" });
-  }, [matchView, introStage, busy, runAction]);
+  }, [matchView, introStage, busy, sceneLocked, runAction]);
+
+  // BUG-TARWMX — a jogada que eu montava (recurso/alvo) sumiu do menu do motor: o prazo do Action Step acabou e o
+  // servidor passou sozinho. A montagem é largada (com aviso) em vez de deixar o modal de uma ação que não existe mais.
+  // Só com a mesa liberada: nas visões intermediárias da cena o menu fica suspenso de propósito.
+  useEffect(() => {
+    if (!pending || !matchView?.legalMenu || sceneLocked || busy) return;
+    if (pendingPlayStillLegal(matchView.legalMenu, pending)) return;
+    clearSelection();
+    showActionError(tr("O tempo dessa jogada acabou — ela foi cancelada.", "Time ran out for that play — it was cancelled."));
+    // `clearSelection`/`showActionError` são estáveis no que importa aqui; só a visão e a jogada disparam a checagem
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchView, pending, sceneLocked, busy]);
 
   if (!matchView || artLoading) {
     if (!matchView && loadTimedOut) {
@@ -1999,6 +2313,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   // cálculos de stat e deixa os badges incluírem 【During Pair】/【During Link】.
   const boardForStats = view as unknown as GameState;
   const battleLog = buildBattleLog(view, cardLanguage); // docs/19, Sessão 4 — feed traduzido; barato (eventLog é janelado no servidor)
+  // spec simulador-efeitos-na-mesa — efeitos deste turno em cartas do campo (quem causou, o quê, até quando)
+  const effectLedger = buildEffectLedger(view.eventLog, onFieldIds(view));
+  const effectNameOf = (id: string) => cardDefInView(view, id)?.nameEn;
   const combat = view.combat;
   const endPhaseAction = view.endPhaseAction;
   const myTurnMain = !combat && view.phase === "main" && view.activePlayer === seat;
@@ -2010,6 +2327,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const inActionStep = iHavePriority || iHaveEndPhasePriority;
   // jogadas legais calculadas pelo motor no servidor (`legalMenuFor`); servidor antigo sem o menu cai nas regras locais
   const legalMenu = matchView.legalMenu;
+  // a carta de um 【Burst】 em decisão ainda não foi para a lixeira (está no centro): a pilha não a mostra até a decisão
+  const pendingBurstIds = new Set(
+    (["A", "B"] as PlayerId[]).flatMap((pid) => {
+      const d = view.pendingDecision[pid];
+      return d?.kind === "burst" ? [d.cardInstanceId] : [];
+    }),
+  );
   const fieldAbilityOf = (card: CardInstance, timing: "main" | "action"): FieldAbility | null =>
     legalMenu ? fieldAbilityFromMenu(legalMenu, card.instanceId) : fieldAbilityFor(card, timing);
   const myHandCardsById = (id: string): CardInstance[] =>
@@ -2601,6 +2925,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     iAmDefending,
   );
   const isPhaseBannerActive = phaseBannerQueue.length > 0;
+  // nada se faz na mesa enquanto a cena toca (banners de fase ou a fila de visões). O 【Burst】 é a exceção: a fila
+  // para nele de propósito, e o alvo dele é escolhido na mesa.
+  const tableLocked = isPhaseBannerActive || (sceneLocked && !myBurstDecision);
 
   /** "Nova leva de correções" (item 4, plano v2) — decisão `abilityResolution`
    *  pendente com alvo em Unit (ex.: ST05-010 Mikazuki Augus): glow inline no
@@ -2628,7 +2955,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     string,
     { specId: string; pool: "primary" | "secondary"; side: "ally" | "enemy"; max: number }
   >();
-  for (const id of burstTargetChoice?.legalTargetIds ?? []) {
+  const burstTargeting = Boolean(myBurstDecision && burstTargetingFor === myBurstDecision.cardInstanceId);
+  // P5 — escolhendo alvo no campo: a mesa fica livre (mão recolhida, painel e log escondidos)
+  const tableClear = burstTargeting || Boolean(abilityDecision?.queue.some((q) => usesBoardTargetingForPrimary(q) || usesBoardTargetingForSecondary(q)));
+  const cinematicBurst = getResolutionPacing() !== "classic";
+  for (const id of cinematicBurst && !burstTargeting ? [] : (burstTargetChoice?.legalTargetIds ?? [])) {
     const side = sideOfUnit(id);
     if (side) abilityUnitTargetsByInstance.set(id, { specId: BURST_TARGET_KEY, pool: "primary", side, max: burstTargetChoice?.max ?? 1 });
   }
@@ -2691,13 +3022,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
     return Array.from({ length: 6 }).map((_, i) => {
       const unit = units[i] ?? null;
-      // Frente 4 (feedback Willen 4ª rodada) — Unit recém-posta neste turno que
-      // ainda não tocou a animação de pouso: `light` até custo 3, `heavy` acima.
+      // Unit recém-posta neste turno que ainda não tocou a animação de pouso: suave até Lv 4, pesada do Lv 5 em
+      // diante (spec simulador-cadencia-de-mesa, P3 — a mesma regra do tempo que o servidor espera)
       const justDeployed: "light" | "heavy" | undefined =
         unit && unit.enteredZoneOnTurn === view.turnNumber && !deployedSeenRef.current.has(unit.instanceId)
-          ? (unit.def?.cost ?? 0) <= 3
-            ? "light"
-            : "heavy"
+          ? landsHeavy(unit.def?.level)
+            ? "heavy"
+            : "light"
           : undefined;
       const ability = unit && canActivateHere ? fieldAbilityOf(unit, abilityTiming) : null;
       const canActivate = Boolean(ability && (legalMenu || myActiveResources >= ability.cost));
@@ -2763,6 +3094,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           key={unit?.instanceId ?? `empty-${i}`}
           unit={unit}
           pilot={unit ? pairedPilotOf(player, unit) : null}
+          effectCount={unit ? effectLedger.filter((e) => e.targetId === unit.instanceId || (unit.pairedPilotId && e.targetId === unit.pairedPilotId)).length : 0}
           art={art}
           targetingActive={targetingActive}
           legalTarget={isLegal}
@@ -2770,12 +3102,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           isAttacker={Boolean(unit && (attackerId === unit.instanceId || combat?.attackerId === unit.instanceId))}
           isBlocking={Boolean(unit && combat?.blockerUsedBy === unit.instanceId)}
           justDeployed={justDeployed}
+          unresting={Boolean(unit && unrestIds.has(unit.instanceId))}
+          resting={Boolean(unit && restIds.has(unit.instanceId))}
           attacking={
             unit && activeStrike?.attackerId === unit.instanceId
               ? { towardX: activeStrike.towardX, towardY: activeStrike.towardY, phase: activeStrike.phase }
               : undefined
           }
-          busy={busy || isPhaseBannerActive}
+          busy={busy || tableLocked}
           state={boardForStats}
           abilityTargetPool={abilityTarget?.side ?? null}
           abilitySelected={isAbilitySelected}
@@ -2809,7 +3143,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           onInspect={setInspect}
           onHoverCard={isWide ? setHoveredCard : undefined}
           actions={actions}
-          registerRef={unit ? board.register(unit.instanceId) : undefined}
+          registerRef={(el) => {
+            board.register(`slot:${player.id}:${i}`)(el);
+            if (unit) board.register(unit.instanceId)(el);
+          }}
           emptySlotActive={isDeployingUnit}
           onEmptySlotClick={
             isDeployingUnit
@@ -2883,7 +3220,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         className="flex items-center gap-1.5"
       >
         <p className="shrink-0 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{tr("Mão", "Hand")} ({count})</p>
-        <div className="flex">
+        <div className="relative flex">
+          {/* medida da carta da mão do oponente (as animações pousam neste tamanho), mesmo com a mão vazia */}
+          <span
+            ref={board.register(`handCardProbe:${pid ?? "opponent"}`)}
+            aria-hidden
+            className="pointer-events-none invisible absolute left-0 top-0 aspect-[63/88] w-[calc(var(--card-w,3.5rem)*0.42)]"
+          />
           {Array.from({ length: Math.min(count, 10) }).map((_, i) => (
             <img
               key={i}
@@ -2905,7 +3248,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     const base = (player.baseSection.find((c) => !isHidden(c)) as CardInstance | undefined) ?? null;
     const deckVisible = introStage === "complete" || !["field-ready", "player-choice", "field-highlight"].includes(introStage);
     const deckCount = deckVisible ? player.counts.deck : 0;
-    const shieldsVisible = introStage === "complete" || introStage === "phase-banner";
+    const shieldsVisible = introStage === "complete" || introStage === "ex-reveal" || introStage === "phase-banner";
+    // spec simulador-cadencia-de-mesa (P1): a EX Base e o EX Resource chegam depois dos escudos, em fade
+    const exVisible = introStage === "complete" || introStage === "ex-reveal" || introStage === "phase-banner";
+    const exRevealing = introStage === "ex-reveal";
     const shieldsCount = (!shieldsVisible || (setupAnim === "deal-shields" && isSelf)) ? 0 : player.counts.shields;
     // 【Activate·Main】 da Base (ex.: ST01-015 White Base "②", ST01-016
     // Asticassia "Rest this Base") — bug real: a Base nunca tinha esse botão,
@@ -2952,7 +3298,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       ),
       base: (
         <BaseCardGauge
-          base={base}
+          base={exVisible ? base : null}
+          revealing={exRevealing}
+          registerRef={board.register(`base:${pid}`)}
           art={art}
           targetingActive={targetingActive}
           legalTarget={Boolean(
@@ -2968,7 +3316,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           onInspect={setInspect}
           onHoverCard={isWide ? setHoveredCard : undefined}
           onActivate={canActivateBase && baseAbility ? (b) => startActivateAbility(b, baseAbility) : undefined}
-          busy={busy}
+          busy={busy || tableLocked}
           struck={Boolean(activeStrike?.phase === "strike" && activeStrike.shieldsOf === pid)}
         />
       ),
@@ -2978,20 +3326,27 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         <div className="flex items-end justify-start gap-2">
           {/* deck de recursos / deck: contagem visível dos 2 lados (decisão do
               Willen 2026-09-03 — sim de teste, não PvP com info oculta). */}
-          <CounterChip variant="stack" label={tr("Deck de Recursos", "Resource Deck")} count={player.counts.resourceDeck} />
+          <div ref={board.register(`resourceDeck:${pid}`)}>
+            <CounterChip variant="stack" label={tr("Deck de Recursos", "Resource Deck")} count={player.counts.resourceDeck} />
+          </div>
+          <div ref={board.register(`resourceArea:${pid}`)} className="min-w-0">
           <ResourceMeter
-            resources={resources}
-            level={player.counts.resourceArea}
+            resources={exVisible ? resources : []}
+            level={exVisible ? player.counts.resourceArea : 0}
+            className={exRevealing ? "animate-in fade-in zoom-in-95 duration-700 ease-out motion-reduce:animate-none" : undefined}
             art={art}
             readOnly={!isSelf}
             selectable={isSelf && Boolean(pending) && pendingCost > 0}
             selectedIds={isSelf ? selectedResources : undefined}
             onSelect={isSelf ? toggleResource : undefined}
             highlightTone={isSelf ? resourceHighlightTone : undefined}
+            unrestingIds={unrestIds}
+            restingIds={restIds}
             costProgress={
               isSelf && pending && pendingCost > 0 ? { paid: selectedResources.length, total: pendingCost } : undefined
             }
           />
+          </div>
         </div>
       ),
       deck: (
@@ -3006,8 +3361,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         <div ref={board.register(`trashStation:${pid}`)}>
           <PileTray
             label="Trash"
-            count={player.trash.length}
-            cards={player.trash.filter((c) => !isHidden(c)) as CardInstance[]}
+            count={player.trash.filter((c) => !pendingBurstIds.has(c.instanceId)).length}
+            cards={player.trash.filter((c) => !isHidden(c) && !pendingBurstIds.has(c.instanceId)) as CardInstance[]}
             art={art}
             onInspect={setInspect}
           />
@@ -3230,6 +3585,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           <SettingsMenu
             autoPass={dockAutoPass}
             onToggleAutoPass={(v) => toggleAutoPass(v)}
+            onPacingChange={syncScenePace}
+            onAnimSpeedChange={() => syncScenePace()}
             onLeave={exitToLobby}
             gameOver={Boolean(matchView?.view.gameOver)}
             busy={busy}
@@ -3362,7 +3719,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             permitiria. Pré-requisito pro `useArenaScale` medir uma caixa
             que não é mais circular (antes: caixa media o canvas, canvas
             media a caixa). */}
-        <div className="flex min-w-0 flex-1 justify-center">
+        <div className={`flex min-w-0 flex-1 justify-center${tableShake ? " sim-anim-table-shake" : ""}`}>
           <ArenaPlaymat
             // No mobile (< 1024px) solta a trava de 16:9 — a proporção fixa
             // sobrava altura/largura sem uso e forçava o `useArenaScale` a
@@ -3379,6 +3736,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             opponent={arenaSide(opponentSeat, false)}
             self={arenaSide(seat, true)}
             hand={
+              <>
+              {/* medida da carta da mão (as animações de compra pousam neste tamanho), mesmo com a mão vazia */}
+              <span
+                ref={board.register(`handCardProbe:${seat}`)}
+                aria-hidden
+                className="pointer-events-none invisible absolute left-0 top-0 aspect-[63/88] w-[var(--card-w-std,2.17rem)]"
+              />
+              <div className={tableClear ? "pointer-events-none translate-y-[70%] opacity-25 transition-all duration-300" : "transition-all duration-300"}>
               <HandFan
                 anchored
                 cards={
@@ -3387,7 +3752,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                     ? []
                     : setupAnim === "deal-hand" || setupAnim === "mulligan"
                     ? []
-                    : myHandCards.map((c) => {
+                    : myHandCards.filter((c) => c.instanceId !== playStage?.instanceId).map((c) => {
                         const { playable, blockedReason, effectiveCost: effCost } = describeHandCard(c);
                         const actionStepPlayable = Boolean(
                           inActionStep && playable && handModesOf(c).includes("commandAction"),
@@ -3397,7 +3762,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 }
                 art={art}
                 onPeek={(c) => {
-                  if (busy || isPhaseBannerActive) return;
+                  if (busy || tableLocked) return;
                   const { modes, blockedReason } = describeHandCard(c);
                   // "Jogar" (Sprint 5) — modo único: joga direto (o TopTacticalHUD guia alvo/custo).
                   if (modes.length === 1) {
@@ -3422,6 +3787,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 }}
                 onHoverCard={isWide ? setHoveredCard : undefined}
               />
+              </div>
+              </>
             }
           />
         </div>
@@ -3490,30 +3857,25 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
       {/* Início de partida: revelação de iniciativa, depois o Mulligan sequenciado. */}
       {introStage === "player-choice" ? (
-        <FirstPlayerReveal
+        <CoinToss
           goesFirst={view.activePlayer === seat}
-          onDismiss={() => {
+          onDone={() => {
             setIntroStage("field-highlight");
           }}
         />
       ) : null}
-      {introStage === "mulligan-decision" && myPendingDecision?.kind === "mulligan" ? (
+      {introStage === "mulligan-decision" && myPendingDecision?.kind === "mulligan" && oppMulliganKey === null ? (
         <MulliganModal
           hand={myHandCards}
           art={art}
           busy={busy}
-          cardW={board.rectOf(`deckStation:${seat}`)?.width ?? 60}
+          cardW={handCardW(seat) ?? 60}
           onResolve={(keep) => {
-            const oppSeat = otherPlayer(seat);
-            const oppHasMulligan = view.pendingDecision[oppSeat]?.kind === "mulligan";
             if (keep) {
               mulliganDidMulliganRef.current = false;
-              if (oppHasMulligan) {
-                setIntroStage("waiting-opponent-mulligan");
-              } else {
-                setIntroStage("deal-shields");
-                setSetupAnim("deal-shields");
-              }
+              // os escudos saem quando a preparação fechar (a visão que fecha é a minha resposta, se eu decidi por
+              // último, ou a decisão do oponente, se eu comecei)
+              setIntroStage("waiting-opponent-mulligan");
               runAction({ kind: "resolveMulligan", keep: true });
             } else {
               mulliganDidMulliganRef.current = true;
@@ -3526,12 +3888,17 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       ) : null}
 
       {/* Indicador de espera: quando o oponente está decidindo o Mulligan */}
-      {introStage === "waiting-opponent-mulligan" ||
-      (introStage === "mulligan-decision" && myPendingDecision?.kind !== "mulligan" && view.pendingDecision[opponentSeat]?.kind === "mulligan") ? (
-        <div className="fixed inset-x-0 top-20 z-[48] flex justify-center pointer-events-none">
+      {(introStage === "waiting-opponent-mulligan" || introStage === "mulligan-decision") &&
+      myPendingDecision?.kind !== "mulligan" &&
+      view.pendingDecision[opponentSeat]?.kind === "mulligan" &&
+      oppMulliganKey === null ? (
+        <div className="fixed inset-x-0 top-20 z-[48] flex justify-center pointer-events-none" data-testid="mulligan-wait">
           <div className="flex items-center gap-2 rounded-arena border border-cyan-400/40 bg-slate-950/90 px-4 py-2 text-xs font-mono font-bold uppercase tracking-wider text-cyan-300 shadow-[0_0_20px_rgba(6,182,212,0.3)] backdrop-blur-md animate-pulse">
             <span className="size-2 rounded-full bg-cyan-400 animate-ping" />
-            {tr("Aguardando decisão de Mulligan do oponente...", "Waiting for the opponent's Mulligan decision...")}
+            {/* quem começa decide primeiro (regra): se eu comecei, já decidi e espero; senão, ele está olhando a mão */}
+            {view.activePlayer === seat
+              ? tr("Aguardando o oponente decidir a mão…", "Waiting for the opponent to decide on their hand…")
+              : tr("Oponente avaliando a mão… você decide em seguida", "Opponent is evaluating their hand… you decide next")}
           </div>
         </div>
       ) : null}
@@ -3589,6 +3956,30 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           cardW={board.rectOf(`deckStation:${seat}`)?.width ?? 60}
           onDone={() => setBurstRevealedId(myBurstDecision.cardInstanceId)}
         />
+      ) : myBurstDecision && cinematicBurst ? (
+        <BurstDecisionStage
+          key={myBurstDecision.cardInstanceId}
+          decision={myBurstDecision}
+          art={art}
+          effectText={triggerEffectText(
+            (cardLanguage === "EN" ? cardText[myBurstDecision.cardDef?.code ?? ""]?.en : cardText[myBurstDecision.cardDef?.code ?? ""]?.pt) ??
+              cardText[myBurstDecision.cardDef?.code ?? ""]?.en,
+            "Burst",
+          )}
+          target={burstTargetChoice}
+          selectedCount={burstTargets.length}
+          busy={busy || answeredThisVersion}
+          trashAt={rectCenter(board.rectOf(`trashStation:${seat}`))}
+          trashW={board.rectOf(`trashStation:${seat}`)?.width ?? 60}
+          onTargetingChange={(on) => setBurstTargetingFor(on ? myBurstDecision.cardInstanceId : null)}
+          onResolve={(activate) =>
+            runAction(
+              activate && burstTargets.length > 0
+                ? { kind: "resolveBurstDecision", activate, targets: { target: burstTargets } }
+                : { kind: "resolveBurstDecision", activate },
+            )
+          }
+        />
       ) : myBurstDecision ? (
         <BurstModal
           decision={myBurstDecision}
@@ -3612,7 +4003,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           // rodadas de gatilho seguidas: remonta, senão a ordem da rodada anterior ia junto
           key={myPendingDecision.triggers.map((t) => t.specId).join("|")}
           decision={myPendingDecision}
-          busy={busy || answeredThisVersion}
+          busy={busy || answeredThisVersion || sceneLocked}
           onResolve={(orderedSpecIds) => runAction({ kind: "resolveTriggerOrder", orderedSpecIds })}
         />
       ) : null}
@@ -3670,7 +4061,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             }
             return "Carta";
           }}
-          busy={busy || answeredThisVersion}
+          busy={busy || answeredThisVersion || sceneLocked}
           devTrashCount={view.players[seat].trash.filter((c) => !isHidden(c) && c.def?.traits?.includes("G Generation")).length}
           targets={abilityTargets}
           setTargets={setAbilityTargets}
@@ -3686,7 +4077,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           // V2 (docs/27): `legalTargets` são sempre as próprias Units — sempre
           // públicas na view (nunca precisa de resolveLabel/lookup escondido).
           units={publicUnits(view.players[seat]).filter((u) => myPendingDecision.legalTargets.includes(u.instanceId))}
-          busy={busy || answeredThisVersion}
+          busy={busy || answeredThisVersion || sceneLocked}
           getEffectiveStats={(u) => ({
             ap: effectiveAp(u, view as unknown as GameState),
             hp: effectiveHp(u, view as unknown as GameState),
@@ -3741,8 +4132,18 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         />
       ) : null}
 
-      {/* docs/19, Sessão 4 — feed de log de batalha (painel lateral retrátil / gaveta). */}
-      <BattleLogDrawer entries={battleLog} open={logOpen} onToggle={() => setLogOpen((o) => !o)} />
+      {oppPendingDecision?.kind === "burst" && !sceneLocked ? (
+        <div className="pointer-events-none fixed inset-x-0 top-3 z-[48] flex justify-center px-3" data-testid="opp-burst-notice">
+          <div className="flex items-center gap-2 rounded-arena border border-amber-400/50 bg-slate-950/90 px-3 py-1.5 text-xs font-bold text-amber-200 shadow-[0_0_18px_rgba(251,191,36,0.3)]">
+            <span className="size-2 animate-pulse rounded-full bg-amber-400" />
+            {tr(`Oponente decidindo o 【Burst】 · ${oppPendingDecision.cardDef?.nameEn ?? ""}`, `Opponent deciding the 【Burst】 · ${oppPendingDecision.cardDef?.nameEn ?? ""}`)}
+          </div>
+        </div>
+      ) : null}
+
+      {/* docs/19, Sessão 4 — feed de log de batalha (painel lateral retrátil / gaveta). P5: recolhido enquanto se escolhe
+          um alvo no campo (a mesa fica livre) */}
+      {tableClear ? null : <BattleLogDrawer entries={battleLog} open={logOpen} onToggle={() => setLogOpen((o) => !o)} />}
 
       {/* ZERO SYSTEM — Zero Coach HUD (Atalho 'Z') */}
       <ZeroCoachHud
@@ -3762,7 +4163,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       <MatchPrompt
         message={matchPrompt}
         tone={combat || iAmDefending || inActionStep ? "warn" : "info"}
-        busy={busy || isPhaseBannerActive}
+        busy={busy || tableLocked}
         onConfirm={hudConfirm}
         canConfirm={hudCanConfirm}
         onCancel={hudCancel}
@@ -3774,7 +4175,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           abaixo do `MatchPrompt`), longe do log (direita) e do `ActionDock`
           (canto). Some sozinho em 4s; clique fecha na hora. */}
       {actionError ? (
-        <div className={`fixed inset-x-0 flex justify-center px-3 ${myBurstDecision ? "top-28 z-[85]" : "top-16 z-[46]"}`}>
+        <div className={`fixed inset-x-0 flex justify-center px-3 ${myBurstDecision ? "top-28 z-[85]" : "top-[clamp(4rem,2.5rem+2.5vw,8rem)] z-[46]"}`}>
           <button
             type="button"
             onClick={() => setActionError(null)}
@@ -3787,13 +4188,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         </div>
       ) : null}
 
-      {/* docs/54 tarefa 5 — carta híbrida (Piloto vs Comando): seletor suspenso
-          compacto no topo, no lugar do modal grande de inspeção. `Esc` ou o
-          botão Cancelar fecham sem escolher nada. */}
+      {/* docs/54 tarefa 5 — carta híbrida (Piloto vs Comando): seletor compacto, no lugar do modal grande de inspeção.
+          BUG-5AB7HM: escolha que não usa o campo — no centro. `Esc` ou o botão Cancelar fecham sem escolher nada. */}
       {handModeChoice ? (
-        <div className="pointer-events-none fixed inset-x-0 top-16 z-[46] flex justify-center px-3">
-          <div className="pointer-events-auto flex flex-wrap items-center gap-2 rounded-arena border border-primary/45 bg-slate-950/95 px-3.5 py-2 text-primary shadow-2xl backdrop-blur-sm">
-            <p className="text-xs font-bold uppercase leading-snug tracking-[0.04em] sm:text-sm">
+        <div data-placement="center" className="fixed inset-0 z-[46] flex items-center justify-center bg-black/45 px-3 animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none">
+          <div className="pointer-events-auto flex flex-wrap items-center gap-3 rounded-arena border-2 border-primary/60 bg-slate-950/95 px-5 py-4 text-primary shadow-2xl backdrop-blur-sm">
+            <p className="text-[clamp(0.875rem,0.6rem+0.5vw,1.5rem)] font-black uppercase leading-snug tracking-[0.04em]">
               {handModeChoice.card.def.nameEn} — escolha como jogar:
             </p>
             <div className="flex flex-wrap items-center gap-1.5">
@@ -3807,7 +4207,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                     setHandModeChoice(null);
                     run();
                   }}
-                  className="rounded-arena border border-primary/50 bg-primary/15 px-2 py-1 text-[10px] font-bold uppercase tracking-wide hover:bg-primary/25 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-arena border border-primary/60 bg-primary/15 px-3 py-2 text-[clamp(0.75rem,0.55rem+0.35vw,1.2rem)] font-bold uppercase tracking-wide hover:bg-primary/25 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {m.label}
                 </button>
@@ -3815,7 +4215,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               <button
                 type="button"
                 onClick={() => setHandModeChoice(null)}
-                className="rounded-arena border border-white/20 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-300 hover:bg-white/10"
+                className="rounded-arena border border-white/25 px-3 py-2 text-[clamp(0.75rem,0.55rem+0.35vw,1.2rem)] font-bold uppercase tracking-wide text-slate-300 hover:bg-white/10"
               >
                 Cancelar <span className="opacity-60">(Esc)</span>
               </button>
@@ -3835,8 +4235,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 mode="single-draw"
                 label={tr(SETUP_ANIM_LABEL["single-draw"])}
                 origin={deckCenter(board.rectOf(`deckStation:${seat}`), false)}
-                cardW={board.rectOf(`deckStation:${seat}`)?.width}
-                dest={handCenter(board.rectOf("hand:self"), board.rectOf(`deckStation:${seat}`)?.width)}
+                cardW={handCardW(seat)}
+                dest={handCenter(board.rectOf("hand:self"), handCardW(seat))}
                 cards={(() => {
                   const visible = view.players[seat].hand.filter((c) => !isHidden(c)) as CardInstance[];
                   const last = visible[visible.length - 1];
@@ -3851,11 +4251,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 mode="single-draw"
                 label={tr("Oponente comprando…", "Opponent drawing…")}
                 origin={deckCenter(board.rectOf(`deckStation:${opponentSeat}`), true)}
-                cardW={board.rectOf(`deckStation:${opponentSeat}`)?.width}
-                dest={handCenter(
-                  board.rectOf("hand:opponent") ?? board.rectOf(`hand:${opponentSeat}`),
-                  board.rectOf(`deckStation:${opponentSeat}`)?.width,
-                )}
+                cardW={handCardW(opponentSeat)}
+                dest={handCenter(board.rectOf("hand:opponent") ?? board.rectOf(`hand:${opponentSeat}`), handCardW(opponentSeat))}
                 onDone={handleSetupAnimDone}
               />
             )
@@ -3866,11 +4263,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 mode={setupAnim}
                 label={tr(SETUP_ANIM_LABEL[setupAnim])}
                 origin={deckCenter(board.rectOf(`deckStation:${seat}`), false)}
-                cardW={board.rectOf(`deckStation:${seat}`)?.width}
+                cardW={setupAnim === "deal-shields" ? board.rectOf(`shieldRail:${seat}`)?.width : handCardW(seat)}
                 dest={
                   setupAnim === "deal-shields"
                     ? shieldRailCenter(board.rectOf(`shieldRail:${seat}`))
-                    : handCenter(board.rectOf("hand:self"), board.rectOf(`deckStation:${seat}`)?.width)
+                    : handCenter(board.rectOf("hand:self"), handCardW(seat))
                 }
                 cards={
                   setupAnim === "deal-hand" || setupAnim === "mulligan"
@@ -3886,14 +4283,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                   key={`opp-${setupAnim}`}
                   mode={setupAnim}
                   origin={deckCenter(board.rectOf(`deckStation:${opponentSeat}`), true)}
-                  cardW={board.rectOf(`deckStation:${opponentSeat}`)?.width}
+                  cardW={setupAnim === "deal-shields" ? board.rectOf(`shieldRail:${opponentSeat}`)?.width : handCardW(opponentSeat)}
                   dest={
                     setupAnim === "deal-shields"
                       ? shieldRailCenter(board.rectOf(`shieldRail:${opponentSeat}`))
-                      : handCenter(
-                          board.rectOf("hand:opponent") ?? board.rectOf(`hand:${opponentSeat}`),
-                          board.rectOf(`deckStation:${opponentSeat}`)?.width,
-                        )
+                      : handCenter(board.rectOf("hand:opponent") ?? board.rectOf(`hand:${opponentSeat}`), handCardW(opponentSeat))
                   }
                   onDone={() => {}}
                 />
@@ -3903,21 +4297,89 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         </>
       ) : null}
 
-      {/* spec simulador-ritmo-de-resolucao — compra por efeito: o mesmo saque da Draw Phase, do deck de quem comprou */}
-      {effectDraw ? (
+      {/* spec simulador-cadencia-de-mesa (P1) — o oponente fez Mulligan: a mão dele volta, embaralha, 5 novas saem */}
+      {oppMulliganKey !== null ? (
         <DeckDealAnimation
-          key={`effect-draw-${effectDraw.key}`}
-          mode="single-draw"
-          label={effectDraw.player === seat ? tr("Comprando…", "Drawing…") : tr("Oponente comprando…", "Opponent drawing…")}
-          origin={deckCenter(board.rectOf(`deckStation:${effectDraw.player}`), effectDraw.player !== seat)}
-          cardW={board.rectOf(`deckStation:${effectDraw.player}`)?.width}
-          dest={handCenter(
-            effectDraw.player === seat ? board.rectOf("hand:self") : (board.rectOf("hand:opponent") ?? board.rectOf(`hand:${effectDraw.player}`)),
-            board.rectOf(`deckStation:${effectDraw.player}`)?.width,
-          )}
-          cards={effectDraw.card ? [effectDraw.card] : undefined}
+          key={`opp-mulligan-${oppMulliganKey}`}
+          mode="mulligan"
+          label={tr("Oponente refazendo a mão (Mulligan)…", "Opponent redrawing their hand (Mulligan)…")}
+          origin={deckCenter(board.rectOf(`deckStation:${opponentSeat}`), true)}
+          cardW={handCardW(opponentSeat)}
+          dest={handCenter(board.rectOf("hand:opponent") ?? board.rectOf(`hand:${opponentSeat}`), handCardW(opponentSeat))}
+          onDone={() => setOppMulliganKey(null)}
+        />
+      ) : null}
+
+      {/* spec simulador-ritmo-de-resolucao — compra por efeito: o mesmo saque da Draw Phase, do deck de quem comprou */}
+      {/* spec simulador-cadencia-de-mesa (P2) — compra (do turno e por efeito): a minha passa pelo centro à mostra e
+          pousa à direita da mão; a do oponente vai direto do deck dele para a mão dele. Mesma duração nas duas telas. */}
+      {effectDraw ? (
+        <CardTravel
+          key={`draw-${effectDraw.key}`}
+          from={deckCenter(board.rectOf(`deckStation:${effectDraw.player}`), effectDraw.player !== seat)}
+          to={effectDraw.player === seat ? handLandingPoint(handCardW(seat)) : rightEdgeOf(board.rectOf("hand:opponent") ?? board.rectOf(`hand:${effectDraw.player}`))}
+          fromW={board.rectOf(`deckStation:${effectDraw.player}`)?.width ?? 60}
+          toW={handCardW(effectDraw.player) ?? 60}
+          card={effectDraw.player === seat ? effectDraw.card : null}
           art={art}
+          viaCenter={effectDraw.player === seat}
+          timings={SCENE_MS.draw}
+          totalMs={drawMs()}
           onDone={() => effectDrawResolveRef.current?.()}
+        />
+      ) : null}
+      {playStage ? <PlayCardStage key={playStage.key} stage={playStage} art={art} /> : null}
+      {handTravel ? (
+        <CardTravel
+          key={`to-hand-${handTravel.key}`}
+          from={handTravel.from}
+          to={handTravel.player === seat ? handLandingPoint(handCardW(seat)) : rightEdgeOf(board.rectOf("hand:opponent") ?? board.rectOf(`hand:${handTravel.player}`))}
+          fromW={handTravel.fromW}
+          toW={handCardW(handTravel.player) ?? 60}
+          card={handTravel.card}
+          art={art}
+          flipOnArrival
+          timings={{ rise: SCENE_MS.toHand.rise, flip: 0, hold: 0, land: SCENE_MS.toHand.land }}
+          totalMs={SCENE_MS.toHand.rise + SCENE_MS.toHand.land + SCENE_MS.toHand.settle}
+          onDone={() => handTravelResolveRef.current?.()}
+        />
+      ) : null}
+      {shieldTravel ? (
+        <CardTravel
+          key={`shield-${shieldTravel.key}`}
+          from={shieldRailCenter(board.rectOf(`shieldRail:${shieldTravel.player}`))}
+          to={
+            shieldTravel.holdAtCenter
+              ? { x: (typeof window !== "undefined" ? window.innerWidth : 1280) / 2, y: (typeof window !== "undefined" ? window.innerHeight : 800) / 2 }
+              : rectCenter(board.rectOf(`trashStation:${shieldTravel.player}`))
+          }
+          fromW={board.rectOf(`shieldRail:${shieldTravel.player}`)?.width ?? 60}
+          toW={
+            shieldTravel.holdAtCenter
+              ? centerCardWidth(typeof window !== "undefined" ? window.innerWidth : 1280, typeof window !== "undefined" ? window.innerHeight : 800)
+              : (board.rectOf(`trashStation:${shieldTravel.player}`)?.width ?? 60)
+          }
+          card={shieldTravel.card}
+          art={art}
+          viaCenter
+          timings={{ rise: SCENE_MS.combat.shield.fly, flip: SCENE_MS.combat.shield.flip, hold: SCENE_MS.combat.shield.hold, land: SCENE_MS.combat.shield.toTrash }}
+          totalMs={shieldRevealMs()}
+          onDone={() => shieldTravelResolveRef.current?.()}
+        />
+      ) : null}
+      {resourceTravel ? (
+        <CardTravel
+          key={`resource-${resourceTravel.key}`}
+          from={rectCenter(board.rectOf(`resourceDeck:${resourceTravel.player}`))}
+          to={rightEdgeOf(board.rectOf(`resourceArea:${resourceTravel.player}`))}
+          fromW={board.rectOf(`deckStation:${resourceTravel.player}`)?.width ?? 60}
+          toW={board.rectOf(`deckStation:${resourceTravel.player}`)?.width ?? 60}
+          card={resourceTravel.card}
+          art={art}
+          flipOnArrival
+          timings={{ rise: SCENE_MS.resource * 0.4, flip: 0, hold: 0, land: SCENE_MS.resource * 0.4 }}
+          totalMs={SCENE_MS.resource}
+          onDone={() => resourceTravelResolveRef.current?.()}
         />
       ) : null}
 
@@ -3932,6 +4394,38 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
       {/* Números/efeitos flutuantes por GameEvent (dano, buff, keyword, token, EX…) — CONTRATO-MOTOR §7. */}
       <EffectResolutionOverlay eventLog={view.eventLog} eventsBatch={cueBatch ?? undefined} rectOf={board.rectOf} viewerSeat={seat} />
+
+      {/* spec simulador-efeitos-na-mesa — durante o efeito, a linha da carta que o causou até os alvos */}
+      {effectLane ? <AbilityTargetLane key={effectLane.key} sourceId={effectLane.source} targets={effectLane.targets} rectOf={board.rectOf} /> : null}
+      {/* …e depois, no hover: quem causou o que está nesta carta (e o que ela causou), com a linha de cada fonte */}
+      {hoveredCard && !effectLane
+        ? (() => {
+            const hid = hoveredCard.instanceId;
+            const related = effectLedger.filter((e) => e.targetId === hid || e.source?.instanceId === hid);
+            const hoverKey = related.length > 0 ? effectAnchorKey(view, hid) : null;
+            if (!hoverKey) return null;
+            const ownerOfKey = (key: string) =>
+              (["A", "B"] as PlayerId[]).find((pid) => key === `base:${pid}` || view.players[pid].battleArea.some((c) => c.instanceId === key));
+            const lanes = new Map<string, TargetLanePoint[]>();
+            for (const e of related) {
+              if (!e.source) continue;
+              const from = effectAnchorKey(view, e.source.instanceId, e.source.player);
+              const to = e.targetId === hid ? hoverKey : effectAnchorKey(view, e.targetId);
+              if (!from || !to || from === to) continue;
+              const list = lanes.get(from) ?? [];
+              if (!list.some((t) => t.id === to)) list.push({ id: to, pool: ownerOfKey(to) === e.source.player ? "ally" : "enemy" });
+              lanes.set(from, list);
+            }
+            return (
+              <>
+                {[...lanes].map(([from, targets]) => (
+                  <AbilityTargetLane key={`fx:${from}`} sourceId={from} targets={targets} rectOf={board.rectOf} />
+                ))}
+                <EffectLedgerTooltip cardId={hid} entries={related} anchor={board.rectOf(hoverKey)} nameOf={effectNameOf} />
+              </>
+            );
+          })()
+        : null}
 
       {/* Linha de mira da carta de origem até os alvos já escolhidos na resolução da habilidade. */}
       {abilityDecision?.queue.map((q) => {
@@ -3951,9 +4445,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       {/* Slim Floating Action Ribbon (docs/52) — canto: fase/turno/timer,
           Passar turno, toggle de log e indicador discreto de ping/auto-pass.
           As decisões de jogada regular vivem no TopTacticalHUD acima. */}
-      {!gameOverResult && introStage === "complete" ? (
+      {!gameOverResult && introStage === "complete" && !tableClear ? (
         <ActionDock
           yourTurn={myTurnMain}
+          turnIsMine={view.activePlayer === seat}
           inActionStep={inActionStep}
           phaseLabel={
             inActionStep
@@ -3964,7 +4459,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           }
           timerSeconds={turnSecondsLeft}
           turnNumber={view.turnNumber}
-          busy={busy || isPhaseBannerActive}
+          busy={busy || tableLocked}
           autoPass={dockAutoPass}
           pingMs={transportKind === "socket" ? lastPingMs : null}
           logOpen={logOpen}

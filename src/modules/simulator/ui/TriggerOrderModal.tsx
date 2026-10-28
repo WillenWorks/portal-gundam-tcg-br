@@ -5,10 +5,8 @@
  * modal só aparece quando um card assim entrar. Construído agora pra não
  * faltar o ponto de decisão na UI quando isso acontecer.)
  *
- * docs/56 tarefa 3 — virou uma FAIXA SUSPENSA no topo (era lista vertical
- * centralizada com `bg-black/85` cobrindo a tela): badges lado a lado com
- * scroll horizontal, sem fundo escuro — a Battle Area, Recursos e mão do
- * jogador continuam visíveis durante a ordenação. */
+ * docs/56 tarefa 3 — badges lado a lado com scroll horizontal. BUG-5AB7HM: a ordem dos gatilhos não usa o campo,
+ * então volta ao centro (fundo escurecido leve), onde o olho já está — no topo ficava pequena e longe. */
 import { useState } from "react";
 import { ArrowDown, ArrowUp, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -46,7 +44,7 @@ export function TriggerOrderModal({ decision, busy, onResolve }: TriggerOrderMod
   const labelFor = (specId: string) => decision.triggers.find((t) => t.specId === specId)?.label ?? specId;
 
   return (
-    <div className="fixed inset-0 z-[60] flex justify-center px-3 pt-3 sm:pt-5 animate-in fade-in duration-200 motion-reduce:animate-none">
+    <div data-placement="center" className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 px-3 animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none">
       <div className="pointer-events-auto panel-cut hero-surface mx-auto w-[min(94vw,40rem)] border border-primary/40 p-3 shadow-2xl backdrop-blur-md sm:p-4">
         <p className="flex items-center justify-center gap-1.5 text-center text-sm font-black uppercase tracking-[0.2em] text-primary">
           <Layers className="size-4" /> {isEn ? "Trigger Order" : "Ordem dos gatilhos"}

@@ -110,3 +110,20 @@ describe("resolveMulligan — fluxo sequencial", () => {
     expect(hasExResource(s, "B")).toBe(false);
   });
 });
+
+describe("MULLIGAN_RESOLVED — a decisão é narrada (spec simulador-cadencia-de-mesa, P1)", () => {
+  it("cada decisão entra no log, com a troca ou não; o oponente vê na visão dele", async () => {
+    const { eventsSinceFor } = await import("./viewState");
+    const { mulliganRedraws } = await import("../scene/openingScene");
+    let s = newInteractiveGame("A");
+    const start = s.eventLog.length;
+    s = apply(s, "A", { kind: "resolveMulligan", keep: false });
+    s = apply(s, "B", { kind: "resolveMulligan", keep: true });
+    const narrated = s.eventLog.slice(start).filter((e) => e.type === "MULLIGAN_RESOLVED");
+    expect(narrated).toEqual([
+      { type: "MULLIGAN_RESOLVED", player: "A", redraw: true },
+      { type: "MULLIGAN_RESOLVED", player: "B", redraw: false },
+    ]);
+    expect(mulliganRedraws(eventsSinceFor(s, start, "B") ?? [])).toEqual(["A"]);
+  });
+});

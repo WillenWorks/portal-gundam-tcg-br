@@ -912,6 +912,12 @@ export type SimulatorMatchView = {
   eventsSince?: GameEvent[];
   /** `eventSeq` da visão que `eventsSince` continua */
   eventsFromSeq?: number;
+  /** spec simulador-cadencia-de-mesa — fim da cena em andamento (relógio do servidor); a mesa fica travada até lá */
+  sceneEndsAt?: number | null;
+  /** ritmo da cena deste assento como o servidor guardou */
+  scenePace?: "cinematic" | "normal" | "classic";
+  /** velocidade de animação deste assento como o servidor guardou */
+  sceneSpeed?: number;
 };
 
 export type SimulatorMatchState = ({ seated: false } & SimulatorMatchSummary) | ({ seated: true } & SimulatorMatchView);
@@ -1640,6 +1646,8 @@ export const api = {
   /** Liga/desliga o auto-pass de Action Step do assento (docs/19, Sessão 2). */
   setSimulatorAutoPass: (id: string, value: boolean) =>
     request<SimulatorMatchView>(`/simulator/matches/${id}/auto-pass`, { method: "POST", body: JSON.stringify({ value }) }),
+  setSimulatorScenePace: (id: string, value: "cinematic" | "normal" | "classic", speed?: number) =>
+    request<SimulatorMatchView>(`/simulator/matches/${id}/scene-pace`, { method: "POST", body: JSON.stringify({ value, speed }) }),
   /** Bug report in-game (docs/44 Fase 3 §5.1) — o servidor congela o GameState + battleLog + cartas em jogo, screenshot e snapshot e devolve o `shortCode` ("BUG-XXXXXX") pra acompanhar. */
   reportSimulatorSituation: (
     id: string,

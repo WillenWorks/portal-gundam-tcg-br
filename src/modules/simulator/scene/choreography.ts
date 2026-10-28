@@ -3,24 +3,44 @@
  * fez (dano, buff, compra), as cartas que saíram, o golpe do combate. Mesma régua para o jogador e para o bot: as
  * duas jogadas chegam pela mesma fila de visões e tocam o mesmo plano. Puro/testável — a página só executa.
  *
- * O caminho antigo (`planAnimations` + todos os cues de uma vez) continua em `timelinePlayback.ts` e é o que roda com
+ * O caminho antigo (`planAnimations` + todos os cues de uma vez) continua em `ui/timelinePlayback.ts` e é o que roda com
  * o ritmo "rápido" (`getResolutionPacing() === "classic"`), que serve também de reversão sem deploy. */
 import type { AttackTarget, GameEvent, Phase, PlayerId } from "../engine/types";
-import type { PendingAttack } from "./timelinePlayback";
+import { LASTING_EFFECT_EVENTS } from "./effectLedger";
+
+/** combate aberto numa visão anterior cujo golpe ainda não tocou */
+export interface PendingAttack {
+  attackerId: string;
+  target: AttackTarget;
+  defendingPlayer: PlayerId;
+}
 
 export type Beat =
-  /** Unit/Base/Piloto entrando em campo — só quando há mais tempos depois (o anúncio do 【Deploy】 vem depois dela) */
-  | { kind: "deploy"; player: PlayerId; instanceId: string; as: "unit" | "base" | "pilot" }
-  /** Command jogada pelo oponente (a minha já tocou antes do envio, em `runAction`) */
-  | { kind: "opponentCommand"; instanceId: string }
-  /** habilidade resolvendo: 【Deploy】, 【Attack】, 【Activate】, 【Burst】 do oponente… */
-  | { kind: "announce"; player: PlayerId; instanceId: string; trigger: string }
+  /**
+   * spec simulador-cadencia-de-mesa (P3) — carta jogada da mão, igual para os dois lados: revelada, os recursos pagos
+   * (`paid`) giram um a um, e ela pousa no campo (Unit/Base/Piloto) ou é usada no centro (Command)
+   */
+  | { kind: "play"; player: PlayerId; instanceId: string; as: "unit" | "base" | "pilot" | "command"; paid: string[] }
+  /** habilidade resolvendo: 【Deploy】, 【Attack】, 【Activate】 (com o custo pago em `paid`), 【Burst】 do oponente… */
+  | { kind: "announce"; player: PlayerId; instanceId: string; trigger: string; paid: string[] }
   | { kind: "draw"; player: PlayerId; instanceId: string | null }
+  /** P5 — carta indo para a mão fora da compra (【Burst】 que vai à mão, Unit que volta, busca): voa até a direita da mão */
+  | { kind: "toHand"; instanceId: string }
+  /** P4 — ataque declarado: o atacante deita (`rests`) e a linha vai até o alvo */
+  | { kind: "declare"; attackerId: string; target: AttackTarget; attackingPlayer: PlayerId; defendingPlayer: PlayerId; rests: boolean }
+  /** P4 — bloqueio: o bloqueador deita e a linha muda para ele */
+  | { kind: "block"; blockerId: string; newTarget: AttackTarget; rests: boolean }
   | { kind: "strike"; attackerId: string; target: AttackTarget; defendingPlayer: PlayerId }
-  /** o que um efeito fez, mostrado junto (os cues do `EffectResolutionOverlay`) */
-  | { kind: "effects"; events: GameEvent[] }
-  /** cartas indo para a lixeira/exílio (`ids`) ou shields quebradas (`shieldsOf`/`count`: as do topo na visão anterior) */
-  | { kind: "departure"; ids: string[]; shieldsOf?: PlayerId; count?: number };
+  /**
+   * o que um efeito fez, mostrado junto (os cues do `EffectResolutionOverlay`); `source` = a carta da habilidade /
+   * Command que o causou (spec simulador-efeitos-na-mesa: a linha neon vai dela até cada alvo)
+   */
+  | { kind: "effects"; events: GameEvent[]; source?: { instanceId: string; player: PlayerId } }
+  /**
+   * cartas indo para a lixeira/exílio (`ids`; `destroyed` = destruída: quebra e é arrastada) ou shields quebradas
+   * (`shieldsOf`/`count`: as do topo na visão anterior — P4: cada uma vai ao centro e vira para os dois verem)
+   */
+  | { kind: "departure"; ids: string[]; shieldsOf?: PlayerId; count?: number; destroyed?: boolean };
 
 /** eventos que o `EffectResolutionOverlay` sabe desenhar */
 const CUE_EVENTS = new Set<GameEvent["type"]>([
@@ -41,6 +61,10 @@ const CUE_EVENTS = new Set<GameEvent["type"]>([
   "MODIFY_STAT",
   "GRANT_KEYWORD",
   "SPAWN_TOKEN",
+  // olhar o topo e devolver (RE-GZ): sem isto o efeito anunciado parecia não ter feito nada
+  "MOVE_WITHIN_DECK",
+  // efeitos sem número (Kayra's Jegan libera alvo de ataque, proteções…): também têm o tempo e a linha da fonte
+  ...LASTING_EFFECT_EVENTS,
 ]);
 
 /** fases de estrutura do turno: o que acontece nelas já é contado pelos banners e pela compra da virada de turno */
@@ -53,9 +77,6 @@ export const LONG_BATCH_TEMPO = 0.65;
 export function tempoFor(beats: readonly Beat[]): number {
   return beats.length > LONG_BATCH_BEATS ? LONG_BATCH_TEMPO : 1;
 }
-
-/** quanto cada tempo segura a fila (ms, antes da velocidade do jogador); os de componente esperam o próprio `onDone` */
-export const BEAT_HOLD_MS = { effects: 700, departure: 520 } as const;
 
 export interface ChoreographyInput {
   events: readonly GameEvent[];
@@ -80,21 +101,33 @@ export function planChoreography({ events, viewerSeat, pendingAttack, phase: sta
   let cues: GameEvent[] = [];
   /** uma habilidade anunciada está resolvendo: o que vier é dela (toca na hora, mesmo dentro de combate) */
   let abilityOpen = false;
-  /** jogada da própria mesa que ficou de fora porque nada vinha depois dela */
-  const deploys: Beat[] = [];
+  /** a carta dessa habilidade (ou a Command em uso) */
+  let abilitySource: { instanceId: string; player: PlayerId } | null = null;
+  /** tempo que ainda junta o custo pago (os REST_CARD de recurso logo depois da carta jogada / habilidade ativada) */
+  let paying: Extract<Beat, { paid: string[] }> | null = null;
+  /** a Command em uso: ela some no centro (no tempo `play`), a ida dela para a lixeira não vira saída */
+  let playedCommand: string | null = null;
 
   const holding = () => attack !== null && !abilityOpen;
   const push = (beat: Beat) => (holding() ? heldForStrike.push(beat) : beats.push(beat));
   const flushCues = () => {
-    if (cues.length > 0) push({ kind: "effects", events: cues });
+    if (cues.length > 0) push(abilityOpen && abilitySource ? { kind: "effects", events: cues, source: abilitySource } : { kind: "effects", events: cues });
     cues = [];
   };
   const closeAbility = () => {
     flushCues();
     abilityOpen = false;
+    abilitySource = null;
   };
 
-  for (const event of events) {
+  for (const [index, event] of events.entries()) {
+    const isPayment = event.type === "REST_CARD" && paying !== null && resourceIds?.has(event.instanceId);
+    // o motor deita o atacante/bloqueador logo ANTES de declarar: esse descanso é parte do tempo da declaração
+    const next = events[index + 1];
+    const restsToFight =
+      event.type === "REST_CARD" &&
+      ((next?.type === "ATTACK_DECLARED" && next.attackerId === event.instanceId) || (next?.type === "BLOCK_DECLARED" && next.blockerId === event.instanceId));
+    if (!isPayment) paying = null;
     switch (event.type) {
       case "TURN_CHANGE":
       case "PHASE_CHANGE":
@@ -105,41 +138,54 @@ export function planChoreography({ events, viewerSeat, pendingAttack, phase: sta
         // o efeito do Action Step terminou; o dano de batalha que vem é do combate
         closeAbility();
         break;
-      case "CARD_PLAYED":
+      case "CARD_PLAYED": {
         closeAbility();
+        const beat: Extract<Beat, { kind: "play" }> = { kind: "play", player: event.player, instanceId: event.instanceId, as: event.as, paid: [] };
+        beats.push(beat);
+        paying = beat;
         if (event.as === "command") {
-          if (event.player !== viewerSeat) beats.push({ kind: "opponentCommand", instanceId: event.instanceId });
           // a Command é a própria habilidade: o que vier depois é dela
           abilityOpen = true;
-        } else {
-          const beat: Beat = { kind: "deploy", player: event.player, instanceId: event.instanceId, as: event.as };
-          beats.push(beat);
-          if (event.player === viewerSeat) deploys.push(beat);
+          abilitySource = { instanceId: event.instanceId, player: event.player };
+          playedCommand = event.instanceId;
         }
         break;
+      }
       case "ABILITY_ACTIVATED":
         closeAbility();
         // o 【Burst】 do próprio assento já teve a revelação e o modal; o do oponente é anunciado como os outros
         if (!(event.trigger === "Burst" && event.player === viewerSeat)) {
-          beats.push({ kind: "announce", player: event.player, instanceId: event.instanceId, trigger: event.trigger });
+          const beat: Extract<Beat, { kind: "announce" }> = { kind: "announce", player: event.player, instanceId: event.instanceId, trigger: event.trigger, paid: [] };
+          beats.push(beat);
+          paying = beat;
         }
         abilityOpen = true;
+        abilitySource = { instanceId: event.instanceId, player: event.player };
         break;
       case "ATTACK_DECLARED":
-      case "BEGIN_DAMAGE_ONLY_BATTLE":
+      case "BEGIN_DAMAGE_ONLY_BATTLE": {
         closeAbility();
-        attack = {
+        const target: AttackTarget = event.type === "ATTACK_DECLARED" ? event.target : { unitId: event.targetId };
+        attack = { attackerId: event.attackerId, target, defendingPlayer: event.defendingPlayer };
+        const prev = events[index - 1];
+        beats.push({
+          kind: "declare",
           attackerId: event.attackerId,
-          target: event.type === "ATTACK_DECLARED" ? event.target : { unitId: event.targetId },
+          target,
+          attackingPlayer: event.attackingPlayer,
           defendingPlayer: event.defendingPlayer,
-        };
+          rests: prev?.type === "REST_CARD" && prev.instanceId === event.attackerId,
+        });
         break;
-      case "BLOCK_DECLARED":
+      }
+      case "BLOCK_DECLARED": {
         flushCues();
-        // o bloqueio é visto na hora (a seta muda), não depois do golpe
-        beats.push({ kind: "effects", events: [event] });
+        // o bloqueio é visto na hora (a linha muda), não depois do golpe
+        const prev = events[index - 1];
+        beats.push({ kind: "block", blockerId: event.blockerId, newTarget: event.newTarget, rests: prev?.type === "REST_CARD" && prev.instanceId === event.blockerId });
         if (attack) attack = { ...attack, target: event.newTarget };
         break;
+      }
       case "ATTACK_TARGET_CHANGED":
         if (attack) attack = { ...attack, target: { unitId: event.unitId } };
         break;
@@ -162,9 +208,19 @@ export function planChoreography({ events, viewerSeat, pendingAttack, phase: sta
       case "REMOVE_CARD_FROM_GAME":
         cues.push(event);
         flushCues();
-        push({ kind: "departure", ids: [event.instanceId] });
+        push({ kind: "departure", ids: [event.instanceId], destroyed: event.type === "DESTROY_CARD" });
         break;
       case "MOVE_CARD":
+        if (event.toZone === "hand") {
+          flushCues();
+          push({ kind: "toHand", instanceId: event.instanceId });
+          break;
+        }
+        if (event.instanceId === playedCommand && event.toZone === "trash") {
+          // a Command já sumiu no centro, usada; ela só chega à lixeira (sem voo)
+          flushCues();
+          break;
+        }
         if (event.toZone === "trash" || event.toZone === "exile") {
           flushCues();
           push({ kind: "departure", ids: [event.instanceId] });
@@ -182,8 +238,16 @@ export function planChoreography({ events, viewerSeat, pendingAttack, phase: sta
         break;
       case "REST_CARD":
       case "SET_ACTIVE":
-        // pagamento de custo e o próprio atacante descansando ao atacar não são efeito
-        if (resourceIds?.has(event.instanceId) || event.instanceId === attack?.attackerId) break;
+        // o custo pago vai com a carta jogada / habilidade ativada (os recursos giram um a um no tempo dela)
+        if (isPayment && paying) {
+          paying.paid.push(event.instanceId);
+          break;
+        }
+        // o atacante/bloqueador deitando vai com a declaração (o próximo evento)
+        if (restsToFight) break;
+        // o próprio atacante descansando ao atacar não é efeito
+        if (event.instanceId === attack?.attackerId) break;
+        // fora da estrutura do turno, descansar/desvirar (inclusive recurso, ex.: Shining Gundam com Domon) é efeito
         if (abilityOpen || !STRUCTURAL_PHASES.has(phase)) cues.push(event);
         break;
       default:
@@ -199,20 +263,12 @@ export function planChoreography({ events, viewerSeat, pendingAttack, phase: sta
     attack = null;
   }
   beats.push(...heldForStrike);
-  return { beats: withoutLoneOwnDeploys(beats, deploys), pendingAttack: attack };
+  return { beats, pendingAttack: attack };
 }
 
 function isDamageBeat(beat: Beat): boolean {
   if (beat.kind === "departure") return true;
   return beat.kind === "effects" && beat.events.some((e) => e.type === "DAMAGE_UNIT" || e.type === "DAMAGE_BASE" || e.type === "DAMAGE_SHIELD");
-}
-
-/**
- * A minha jogada eu já vi (cliquei, a carta pousa quando a visão aplica). O tempo de "deploy" dela só existe para a
- * ordem ficar certa quando algo vem depois dela no lote — a Unit entra antes do anúncio do 【Deploy】 dela.
- */
-function withoutLoneOwnDeploys(beats: Beat[], ownDeploys: Beat[]): Beat[] {
-  return beats.filter((beat) => !ownDeploys.includes(beat) || beats.indexOf(beat) < beats.length - 1);
 }
 
 /** o lote tem uma jogada de carta (Unit/Base/Piloto) do próprio assento — o modal de escolha espera ela pousar */

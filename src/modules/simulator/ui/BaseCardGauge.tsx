@@ -39,6 +39,8 @@ interface BaseCardGaugeProps {
   isAbilitySource?: boolean;
   /** Ref para medição do DOM na arena. */
   registerRef?: (el: HTMLElement | null) => void;
+  /** spec simulador-cadencia-de-mesa (P1) — a Base acabou de chegar à mesa (EX Base na abertura): entra em fade */
+  revealing?: boolean;
 }
 
 // V6.3 (docs/34): `--card-w-std` (tamanho-padrão único), não mais `*0.62` à mão.
@@ -60,6 +62,7 @@ export function BaseCardGauge({
   abilitySelected,
   isAbilitySource,
   registerRef,
+  revealing,
 }: BaseCardGaugeProps) {
   const { tr } = useSiteLanguage();
   if (!base) {
@@ -121,6 +124,7 @@ export function BaseCardGauge({
         // de dano no mesmo raio.
         "relative block overflow-hidden rounded-arena border transition-[transform,box-shadow,opacity,filter] duration-200",
         WIDTH,
+        revealing && "animate-in fade-in zoom-in-90 duration-700 ease-out motion-reduce:animate-none",
         // docs/55 tarefa 5 — impacto de ataque direto: flash/tremor vermelho
         // breve (o pai controla a duração via `struck`), some sozinho.
         struck && "z-20 scale-105 ring-4 ring-red-500 shadow-[0_0_20px_rgba(239,68,68,0.9)]",

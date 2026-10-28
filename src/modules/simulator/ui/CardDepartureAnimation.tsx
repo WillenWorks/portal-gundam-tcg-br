@@ -12,6 +12,7 @@ import { useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { artSrc, cardBackUrl, isGenericArtCard, type ArtLookup } from "./cardArt";
 import { sfx } from "../audio/soundEffects";
+import { destroyMs } from "../scene/sceneTiming";
 
 /** ponto em coords de viewport (px). */
 export interface DepartureDest {
@@ -42,6 +43,8 @@ interface CardDepartureAnimationProps {
 }
 
 const DEPART_MS = 420;
+/** P4 — a destruída primeiro quebra no lugar, depois é arrastada (a mesma duração que o servidor espera) */
+const DESTROY_MS = destroyMs();
 
 export function CardDepartureAnimation({ cards, art, onDone }: CardDepartureAnimationProps) {
   if (cards.length === 0) return null;
@@ -78,7 +81,7 @@ function DepartureGhost({
       onDone(card.id);
       return;
     }
-    const t = setTimeout(() => onDone(card.id), DEPART_MS);
+    const t = setTimeout(() => onDone(card.id), card.kind === "destroyed" ? DESTROY_MS : DEPART_MS);
     return () => clearTimeout(t);
     // roda 1x na montagem — `card`/`onDone` não devem re-disparar o timer.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -109,16 +112,37 @@ function DepartureGhost({
         } as React.CSSProperties
       }
       className={cn(
-        "overflow-hidden rounded-arena border-2 bg-slate-950 shadow-[0_6px_18px_rgba(0,0,0,0.7)]",
         card.kind === "destroyed"
-          ? "border-red-500/80 sim-anim-depart-destroy"
-          : card.kind === "exiled"
-            ? "border-purple-400/90 sim-anim-depart shadow-[0_0_20px_rgba(168,85,247,0.7)]"
-            : "border-slate-400/60 sim-anim-depart",
+          ? "sim-anim-destroy-drag"
+          : "overflow-hidden rounded-arena border-2 bg-slate-950 shadow-[0_6px_18px_rgba(0,0,0,0.7)]",
+        card.kind === "exiled"
+          ? "border-purple-400/90 sim-anim-depart shadow-[0_0_20px_rgba(168,85,247,0.7)]"
+          : card.kind === "discarded"
+            ? "border-slate-400/60 sim-anim-depart"
+            : "",
       )}
       title={card.nameEn}
+      data-testid={card.kind === "destroyed" ? "card-breaking" : undefined}
     >
-      <img src={showFace ? face : cardBackUrl} alt="" className="h-full w-full object-cover object-center" />
+      {card.kind === "destroyed" ? (
+        // P4 — a carta quebra ao meio (as metades se abrem com um clarão vermelho) e então é arrastada à lixeira
+        <>
+          {(["left", "right"] as const).map((half) => (
+            <div
+              key={half}
+              className={cn(
+                "absolute inset-0 overflow-hidden rounded-arena border-2 border-red-500/80 bg-slate-950 shadow-[0_6px_18px_rgba(0,0,0,0.7)]",
+                half === "left" ? "sim-anim-crack-left [clip-path:polygon(0_0,58%_0,42%_100%,0_100%)]" : "sim-anim-crack-right [clip-path:polygon(58%_0,100%_0,100%_100%,42%_100%)]",
+              )}
+            >
+              <img src={showFace ? face : cardBackUrl} alt="" className="h-full w-full object-cover object-center" />
+            </div>
+          ))}
+          <div className="sim-anim-crack-flash pointer-events-none absolute inset-0 rounded-arena bg-red-500/50 mix-blend-screen" />
+        </>
+      ) : (
+        <img src={showFace ? face : cardBackUrl} alt="" className="h-full w-full object-cover object-center" />
+      )}
     </div>
   );
 }

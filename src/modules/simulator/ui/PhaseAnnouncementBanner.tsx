@@ -4,6 +4,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { getScaledDuration } from "./animationSettings";
+import { SCENE_MS } from "../scene/sceneTiming";
 import { sfx } from "../audio/soundEffects";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
 
@@ -22,6 +23,7 @@ const PHASE_EN: Record<string, string> = {
   "TURNO DO OPONENTE": "OPPONENT'S TURN",
   "FASE DE COMPRA": "DRAW PHASE",
   "FASE DE RECUPERAÇÃO": "START PHASE",
+  "FASE DE RECURSO": "RESOURCE PHASE",
   "FASE PRINCIPAL": "MAIN PHASE",
   SIDEBOARDING: "SIDEBOARDING",
 };
@@ -31,7 +33,7 @@ export function PhaseAnnouncementBanner({
   sub,
   // docs/56 (revisão do plano) — sem `durationMs` explícito, escala pela
   // velocidade escolhida em `SettingsMenu` (0.75x segura mais, 2x quase não pausa).
-  durationMs = getScaledDuration(750),
+  durationMs = getScaledDuration(SCENE_MS.banner),
   onDone,
 }: PhaseAnnouncementBannerProps) {
   const { tr } = useSiteLanguage();
@@ -67,6 +69,7 @@ export function PhaseAnnouncementBanner({
     else if (phase === "TURNO DO OPONENTE") displaySub = tr("POSTURA DEFENSIVA", "DEFENSIVE STANCE");
     else if (phase === "FASE DE COMPRA") displaySub = tr("DRAW PHASE · SACAR DO DECK", "DRAW FROM THE DECK");
     else if (phase === "FASE DE RECUPERAÇÃO") displaySub = tr("RECOVERY PHASE · DESTOMBAR & RECUPERAR", "SET YOUR CARDS ACTIVE");
+    else if (phase === "FASE DE RECURSO") displaySub = tr("RESOURCE PHASE · POSICIONAR RECURSO", "PLACE A RESOURCE");
     else if (phase === "FASE PRINCIPAL") displaySub = tr("MAIN PHASE · AÇÕES TÁTICAS", "PLAY CARDS AND ATTACK");
     else displaySub = tr("SISTEMA TÁTICO ATIVO", "IN PROGRESS");
   }

@@ -12,6 +12,7 @@ import {
   buildWeeklyReport,
   dayMonth,
   FEATURED_DECK_NO_REPEAT_DAYS,
+  formatStoreWithInstagram,
   pickFeaturedDeck,
   PRIMARY_RARITY_VALUES,
   rarityAttemptOrder,
@@ -26,10 +27,12 @@ import {
   accentFor,
   altArtSlideHtml,
   articleCoverHtml,
+  buildCardRevealReelHtml,
   deckCoverHtml,
   deckKeyCardsHtml,
   deckListHtml,
   escapeHtml,
+  renderCardRevealReel,
   renderSlides,
   safeImageUrl,
   slideDocument,
@@ -37,6 +40,7 @@ import {
   tournamentCoverHtml,
   tournamentSlideHtml,
   type AltArt,
+  type ReelCardInput,
 } from "./socialSlides";
 import type { VedaIndex } from "../vedaCore";
 import { postBotMessage, readDiscordBotConfig, socialButtons, type DiscordBotConfig } from "./discordBot";
@@ -45,17 +49,21 @@ import {
   INSTAGRAM_CAPTION_MAX,
   INSTAGRAM_CAROUSEL_MAX,
   INSTAGRAM_HASHTAG_MAX,
+  normalizeInstagramAltText,
   normalizeInstagramCaption,
   publishInstagramCarousel,
   publishInstagramImage,
+  publishInstagramReel,
   readInstagramConfig,
 } from "./instagramPublisher";
 
-export { escapeHtml };
+export { escapeHtml, buildCardRevealReelHtml };
 
 export interface GeneratePostInput {
   cardCode?: string;
   type?: SocialPostType;
+  /** gera um Reel animado (MP4 9:16) revelando a carta com direcionamento para o post do feed */
+  reel?: boolean;
   /** artigo do site (tipo ARTICLE); sem ele, usa o último publicado */
   articleId?: string;
   customTopic?: string;
@@ -483,7 +491,7 @@ function socialUploadDir(): string {
   return path.join(path.resolve(process.cwd(), process.env.LOCAL_UPLOAD_DIR || "public/uploads"), "social");
 }
 
-/** Apaga imagens de posts que não existem mais (excluídos no painel) com mais de 1 dia. */
+/** Apaga imagens e vídeos de posts que não existem mais (excluídos no painel) com mais de 1 dia. */
 export async function cleanupOrphanSocialImages(prisma: PrismaClient, now = new Date()): Promise<number> {
   const dir = socialUploadDir();
   let names: string[];
@@ -492,7 +500,7 @@ export async function cleanupOrphanSocialImages(prisma: PrismaClient, now = new 
   } catch {
     return 0;
   }
-  const candidates = names.filter((n) => /^social-[A-Za-z0-9-]+\.(?:jpg|png)$/.test(n));
+  const candidates = names.filter((n) => /^social-[A-Za-z0-9-]+\.(?:jpg|png|mp4)$/.test(n));
   if (!candidates.length) return 0;
   const used = new Set(
     (await prisma.socialMediaPost.findMany({ select: { imageUrl: true, mediaUrls: true } })).flatMap((p) => [p.imageUrl, ...(p.mediaUrls ?? [])]),
@@ -509,8 +517,21 @@ export async function cleanupOrphanSocialImages(prisma: PrismaClient, now = new 
   return removed;
 }
 
+/** Identifica se um post na fila é um Reel (vídeo MP4 em mediaUrls). */
+export function reelVideoUrlOf(post: { mediaUrls?: string[] | null; metadata?: string | null }): string | null {
+  const fromUrls = (post.mediaUrls ?? []).find((u) => /\.mp4$/i.test(u));
+  if (fromUrls) return fromUrls;
+  try {
+    const parsed = JSON.parse(post.metadata || "{}") as { videoUrl?: unknown };
+    if (typeof parsed.videoUrl === "string" && /\.mp4$/i.test(parsed.videoUrl)) return parsed.videoUrl;
+  } catch {
+    /* metadata vazia ou inválida */
+  }
+  return null;
+}
+
 export type DiscordNoticeKind = "draft" | "approved" | "rejected" | "published" | "failed";
-type DiscordNoticePost = { id: string; title: string | null; caption: string; imageUrl: string | null; type: string; scheduledFor?: Date | null; mediaUrls?: string[] };
+type DiscordNoticePost = { id: string; title: string | null; caption: string; imageUrl: string | null; type: string; scheduledFor?: Date | null; mediaUrls?: string[]; metadata?: string | null };
 
 const DISCORD_HEADERS: Record<DiscordNoticeKind, string> = {
   draft: "📢 **Novo rascunho para o Instagram**\nRevise a arte e a legenda e aprove:",
@@ -532,7 +553,8 @@ export function buildDiscordSocialPayload(post: DiscordNoticePost, publicUrl: st
     published: "🟢 Publicado",
     failed: "🔴 Falhou",
   };
-  const slides = post.mediaUrls?.length ?? 0;
+  const reelVideo = reelVideoUrlOf(post);
+  const slides = reelVideo ? 0 : (post.mediaUrls?.length ?? 0);
   // embeds com a mesma url viram galeria no Discord (até 4 imagens)
   const gallery = slides > 1 ? (post.mediaUrls ?? []).slice(1, 4).map((url) => ({ url: adminLink, image: { url: `${publicUrl}${url}` } })) : [];
   return {
@@ -546,6 +568,7 @@ export function buildDiscordSocialPayload(post: DiscordNoticePost, publicUrl: st
         image: absoluteImageUrl ? { url: absoluteImageUrl } : undefined,
         fields: [
           { name: "Status", value: status[kind], inline: false },
+          ...(reelVideo ? [{ name: "Formato", value: `🎬 Reel (vídeo MP4) · [Assistir prévia](${publicUrl}${reelVideo})`, inline: false }] : []),
           ...(slides > 1 ? [{ name: "Formato", value: `🖼️ Carrossel com ${slides} imagens`, inline: false }] : []),
           { name: "Painel", value: `[Abrir no painel do admin](${adminLink})`, inline: false },
         ],
@@ -604,6 +627,10 @@ type DraftContent = {
   /** prefixo do nome dos arquivos (só letras, números e hífen) */
   fileStem: string;
   slides: string[];
+  /** textos alternativos (alt_text) de cada slide para SEO e acessibilidade no Instagram */
+  altTexts?: string[];
+  /** dados de renderização de Reel quando o rascunho é uma animação em vídeo MP4 */
+  reelCard?: ReelCardInput;
   metadata?: Record<string, unknown>;
   /** motivo para o aviso no Discord (ex.: semana sem torneio virou carta do dia) */
   notice?: string;
@@ -627,6 +654,24 @@ async function renderDraftSlides(fileStem: string, slides: string[]): Promise<st
   return names.filter((_, i) => done[i]).map((name) => `/uploads/social/${name}`);
 }
 
+/** Renderiza o vídeo MP4 (9:16) e o JPEG de capa para um rascunho de Reel. */
+async function renderDraftReel(fileStem: string, card: ReelCardInput): Promise<{ coverUrl: string | null; videoUrl: string | null }> {
+  const stamp = Date.now();
+  const stem = safeFileStem(fileStem);
+  const coverName = `social-${stem}-${stamp}-reel-cover.jpg`;
+  const videoName = `social-${stem}-${stamp}-reel.mp4`;
+  try {
+    const { videoOk, coverOk } = await renderCardRevealReel(card, path.join(socialUploadDir(), videoName), path.join(socialUploadDir(), coverName));
+    return {
+      coverUrl: coverOk ? `/uploads/social/${coverName}` : null,
+      videoUrl: videoOk ? `/uploads/social/${videoName}` : null,
+    };
+  } catch (err) {
+    console.warn("[socialPublisher] Aviso ao renderizar Reel Playwright:", err instanceof Error ? err.message : err);
+    return { coverUrl: null, videoUrl: null };
+  }
+}
+
 /** Carta do dia: a pedida, ou a próxima raridade do rodízio LR → R → U → C; artes alternativas viram carrossel. */
 export async function draftCardSpotlight(prisma: PrismaClient, input: GeneratePostInput = {}): Promise<DraftContent> {
   const tiers = input.cardCode ? undefined : rarityAttemptOrder(await lastSpotlightTier(prisma));
@@ -636,13 +681,121 @@ export async function draftCardSpotlight(prisma: PrismaClient, input: GeneratePo
   const total = altArts.length + 1;
   const pager = (i: number) => (total > 1 ? `${i}/${total}` : undefined);
   const accent = accentFor(card.color);
+  const typeLabel = CARD_TYPE_PT[card.type] || card.type;
+  const mainAlt = `Carta Gundam Card Game ${card.code} ${card.name} (${typeLabel}, cor ${card.color}, custo ${card.cost ?? "—"}, ${card.ap ?? "—"} AP, ${card.hp ?? "—"} HP) — efeito em português no Anaheim Hub`;
+  const altTexts = [
+    mainAlt,
+    ...altArts.map((art) => `Arte alternativa da carta ${art.name} (${art.code}${art.rarity ? `, raridade ${art.rarity}` : ""}) de Gundam Card Game no Anaheim Hub`),
+  ];
   return {
     type: SocialPostType.CARD_SPOTLIGHT,
     content: await generateSocialContentWithGemini(card, input.customTopic, input.apiKeyGemini),
     cardCode: card.code,
     fileStem: card.code,
     slides: [buildSocialCardHtml(card, pager(1)), ...altArts.map((art, i) => altArtSlideHtml(art, accent, pager(i + 2)))],
-    metadata: { rarityTier: rarityTier(card.rarity), altArts: altArts.map((a) => ({ code: a.code, rarity: a.rarity, setCode: a.setCode })) },
+    altTexts,
+    metadata: {
+      rarityTier: rarityTier(card.rarity),
+      altArts: altArts.map((a) => ({ code: a.code, rarity: a.rarity, setCode: a.setCode })),
+      altTexts,
+    },
+  };
+}
+
+// ---------- Reel da Carta da Semana (animação 9:16 com direcionamento para o post do feed) ----------
+
+const REEL_HASHTAGS = ["GundamCardGame", "GundamTCG", "GundamBrasil", "TCGBrasil", "GundamReels", "CardGame", "AnaheimHub"];
+
+function cardReelTemplate(card: SocialCard): GeneratedPostContent {
+  const typeLabel = CARD_TYPE_PT[card.type] || card.type;
+  const caption =
+    `🎬 CARTA DA SEMANA REVELADA: ${card.name} (${card.code})!\n\n` +
+    `⚡ ${typeLabel} · cor ${card.color} · Custo ${card.cost ?? "—"}${card.level !== undefined ? ` / Nível ${card.level}` : ""}` +
+    (card.ap !== undefined || card.hp !== undefined ? ` · ${card.ap ?? "—"} AP / ${card.hp ?? "—"} HP` : "") +
+    `\n\n📖 Quer ler o efeito completo em português${card.altArtCount ? ` e ver ${card.altArtCount === 1 ? "a arte alternativa" : `as ${card.altArtCount} artes alternativas`}` : ""}?` +
+    `\n👉 Confira o post completo da Carta da Semana que acabou de sair aqui no perfil @anaheimhub!\n\n` +
+    `💬 Essa carta entra no seu deck ou fica no fichário? Conta nos comentários!\n` +
+    `🔗 Monte seu deck e jogue no simulador: anaheimhub.com (link na bio)\n\n` +
+    REEL_HASHTAGS.map((h) => `#${h}`).join(" ");
+  return {
+    title: `Reel Carta da Semana: ${card.name} (${card.code})`,
+    hook: `Carta da Semana revelada: ${card.name} (${card.code})!`,
+    strategy: "Direcionar do Reel para o post completo no feed.",
+    cta: "Veja a análise completa e artes alternativas no post do perfil @anaheimhub!",
+    hashtags: REEL_HASHTAGS,
+    fullCaption: caption,
+  };
+}
+
+function cardReelPrompt(card: SocialCard, customTopic?: string): string {
+  return `Você escreve a legenda de um Reel do Instagram do Anaheim Hub (anaheimhub.com), portal brasileiro feito por fãs do Gundam Card Game (Bandai). O portal não é oficial nem ligado à Bandai.
+Este Reel é uma animação curta revelando a Carta da Semana (${card.name} — ${card.code}) e tem como objetivo levar quem assistiu a abrir o post completo da carta no feed do perfil (@anaheimhub).
+
+Dados da carta:
+Nome oficial (não traduza): ${card.name}
+Código: ${card.code}
+Tipo: ${card.type}
+Cor: ${card.color}
+Custo: ${card.cost ?? "—"}${card.level !== undefined ? ` · Nível: ${card.level}` : ""}
+AP / HP: ${card.ap ?? "—"} / ${card.hp ?? "—"}
+${card.rarity ? `Raridade: ${card.rarity}` : ""}
+${card.altArtCount ? `Artes alternativas no post do feed: ${card.altArtCount}` : ""}
+${customTopic ? `Pedido do editor: "${customTopic.slice(0, 300)}"` : ""}
+
+ Estrutura obrigatória:
+1. Gancho curto de 1–2 linhas anunciando a revelação da Carta da Semana (${card.name} - ${card.code}).
+2. Destaque rápido dos atributos (custo/nível e AP/HP), sem entregar toda a análise na legenda.
+3. Chamada direta para o post do feed: convide a pessoa a entrar no perfil @anaheimhub e ver o post da Carta da Semana com o efeito completo em português${card.altArtCount ? ` e as ${card.altArtCount} arte(s) alternativa(s)` : ""}.
+4. Uma pergunta rápida para gerar comentários e convite para testar no simulador do Anaheim Hub (link na bio).
+5. De 8 a 12 hashtags no final, máximo de 1.200 caracteres.
+${CAPTION_RULES}`;
+}
+
+/**
+ * Gera o rascunho do Reel animado (MP4 9:16) da Carta da Semana.
+ * Sem `cardCode` explícito, usa a carta do último post `CARD_SPOTLIGHT` para que o Reel revele exatamente a carta do post!
+ */
+export async function draftCardRevealReel(prisma: PrismaClient, input: GeneratePostInput = {}): Promise<DraftContent> {
+  let targetCode = input.cardCode?.trim();
+  if (!targetCode) {
+    const latestCardPost = await prisma.socialMediaPost
+      .findFirst({
+        where: { type: SocialPostType.CARD_SPOTLIGHT, cardCode: { not: null }, status: { not: SocialPostStatus.REJECTED } },
+        orderBy: { createdAt: "desc" },
+        select: { cardCode: true },
+      })
+      .catch(() => null);
+    targetCode = latestCardPost?.cardCode ?? undefined;
+  }
+  const picked = await pickCardForPost(prisma, targetCode);
+  const altArts = await findAltArts(prisma, picked);
+  const card: SocialCard = { ...picked, altArtCount: altArts.length };
+  const typeLabel = CARD_TYPE_PT[card.type] || card.type;
+  const reelCard: ReelCardInput = {
+    code: card.code,
+    name: card.name,
+    color: card.color,
+    typeLabel,
+    rarity: rarityTier(card.rarity) ?? card.rarity ?? "GCG",
+    cost: card.cost ?? null,
+    level: card.level ?? null,
+    ap: card.ap ?? null,
+    hp: card.hp ?? null,
+    imageUrl: card.imageUrl ?? null,
+    altArtCount: card.altArtCount ?? 0,
+  };
+  return {
+    type: SocialPostType.CARD_SPOTLIGHT,
+    content: await generateCaption(cardReelPrompt(card, input.customTopic), cardReelTemplate(card), input.apiKeyGemini),
+    cardCode: card.code,
+    fileStem: `${card.code}-reel`,
+    slides: [],
+    reelCard,
+    metadata: {
+      mediaKind: "REEL",
+      rarityTier: rarityTier(card.rarity),
+      altArtCount: altArts.length,
+    },
   };
 }
 
@@ -653,7 +806,7 @@ const CAPTION_RULES = `Regras:
 1. Português do Brasil, tom de jogador experiente falando com outros jogadores.
 2. Não traduza nomes de cartas, arquétipos, personagens nem palavras-chave do jogo.
 3. Use SOMENTE os dados acima. Não invente números, resultados, jogadores, lojas nem afirmações sobre o "meta".
-4. Nomes de jogadores e lojas exatamente como estão nos dados.
+4. Nomes de jogadores e lojas exatamente como estão nos dados (quando a loja tiver @arroba nos dados, mantenha o @arroba junto do nome da loja para mencioná-la).
 5. Não diga que o post é oficial nem fale em nome da Bandai.
 6. Legenda completa com no máximo 1.800 caracteres, de 8 a 12 hashtags no final.
 7. Não cite números iguais a zero nem copie nomes de campos dos dados (escreva em português corrido).
@@ -668,7 +821,8 @@ function tournamentTemplate(report: WeeklyReport): GeneratedPostContent {
   const count = reportTournamentCount(report);
   const lines = report.featured.map((t) => {
     const champ = championOf(t);
-    return `• ${t.store ?? t.event} (${placeOf(t)}): ${champ ? `${champ.player}${champ.archetype ? ` com ${champ.archetype.name}` : ""}` : "campeão não informado"}`;
+    const storeDisplay = formatStoreWithInstagram(t.store) || t.event;
+    return `• ${storeDisplay} (${placeOf(t)}): ${champ ? `${champ.player}${champ.archetype ? ` com ${champ.archetype.name}` : ""}` : "campeão não informado"}`;
   });
   const top = report.champions[0];
   const caption =
@@ -698,7 +852,7 @@ function tournamentPrompt(report: WeeklyReport, customTopic?: string): string {
     cidades: report.cities,
     resultados: [...report.featured, ...report.others].map((t) => ({
       evento: t.event,
-      loja: t.store,
+      loja: formatStoreWithInstagram(t.store) || t.store,
       local: placeOf(t),
       jogadores: t.players,
       top: t.top.map((p) => ({ colocacao: p.placement, jogador: p.player, arquetipo: p.archetype?.name ?? null, campanha: p.record })),
@@ -711,7 +865,7 @@ Escreva o post de segunda-feira com os torneios do Brasil da semana passada. O p
 ${JSON.stringify(data, null, 1)}
 ${customTopic ? `Pedido do editor: "${customTopic.slice(0, 300)}"` : ""}
 
-Estrutura: gancho de 1–2 linhas com o tamanho da semana; os campeões (jogador, loja/cidade e arquétipo), um por linha; o arquétipo que mais venceu, se algum venceu mais de uma vez; uma pergunta para os comentários; convite para ver os resultados completos no Anaheim Hub (link na bio).
+Estrutura: gancho de 1–2 linhas com o tamanho da semana; os campeões (jogador, loja com @arroba quando houver/cidade e arquétipo), um por linha; o arquétipo que mais venceu, se algum venceu mais de uma vez; uma pergunta para os comentários; convite para ver os resultados completos no Anaheim Hub (link na bio).
 ${CAPTION_RULES}`;
 }
 
@@ -726,12 +880,22 @@ export async function draftTournamentReport(prisma: PrismaClient, input: Generat
   }
   const total = report.featured.length + 2;
   const pager = (i: number) => `${i}/${total}`;
+  const count = reportTournamentCount(report);
+  const altTexts = [
+    `Resultados dos torneios de Gundam Card Game no Brasil (${dayMonth(report.from)} a ${dayMonth(report.to)}): ${count} torneios e ${report.totalPlayers} jogadores — Anaheim Hub`,
+    ...report.featured.map((t) => {
+      const champ = championOf(t);
+      return `Top 4 do torneio de Gundam Card Game em ${t.store ?? t.event} (${t.city ?? "Brasil"}) — campeão ${champ?.player ?? "não informado"}${champ?.archetype ? ` com ${champ.archetype.name}` : ""} — Anaheim Hub`;
+    }),
+    `Resumo semanal do metagame brasileiro de Gundam Card Game (${dayMonth(report.from)} a ${dayMonth(report.to)}): arquétipos campeões e mais jogados — Anaheim Hub`,
+  ];
   return {
     type: SocialPostType.TOURNAMENT_REPORT,
     content: await generateCaption(tournamentPrompt(report, input.customTopic), tournamentTemplate(report), input.apiKeyGemini),
     fileStem: `torneios-${range.from}`,
     slides: [tournamentCoverHtml(report, pager(1)), ...report.featured.map((t, i) => tournamentSlideHtml(t, pager(i + 2))), tournamentClosingHtml(report, pager(total))],
-    metadata: { weekStart: range.from, weekEnd: range.to, tournamentIds: [...report.featured, ...report.others].map((t) => t.id) },
+    altTexts,
+    metadata: { weekStart: range.from, weekEnd: range.to, tournamentIds: [...report.featured, ...report.others].map((t) => t.id), altTexts },
   };
 }
 
@@ -740,7 +904,8 @@ const percent = (v: number) => `${Math.round(v * 100)}%`;
 const deckPlacement = (p: number | null) => (p === 1 ? "campeã" : p ? `${p}º lugar` : "lista");
 
 function deckTemplate(deck: FeaturedDeck): GeneratedPostContent {
-  const where = [deck.entry.store ?? deck.entry.tournament, deck.entry.city, dayMonth(deck.entry.date)].filter(Boolean).join(", ");
+  const storeOrTournament = formatStoreWithInstagram(deck.entry.store) || deck.entry.tournament;
+  const where = [storeOrTournament, deck.entry.city, dayMonth(deck.entry.date)].filter(Boolean).join(", ");
   const key = deck.keyCards.slice(0, 5).map((c) => `• ${c.name} (${c.copies}x)`);
   const caption =
     `🔥 DECK EM DESTAQUE: ${deck.archetype.name}\n\n` +
@@ -763,7 +928,8 @@ function deckTemplate(deck: FeaturedDeck): GeneratedPostContent {
 function deckPrompt(deck: FeaturedDeck, customTopic?: string): string {
   // texto já pronto para a legenda: com JSON cru a IA copiava nome de campo ("taxaTop25"), data do banco
   // ("2026-10-11") e escrevia "foram 0 listas no Brasil"
-  const where = [deck.entry.tournament, deck.entry.store, deck.entry.city ? `${deck.entry.city}${deck.entry.uf ? `-${deck.entry.uf}` : ""}` : null, deck.entry.date ? dayMonth(deck.entry.date) : null].filter(Boolean).join(", ");
+  const storeMention = formatStoreWithInstagram(deck.entry.store) || deck.entry.store;
+  const where = [deck.entry.tournament, storeMention, deck.entry.city ? `${deck.entry.city}${deck.entry.uf ? `-${deck.entry.uf}` : ""}` : null, deck.entry.date ? dayMonth(deck.entry.date) : null].filter(Boolean).join(", ");
   const lines = [
     `Arquétipo: ${deck.archetype.name}`,
     deck.archetype.colors.length ? `Cores: ${deck.archetype.colors.join(" e ")}` : null,
@@ -816,12 +982,18 @@ export async function draftDeckFeature(prisma: PrismaClient, input: GeneratePost
     const card = await draftCardSpotlight(prisma, { ...input, cardCode: undefined });
     return { ...card, notice: "ℹ️ Nenhum arquétipo com listas suficientes nos últimos 30 dias: o post de hoje virou carta do dia." };
   }
+  const altTexts = [
+    `Deck em destaque de Gundam Card Game: ${deck.archetype.name} — ${percent(deck.topRate)} no top 25% em ${deck.tournaments} torneios — Anaheim Hub`,
+    `Decklist completa de ${deck.archetype.name} pilotada por ${deck.entry.player} no Gundam Card Game — Anaheim Hub`,
+    `Cartas-chave do arquétipo ${deck.archetype.name} no metagame competitivo de Gundam Card Game — Anaheim Hub`,
+  ];
   return {
     type: SocialPostType.DECK_FEATURE,
     content: await generateCaption(deckPrompt(deck, input.customTopic), deckTemplate(deck), input.apiKeyGemini),
     fileStem: `deck-${deck.archetype.slug}`.slice(0, 24),
     slides: [deckCoverHtml(deck, "1/3"), deckListHtml(deck, "2/3"), deckKeyCardsHtml(deck, "3/3")],
-    metadata: { archetypeSlug: deck.archetype.slug, archetype: deck.archetype.name, entryId: deck.entry.id, window: deck.window },
+    altTexts,
+    metadata: { archetypeSlug: deck.archetype.slug, archetype: deck.archetype.name, entryId: deck.entry.id, window: deck.window, altTexts },
   };
 }
 
@@ -903,12 +1075,15 @@ export async function draftArticlePost(prisma: PrismaClient, input: GeneratePost
   const base = input.publicAppUrl || socialPublicAppUrl();
   const link = articleUrl(article, base);
   const content = await generateCaption(articlePrompt(article, link, input.customTopic), articleTemplate(article, link), input.apiKeyGemini);
+  const kind = ARTICLE_KIND_PT[article.postType] ?? "Artigo";
+  const altTexts = [`${kind}: ${article.title} — Portal brasileiro de Gundam Card Game Anaheim Hub`];
   return {
     type: SocialPostType.ARTICLE,
     content: { ...content, fullCaption: ensureArticleLink(content.fullCaption, link) },
     fileStem: `artigo-${article.slug}`.slice(0, 24),
-    slides: [articleCoverHtml({ title: article.title, kind: ARTICLE_KIND_PT[article.postType] ?? "Artigo", coverUrl: absoluteUrl(article.coverImage, base) })],
-    metadata: { articleId: article.id, articleSlug: article.slug },
+    slides: [articleCoverHtml({ title: article.title, kind, coverUrl: absoluteUrl(article.coverImage, base) })],
+    altTexts,
+    metadata: { articleId: article.id, articleSlug: article.slug, altTexts },
   };
 }
 
@@ -930,18 +1105,33 @@ export async function queueArticleSocialDraft(prisma: PrismaClient, articleId: s
 }
 
 async function buildDraft(prisma: PrismaClient, input: GeneratePostInput): Promise<DraftContent> {
+  if (input.reel) return draftCardRevealReel(prisma, input);
   if (input.type === SocialPostType.ARTICLE) return draftArticlePost(prisma, input);
   if (input.type === SocialPostType.TOURNAMENT_REPORT) return draftTournamentReport(prisma, input);
   if (input.type === SocialPostType.DECK_FEATURE) return draftDeckFeature(prisma, input);
   return draftCardSpotlight(prisma, input);
 }
 
-/** Cria um rascunho completo no formato do tipo pedido: legenda + slides JPEG + aviso no Discord. */
+/** Cria um rascunho completo no formato do tipo pedido: legenda + slides JPEG (ou Reel MP4) + aviso no Discord. */
 export async function createSocialPostDraft(prisma: PrismaClient, input: GeneratePostInput = {}) {
   const publicAppUrl = input.publicAppUrl || socialPublicAppUrl();
   const draft = await buildDraft(prisma, input);
-  const mediaUrls = await renderDraftSlides(draft.fileStem, draft.slides);
   const { content } = draft;
+
+  let imageUrl: string | null = null;
+  let mediaUrls: string[] = [];
+  let extraMeta: Record<string, unknown> = {};
+
+  if (draft.reelCard) {
+    const rendered = await renderDraftReel(draft.fileStem, draft.reelCard);
+    imageUrl = rendered.coverUrl;
+    mediaUrls = rendered.videoUrl ? [rendered.videoUrl] : [];
+    extraMeta = { mediaKind: "REEL", videoUrl: rendered.videoUrl };
+  } else {
+    const renderedSlides = await renderDraftSlides(draft.fileStem, draft.slides);
+    imageUrl = renderedSlides[0] ?? null;
+    mediaUrls = renderedSlides.length > 1 ? renderedSlides : [];
+  }
 
   const post = await prisma.socialMediaPost.create({
     data: {
@@ -950,15 +1140,47 @@ export async function createSocialPostDraft(prisma: PrismaClient, input: Generat
       title: content.title,
       caption: normalizeInstagramCaption(content.fullCaption),
       cardCode: draft.cardCode ?? null,
-      imageUrl: mediaUrls[0] ?? null,
-      mediaUrls: mediaUrls.length > 1 ? mediaUrls : [],
+      imageUrl,
+      mediaUrls,
       scheduledFor: input.scheduledFor ?? null,
       slotKey: input.slotKey ?? null,
-      metadata: JSON.stringify({ hashtags: content.hashtags, hook: content.hook, strategy: content.strategy, cta: content.cta, ...draft.metadata }),
+      metadata: JSON.stringify({
+        hashtags: content.hashtags,
+        hook: content.hook,
+        strategy: content.strategy,
+        cta: content.cta,
+        ...draft.metadata,
+        ...extraMeta,
+      }),
     },
   });
 
   await sendDiscordSocialNotification(post, publicAppUrl, "draft", draft.notice);
+
+  // Quando a agenda gera o post da Carta da Semana (quarta-feira), já gera o Reel companheiro revelando a mesma carta
+  // agendado para 1 hora depois do post do feed, direcionando os espectadores para o post publicado.
+  if (
+    !input.reel &&
+    draft.type === SocialPostType.CARD_SPOTLIGHT &&
+    draft.cardCode &&
+    input.slotKey &&
+    !input.slotKey.endsWith("-reel") &&
+    process.env.SOCIAL_CARD_REEL_COMPANION !== "false"
+  ) {
+    const reelSlotKey = `${input.slotKey}-reel`;
+    const reelScheduledFor = input.scheduledFor ? new Date(input.scheduledFor.getTime() + 3600_000) : undefined;
+    void createSocialPostDraft(prisma, {
+      type: SocialPostType.CARD_SPOTLIGHT,
+      reel: true,
+      cardCode: draft.cardCode,
+      scheduledFor: reelScheduledFor,
+      slotKey: reelSlotKey,
+      publicAppUrl,
+    }).catch((err: unknown) => {
+      console.warn("[socialPublisher] aviso ao gerar Reel companheiro da carta:", err instanceof Error ? err.message : err);
+    });
+  }
+
   return post;
 }
 
@@ -1020,6 +1242,25 @@ export function missingAdDisclosure(type: SocialPostType | string, caption: stri
   return type === SocialPostType.PRODUCT_AFFILIATE && !/#(publi|publicidade|ad)\b|link de afiliado|publicidade/i.test(caption);
 }
 
+/** Extrai a lista de textos alternativos (alt_text) salvos na metadata do post ou monta um texto padrão para SEO. */
+export function extractPostAltTexts(post: { title?: string | null; cardCode?: string | null; type?: string; metadata?: string | null }, slideCount = 1): string[] {
+  try {
+    const parsed = JSON.parse(post.metadata || "{}") as { altTexts?: unknown };
+    if (Array.isArray(parsed.altTexts)) {
+      const list = parsed.altTexts.map((a) => normalizeInstagramAltText(String(a ?? ""))).filter(Boolean);
+      if (list.length) return list;
+    }
+  } catch {
+    /* metadata antiga ou sem altTexts */
+  }
+  const base = normalizeInstagramAltText(
+    post.title
+      ? `${post.title} — Gundam Card Game Brasil no Anaheim Hub`
+      : `Post de Gundam Card Game${post.cardCode ? ` (${post.cardCode})` : ""} no Anaheim Hub`,
+  );
+  return Array.from({ length: Math.max(1, slideCount) }, (_, i) => (slideCount > 1 ? `${base} (slide ${i + 1} de ${slideCount})` : base));
+}
+
 /**
  * Publica um post aprovado no Instagram. Pega o post de forma atômica (APPROVED/FAILED → PUBLISHING) para que
  * duas chamadas ao mesmo tempo não publiquem duas vezes.
@@ -1027,7 +1268,12 @@ export function missingAdDisclosure(type: SocialPostType | string, caption: stri
 export async function publishApprovedPost(
   prisma: PrismaClient,
   postId: string,
-  deps: { publish?: typeof publishInstagramImage; publishCarousel?: typeof publishInstagramCarousel; publicAppUrl?: string } = {},
+  deps: {
+    publish?: typeof publishInstagramImage;
+    publishCarousel?: typeof publishInstagramCarousel;
+    publishReel?: typeof publishInstagramReel;
+    publicAppUrl?: string;
+  } = {},
 ) {
   const publicAppUrl = (deps.publicAppUrl || socialPublicAppUrl()).replace(/\/+$/, "");
   const claimed = await prisma.socialMediaPost.updateMany({
@@ -1038,14 +1284,36 @@ export async function publishApprovedPost(
   const post = await prisma.socialMediaPost.findUniqueOrThrow({ where: { id: postId } });
 
   try {
-    if (!post.imageUrl || !/\.jpe?g$/i.test(post.imageUrl)) throw new Error("O post não tem imagem JPEG; gere de novo para ter a arte.");
     const problems = captionProblems(post.caption);
     if (problems.length) throw new Error(problems.join(" "));
     if (missingAdDisclosure(post.type, post.caption)) throw new Error("Post de afiliado precisa estar identificado como publicidade (ex.: #publi).");
-    const result =
-      (post.mediaUrls ?? []).length > 1
-        ? await (deps.publishCarousel ?? publishInstagramCarousel)(prisma, { imageUrls: post.mediaUrls.map((url) => `${publicAppUrl}${url}`), caption: post.caption })
-        : await (deps.publish ?? publishInstagramImage)(prisma, { imageUrl: `${publicAppUrl}${post.imageUrl}`, caption: post.caption });
+
+    const reelVideo = reelVideoUrlOf(post);
+    let result;
+    if (reelVideo) {
+      const coverUrl = post.imageUrl && /\.jpe?g$/i.test(post.imageUrl) ? `${publicAppUrl}${post.imageUrl}` : undefined;
+      result = await (deps.publishReel ?? publishInstagramReel)(prisma, {
+        videoUrl: `${publicAppUrl}${reelVideo}`,
+        coverUrl,
+        caption: post.caption,
+      });
+    } else {
+      if (!post.imageUrl || !/\.jpe?g$/i.test(post.imageUrl)) throw new Error("O post não tem imagem JPEG; gere de novo para ter a arte.");
+      const isCarousel = (post.mediaUrls ?? []).length > 1;
+      const altTexts = extractPostAltTexts(post, isCarousel ? post.mediaUrls.length : 1);
+      result = isCarousel
+        ? await (deps.publishCarousel ?? publishInstagramCarousel)(prisma, {
+            imageUrls: post.mediaUrls.map((url) => `${publicAppUrl}${url}`),
+            caption: post.caption,
+            altTexts,
+          })
+        : await (deps.publish ?? publishInstagramImage)(prisma, {
+            imageUrl: `${publicAppUrl}${post.imageUrl}`,
+            caption: post.caption,
+            altText: altTexts[0],
+          });
+    }
+
     const updated = await prisma.socialMediaPost.update({
       where: { id: postId },
       data: { status: SocialPostStatus.PUBLISHED, instagramPostId: result.mediaId, instagramPermalink: result.permalink, publishedAt: new Date(), publishError: null },

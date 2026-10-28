@@ -13,6 +13,7 @@ import {
   Send,
   CalendarClock,
   ExternalLink,
+  Film,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,7 +41,7 @@ export interface SocialMediaPost {
   cardCode: string | null;
   deckId: string | null;
   imageUrl: string | null;
-  /** imagens do carrossel, na ordem (vazio = imagem única em imageUrl) */
+  /** imagens do carrossel, na ordem, ou o vídeo MP4 do Reel (vazio = imagem única em imageUrl) */
   mediaUrls?: string[];
   discordMessageId: string | null;
   instagramPostId: string | null;
@@ -63,10 +64,13 @@ const POST_TYPE_LABEL: Record<SocialMediaPost["type"], string> = {
   ARTICLE: "Artigo",
 };
 
-/** Formatos da agenda (segunda, quarta, sexta), na ordem em que aparecem no gerador. */
-const GENERATE_TYPES: { value: SocialMediaPost["type"]; label: string; hint: string }[] = [
+type GenerateFormat = SocialMediaPost["type"] | "CARD_REEL";
+
+/** Formatos da agenda (segunda, quarta, sexta) + Reel da carta, na ordem em que aparecem no gerador. */
+const GENERATE_TYPES: { value: GenerateFormat; label: string; hint: string }[] = [
   { value: "TOURNAMENT_REPORT", label: "Torneios da semana", hint: "Carrossel com os torneios do Brasil da semana passada (segunda)." },
   { value: "CARD_SPOTLIGHT", label: "Carta do dia", hint: "Rodízio LR → R → U → C; artes alternativas entram no carrossel (quarta)." },
+  { value: "CARD_REEL", label: "Reel da carta", hint: "Animação MP4 9:16 revelando a Carta da Semana e direcionando para o post completo do feed." },
   { value: "DECK_FEATURE", label: "Deck em destaque", hint: "Arquétipo de melhor desempenho nos últimos 30 dias, com a lista (sexta)." },
   { value: "ARTICLE", label: "Artigo", hint: "Capa do artigo e um resumo do texto. Sai sozinho ao publicar um artigo; aqui dá para gerar de novo." },
 ];
@@ -78,7 +82,11 @@ type GenerationState = { running: boolean; postId: string | null; error: string 
 const GENERATION_POLL_MS = 5000;
 const GENERATION_WATCH_MS = 8 * 60_000;
 
-const slidesOf = (post: SocialMediaPost) => (post.mediaUrls?.length ? post.mediaUrls : post.imageUrl ? [post.imageUrl] : []);
+const reelUrlOf = (post: SocialMediaPost) => (post.mediaUrls ?? []).find((u) => /\.mp4$/i.test(u)) || null;
+const slidesOf = (post: SocialMediaPost) => {
+  if (reelUrlOf(post)) return post.imageUrl ? [post.imageUrl] : [];
+  return post.mediaUrls?.length ? post.mediaUrls : post.imageUrl ? [post.imageUrl] : [];
+};
 
 interface SocialStatus {
   gemini: boolean;
@@ -114,7 +122,7 @@ export function AdminSocialTab() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [cardCodeInput, setCardCodeInput] = useState("");
-  const [postTypeInput, setPostTypeInput] = useState<SocialMediaPost["type"]>("CARD_SPOTLIGHT");
+  const [postTypeInput, setPostTypeInput] = useState<GenerateFormat>("CARD_SPOTLIGHT");
   const [articles, setArticles] = useState<PublishedArticle[] | null>(null);
   const [articleIdInput, setArticleIdInput] = useState("");
   const [slideIndex, setSlideIndex] = useState(0);
@@ -215,16 +223,19 @@ export function AdminSocialTab() {
   const handleGenerate = async () => {
     try {
       setGenerating(true);
+      const isReel = postTypeInput === "CARD_REEL";
+      const isCard = postTypeInput === "CARD_SPOTLIGHT" || isReel;
       await apiFetch<GenerationState>("/admin/social/generate", {
         method: "POST",
         body: JSON.stringify({
-          cardCode: postTypeInput === "CARD_SPOTLIGHT" ? cardCodeInput.trim() || undefined : undefined,
+          cardCode: isCard ? cardCodeInput.trim() || undefined : undefined,
           customTopic: customTopicInput.trim() || undefined,
-          type: postTypeInput,
+          type: isReel ? "CARD_SPOTLIGHT" : postTypeInput,
+          reel: isReel,
           articleId: postTypeInput === "ARTICLE" ? articleIdInput || undefined : undefined,
         }),
       });
-      toast.info("Gerando o texto e as imagens. O rascunho aparece aqui e no Discord em 1 a 3 minutos.");
+      toast.info(isReel ? "Gerando a animação MP4 do Reel e a legenda. Aparece aqui e no Discord em 1 a 3 minutos." : "Gerando o texto e as imagens. O rascunho aparece aqui e no Discord em 1 a 3 minutos.");
       setCardCodeInput("");
       setCustomTopicInput("");
     } catch (err: any) {
@@ -235,6 +246,28 @@ export function AdminSocialTab() {
       }
       setGenerating(false);
       toast.error(err?.message || "Falha ao gerar post com IA.");
+    }
+  };
+
+  const handleGenerateReelForCard = async (cardCode: string) => {
+    try {
+      setGenerating(true);
+      await apiFetch<GenerationState>("/admin/social/generate", {
+        method: "POST",
+        body: JSON.stringify({
+          cardCode,
+          type: "CARD_SPOTLIGHT",
+          reel: true,
+        }),
+      });
+      toast.info(`Gerando o Reel de revelação para ${cardCode}…`);
+    } catch (err: any) {
+      if (err instanceof ApiError && err.status === 409) {
+        toast.info(err.message);
+        return;
+      }
+      setGenerating(false);
+      toast.error(err?.message || "Falha ao gerar o Reel da carta.");
     }
   };
 
@@ -359,7 +392,7 @@ export function AdminSocialTab() {
                   Agente IA de Automação Social (Instagram / Discord)
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Gere rascunhos com arte 1080x1350 automática, legenda técnica e notificação instantânea no Discord
+                  Gere rascunhos com arte 1080x1350, Reels 9:16 animados, alt_text de SEO e notificação no Discord
                 </p>
               </div>
             </div>
@@ -390,19 +423,21 @@ export function AdminSocialTab() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              {postTypeInput === "CARD_SPOTLIGHT" && (
+              {(postTypeInput === "CARD_SPOTLIGHT" || postTypeInput === "CARD_REEL") && (
               <div>
                 <label className="text-xs uppercase font-mono text-slate-300 block mb-1">
                   Código da Carta (Opcional)
                 </label>
                 <Input
-                  placeholder="Ex: ST01-001 (vazio para carta aleatória)"
+                  placeholder="Ex: ST01-001 (vazio para carta da semana / sorteio)"
                   value={cardCodeInput}
                   onChange={(e) => setCardCodeInput(e.target.value.toUpperCase())}
                   className="rounded-none font-mono text-sm bg-slate-950/60"
                 />
                 <span className="text-[11px] text-slate-500 mt-1 block">
-                  Se vazio, o agente sorteia uma carta da raridade da vez (impressão principal, com imagem) que não saiu nos últimos 60 posts.
+                  {postTypeInput === "CARD_REEL"
+                    ? "Se vazio, usa a carta do último post Carta do Dia para revelar no Reel e direcionar ao post."
+                    : "Se vazio, o agente sorteia uma carta da raridade da vez (impressão principal, com imagem) que não saiu nos últimos 60 posts."}
                 </span>
               </div>
               )}
@@ -453,7 +488,7 @@ export function AdminSocialTab() {
             <div className="flex items-center justify-between pt-2">
               <div className="flex items-center gap-2 text-xs text-slate-400">
                 <span className="inline-block size-2 rounded-full bg-emerald-400" />
-                Legenda: {integrations?.gemini ? "Gemini" : "modelo fixo (sem GEMINI_API_KEY)"} · Arte: {integrations?.renderer ? "JPEG 1080x1350" : "navegador não instalado no servidor"}
+                Legenda: {integrations?.gemini ? "Gemini" : "modelo fixo (sem GEMINI_API_KEY)"} · Arte: {integrations?.renderer ? "JPEG 1080x1350 & Reel MP4" : "navegador não instalado no servidor"}
               </div>
               <Button
                 onClick={handleGenerate}
@@ -559,6 +594,7 @@ export function AdminSocialTab() {
             ) : (
               posts.map((post) => {
                 const isSelected = selectedPost?.id === post.id;
+                const isReel = Boolean(reelUrlOf(post));
                 return (
                   <div
                     key={post.id}
@@ -588,9 +624,9 @@ export function AdminSocialTab() {
                     <div className="flex-1 min-w-0 space-y-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-mono text-[11px] font-bold text-sky-400 truncate">
-                          {POST_TYPE_LABEL[post.type] ?? post.type}
+                          {isReel ? "Reel" : POST_TYPE_LABEL[post.type] ?? post.type}
                           {post.cardCode ? ` · ${post.cardCode}` : ""}
-                          {(post.mediaUrls?.length ?? 0) > 1 ? ` · ${post.mediaUrls?.length} imagens` : ""}
+                          {isReel ? " · MP4" : (post.mediaUrls?.length ?? 0) > 1 ? ` · ${post.mediaUrls?.length} imagens` : ""}
                         </span>
                         {getStatusBadge(post.status)}
                       </div>
@@ -630,6 +666,18 @@ export function AdminSocialTab() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {selectedPost.type === "CARD_SPOTLIGHT" && selectedPost.cardCode && !reelUrlOf(selectedPost) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={generating}
+                        onClick={() => handleGenerateReelForCard(selectedPost.cardCode!)}
+                        className="rounded-none border-sky-500/40 text-sky-300 hover:bg-sky-500/10 text-xs"
+                      >
+                        <Film className="size-3.5 mr-1" />
+                        Gerar Reel desta carta
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
@@ -643,9 +691,41 @@ export function AdminSocialTab() {
                 </div>
 
                 <div className="grid md:grid-cols-12 gap-5">
-                  {/* Prévia Visual da Imagem */}
+                  {/* Prévia Visual da Imagem ou Reel */}
                   <div className="md:col-span-5 space-y-2">
                     {(() => {
+                      const reelVideo = reelUrlOf(selectedPost);
+                      if (reelVideo) {
+                        return (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs uppercase font-mono text-sky-300 flex items-center gap-1.5">
+                                <Film className="size-3.5" /> Reel 1080x1920 (MP4)
+                              </span>
+                              <a
+                                href={reelVideo}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[11px] font-mono text-slate-400 hover:text-white underline"
+                              >
+                                Abrir MP4
+                              </a>
+                            </div>
+                            <div className="border border-white/15 bg-slate-950 aspect-[9/16] relative overflow-hidden flex items-center justify-center">
+                              <video
+                                key={reelVideo}
+                                src={reelVideo}
+                                poster={selectedPost.imageUrl || undefined}
+                                controls
+                                playsInline
+                                loop
+                                className="size-full object-contain"
+                              />
+                            </div>
+                          </>
+                        );
+                      }
+
                       const slides = slidesOf(selectedPost);
                       const current = slides[Math.min(slideIndex, slides.length - 1)];
                       return (

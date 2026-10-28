@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { CardDef, CardInstance, GameState } from "@/modules/simulator/engine/types";
 import { BattleSlot } from "./BattleSlot";
 
@@ -70,6 +70,37 @@ describe("BattleSlot", () => {
     // com state: 3 + 1 (During Pair, seu turno)
     rerender(<BattleSlot unit={gundam} pilot={null} art={{}} state={state} />);
     expect(screen.getByLabelText("AP 4")).toBeInTheDocument();
+  });
+
+  it("efeitos-na-mesa: AP acima do impresso fica azul, abaixo fica vermelho, e conta até o valor novo", () => {
+    vi.useFakeTimers();
+    try {
+      const gundam = unit({ ap: 3, hp: 4 });
+      const { rerender } = render(<BattleSlot unit={gundam} pilot={null} art={{}} />);
+      expect(screen.getByLabelText("AP 3")).not.toHaveAttribute("data-shift");
+      const buffed = { ...gundam, statModifiers: [{ stat: "ap" as const, amount: 2, duration: "endOfTurn" as const, appliedOnTurn: 1 }] };
+      rerender(<BattleSlot unit={buffed} pilot={null} art={{}} />);
+      const badge = screen.getByLabelText("AP 5");
+      expect(badge).toHaveAttribute("data-shift", "up");
+      // ainda contando a partir do 3
+      expect(badge).toHaveTextContent("3");
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(screen.getByLabelText("AP 5")).toHaveTextContent("5");
+      const debuffed = { ...gundam, statModifiers: [{ stat: "hp" as const, amount: -1, duration: "endOfTurn" as const, appliedOnTurn: 1 }] };
+      rerender(<BattleSlot unit={debuffed} pilot={null} art={{}} />);
+      expect(screen.getByLabelText("HP 3")).toHaveAttribute("data-shift", "down");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("efeitos-na-mesa: selo com o número de efeitos do turno na carta", () => {
+    const { rerender } = render(<BattleSlot unit={unit()} pilot={null} art={{}} />);
+    expect(screen.queryByTestId("effect-count")).toBeNull();
+    rerender(<BattleSlot unit={unit()} pilot={null} art={{}} effectCount={2} />);
+    expect(screen.getByTestId("effect-count")).toHaveTextContent("2");
   });
 
   it("dano acumulado: HP restante + indicador -N", () => {

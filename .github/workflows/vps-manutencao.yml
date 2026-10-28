@@ -506,7 +506,8 @@ jobs:
               for v in GEMINI_API_KEY DISCORD_WEBHOOK_URL INSTAGRAM_USER_ID INSTAGRAM_ACCESS_TOKEN SOCIAL_SCHEDULER_ENABLED SOCIAL_CHROMIUM_PATH; do
                 echo "$v: $(sim_nao "$(grep -E "^${v}=.+" "$APP/.env" 2>/dev/null | head -1)")"
               done
-              secao "navegador do Playwright"
+              secao "navegador do Playwright e ffmpeg (Reels MP4)"
+              command -v ffmpeg >/dev/null && echo "ffmpeg: sim" || echo "ffmpeg: não"
               cd "$APP" && node -e 'import("playwright").then(({chromium})=>{const fs=require("fs");console.log("instalado:", fs.existsSync(chromium.executablePath())?"sim":"não")}).catch(()=>console.log("pacote playwright: não"))'
               secao "pasta de imagens dos posts"
               du -sh "$APP/public/uploads/social" 2>/dev/null || echo "ainda não existe"
@@ -524,8 +525,9 @@ jobs:
             }
 
             social_navegador() {
-              secao "instalando o Chromium do Playwright (só para gerar a arte dos posts)"
+              secao "instalando o Chromium do Playwright e o ffmpeg (arte dos posts e Reels MP4)"
               df -h / | tail -1
+              command -v ffmpeg >/dev/null || DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ffmpeg >/dev/null || true
               cd "$APP"
               if ! pnpm exec playwright install --with-deps chromium >/tmp/pw-install.log 2>&1; then
                 echo "instalação com dependências do sistema falhou; tentando só o navegador"

@@ -64,6 +64,9 @@ import {
   seatFor,
   setAutoPass,
   setBotTurnSink,
+  sceneWaitMsFor,
+  setScenePace,
+  setScenePacingEnabled,
   setBugReportSink,
   setMatchPersistence,
   setMatchLogSink,
@@ -94,7 +97,8 @@ import {
   UserDeckSimulatorError,
 } from "../src/modules/simulator/content/userDeckBuilder.ts";
 import { isValidatedDeck, VALIDATED_DECKS } from "../src/modules/simulator/content/validatedDecks.ts";
-import { driveBotTurn, humanizedThinkDelay } from "../services/sim-bot/driveBotTurn.mjs";
+import { driveBotTurn, sceneAwareThinkDelay } from "../services/sim-bot/driveBotTurn.mjs";
+import { isScenePace } from "../src/modules/simulator/scene/sceneTiming.ts";
 import { ZERO_COUNTER_MATCHUPS } from "../src/modules/simulator/fixtures/zeroCounterMatchups.ts";
 import {
   buildGithubDispatchRequest,
@@ -260,6 +264,10 @@ setBugReportSink(async (draft) => {
 //    no background após um pequeno delay (450ms) que simula o tempo de raciocínio da IA.
 const activeBotTurns = new Set<string>();
 
+// spec simulador-cadencia-de-mesa — o servidor conta a cena de cada jogada (o bot espera, o prazo começa depois dela).
+// `SIM_SCENE_PACING=off` no PM2 volta ao ritmo antigo sem deploy de código.
+setScenePacingEnabled(process.env.SIM_SCENE_PACING !== "off");
+
 setBotTurnSink(({ matchId, seat, level }) => {
   void (async () => {
     try {
@@ -297,8 +305,8 @@ setBotTurnSink(({ matchId, seat, level }) => {
             seat,
             level: (level as "facil" | "normal" | "dificil") || "normal",
             seed: Math.floor(Math.random() * 1_000_000),
-            // "Tempo de pensar" de 1–2s antes de cada ação — humaniza o ritmo e dá ao cliente tempo de animar.
-            beforeCommit: humanizedThinkDelay,
+            // espera a cena da jogada anterior terminar na tela e então "pensa" 1–2s antes de cada ação
+            beforeCommit: sceneAwareThinkDelay(() => sceneWaitMsFor(matchId)),
             commit: async (action: unknown) => applyAction(matchId, SIM_BOT_USER_ID, action as never).state,
           });
         }
@@ -5739,6 +5747,23 @@ app.post("/api/simulator/matches/:id/auto-pass", authRequired, async (req: Reque
   try {
     await loadMatch(String(req.params.id));
     const match = setAutoPass(String(req.params.id), req.user!.userId, value);
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json(matchViewFor(match, seat));
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+// Ritmo da cena do assento do usuário (menu "Ritmo dos efeitos") — spec simulador-cadencia-de-mesa.
+app.post("/api/simulator/matches/:id/scene-pace", authRequired, async (req: RequestWithUser, res) => {
+  const { value, speed } = (req.body ?? {}) as { value?: unknown; speed?: unknown };
+  if (!isScenePace(value)) return res.status(400).json({ error: "`value` precisa ser cinematic, normal ou classic." });
+  // velocidade de animação do menu (0,75× a 2×); fora disso é ignorada
+  const animSpeed = typeof speed === "number" && speed >= 0.5 && speed <= 3 ? speed : undefined;
+  try {
+    await loadMatch(String(req.params.id));
+    const match = setScenePace(String(req.params.id), req.user!.userId, value, animSpeed);
     const seat = seatFor(match, req.user!.userId)!;
     res.json(matchViewFor(match, seat));
   } catch (err) {

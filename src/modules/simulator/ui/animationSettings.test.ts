@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { defaultResolutionPacing, getResolutionPacing, saveResolutionPacing } from "./animationSettings";
+import { defaultResolutionPacing, effectiveAnimSpeed, getResolutionPacing, getScaledDuration, saveAnimSpeed, saveResolutionPacing } from "./animationSettings";
 
 afterEach(() => window.localStorage.clear());
 
@@ -16,6 +16,19 @@ describe("ritmo da resolução — chave de reversão", () => {
     expect(getResolutionPacing()).toBe("classic");
     saveResolutionPacing("cinematic");
     expect(getResolutionPacing()).toBe("cinematic");
+  });
+
+  it("P6: o Normal toca a cena inteira mais rápido (a mesma conta do servidor), somado à velocidade do menu", () => {
+    saveResolutionPacing("cinematic");
+    saveAnimSpeed(1);
+    expect(getScaledDuration(700)).toBe(700);
+    saveResolutionPacing("normal");
+    expect(getScaledDuration(700)).toBe(490);
+    saveAnimSpeed(2);
+    expect(effectiveAnimSpeed()).toBeCloseTo(2 / 0.7);
+    expect(document.documentElement.style.getPropertyValue("--sim-anim-speed-mult")).toBe(String(2 / 0.7));
+    saveResolutionPacing("classic");
+    expect(getScaledDuration(700)).toBe(350);
   });
 
   it("valor estranho salvo cai no padrão", () => {

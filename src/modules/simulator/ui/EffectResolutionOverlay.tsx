@@ -46,6 +46,8 @@ export interface EffectResolutionCue {
   sublabel?: string;
   x: number;
   y: number;
+  /** P4 — dano em Unit: o número vermelho sobe sobre o HP dela (sem etiqueta) */
+  hp?: boolean;
 }
 
 interface EffectResolutionOverlayProps {
@@ -125,6 +127,8 @@ export function EffectResolutionOverlay({
     const newCues: EffectResolutionCue[] = [];
     const reduced = prefersReducedMotion();
 
+    // cartas mandadas ao topo/fundo do deck (ex.: RE-GZ olha 3 e devolve): uma etiqueta só por deck, com a contagem
+    const deckMoves = new Set<string>();
     for (const ev of batch) {
       let targetKey: string | null = null;
       let type: EffectResolutionCue["type"] = "damage";
@@ -226,6 +230,19 @@ export function EffectResolutionOverlay({
           }
           break;
 
+        case "MOVE_WITHIN_DECK": {
+          const owner = ev.instanceId.split("-")[0];
+          const key = `${owner}:${ev.position}`;
+          if (deckMoves.has(key)) break;
+          deckMoves.add(key);
+          const count = batch.filter((e) => e.type === "MOVE_WITHIN_DECK" && e.position === ev.position && e.instanceId.startsWith(`${owner}-`)).length;
+          targetKey = `deckStation:${owner}`;
+          type = "draw";
+          label = ev.position === "bottom" ? tr(`${count} ao fundo do deck`, `${count} to the bottom of the deck`) : tr(`${count} ao topo do deck`, `${count} to the top of the deck`);
+          sublabel = "DECK";
+          break;
+        }
+
         case "DRAW_CARD":
           targetKey = playerAreaKey(ev.player);
           type = "draw";
@@ -264,6 +281,40 @@ export function EffectResolutionOverlay({
           sublabel = "SPAWN";
           break;
 
+        // spec simulador-efeitos-na-mesa — efeitos sem número também aparecem no alvo
+        case "GRANT_ATTACK_TARGET_RELAX":
+          targetKey = ev.instanceId;
+          type = "keyword";
+          label = tr("Alvo Ativo", "Active Target");
+          sublabel = tr("NESTE TURNO", "THIS TURN");
+          break;
+
+        case "PREVENT_BEING_ATTACK_TARGET":
+          targetKey = ev.instanceId;
+          type = "lock";
+          label = tr("Sem Alvo de Ataque", "Can't Be Attacked");
+          sublabel = tr("NESTE TURNO", "THIS TURN");
+          break;
+
+        case "SET_UNIT_DAMAGE_PROTECTION":
+        case "GRANT_BATTLE_DAMAGE_IMMUNITY_UNTIL_TURN":
+          targetKey = ev.instanceId;
+          type = "shield";
+          label = tr("Protegida", "Protected");
+          sublabel = tr("DANO DE BATALHA", "BATTLE DAMAGE");
+          break;
+
+        case "GRANT_DAMAGE_MODIFIER":
+          targetKey = ev.instanceId;
+          type = "shield";
+          label = ev.modifier.immune
+            ? tr("Imune a Dano", "Damage Immune")
+            : (ev.modifier.amount ?? 0) < 0
+              ? tr(`${ev.modifier.amount} de Dano`, `${ev.modifier.amount} Damage`)
+              : tr(`+${ev.modifier.amount ?? 0} de Dano`, `+${ev.modifier.amount ?? 0} Damage`);
+          sublabel = ev.modifier.scope === "next" ? tr("PRÓXIMO", "NEXT") : ev.modifier.scope === "battle" ? tr("Batalha", "Battle") : tr("Turno", "Turn");
+          break;
+
         default:
           break;
       }
@@ -283,12 +334,14 @@ export function EffectResolutionOverlay({
       }
       if (!rect) continue;
 
+      // dano em Unit: o número sai do canto do HP (rodapé direito da carta)
+      const hp = ev.type === "DAMAGE_UNIT";
       // Adiciona leve variação de dispersão caso múltiplos efeitos caiam na mesma coordenada
-      const jitterX = (Math.random() - 0.5) * 16;
-      const jitterY = (Math.random() - 0.5) * 12;
+      const jitterX = hp ? 0 : (Math.random() - 0.5) * 16;
+      const jitterY = hp ? 0 : (Math.random() - 0.5) * 12;
 
-      const x = rect.left + rect.width / 2 + jitterX;
-      const y = rect.top + rect.height * 0.4 + jitterY;
+      const x = hp ? rect.right - rect.width * 0.2 : rect.left + rect.width / 2 + jitterX;
+      const y = hp ? rect.bottom - rect.height * 0.14 : rect.top + rect.height * 0.4 + jitterY;
 
       newCues.push({
         id: `cue-${++cueCounter}`,
@@ -297,6 +350,7 @@ export function EffectResolutionOverlay({
         sublabel,
         x,
         y,
+        hp,
       });
     }
 
@@ -396,6 +450,21 @@ export function EffectResolutionOverlay({
             toneClasses = "border-sky-400/70 bg-slate-950/90 text-sky-200 shadow-[0_0_10px_rgba(56,189,248,0.6)]";
             Icon = Layers;
             break;
+        }
+
+        if (cue.hp) {
+          return (
+            <div
+              key={cue.id}
+              data-testid="damage-float"
+              style={{ position: "absolute", left: cue.x, top: cue.y, transform: "translate(-50%, -50%)" }}
+              className="animate-out fade-out slide-out-to-top-10 duration-700 fill-mode-forwards"
+            >
+              <span className="font-mono text-[clamp(1.25rem,2.6vw,2.25rem)] font-black leading-none text-rose-500 [text-shadow:0_2px_0_#000,0_0_12px_rgba(244,63,94,0.9)]">
+                {cue.label}
+              </span>
+            </div>
+          );
         }
 
         return (

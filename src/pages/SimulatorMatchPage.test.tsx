@@ -541,6 +541,20 @@ describe("SimulatorMatchPage — Fases de Turno e Sincronização de Draw e Recu
     expect(staged.viewDraw.view.phase).toBe("draw");
   }, 15000);
 
+  it("buildTurn1StagedViews segura o recurso do turno 1 até a fase de recurso (o EX Resource já estava na mesa)", () => {
+    const state = createView({ turnNumber: 1, activePlayer: "A", phase: "main" });
+    const ex = { instanceId: "ex", owner: "A", zone: "resourceArea", rested: false, def: { code: "TOKEN-EX-RESOURCE", isToken: true } } as unknown as CardInstance;
+    const placed = { instanceId: "r1", owner: "A", zone: "resourceArea", rested: false, def: { code: "R-001" } } as unknown as CardInstance;
+    state.players.A.resourceArea = [ex, placed];
+    state.players.A.counts.resourceArea = 2;
+    state.players.A.counts.resourceDeck = 9;
+    const staged = buildTurn1StagedViews(createMatchView(state));
+    expect(staged.viewDraw.view.players.A.resourceArea.map((c) => c.instanceId)).toEqual(["ex"]);
+    expect(staged.viewDraw.view.players.A.counts.resourceDeck).toBe(10);
+    expect(staged.viewAnnounced.view.players.A.counts.resourceArea).toBe(1);
+    expect(staged.viewMain.view.players.A.resourceArea.map((c) => c.instanceId)).toEqual(["ex", "r1"]);
+  });
+
   it("visões intermediárias da virada de turno não carregam jogadas do menu do estado final", () => {
     const menu = { active: true, passes: ["finishTurn" as const], entries: [{ kind: "activateBlocker" as const, blockerId: "u-1" }] };
     const incoming = { ...createMatchView(createView({ turnNumber: 3, activePlayer: "A", phase: "main" })), legalMenu: menu };

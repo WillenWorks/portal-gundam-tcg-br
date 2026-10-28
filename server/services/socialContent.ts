@@ -30,6 +30,70 @@ export function rarityAttemptOrder(last: RarityTier | null): RarityTier[] {
   return RARITY_ROTATION.map((_, i) => RARITY_ROTATION[(start + i) % RARITY_ROTATION.length]);
 }
 
+// ---------- arrobas (@instagram) de lojas organizadoras ----------
+
+const HANDLE_PATTERN = /^@?([A-Za-z0-9._]{1,30})$/;
+
+const normalizeStoreKey = (name: string) =>
+  name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+/**
+ * Lojas brasileiras de TCG com @arroba conhecido no Instagram. Pode ser complementado ou sobrescrito no .env por
+ * SOCIAL_STORE_HANDLES="Nome da Loja=@arroba,Outra Loja=@outra".
+ */
+export const KNOWN_STORE_INSTAGRAM_HANDLES: Record<string, string> = {
+  "taverna game house": "tavernagamehouse",
+  meruru: "merurutcg",
+  "forja hobby store": "forjahobbystore",
+  "epic game": "epicgameoficial",
+  "bazar de bagda": "bazardebagda",
+  "domain games": "domaingames",
+  "anime hunter": "animehunteroficial",
+  "mont cardshop": "montcardshop",
+  "liga tcg": "ligatcg",
+};
+
+function parseEnvStoreHandles(env: NodeJS.ProcessEnv = process.env): Record<string, string> {
+  const raw = (env.SOCIAL_STORE_HANDLES || "").trim();
+  if (!raw) return {};
+  const map: Record<string, string> = {};
+  for (const pair of raw.split(",")) {
+    const eq = pair.indexOf("=");
+    if (eq <= 0) continue;
+    const key = normalizeStoreKey(pair.slice(0, eq));
+    const match = pair.slice(eq + 1).trim().match(HANDLE_PATTERN);
+    if (key && match) map[key] = match[1].toLowerCase();
+  }
+  return map;
+}
+
+/** Devolve o `@arroba` da loja no Instagram (ex.: `"@tavernagamehouse"`), ou `null` quando não mapeada. */
+export function storeInstagramHandle(store: string | null | undefined, env: NodeJS.ProcessEnv = process.env): string | null {
+  const key = normalizeStoreKey(String(store ?? ""));
+  if (!key) return null;
+  const overrides = parseEnvStoreHandles(env);
+  const direct = overrides[key] ?? KNOWN_STORE_INSTAGRAM_HANDLES[key];
+  if (direct) return `@${direct}`;
+  for (const [k, handle] of Object.entries({ ...KNOWN_STORE_INSTAGRAM_HANDLES, ...overrides })) {
+    if (k.length >= 5 && (key.startsWith(`${k} `) || key.endsWith(` ${k}`))) return `@${handle}`;
+  }
+  return null;
+}
+
+/** Formata o nome da loja com o `@arroba` quando conhecido (ex.: `"Taverna Game House (@tavernagamehouse)"`). */
+export function formatStoreWithInstagram(store: string | null | undefined, env: NodeJS.ProcessEnv = process.env): string {
+  const clean = String(store ?? "").trim();
+  if (!clean) return "";
+  const handle = storeInstagramHandle(clean, env);
+  if (!handle || clean.toLowerCase().includes(handle.toLowerCase())) return clean;
+  return `${clean} (${handle})`;
+}
+
 // ---------- segunda: torneios do Brasil da semana ----------
 
 export const WEEKLY_REPORT_MAX_TOURNAMENTS = 8;
