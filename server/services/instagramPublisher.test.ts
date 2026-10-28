@@ -8,6 +8,7 @@ import {
   publishInstagramCarousel,
   publishInstagramImage,
   publishInstagramReel,
+  publishInstagramStory,
   readInstagramConfig,
   refreshInstagramTokenIfNeeded,
 } from "./instagramPublisher";
@@ -213,5 +214,28 @@ describe("instagramPublisher", () => {
     await expect(
       publishInstagramReel(prismaWithoutStoredToken(), { videoUrl: "https://anaheimhub.com/x.webm", caption: "x" }, { config, fetchFn: vi.fn() as any }),
     ).rejects.toThrow(/MP4/);
+  });
+
+  it("Story: cria contêiner STORIES com video_url MP4 (ou image_url JPEG), aguarda FINISHED e publica", async () => {
+    const calls: { url: string; body: string }[] = [];
+    const fetchFn = vi.fn(async (url: string, init?: RequestInit) => {
+      const body = String(init?.body ?? "");
+      calls.push({ url, body });
+      if (url.endsWith("/media")) return jsonResponse({ id: "666" });
+      if (url.includes("/666?")) return jsonResponse({ status_code: "FINISHED" });
+      if (url.endsWith("/media_publish")) return jsonResponse({ id: "888" });
+      if (url.includes("/888?")) return jsonResponse({ permalink: "https://www.instagram.com/stories/anaheimhub/888/" });
+      return jsonResponse({}, 404);
+    }) as unknown as typeof fetch;
+
+    const result = await publishInstagramStory(
+      prismaWithoutStoredToken(),
+      { videoUrl: "https://anaheimhub.com/uploads/social/social-GD01-010-story-1.mp4" },
+      { config, fetchFn, pollDelayMs: 0 },
+    );
+    expect(result).toEqual({ mediaId: "888", permalink: "https://www.instagram.com/stories/anaheimhub/888/" });
+    const createBody = decodeURIComponent(calls[0].body).replace(/\+/g, " ");
+    expect(createBody).toContain("media_type=STORIES");
+    expect(createBody).toContain("video_url=https://anaheimhub.com/uploads/social/social-GD01-010-story-1.mp4");
   });
 });

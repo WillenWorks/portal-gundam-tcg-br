@@ -9,17 +9,20 @@ import { getCardDefByCode, ALL_CARD_DEFS } from "../../src/modules/simulator/con
 import { formatSlot, previousWeekRange } from "./socialSchedule";
 import {
   articlePlainText,
+  buildCardHashtags,
   buildWeeklyReport,
   dayMonth,
   FEATURED_DECK_NO_REPEAT_DAYS,
   formatStoreWithInstagram,
   pickFeaturedDeck,
   PRIMARY_RARITY_VALUES,
+  rankTournamentCards,
   rarityAttemptOrder,
   rarityTier,
   reportTournamentCount,
   type FeaturedDeck,
   type RarityTier,
+  type TournamentCardUsage,
   type WeeklyReport,
   type WeeklyTournament,
 } from "./socialContent";
@@ -28,11 +31,13 @@ import {
   altArtSlideHtml,
   articleCoverHtml,
   buildCardRevealReelHtml,
+  buildCardStoryHtml,
   deckCoverHtml,
   deckKeyCardsHtml,
   deckListHtml,
   escapeHtml,
   renderCardRevealReel,
+  renderCardStory,
   renderSlides,
   safeImageUrl,
   slideDocument,
@@ -54,16 +59,21 @@ import {
   publishInstagramCarousel,
   publishInstagramImage,
   publishInstagramReel,
+  publishInstagramStory,
   readInstagramConfig,
 } from "./instagramPublisher";
 
-export { escapeHtml, buildCardRevealReelHtml };
+export { escapeHtml, buildCardRevealReelHtml, buildCardStoryHtml };
 
 export interface GeneratePostInput {
   cardCode?: string;
   type?: SocialPostType;
   /** gera um Reel animado (MP4 9:16) revelando a carta com direcionamento para o post do feed */
   reel?: boolean;
+  /** modo Spoiler da Semana (para cartas recém-reveladas de próximas coleções, mesmo com imagem menor) */
+  spoiler?: boolean;
+  /** se false, não gera o vídeo de Story companheiro junto do post de carta */
+  story?: boolean;
   /** artigo do site (tipo ARTICLE); sem ele, usa o último publicado */
   articleId?: string;
   customTopic?: string;
@@ -99,6 +109,12 @@ export type SocialCard = {
   cardModelId?: string;
   /** quantas artes alternativas vão no carrossel (a legenda menciona) */
   altArtCount?: number;
+  /** modo Spoiler da Semana (carta nova revelada) */
+  isSpoiler?: boolean;
+  /** endereço direto da carta no database (ex.: anaheimhub.com/cards/GD01-010) */
+  cardUrl?: string;
+  /** desempenho real da carta nas listas dos últimos torneios */
+  tournamentUsage?: TournamentCardUsage | null;
 };
 
 const CARD_TYPE_PT: Record<string, string> = {
@@ -207,29 +223,59 @@ export async function findAltArts(prisma: PrismaClient, card: SocialCard): Promi
 }
 
 /**
- * Seleciona a carta do post: a pedida, ou uma sorteada entre as impressões principais com imagem que não saíram nos
- * últimos posts. Com `tiers`, sorteia na primeira raridade da lista que tiver candidata (rodízio da carta do dia).
+ * Seleciona a carta do post: a pedida, ou uma das cartas mais usadas nos últimos torneios filtrada pela raridade da
+ * vez no rodízio (LR → R → U → C), sem repetir os últimos posts. Quando `opts.spoiler` é verdadeiro e não há código
+ * explícito, seleciona a carta mais recentemente adicionada ao banco (mesmo com imagem menor). Sem torneios na base,
+ * cai no sorteio por raridade no catálogo.
  */
 export async function pickCardForPost(
   prisma: PrismaClient,
   preferredCode?: string,
   random: () => number = Math.random,
-  opts: { tiers?: RarityTier[] } = {},
+  opts: { tiers?: RarityTier[]; spoiler?: boolean; tournamentRank?: TournamentCardUsage[] } = {},
 ): Promise<SocialCard> {
+  const attachMeta = (card: SocialCard): SocialCard => {
+    const baseCode = card.code.replace(/_[A-Za-z0-9]+$/, "").toUpperCase();
+    const usage = opts.tournamentRank?.find((u) => u.code.toUpperCase() === baseCode) ?? null;
+    return {
+      ...card,
+      ...(opts.spoiler ? { isSpoiler: true } : {}),
+      ...(usage ? { tournamentUsage: usage } : {}),
+    };
+  };
+
   if (preferredCode) {
     const code = preferredCode.trim().toUpperCase();
     if (!CARD_CODE_PATTERN.test(code)) throw new Error("Código de carta inválido.");
     const dbCard = (await prisma.card.findFirst({ where: { code, deletedAt: null }, orderBy: { isPrimaryPrint: "desc" } }).catch(() => null)) as CardRow | null;
-    if (dbCard) return fromCardRow(dbCard);
+    if (dbCard) return attachMeta(fromCardRow(dbCard));
     const def = getCardDefByCode(code);
     if (!def) throw new Error(`Carta ${code} não encontrada.`);
-    return { code, name: def.nameEn || code, color: (def.color || "blue").toLowerCase(), type: def.cardType || "UNIT", ap: def.ap, hp: def.hp, cost: def.cost, text: "" };
+    return attachMeta({ code, name: def.nameEn || code, color: (def.color || "blue").toLowerCase(), type: def.cardType || "UNIT", ap: def.ap, hp: def.hp, cost: def.cost, text: "" });
   }
 
   const recentPosts = await prisma.socialMediaPost
     .findMany({ where: { cardCode: { not: null } }, select: { cardCode: true }, orderBy: { createdAt: "desc" }, take: RECENT_POSTS_WINDOW })
     .catch(() => [] as { cardCode: string | null }[]);
   const recentCodes = recentPosts.map((p) => p.cardCode).filter((c): c is string => Boolean(c));
+  const recentSet = new Set(recentCodes.map((c) => c.toUpperCase()));
+
+  if (opts.spoiler) {
+    const spoilerCandidate = (await prisma.card
+      .findFirst({
+        where: {
+          isActive: true,
+          deletedAt: null,
+          imageUrl: { not: null },
+          NOT: [{ imageUrl: "" }],
+          cardType: { in: ["UNIT", "PILOT", "COMMAND", "COMMAND_PILOT", "BASE"] },
+          ...(recentCodes.length ? { code: { notIn: recentCodes } } : {}),
+        },
+        orderBy: [{ isPrimaryPrint: "desc" }, { createdAt: "desc" }],
+      })
+      .catch(() => null)) as CardRow | null;
+    if (spoilerCandidate) return attachMeta(fromCardRow(spoilerCandidate));
+  }
 
   const where: Prisma.CardWhereInput = {
     isActive: true,
@@ -240,6 +286,26 @@ export async function pickCardForPost(
     cardType: { in: ["UNIT", "PILOT", "COMMAND", "COMMAND_PILOT", "BASE"] },
     ...(recentCodes.length ? { code: { notIn: recentCodes } } : {}),
   };
+
+  // Prioridade: cartas que mais apareceram nos últimos torneios dentro da raridade da vez (sem repetir posts recentes)
+  const rankedPool = (opts.tournamentRank ?? []).filter((u) => !recentSet.has(u.code.toUpperCase()));
+  if (rankedPool.length > 0 && typeof prisma.card?.findMany === "function") {
+    const rankedCodes = rankedPool.map((u) => u.code);
+    const rankOrder = new Map(rankedPool.map((u, idx) => [u.code.toUpperCase(), idx]));
+    const tierAttempts: Prisma.CardWhereInput[] = opts.tiers?.length
+      ? opts.tiers.map((tier) => ({ ...where, rarity: { in: PRIMARY_RARITY_VALUES[tier] }, code: { in: rankedCodes } }))
+      : [{ ...where, code: { in: rankedCodes } }];
+
+    for (const attempt of tierAttempts) {
+      const matches = (await prisma.card.findMany({ where: attempt }).catch(() => [])) as CardRow[];
+      if (!matches.length) continue;
+      matches.sort((a, b) => (rankOrder.get(a.code.toUpperCase()) ?? 9999) - (rankOrder.get(b.code.toUpperCase()) ?? 9999));
+      const topWindow = matches.slice(0, Math.min(3, matches.length));
+      const chosen = topWindow[Math.floor(random() * topWindow.length)] ?? matches[0];
+      return attachMeta(fromCardRow(chosen));
+    }
+  }
+
   const attempts: Prisma.CardWhereInput[] = opts.tiers?.length ? opts.tiers.map((tier) => ({ ...where, rarity: { in: PRIMARY_RARITY_VALUES[tier] } })) : [where];
   for (const attempt of attempts) {
     const total = await prisma.card.count({ where: attempt }).catch(() => 0);
@@ -247,37 +313,64 @@ export async function pickCardForPost(
     const candidate = (await prisma.card
       .findFirst({ where: attempt, orderBy: { id: "asc" }, skip: Math.floor(random() * total) })
       .catch(() => null)) as CardRow | null;
-    if (candidate) return fromCardRow(candidate);
+    if (candidate) return attachMeta(fromCardRow(candidate));
   }
 
   // sem banco (ambiente local vazio): usa as definições do simulador
-  const recent = new Set(recentCodes);
   const allCodes = Object.keys(ALL_CARD_DEFS);
-  const eligible = allCodes.filter((c) => !recent.has(c));
+  const eligible = allCodes.filter((c) => !recentSet.has(c.toUpperCase()));
   const chosenCode = eligible.length ? eligible[Math.floor(random() * eligible.length)] : allCodes[0] || "ST01-001";
   const def = ALL_CARD_DEFS[chosenCode];
-  return { code: chosenCode, name: def?.nameEn || chosenCode, color: (def?.color || "blue").toLowerCase(), type: def?.cardType || "UNIT", ap: def?.ap, hp: def?.hp, cost: def?.cost, text: "" };
+  return attachMeta({ code: chosenCode, name: def?.nameEn || chosenCode, color: (def?.color || "blue").toLowerCase(), type: def?.cardType || "UNIT", ap: def?.ap, hp: def?.hp, cost: def?.cost, text: "" });
 }
 
 const DEFAULT_HASHTAGS = ["GundamCardGame", "GundamTCG", "GundamBrasil", "TCGBrasil", "CardGame", "AnaheimHub"];
 
+/** Endereço direto exato da carta no database do portal (ex.: anaheimhub.com/cards/GD01-010). */
+export const cardDatabaseUrl = (code: string, base = "https://anaheimhub.com") =>
+  `${base.replace(/^https?:\/\//, "").replace(/\/+$/, "")}/cards/${encodeURIComponent(code.trim().toUpperCase())}`;
+
+function buildCardUsageAnalysisLine(card: SocialCard): string {
+  const u = card.tournamentUsage;
+  if (card.isSpoiler) {
+    return `\n🔍 Análise de Spoiler:\nCarta revelada para a nova coleção! Pelo custo ${card.cost ?? "—"}${card.level !== undefined ? ` (nível ${card.level})` : ""} na cor ${card.color}, vale avaliar como esse efeito encaixa na curva e quais sinergias abre no formato.\n`;
+  }
+  if (u && u.decks > 0) {
+    const archText = u.archetypes.length ? ` principalmente em ${u.archetypes.join(", ")}` : "";
+    const titlesText =
+      u.wins > 0
+        ? `, incluindo ${u.wins} ${u.wins === 1 ? "lista campeã" : "listas campeãs"}`
+        : u.topDecks > 0
+          ? `, com ${u.topDecks} ${u.topDecks === 1 ? "presença" : "presenças"} no top 25%`
+          : "";
+    return `\n🎯 Como vem sendo usada nos torneios:\nDestaque competitivo recente com presença em ${u.decks} ${u.decks === 1 ? "lista" : "listas"} (${u.tournaments} ${u.tournaments === 1 ? "torneio" : "torneios"}${titlesText}), usando em média ${u.avgCopies}x por deck${archText}.\n`;
+  }
+  return `\n🎯 Como é usada na partida:\nOpção de custo ${card.cost ?? "—"}${card.level !== undefined ? ` / nível ${card.level}` : ""} na cor ${card.color} para estabilizar a curva do deck e extrair valor do seu efeito no turno certo.\n`;
+}
+
 function templateContent(card: SocialCard): GeneratedPostContent {
+  const isSpoiler = Boolean(card.isSpoiler);
+  const headerLabel = isSpoiler ? "🚨 SPOILER DA SEMANA" : "💥 CARTA DA SEMANA";
+  const titlePrefix = isSpoiler ? "Spoiler da Semana" : "Carta da Semana";
+  const link = card.cardUrl || cardDatabaseUrl(card.code);
+  const hashtags = buildCardHashtags(card, DEFAULT_HASHTAGS);
   const caption =
-    `💥 CARTA DO DIA: ${card.name} (${card.code})\n\n` +
+    `${headerLabel}: ${card.name} (${card.code})\n\n` +
     `📊 ${CARD_TYPE_PT[card.type] || card.type} · cor ${card.color}\n` +
     `• Custo: ${card.cost ?? "—"}${card.level !== undefined ? ` · Nível: ${card.level}` : ""}\n` +
     (card.ap !== undefined || card.hp !== undefined ? `• ${card.ap ?? "—"} AP / ${card.hp ?? "—"} HP\n` : "") +
     (card.text ? `\n📝 Efeito:\n${card.text}\n` : "") +
+    buildCardUsageAnalysisLine(card) +
     (card.altArtCount ? `\n🎨 Arraste para o lado: ${card.altArtCount === 1 ? "tem 1 arte alternativa" : `são ${card.altArtCount} artes alternativas`} no carrossel.\n` : "") +
-    `\n⚔️ Em que deck você colocaria essa carta? Conta aqui nos comentários!\n\n` +
-    `🔗 Monte seu deck e teste no simulador do Anaheim Hub (link na bio)\n\n` +
-    DEFAULT_HASHTAGS.map((h) => `#${h}`).join(" ");
+    `\n⚔️ ${isSpoiler ? "O que achou desse spoiler? Vai testar quando lançar?" : "Em que deck você colocaria essa carta?"} Conta aqui nos comentários!\n\n` +
+    `🔗 Veja a carta no database: ${link} (link na bio)\n\n` +
+    hashtags.map((h) => `#${h}`).join(" ");
   return {
-    title: `Carta do Dia: ${card.name} (${card.code})`,
-    hook: `Conheça ${card.name}!`,
+    title: `${titlePrefix}: ${card.name} (${card.code})`,
+    hook: isSpoiler ? `Novo spoiler revelado: ${card.name} (${card.code})!` : `Conheça ${card.name} (${card.code})!`,
     strategy: "",
-    cta: "Monte seu deck no Anaheim Hub (link na bio).",
-    hashtags: DEFAULT_HASHTAGS,
+    cta: `Veja a carta em ${link} (link na bio).`,
+    hashtags,
     fullCaption: caption,
   };
 }
@@ -304,9 +397,17 @@ function geminiSocialModels(): string[] {
 }
 
 function buildSocialPrompt(card: SocialCard, customTopic?: string): string {
+  const link = card.cardUrl || cardDatabaseUrl(card.code);
+  const u = card.tournamentUsage;
+  const usageLine =
+    u && u.decks > 0
+      ? `Uso nos últimos torneios: presente em ${u.decks} listas de ${u.tournaments} torneios (média de ${u.avgCopies} cópias por deck)${u.wins ? `, com ${u.wins} título(s)` : ""}${u.topDecks ? ` e ${u.topDecks} presença(s) no top 25%` : ""}${u.archetypes.length ? `. Arquétipos onde mais joga: ${u.archetypes.join(", ")}` : ""}.`
+      : null;
+  const cardTags = buildCardHashtags(card, DEFAULT_HASHTAGS).slice(0, 12).map((h) => `#${h}`).join(" ");
   return `Você escreve os posts do Instagram do Anaheim Hub (anaheimhub.com), um portal brasileiro feito por fãs do Gundam Card Game (Bandai). O portal não é oficial nem ligado à Bandai.
-Escreva um post sobre esta carta, usando SOMENTE os dados abaixo:
+Escreva o post de "${card.isSpoiler ? "Spoiler da Semana" : "Carta da Semana"}" sobre esta carta, usando SOMENTE os dados abaixo:
 
+Formato: ${card.isSpoiler ? "SPOILER DA SEMANA (carta nova revelada)" : "CARTA DA SEMANA (destaque competitivo)"}
 Nome oficial (não traduza): ${card.name}
 Código: ${card.code}
 Tipo: ${card.type}
@@ -315,15 +416,16 @@ Custo: ${card.cost ?? "—"}${card.level !== undefined ? ` · Nível: ${card.lev
 AP / HP: ${card.ap ?? "—"} / ${card.hp ?? "—"}
 Texto da carta: "${card.text || "sem efeito"}"
 ${card.rarity ? `Raridade: ${card.rarity}` : ""}
-${card.altArtCount ? `O post é um carrossel: depois da carta vêm ${card.altArtCount} arte(s) alternativa(s) dela. Convide a arrastar para ver e pergunte qual arte a pessoa prefere.` : ""}
+${usageLine ? `${usageLine}\n` : ""}${card.altArtCount ? `O post é um carrossel: depois da carta vêm ${card.altArtCount} arte(s) alternativa(s) dela. Convide a arrastar para ver e pergunte qual arte a pessoa prefere.\n` : ""}Link direto da carta no database: ${link}
+Hashtags obrigatórias da carta e comunidade: ${cardTags}
 ${customTopic ? `Pedido do editor: "${customTopic.slice(0, 300)}"` : ""}
 
 Regras:
 1. Português do Brasil, tom de jogador experiente falando com outros jogadores.
 2. Não traduza nomes de cartas, personagens nem palavras-chave do jogo (ex.: Blocker, Breach, Repair, First Strike).
-3. Não invente números, porcentagens, resultados de torneio nem afirmações sobre o "meta". Se não estiver nos dados acima, não afirme.
+3. Não invente números, porcentagens, resultados de torneio nem afirmações sobre o "meta". Se houver dados de uso nos torneios acima, cite-os na análise; se não estiver nos dados acima, não afirme.
 4. Não diga que o post é oficial nem fale em nome da Bandai.
-5. Estrutura: gancho de 1–2 linhas; o que a carta faz e quando jogá-la; uma pergunta para os comentários; convite para montar o deck e testar no simulador do Anaheim Hub (link na bio); de 8 a 12 hashtags no final.
+5. Estrutura: gancho de 1–2 linhas com nome e código (${card.code}); texto explicativo dos dados e efeito da carta; pequena análise de como ela é usada${card.isSpoiler ? " (potencial quando lançar)" : " nos decks/torneios"}; pergunta para os comentários; link direto da carta no database (${link}) e convite para testar no simulador do Anaheim Hub (link na bio); de 8 a 14 hashtags no final incluindo as de código e nome (${cardTags}).
 6. Legenda completa com no máximo 1.800 caracteres.
 
 Responda APENAS com JSON válido:
@@ -420,11 +522,16 @@ export function buildSocialCardHtml(card: SocialCard, pager?: string): string {
   const typeLabel = CARD_TYPE_PT[card.type] || card.type;
   const effect = card.text?.trim() || "Sem efeito.";
   const tier = rarityTier(card.rarity);
+  const badgePrefix = card.isSpoiler ? "SPOILER DA SEMANA" : "CARTA DA SEMANA";
   return slideDocument({
-    badge: `CARTA DO DIA${tier ? ` • ${tier}` : " • GCG"}`,
+    badge: `${badgePrefix}${tier ? ` • ${tier}` : " • GCG"}`,
     accent: accentColor,
     pager,
-    cta: card.altArtCount ? `Arraste para ver ${card.altArtCount === 1 ? "a arte alternativa" : `as ${card.altArtCount} artes alternativas`} →` : undefined,
+    cta: card.altArtCount
+      ? `Arraste para ver ${card.altArtCount === 1 ? "a arte alternativa" : `as ${card.altArtCount} artes alternativas`} →`
+      : card.cardUrl
+        ? `Veja a carta em ${card.cardUrl}`
+        : undefined,
     css: `
   .content { display: flex; gap: 40px; align-items: center; flex: 1; }
   .card-frame { flex: 0 0 480px; height: 672px; background: rgba(255, 255, 255, 0.03); border: 2px solid rgba(255, 255, 255, 0.15); border-radius: 16px; display: flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.15); }
@@ -491,6 +598,39 @@ function socialUploadDir(): string {
   return path.join(path.resolve(process.cwd(), process.env.LOCAL_UPLOAD_DIR || "public/uploads"), "social");
 }
 
+export type PostStoryMeta = {
+  storyVideoUrl: string | null;
+  storyEnabled: boolean;
+  storyTitle: string;
+  storyPostId: string | null;
+  storyError: string | null;
+  isSpoiler: boolean;
+  storyCard: ReelCardInput | null;
+};
+
+/** Lê os metadados do Story companheiro atrelado a um post de carta. */
+export function readPostStoryMeta(post: { cardCode?: string | null; metadata?: string | null }): PostStoryMeta {
+  try {
+    const parsed = JSON.parse(post.metadata || "{}") as Record<string, unknown>;
+    const isSpoiler = parsed.isSpoiler === true;
+    const defaultTitle = isSpoiler ? "SPOILER DA SEMANA" : "CARTA DA SEMANA";
+    const storyVideoUrl = typeof parsed.storyVideoUrl === "string" && /\.mp4$/i.test(parsed.storyVideoUrl) ? parsed.storyVideoUrl : null;
+    const storyEnabled = typeof parsed.storyEnabled === "boolean" ? parsed.storyEnabled : Boolean(storyVideoUrl);
+    const storyTitle = typeof parsed.storyTitle === "string" && parsed.storyTitle.trim() ? parsed.storyTitle.trim() : defaultTitle;
+    const storyPostId = typeof parsed.storyPostId === "string" && parsed.storyPostId ? parsed.storyPostId : null;
+    const storyError = typeof parsed.storyError === "string" && parsed.storyError ? parsed.storyError : null;
+    const storyCard = parsed.storyCard && typeof parsed.storyCard === "object" ? (parsed.storyCard as ReelCardInput) : null;
+    return { storyVideoUrl, storyEnabled, storyTitle, storyPostId, storyError, isSpoiler, storyCard };
+  } catch {
+    return { storyVideoUrl: null, storyEnabled: false, storyTitle: "CARTA DA SEMANA", storyPostId: null, storyError: null, isSpoiler: false, storyCard: null };
+  }
+}
+
+/** Devolve a URL do vídeo MP4 do Story companheiro de um post, se houver. */
+export function storyVideoUrlOf(post: { metadata?: string | null }): string | null {
+  return readPostStoryMeta(post).storyVideoUrl;
+}
+
 /** Apaga imagens e vídeos de posts que não existem mais (excluídos no painel) com mais de 1 dia. */
 export async function cleanupOrphanSocialImages(prisma: PrismaClient, now = new Date()): Promise<number> {
   const dir = socialUploadDir();
@@ -503,7 +643,11 @@ export async function cleanupOrphanSocialImages(prisma: PrismaClient, now = new 
   const candidates = names.filter((n) => /^social-[A-Za-z0-9-]+\.(?:jpg|png|mp4)$/.test(n));
   if (!candidates.length) return 0;
   const used = new Set(
-    (await prisma.socialMediaPost.findMany({ select: { imageUrl: true, mediaUrls: true } })).flatMap((p) => [p.imageUrl, ...(p.mediaUrls ?? [])]),
+    (await prisma.socialMediaPost.findMany({ select: { imageUrl: true, mediaUrls: true, metadata: true } })).flatMap((p) => [
+      p.imageUrl,
+      ...(p.mediaUrls ?? []),
+      storyVideoUrlOf(p),
+    ]),
   );
   let removed = 0;
   for (const name of candidates) {
@@ -554,6 +698,7 @@ export function buildDiscordSocialPayload(post: DiscordNoticePost, publicUrl: st
     failed: "🔴 Falhou",
   };
   const reelVideo = reelVideoUrlOf(post);
+  const storyMeta = readPostStoryMeta(post);
   const slides = reelVideo ? 0 : (post.mediaUrls?.length ?? 0);
   // embeds com a mesma url viram galeria no Discord (até 4 imagens)
   const gallery = slides > 1 ? (post.mediaUrls ?? []).slice(1, 4).map((url) => ({ url: adminLink, image: { url: `${publicUrl}${url}` } })) : [];
@@ -570,6 +715,9 @@ export function buildDiscordSocialPayload(post: DiscordNoticePost, publicUrl: st
           { name: "Status", value: status[kind], inline: false },
           ...(reelVideo ? [{ name: "Formato", value: `🎬 Reel (vídeo MP4) · [Assistir prévia](${publicUrl}${reelVideo})`, inline: false }] : []),
           ...(slides > 1 ? [{ name: "Formato", value: `🖼️ Carrossel com ${slides} imagens`, inline: false }] : []),
+          ...(!reelVideo && storyMeta.storyEnabled && storyMeta.storyVideoUrl
+            ? [{ name: "Story companheiro", value: `📱 Story 9:16 sai junto ao aprovar · [Assistir prévia](${publicUrl}${storyMeta.storyVideoUrl})`, inline: false }]
+            : []),
           { name: "Painel", value: `[Abrir no painel do admin](${adminLink})`, inline: false },
         ],
         footer: { text: "Anaheim Hub • posts com aprovação humana" },
@@ -631,8 +779,10 @@ type DraftContent = {
   altTexts?: string[];
   /** dados de renderização de Reel quando o rascunho é uma animação em vídeo MP4 */
   reelCard?: ReelCardInput;
+  /** dados de renderização do Story companheiro (9:16 MP4) que sai junto com o post de carta */
+  storyCard?: ReelCardInput;
   metadata?: Record<string, unknown>;
-  /** motivo para o aviso no Discord (ex.: semana sem torneio virou carta do dia) */
+  /** motivo para o aviso no Discord (ex.: semana sem torneio virou carta da semana) */
   notice?: string;
 };
 
@@ -672,30 +822,121 @@ async function renderDraftReel(fileStem: string, card: ReelCardInput): Promise<{
   }
 }
 
-/** Carta do dia: a pedida, ou a próxima raridade do rodízio LR → R → U → C; artes alternativas viram carrossel. */
-export async function draftCardSpotlight(prisma: PrismaClient, input: GeneratePostInput = {}): Promise<DraftContent> {
+/** Renderiza o vídeo MP4 (9:16, 5s) do Story companheiro da carta. */
+async function renderDraftStory(fileStem: string, card: ReelCardInput): Promise<string | null> {
+  const stamp = Date.now();
+  const stem = safeFileStem(fileStem);
+  const videoName = `social-${stem}-${stamp}.mp4`;
+  try {
+    const { videoOk } = await renderCardStory(card, path.join(socialUploadDir(), videoName));
+    return videoOk ? `/uploads/social/${videoName}` : null;
+  } catch (err) {
+    console.warn("[socialPublisher] Aviso ao renderizar Story Playwright:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+/**
+ * Garante que a legenda da carta contenha o link direto da carta no database (`anaheimhub.com/cards/CODIGO`)
+ * e as hashtags de busca pelo código e nome da carta (ex.: `#GD01010`, `#GD01`, `#Gundam`).
+ */
+export function ensureCardLink(caption: string, card: { code: string; name: string }, link?: string): string {
+  const cardUrl = link || cardDatabaseUrl(card.code, socialPublicAppUrl());
+  let result = caption.trimEnd();
+  if (!result.includes(cardUrl)) {
+    const line = `🔗 Página da carta no database: ${cardUrl} (link na bio)`;
+    const lines = result.split("\n");
+    let tagStart = lines.length;
+    while (tagStart > 0 && /^\s*#[\p{L}\p{N}_]+(?:\s+#[\p{L}\p{N}_]+)*\s*$/u.test(lines[tagStart - 1])) tagStart -= 1;
+    if (tagStart === lines.length) {
+      result = `${result}\n\n${line}`;
+    } else {
+      const body = lines.slice(0, tagStart).join("\n").trimEnd();
+      result = `${body}\n\n${line}\n\n${lines.slice(tagStart).join("\n")}`;
+    }
+  }
+  const codeTags = buildCardHashtags(card, []).slice(0, 3);
+  const missingTags = codeTags.filter((tag) => !new RegExp(`#${tag}\\b`, "i").test(result));
+  if (missingTags.length) {
+    result = `${result.trimEnd()} ${missingTags.map((t) => `#${t}`).join(" ")}`;
+  }
+  return result;
+}
+
+/**
+ * Carta da Semana (ou Spoiler da Semana): escolhe entre as cartas mais usadas nos últimos torneios filtradas pelo rodízio
+ * de raridade LR → R → U → C (ou da expansão mais recente quando `spoiler: true`); artes alternativas viram carrossel
+ * e já prepara o Story companheiro (9:16) para sair simultaneamente.
+ */
+export async function draftCardSpotlight(
+  prisma: PrismaClient,
+  input: GeneratePostInput = {},
+  deps: { index?: VedaIndex; now?: Date } = {},
+): Promise<DraftContent> {
+  const now = deps.now ?? input.scheduledFor ?? new Date();
+  const base = input.publicAppUrl || socialPublicAppUrl();
   const tiers = input.cardCode ? undefined : rarityAttemptOrder(await lastSpotlightTier(prisma));
-  const picked = await pickCardForPost(prisma, input.cardCode, Math.random, { tiers });
+  let tournamentRank: TournamentCardUsage[] | undefined;
+  if (deps.index || (prisma as unknown as { tournament?: unknown }).tournament) {
+    const ix = deps.index ?? (await (await import("../vedaService.ts")).getVedaIndex(prisma).catch(() => null));
+    if (ix) tournamentRank = rankTournamentCards(ix, now);
+  }
+  const picked = await pickCardForPost(prisma, input.cardCode, Math.random, {
+    tiers,
+    spoiler: input.spoiler,
+    tournamentRank,
+  });
   const altArts = await findAltArts(prisma, picked);
-  const card: SocialCard = { ...picked, altArtCount: altArts.length };
+  const cardUrl = cardDatabaseUrl(picked.code, base);
+  const isSpoiler = Boolean(input.spoiler || picked.isSpoiler);
+  const card: SocialCard = { ...picked, altArtCount: altArts.length, isSpoiler, cardUrl };
   const total = altArts.length + 1;
   const pager = (i: number) => (total > 1 ? `${i}/${total}` : undefined);
   const accent = accentFor(card.color);
   const typeLabel = CARD_TYPE_PT[card.type] || card.type;
-  const mainAlt = `Carta Gundam Card Game ${card.code} ${card.name} (${typeLabel}, cor ${card.color}, custo ${card.cost ?? "—"}, ${card.ap ?? "—"} AP, ${card.hp ?? "—"} HP) — efeito em português no Anaheim Hub`;
+  const mainAlt = `${isSpoiler ? "Spoiler da Semana" : "Carta da Semana"} Gundam Card Game ${card.code} ${card.name} (${typeLabel}, cor ${card.color}, custo ${card.cost ?? "—"}, ${card.ap ?? "—"} AP, ${card.hp ?? "—"} HP) — efeito e análise em português no Anaheim Hub`;
   const altTexts = [
     mainAlt,
     ...altArts.map((art) => `Arte alternativa da carta ${art.name} (${art.code}${art.rarity ? `, raridade ${art.rarity}` : ""}) de Gundam Card Game no Anaheim Hub`),
   ];
+  const generated = await generateSocialContentWithGemini(card, input.customTopic, input.apiKeyGemini);
+  const storyTitle = isSpoiler ? "SPOILER DA SEMANA" : "CARTA DA SEMANA";
+  const storyCard: ReelCardInput | undefined =
+    input.story === false
+      ? undefined
+      : {
+          code: card.code,
+          name: card.name,
+          color: card.color,
+          typeLabel,
+          rarity: rarityTier(card.rarity) ?? card.rarity ?? "GCG",
+          cost: card.cost ?? null,
+          level: card.level ?? null,
+          ap: card.ap ?? null,
+          hp: card.hp ?? null,
+          imageUrl: card.imageUrl ?? null,
+          altArtCount: card.altArtCount ?? 0,
+          isSpoiler,
+          cardUrl,
+          storyTitle,
+        };
   return {
     type: SocialPostType.CARD_SPOTLIGHT,
-    content: await generateSocialContentWithGemini(card, input.customTopic, input.apiKeyGemini),
+    content: {
+      ...generated,
+      hashtags: buildCardHashtags(card, generated.hashtags),
+      fullCaption: ensureCardLink(generated.fullCaption, card, cardUrl),
+    },
     cardCode: card.code,
-    fileStem: card.code,
+    fileStem: isSpoiler ? `${card.code}-spoiler` : card.code,
     slides: [buildSocialCardHtml(card, pager(1)), ...altArts.map((art, i) => altArtSlideHtml(art, accent, pager(i + 2)))],
     altTexts,
+    storyCard,
     metadata: {
       rarityTier: rarityTier(card.rarity),
+      isSpoiler,
+      cardUrl,
+      tournamentUsage: card.tournamentUsage ?? null,
       altArts: altArts.map((a) => ({ code: a.code, rarity: a.rarity, setCode: a.setCode })),
       altTexts,
     },
@@ -708,28 +949,35 @@ const REEL_HASHTAGS = ["GundamCardGame", "GundamTCG", "GundamBrasil", "TCGBrasil
 
 function cardReelTemplate(card: SocialCard): GeneratedPostContent {
   const typeLabel = CARD_TYPE_PT[card.type] || card.type;
+  const headerLabel = card.isSpoiler ? "SPOILER DA SEMANA REVELADO" : "CARTA DA SEMANA REVELADA";
+  const titlePrefix = card.isSpoiler ? "Reel Spoiler da Semana" : "Reel Carta da Semana";
+  const cardUrl = card.cardUrl || cardDatabaseUrl(card.code, socialPublicAppUrl());
+  const hashtags = buildCardHashtags(card, REEL_HASHTAGS);
   const caption =
-    `🎬 CARTA DA SEMANA REVELADA: ${card.name} (${card.code})!\n\n` +
+    `🎬 ${headerLabel}: ${card.name} (${card.code})!\n\n` +
     `⚡ ${typeLabel} · cor ${card.color} · Custo ${card.cost ?? "—"}${card.level !== undefined ? ` / Nível ${card.level}` : ""}` +
     (card.ap !== undefined || card.hp !== undefined ? ` · ${card.ap ?? "—"} AP / ${card.hp ?? "—"} HP` : "") +
-    `\n\n📖 Quer ler o efeito completo em português${card.altArtCount ? ` e ver ${card.altArtCount === 1 ? "a arte alternativa" : `as ${card.altArtCount} artes alternativas`}` : ""}?` +
-    `\n👉 Confira o post completo da Carta da Semana que acabou de sair aqui no perfil @anaheimhub!\n\n` +
+    `\n\n📖 Quer ler o efeito completo em português, a análise de uso${card.altArtCount ? ` e ver ${card.altArtCount === 1 ? "a arte alternativa" : `as ${card.altArtCount} artes alternativas`}` : ""}?` +
+    `\n👉 Confira o post completo que está no perfil @anaheimhub!\n\n` +
     `💬 Essa carta entra no seu deck ou fica no fichário? Conta nos comentários!\n` +
-    `🔗 Monte seu deck e jogue no simulador: anaheimhub.com (link na bio)\n\n` +
-    REEL_HASHTAGS.map((h) => `#${h}`).join(" ");
+    `🔗 Página da carta no database: ${cardUrl} (link na bio)\n\n` +
+    hashtags.map((h) => `#${h}`).join(" ");
   return {
-    title: `Reel Carta da Semana: ${card.name} (${card.code})`,
-    hook: `Carta da Semana revelada: ${card.name} (${card.code})!`,
-    strategy: "Direcionar do Reel para o post completo no feed.",
-    cta: "Veja a análise completa e artes alternativas no post do perfil @anaheimhub!",
-    hashtags: REEL_HASHTAGS,
+    title: `${titlePrefix}: ${card.name} (${card.code})`,
+    hook: `${card.isSpoiler ? "Spoiler da Semana" : "Carta da Semana"} revelada: ${card.name} (${card.code})!`,
+    strategy: "Direcionar do Reel para o post completo no feed e para a página da carta no database.",
+    cta: `Veja a análise no perfil @anaheimhub e a carta em ${cardUrl}!`,
+    hashtags,
     fullCaption: caption,
   };
 }
 
 function cardReelPrompt(card: SocialCard, customTopic?: string): string {
+  const label = card.isSpoiler ? "Spoiler da Semana" : "Carta da Semana";
+  const cardUrl = card.cardUrl || cardDatabaseUrl(card.code, socialPublicAppUrl());
+  const codeTags = buildCardHashtags(card, []).slice(0, 3).map((h) => `#${h}`).join(", ");
   return `Você escreve a legenda de um Reel do Instagram do Anaheim Hub (anaheimhub.com), portal brasileiro feito por fãs do Gundam Card Game (Bandai). O portal não é oficial nem ligado à Bandai.
-Este Reel é uma animação curta revelando a Carta da Semana (${card.name} — ${card.code}) e tem como objetivo levar quem assistiu a abrir o post completo da carta no feed do perfil (@anaheimhub).
+Este Reel é uma animação curta revelando a ${label} (${card.name} — ${card.code}) e tem como objetivo levar quem assistiu a abrir o post completo da carta no feed do perfil (@anaheimhub) e consultar a carta no database.
 
 Dados da carta:
 Nome oficial (não traduza): ${card.name}
@@ -740,36 +988,48 @@ Custo: ${card.cost ?? "—"}${card.level !== undefined ? ` · Nível: ${card.lev
 AP / HP: ${card.ap ?? "—"} / ${card.hp ?? "—"}
 ${card.rarity ? `Raridade: ${card.rarity}` : ""}
 ${card.altArtCount ? `Artes alternativas no post do feed: ${card.altArtCount}` : ""}
+Link direto da carta no database: ${cardUrl}
 ${customTopic ? `Pedido do editor: "${customTopic.slice(0, 300)}"` : ""}
 
  Estrutura obrigatória:
-1. Gancho curto de 1–2 linhas anunciando a revelação da Carta da Semana (${card.name} - ${card.code}).
+1. Gancho curto de 1–2 linhas anunciando a revelação da ${label} (${card.name} - ${card.code}).
 2. Destaque rápido dos atributos (custo/nível e AP/HP), sem entregar toda a análise na legenda.
-3. Chamada direta para o post do feed: convide a pessoa a entrar no perfil @anaheimhub e ver o post da Carta da Semana com o efeito completo em português${card.altArtCount ? ` e as ${card.altArtCount} arte(s) alternativa(s)` : ""}.
-4. Uma pergunta rápida para gerar comentários e convite para testar no simulador do Anaheim Hub (link na bio).
-5. De 8 a 12 hashtags no final, máximo de 1.200 caracteres.
+3. Chamada direta para o post do feed: convide a pessoa a entrar no perfil @anaheimhub e ver o post da ${label} com o efeito completo em português, análise de jogo${card.altArtCount ? ` e as ${card.altArtCount} arte(s) alternativa(s)` : ""}.
+4. Link direto da carta no database: ${cardUrl} (link na bio) e uma pergunta rápida para gerar comentários.
+5. De 8 a 12 hashtags no final (incluindo obrigatoriamente ${codeTags}), máximo de 1.200 caracteres.
 ${CAPTION_RULES}`;
 }
 
 /**
- * Gera o rascunho do Reel animado (MP4 9:16) da Carta da Semana.
+ * Gera o rascunho do Reel animado (MP4 9:16) da Carta da Semana / Spoiler da Semana.
  * Sem `cardCode` explícito, usa a carta do último post `CARD_SPOTLIGHT` para que o Reel revele exatamente a carta do post!
  */
 export async function draftCardRevealReel(prisma: PrismaClient, input: GeneratePostInput = {}): Promise<DraftContent> {
+  const base = input.publicAppUrl || socialPublicAppUrl();
   let targetCode = input.cardCode?.trim();
+  let inheritedSpoiler = false;
   if (!targetCode) {
     const latestCardPost = await prisma.socialMediaPost
       .findFirst({
         where: { type: SocialPostType.CARD_SPOTLIGHT, cardCode: { not: null }, status: { not: SocialPostStatus.REJECTED } },
         orderBy: { createdAt: "desc" },
-        select: { cardCode: true },
+        select: { cardCode: true, metadata: true },
       })
       .catch(() => null);
     targetCode = latestCardPost?.cardCode ?? undefined;
+    if (latestCardPost?.metadata) {
+      try {
+        inheritedSpoiler = (JSON.parse(latestCardPost.metadata) as { isSpoiler?: unknown }).isSpoiler === true;
+      } catch {
+        /* ignora */
+      }
+    }
   }
-  const picked = await pickCardForPost(prisma, targetCode);
+  const isSpoiler = input.spoiler !== undefined ? Boolean(input.spoiler) : inheritedSpoiler;
+  const picked = await pickCardForPost(prisma, targetCode, Math.random, { spoiler: isSpoiler });
   const altArts = await findAltArts(prisma, picked);
-  const card: SocialCard = { ...picked, altArtCount: altArts.length };
+  const cardUrl = cardDatabaseUrl(picked.code, base);
+  const card: SocialCard = { ...picked, altArtCount: altArts.length, isSpoiler, cardUrl };
   const typeLabel = CARD_TYPE_PT[card.type] || card.type;
   const reelCard: ReelCardInput = {
     code: card.code,
@@ -783,16 +1043,25 @@ export async function draftCardRevealReel(prisma: PrismaClient, input: GenerateP
     hp: card.hp ?? null,
     imageUrl: card.imageUrl ?? null,
     altArtCount: card.altArtCount ?? 0,
+    isSpoiler,
+    cardUrl,
   };
+  const generated = await generateCaption(cardReelPrompt(card, input.customTopic), cardReelTemplate(card), input.apiKeyGemini);
   return {
     type: SocialPostType.CARD_SPOTLIGHT,
-    content: await generateCaption(cardReelPrompt(card, input.customTopic), cardReelTemplate(card), input.apiKeyGemini),
+    content: {
+      ...generated,
+      hashtags: buildCardHashtags(card, generated.hashtags),
+      fullCaption: ensureCardLink(generated.fullCaption, card, cardUrl),
+    },
     cardCode: card.code,
     fileStem: `${card.code}-reel`,
     slides: [],
     reelCard,
     metadata: {
       mediaKind: "REEL",
+      isSpoiler,
+      cardUrl,
       rarityTier: rarityTier(card.rarity),
       altArtCount: altArts.length,
     },
@@ -1112,7 +1381,7 @@ async function buildDraft(prisma: PrismaClient, input: GeneratePostInput): Promi
   return draftCardSpotlight(prisma, input);
 }
 
-/** Cria um rascunho completo no formato do tipo pedido: legenda + slides JPEG (ou Reel MP4) + aviso no Discord. */
+/** Cria um rascunho completo no formato do tipo pedido: legenda + slides JPEG (ou Reel MP4) + Story companheiro + aviso no Discord. */
 export async function createSocialPostDraft(prisma: PrismaClient, input: GeneratePostInput = {}) {
   const publicAppUrl = input.publicAppUrl || socialPublicAppUrl();
   const draft = await buildDraft(prisma, input);
@@ -1131,6 +1400,16 @@ export async function createSocialPostDraft(prisma: PrismaClient, input: Generat
     const renderedSlides = await renderDraftSlides(draft.fileStem, draft.slides);
     imageUrl = renderedSlides[0] ?? null;
     mediaUrls = renderedSlides.length > 1 ? renderedSlides : [];
+    if (draft.storyCard) {
+      const storyVideoUrl = await renderDraftStory(`${draft.fileStem}-story`, draft.storyCard);
+      const storyTitle = draft.storyCard.storyTitle || (draft.storyCard.isSpoiler ? "SPOILER DA SEMANA" : "CARTA DA SEMANA");
+      extraMeta = {
+        storyVideoUrl,
+        storyEnabled: Boolean(storyVideoUrl),
+        storyTitle,
+        storyCard: draft.storyCard,
+      };
+    }
   }
 
   const post = await prisma.socialMediaPost.create({
@@ -1156,32 +1435,83 @@ export async function createSocialPostDraft(prisma: PrismaClient, input: Generat
   });
 
   await sendDiscordSocialNotification(post, publicAppUrl, "draft", draft.notice);
+  return post;
+}
 
-  // Quando a agenda gera o post da Carta da Semana (quarta-feira), já gera o Reel companheiro revelando a mesma carta
-  // agendado para 1 hora depois do post do feed, direcionando os espectadores para o post publicado.
-  if (
-    !input.reel &&
-    draft.type === SocialPostType.CARD_SPOTLIGHT &&
-    draft.cardCode &&
-    input.slotKey &&
-    !input.slotKey.endsWith("-reel") &&
-    process.env.SOCIAL_CARD_REEL_COMPANION !== "false"
-  ) {
-    const reelSlotKey = `${input.slotKey}-reel`;
-    const reelScheduledFor = input.scheduledFor ? new Date(input.scheduledFor.getTime() + 3600_000) : undefined;
-    void createSocialPostDraft(prisma, {
-      type: SocialPostType.CARD_SPOTLIGHT,
-      reel: true,
-      cardCode: draft.cardCode,
-      scheduledFor: reelScheduledFor,
-      slotKey: reelSlotKey,
-      publicAppUrl,
-    }).catch((err: unknown) => {
-      console.warn("[socialPublisher] aviso ao gerar Reel companheiro da carta:", err instanceof Error ? err.message : err);
-    });
+/**
+ * Atualiza as configurações do Story companheiro de um post de carta (ligar/desligar `storyEnabled`, editar `storyTitle`
+ * ou regerar o vídeo MP4 do Story com o título atualizado).
+ */
+export async function updatePostStorySettings(
+  prisma: PrismaClient,
+  id: string,
+  opts: { storyEnabled?: boolean; storyTitle?: string; regenerate?: boolean } = {},
+) {
+  const existing = await prisma.socialMediaPost.findUnique({ where: { id } });
+  if (!existing) throw new SocialActionError("Post não encontrado.", 404);
+  if (!SOCIAL_EDITABLE.has(existing.status)) throw new SocialActionError("Post já publicado (ou publicando) não pode ser editado.", 409);
+
+  let rawMeta: Record<string, unknown>;
+  try {
+    rawMeta = JSON.parse(existing.metadata || "{}") as Record<string, unknown>;
+  } catch {
+    rawMeta = {};
   }
 
-  return post;
+  const currentStory = readPostStoryMeta(existing);
+  const nextTitle =
+    opts.storyTitle !== undefined && opts.storyTitle.trim()
+      ? opts.storyTitle.trim().slice(0, 60)
+      : currentStory.storyTitle;
+  const titleChanged = opts.storyTitle !== undefined && nextTitle !== currentStory.storyTitle;
+  const shouldRegenerate = Boolean(opts.regenerate || (titleChanged && currentStory.storyVideoUrl));
+
+  let storyVideoUrl = currentStory.storyVideoUrl;
+  let storyCard = currentStory.storyCard;
+
+  if (shouldRegenerate || (opts.storyEnabled === true && !storyVideoUrl)) {
+    const base = socialPublicAppUrl();
+    const isSpoiler = Boolean(rawMeta.isSpoiler);
+    if (!storyCard) {
+      const code = existing.cardCode || undefined;
+      const picked = await pickCardForPost(prisma, code, Math.random, { spoiler: isSpoiler });
+      const altArts = await findAltArts(prisma, picked);
+      storyCard = {
+        code: picked.code,
+        name: picked.name,
+        color: picked.color,
+        typeLabel: CARD_TYPE_PT[picked.type] || picked.type,
+        rarity: rarityTier(picked.rarity) ?? picked.rarity ?? "GCG",
+        cost: picked.cost ?? null,
+        level: picked.level ?? null,
+        ap: picked.ap ?? null,
+        hp: picked.hp ?? null,
+        imageUrl: picked.imageUrl ?? null,
+        altArtCount: altArts.length,
+        isSpoiler,
+        cardUrl: cardDatabaseUrl(picked.code, base),
+        storyTitle: nextTitle,
+      };
+    } else {
+      storyCard = { ...storyCard, storyTitle: nextTitle };
+    }
+    const rendered = await renderDraftStory(`${existing.cardCode || "carta"}-story`, storyCard);
+    if (rendered) storyVideoUrl = rendered;
+  }
+
+  const nextEnabled = opts.storyEnabled !== undefined ? opts.storyEnabled : Boolean(storyVideoUrl);
+  const nextMeta = {
+    ...rawMeta,
+    storyTitle: nextTitle,
+    storyEnabled: nextEnabled,
+    storyVideoUrl,
+    storyCard,
+  };
+
+  return prisma.socialMediaPost.update({
+    where: { id },
+    data: { metadata: JSON.stringify(nextMeta) },
+  });
 }
 
 export type SocialGenerationState = {
@@ -1264,6 +1594,7 @@ export function extractPostAltTexts(post: { title?: string | null; cardCode?: st
 /**
  * Publica um post aprovado no Instagram. Pega o post de forma atômica (APPROVED/FAILED → PUBLISHING) para que
  * duas chamadas ao mesmo tempo não publiquem duas vezes.
+ * Quando o post possui um Story companheiro habilitado (`storyEnabled` + `storyVideoUrl`), publica o Story simultaneamente!
  */
 export async function publishApprovedPost(
   prisma: PrismaClient,
@@ -1272,6 +1603,7 @@ export async function publishApprovedPost(
     publish?: typeof publishInstagramImage;
     publishCarousel?: typeof publishInstagramCarousel;
     publishReel?: typeof publishInstagramReel;
+    publishStory?: typeof publishInstagramStory;
     publicAppUrl?: string;
   } = {},
 ) {
@@ -1290,6 +1622,7 @@ export async function publishApprovedPost(
 
     const reelVideo = reelVideoUrlOf(post);
     let result;
+    let updatedMetadata = post.metadata;
     if (reelVideo) {
       const coverUrl = post.imageUrl && /\.jpe?g$/i.test(post.imageUrl) ? `${publicAppUrl}${post.imageUrl}` : undefined;
       result = await (deps.publishReel ?? publishInstagramReel)(prisma, {
@@ -1312,13 +1645,48 @@ export async function publishApprovedPost(
             caption: post.caption,
             altText: altTexts[0],
           });
+
+      // Publica o Story companheiro simultaneamente com o post do feed
+      const storyMeta = readPostStoryMeta(post);
+      if (storyMeta.storyEnabled && storyMeta.storyVideoUrl && !storyMeta.storyPostId) {
+        let rawMeta: Record<string, unknown>;
+        try {
+          rawMeta = JSON.parse(post.metadata || "{}") as Record<string, unknown>;
+        } catch {
+          rawMeta = {};
+        }
+        try {
+          const storyResult = await (deps.publishStory ?? publishInstagramStory)(prisma, {
+            videoUrl: `${publicAppUrl}${storyMeta.storyVideoUrl}`,
+          });
+          updatedMetadata = JSON.stringify({ ...rawMeta, storyPostId: storyResult.mediaId, storyError: null });
+        } catch (storyErr) {
+          const storyMsg = (storyErr instanceof Error ? storyErr.message : String(storyErr)).slice(0, 300);
+          console.warn("[socialPublisher] Post publicado, mas o Story companheiro falhou:", storyMsg);
+          updatedMetadata = JSON.stringify({ ...rawMeta, storyError: storyMsg });
+        }
+      }
     }
 
     const updated = await prisma.socialMediaPost.update({
       where: { id: postId },
-      data: { status: SocialPostStatus.PUBLISHED, instagramPostId: result.mediaId, instagramPermalink: result.permalink, publishedAt: new Date(), publishError: null },
+      data: {
+        status: SocialPostStatus.PUBLISHED,
+        instagramPostId: result.mediaId,
+        instagramPermalink: result.permalink,
+        publishedAt: new Date(),
+        publishError: null,
+        ...(updatedMetadata !== post.metadata ? { metadata: updatedMetadata } : {}),
+      },
     });
-    await sendDiscordSocialNotification(updated, publicAppUrl, "published", result.permalink ? `🔗 ${result.permalink}` : undefined);
+    const storyPublished = readPostStoryMeta(updated).storyPostId;
+    const extraLinks = [
+      result.permalink ? `🔗 ${result.permalink}` : null,
+      storyPublished ? "📱 Story publicado junto!" : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    await sendDiscordSocialNotification(updated, publicAppUrl, "published", extraLinks || undefined);
     return updated;
   } catch (err) {
     const message = (err instanceof Error ? err.message : String(err)).slice(0, 500);

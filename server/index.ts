@@ -2105,12 +2105,13 @@ app.delete("/api/taxonomies/:id", authRequired, roleRequired([UserRole.ADMIN]), 
 app.get("/api/cards/:id/relations", async (req, res) => {
   setPublicCache(res, 30, 120);
   const id = String(req.params.id);
+  const codeCandidate = id.trim().toUpperCase();
   let cardModelId: string | null;
-  const model = await prisma.cardModel.findUnique({ where: { id }, select: { id: true } });
+  const model = await prisma.cardModel.findFirst({ where: { OR: [{ id }, { code: codeCandidate }] }, select: { id: true } });
   if (model) {
     cardModelId = model.id;
   } else {
-    const print = await prisma.card.findUnique({ where: { id }, select: { cardModelId: true } });
+    const print = await prisma.card.findFirst({ where: { OR: [{ id }, { code: codeCandidate }] }, orderBy: { isPrimaryPrint: "desc" }, select: { cardModelId: true } });
     cardModelId = print?.cardModelId ?? null;
   }
   if (!cardModelId) return res.status(404).json({ error: "Carta não encontrada." });
@@ -2511,17 +2512,18 @@ function dedupeRulings<T extends { questionEn: string | null; questionPt: string
 app.get("/api/cards/:id", async (req, res) => {
   setPublicCache(res, 30, 120);
   const id = String(req.params.id);
+  const codeCandidate = id.trim().toUpperCase();
   const requestedPrintId = normalizeQueryValue(req.query.print);
 
-  let model = await prisma.cardModel.findUnique({
-    where: { id },
+  let model = await prisma.cardModel.findFirst({
+    where: { OR: [{ id }, { code: codeCandidate }] },
     include: { prints: { where: { isActive: true }, include: { set: true }, orderBy: [{ isPrimaryPrint: "desc" }, { createdAt: "asc" }] }, rulings: { where: { isActive: true } } },
   });
 
   // Compatibilidade: se o :id passado for de uma impressão específica (ex: link salvo de
-  // binder/deck, de antes desse redesenho), resolve pro CardModel dela.
+  // binder/deck, de antes desse redesenho, ou código da carta), resolve pro CardModel dela.
   if (!model) {
-    const print = await prisma.card.findUnique({ where: { id }, select: { cardModelId: true } });
+    const print = await prisma.card.findFirst({ where: { OR: [{ id }, { code: codeCandidate }] }, orderBy: { isPrimaryPrint: "desc" }, select: { cardModelId: true } });
     if (print?.cardModelId) {
       model = await prisma.cardModel.findUnique({
         where: { id: print.cardModelId },
@@ -2557,10 +2559,11 @@ const CARD_STATS_MIN_DECKS = 3;
 app.get("/api/cards/:id/stats", async (req, res) => {
   setPublicCache(res, 60, 300);
   const id = String(req.params.id);
+  const codeCandidate = id.trim().toUpperCase();
 
-  let model = await prisma.cardModel.findUnique({ where: { id }, select: { id: true } });
+  let model = await prisma.cardModel.findFirst({ where: { OR: [{ id }, { code: codeCandidate }] }, select: { id: true } });
   if (!model) {
-    const print = await prisma.card.findUnique({ where: { id }, select: { cardModelId: true } });
+    const print = await prisma.card.findFirst({ where: { OR: [{ id }, { code: codeCandidate }] }, orderBy: { isPrimaryPrint: "desc" }, select: { cardModelId: true } });
     if (print?.cardModelId) model = await prisma.cardModel.findUnique({ where: { id: print.cardModelId }, select: { id: true } });
   }
   if (!model) return res.status(404).json({ error: "Carta não encontrada." });

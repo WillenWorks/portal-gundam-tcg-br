@@ -52,12 +52,14 @@ export function registerSocialRoutes(app: Express, prisma: PrismaClient, authReq
   });
 
   app.post("/api/admin/social/generate", authRequired, adminOnly, async (req: Request, res: Response) => {
-    const { cardCode, customTopic, type, articleId, reel } = (req.body ?? {}) as {
+    const { cardCode, customTopic, type, articleId, reel, spoiler, story } = (req.body ?? {}) as {
       cardCode?: unknown;
       customTopic?: unknown;
       type?: unknown;
       articleId?: unknown;
       reel?: unknown;
+      spoiler?: unknown;
+      story?: unknown;
     };
     try {
       const { startSocialPostDraft, socialGenerationState, CARD_CODE_PATTERN } = await loadService();
@@ -65,14 +67,16 @@ export function registerSocialRoutes(app: Express, prisma: PrismaClient, authReq
       if (code && !CARD_CODE_PATTERN.test(code)) return res.status(400).json({ error: "Código de carta inválido (ex.: GD01-001)." });
       const topic = typeof customTopic === "string" ? customTopic.trim().slice(0, 300) || undefined : undefined;
       const isReel = reel === true;
-      const postType = isReel
+      const isSpoiler = spoiler === true;
+      const withStory = story === false ? false : undefined;
+      const postType = isReel || isSpoiler
         ? SocialPostType.CARD_SPOTLIGHT
         : typeof type === "string" && TYPE_VALUES.has(type)
           ? (type as SocialPostType)
           : undefined;
       const article = postType === SocialPostType.ARTICLE && typeof articleId === "string" && articleId.trim() ? articleId.trim().slice(0, 64) : undefined;
       // responde na hora: a geração segue em segundo plano e o painel acompanha por GET /generation
-      if (!startSocialPostDraft(prisma, { cardCode: code, customTopic: topic, type: postType, articleId: article, reel: isReel })) {
+      if (!startSocialPostDraft(prisma, { cardCode: code, customTopic: topic, type: postType, articleId: article, reel: isReel, spoiler: isSpoiler, story: withStory })) {
         return res.status(409).json({ error: "Já tem um post sendo gerado. Ele aparece na lista e no Discord quando terminar.", generation: socialGenerationState() });
       }
       res.status(202).json(socialGenerationState());
@@ -86,20 +90,48 @@ export function registerSocialRoutes(app: Express, prisma: PrismaClient, authReq
     res.json(socialGenerationState());
   });
 
-  // edição de título/legenda (post já publicado não muda: o Instagram não aceita editar pela API)
+  // edição de título/legenda (e configurações do Story companheiro)
   app.put("/api/admin/social/posts/:id", authRequired, adminOnly, async (req: Request, res: Response) => {
     const id = String(req.params.id);
     const edits = parseTextEdits(req.body);
     if (edits.error) return res.status(400).json({ error: edits.error });
+    const { storyEnabled, storyTitle } = (req.body ?? {}) as { storyEnabled?: unknown; storyTitle?: unknown };
     try {
       const existing = await prisma.socialMediaPost.findUnique({ where: { id } });
       if (!existing) return res.status(404).json({ error: "Post não encontrado." });
-      const { SOCIAL_EDITABLE } = await loadService();
+      const { SOCIAL_EDITABLE, updatePostStorySettings } = await loadService();
       if (!SOCIAL_EDITABLE.has(existing.status)) return res.status(409).json({ error: "Post já publicado (ou publicando) não pode ser editado." });
+      if (typeof storyEnabled === "boolean" || typeof storyTitle === "string") {
+        await updatePostStorySettings(prisma, id, {
+          storyEnabled: typeof storyEnabled === "boolean" ? storyEnabled : undefined,
+          storyTitle: typeof storyTitle === "string" ? storyTitle : undefined,
+        });
+      }
       const updated = await prisma.socialMediaPost.update({ where: { id }, data: { title: edits.title, caption: edits.caption } });
       res.json(updated);
     } catch (err) {
       res.status(400).json({ error: errorMessage(err, "Erro ao atualizar post.") });
+    }
+  });
+
+  // configurar ou regerar o vídeo MP4 do Story companheiro do post
+  app.post("/api/admin/social/posts/:id/story", authRequired, adminOnly, async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    const { storyEnabled, storyTitle, regenerate } = (req.body ?? {}) as {
+      storyEnabled?: unknown;
+      storyTitle?: unknown;
+      regenerate?: unknown;
+    };
+    try {
+      const { updatePostStorySettings } = await loadService();
+      const updated = await updatePostStorySettings(prisma, id, {
+        storyEnabled: typeof storyEnabled === "boolean" ? storyEnabled : undefined,
+        storyTitle: typeof storyTitle === "string" ? storyTitle : undefined,
+        regenerate: regenerate === true,
+      });
+      res.json(updated);
+    } catch (err) {
+      res.status(actionStatus(err, 400)).json({ error: errorMessage(err, "Erro ao atualizar o Story do post.") });
     }
   });
 
