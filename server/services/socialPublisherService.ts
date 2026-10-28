@@ -1118,8 +1118,8 @@ export async function createSocialPostDraft(prisma: PrismaClient, input: Generat
   const draft = await buildDraft(prisma, input);
   const { content } = draft;
 
-  let imageUrl: string | null = null;
-  let mediaUrls: string[] = [];
+  let imageUrl: string | null;
+  let mediaUrls: string[];
   let extraMeta: Record<string, unknown> = {};
 
   if (draft.reelCard) {
