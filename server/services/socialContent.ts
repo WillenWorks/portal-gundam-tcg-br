@@ -342,3 +342,133 @@ export function articlePlainText(markdown: string, max = ARTICLE_TEXT_MAX): stri
   const lastSpace = cut.lastIndexOf(" ");
   return `${(lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
 }
+
+// ---------- carta da semana: ranking das mais usadas nos últimos torneios + hashtags ----------
+
+export const TOURNAMENT_CARD_WINDOW_DAYS = 60;
+const ELIGIBLE_CARD_TYPES = new Set(["UNIT", "PILOT", "COMMAND", "COMMAND_PILOT", "BASE"]);
+
+export type TournamentCardUsage = {
+  code: string;
+  decks: number;
+  totalDecks: number;
+  tournaments: number;
+  wins: number;
+  topDecks: number;
+  avgCopies: number;
+  archetypes: string[];
+};
+
+/**
+ * Ranqueia as cartas mais usadas nas decklists dos últimos torneios (padrão: últimos 60 dias; se não houver listas
+ * na janela, considera todos os torneios registrados no índice). Ignora recursos e fichas.
+ */
+export function rankTournamentCards(ix: VedaIndex, now: Date = new Date(), windowDays = TOURNAMENT_CARD_WINDOW_DAYS): TournamentCardUsage[] {
+  const window = {
+    from: new Date(now.getTime() - windowDays * DAY_MS).toISOString().slice(0, 10),
+    to: now.toISOString().slice(0, 10),
+  };
+  let tournaments = filterTournaments(ix, window);
+  const hasAnyDeckInWindow = tournaments.some((t) => (ix.entriesByTournament.get(t.id) ?? []).some((e) => e.deckSnapshotId && ix.deck(e)?.length));
+  if (!hasAnyDeckInWindow) tournaments = [...ix.byId.values()];
+
+  type CardAgg = {
+    code: string;
+    decks: number;
+    copies: number;
+    tournaments: Set<string>;
+    wins: number;
+    topDecks: number;
+    archetypes: Map<string, number>;
+  };
+  const agg = new Map<string, CardAgg>();
+  let totalDecks = 0;
+
+  for (const t of tournaments) {
+    const entries = ix.entriesByTournament.get(t.id) ?? [];
+    const players = t.participantCount ?? entries.length;
+    for (const e of entries) {
+      const deck = e.deckSnapshotId ? ix.deck(e) : null;
+      if (!deck?.length) continue;
+      totalDecks += 1;
+      const isWin = e.placement === 1;
+      const isTop = isTopQuarter(e.placement, players);
+      const archName = ix.archetypeOf(e)?.name ?? null;
+
+      // Agrega por código base da carta dentro desta lista (duas artes da mesma carta contam uma presença na lista)
+      const byCodeInDeck = new Map<string, number>();
+      for (const { card, quantity } of deck) {
+        if (!ELIGIBLE_CARD_TYPES.has(card.cardType)) continue;
+        const baseCode = card.code.replace(/_[A-Za-z0-9]+$/, "").toUpperCase();
+        byCodeInDeck.set(baseCode, (byCodeInDeck.get(baseCode) ?? 0) + quantity);
+      }
+
+      for (const [code, qty] of byCodeInDeck) {
+        const cur = agg.get(code) ?? { code, decks: 0, copies: 0, tournaments: new Set<string>(), wins: 0, topDecks: 0, archetypes: new Map<string, number>() };
+        cur.decks += 1;
+        cur.copies += qty;
+        cur.tournaments.add(t.id);
+        if (isWin) cur.wins += 1;
+        if (isTop) cur.topDecks += 1;
+        if (archName) cur.archetypes.set(archName, (cur.archetypes.get(archName) ?? 0) + 1);
+        agg.set(code, cur);
+      }
+    }
+  }
+
+  return [...agg.values()]
+    .sort((a, b) => b.decks - a.decks || b.topDecks - a.topDecks || b.wins - a.wins || a.code.localeCompare(b.code))
+    .map((item) => ({
+      code: item.code,
+      decks: item.decks,
+      totalDecks,
+      tournaments: item.tournaments.size,
+      wins: item.wins,
+      topDecks: item.topDecks,
+      avgCopies: Math.round((item.copies / item.decks) * 10) / 10,
+      archetypes: [...item.archetypes.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .slice(0, 3)
+        .map(([name]) => name),
+    }));
+}
+
+/**
+ * Gera hashtags encontráveis para uma carta: código sem hífen (#GD01010), coleção (#GD01),
+ * nome em PascalCase (#GundamExia), tags de spoiler (quando aplicável) e tags da comunidade.
+ */
+export function buildCardHashtags(card: { code: string; name: string; isSpoiler?: boolean }, baseTags: string[] = []): string[] {
+  const cleanCode = String(card.code || "")
+    .replace(/_[A-Za-z0-9]+$/, "")
+    .replace(/[^A-Za-z0-9]/g, "")
+    .toUpperCase();
+  const setMatch = String(card.code || "").toUpperCase().match(/^([A-Z]{1,4}\d{1,3})-/);
+  const setTag = setMatch ? setMatch[1] : "";
+  const nameWords = String(card.name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Za-z0-9\s]/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  const namePascal = nameWords.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join("");
+
+  const specific = [
+    cleanCode,
+    setTag,
+    namePascal.length >= 3 && namePascal.length <= 28 ? namePascal : "",
+    ...(card.isSpoiler ? ["GundamSpoiler", "SpoilerGundamTCG"] : []),
+  ].filter(Boolean);
+
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const tag of [...specific, ...baseTags]) {
+    const clean = tag.replace(/^#+/, "").trim();
+    if (!clean) continue;
+    const key = clean.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(clean);
+  }
+  return result;
+}

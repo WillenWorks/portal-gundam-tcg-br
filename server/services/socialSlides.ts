@@ -12,6 +12,7 @@ export const SLIDE_HEIGHT = 1350;
 export const REEL_WIDTH = 1080;
 export const REEL_HEIGHT = 1920;
 export const REEL_DURATION_MS = 6500;
+export const STORY_DURATION_MS = 5000;
 
 /** Paleta de cores oficial de Gundam Card Game */
 export const COLOR_HEX: Record<string, string> = {
@@ -417,6 +418,9 @@ export type ReelCardInput = {
   hp?: number | null;
   imageUrl?: string | null;
   altArtCount?: number;
+  isSpoiler?: boolean;
+  cardUrl?: string | null;
+  storyTitle?: string | null;
 };
 
 let cachedCardBackDataUri: string | null = null;
@@ -441,14 +445,18 @@ function readOfficialCardBackDataUri(): string {
 export function buildCardRevealReelHtml(card: ReelCardInput): string {
   const accent = accentFor(card.color);
   const safeImg = safeImageUrl(card.imageUrl);
+  const codeUpper = String(card.code || "").toUpperCase();
   const payload = JSON.stringify({
-    code: String(card.code || ""),
+    code: codeUpper,
     name: String(card.name || ""),
     typeLabel: String(card.typeLabel || "UNIDADE").toUpperCase(),
     rarity: String(card.rarity || "GCG").toUpperCase(),
     costText: `${card.cost ?? "—"}${card.level !== undefined && card.level !== null ? ` / Nv. ${card.level}` : ""}`,
     apHpText: `${card.ap ?? "—"} AP / ${card.hp ?? "—"} HP`,
     altArtCount: Number(card.altArtCount || 0),
+    isSpoiler: Boolean(card.isSpoiler),
+    badgeText: card.isSpoiler ? "SPOILER DA SEMANA" : "CARTA DA SEMANA",
+    cardUrl: String(card.cardUrl || (codeUpper ? `anaheimhub.com/cards/${codeUpper}` : "anaheimhub.com")),
     accent,
     imageUrl: safeImg,
     cardBackUrl: readOfficialCardBackDataUri(),
@@ -526,6 +534,8 @@ export function buildCardRevealReelHtml(card: ReelCardInput): string {
   window.__drawReelFrame = function(p) {
     const progress = Math.max(0, Math.min(1, Number(p) || 0));
     ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
 
     // 1. Fundo radial escuro + grade tática animada
     const bg = ctx.createRadialGradient(W * 0.5, H * 0.32, 80, W * 0.5, H * 0.45, H * 0.75);
@@ -549,7 +559,7 @@ export function buildCardRevealReelHtml(card: ReelCardInput): string {
     ctx.font = "900 36px 'Segoe UI', Roboto, Arial, sans-serif";
     ctx.fillText("ANAHEIM HUB", 64, 108);
 
-    roundRect(ctx, W - 410, 66, 346, 54, 8);
+    roundRect(ctx, W - 384, 66, 320, 54, 8);
     ctx.fillStyle = "rgba(56, 189, 248, 0.14)";
     ctx.fill();
     ctx.strokeStyle = CARD.accent;
@@ -558,7 +568,7 @@ export function buildCardRevealReelHtml(card: ReelCardInput): string {
     ctx.fillStyle = CARD.accent;
     ctx.font = "800 22px 'Segoe UI', Roboto, Arial, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("CARTA DA SEMANA • REEL", W - 237, 101);
+    ctx.fillText(CARD.badgeText, W - 224, 101);
     ctx.textAlign = "left";
 
     ctx.strokeStyle = "rgba(255,255,255,0.12)";
@@ -568,7 +578,13 @@ export function buildCardRevealReelHtml(card: ReelCardInput): string {
     ctx.textAlign = "center";
     ctx.fillStyle = "#94a3b8";
     ctx.font = "800 24px monospace";
-    ctx.fillText(progress < 0.26 ? "[ REVELANDO A CARTA DA SEMANA... ]" : CARD.code + " • " + CARD.typeLabel + " • " + CARD.rarity, W / 2, 208);
+    ctx.fillText(
+      progress < 0.26
+        ? (CARD.isSpoiler ? "[ REVELANDO O SPOILER DA SEMANA... ]" : "[ REVELANDO A CARTA DA SEMANA... ]")
+        : CARD.code + " • " + CARD.typeLabel + " • " + CARD.rarity,
+      W / 2,
+      208,
+    );
 
     // 4. Moldura da Carta com Verso Oficial + Giro 3D
     const cardW = 580;
@@ -724,7 +740,7 @@ export function buildCardRevealReelHtml(card: ReelCardInput): string {
 
       ctx.fillStyle = CARD.accent;
       ctx.font = "800 24px monospace";
-      ctx.fillText("Simulador & Deckbuilder: anaheimhub.com", W / 2, ctaY + 214);
+      ctx.fillText(CARD.cardUrl, W / 2, ctaY + 214);
       ctx.restore();
     }
 
@@ -812,6 +828,297 @@ export function buildCardRevealReelHtml(card: ReelCardInput): string {
 </html>`;
 }
 
+/**
+ * Documento HTML 1080x1920 (9:16) mais enxuto para o Story do Instagram:
+ * apenas o giro 3D da carta (verso oficial em HD → frente) e no centro-baixo o destaque "CARTA DA SEMANA"
+ * (ou "SPOILER DA SEMANA") com o link/chamada para ver a postagem completa, sem caixas de texto/atributos abaixo.
+ */
+export function buildCardStoryHtml(card: ReelCardInput): string {
+  const accent = accentFor(card.color);
+  const safeImg = safeImageUrl(card.imageUrl);
+  const codeUpper = String(card.code || "").toUpperCase();
+  const defaultTitle = card.isSpoiler ? "SPOILER DA SEMANA" : "CARTA DA SEMANA";
+  const payload = JSON.stringify({
+    code: codeUpper,
+    name: String(card.name || ""),
+    storyTitle: String(card.storyTitle || defaultTitle).toUpperCase(),
+    cardUrl: String(card.cardUrl || (codeUpper ? `anaheimhub.com/cards/${codeUpper}` : "anaheimhub.com")),
+    accent,
+    imageUrl: safeImg,
+    cardBackUrl: readOfficialCardBackDataUri(),
+  }).replace(/</g, "\\u003c");
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: ${REEL_WIDTH}px; height: ${REEL_HEIGHT}px; overflow: hidden; background: #020617; }
+  canvas { width: ${REEL_WIDTH}px; height: ${REEL_HEIGHT}px; display: block; }
+</style>
+</head>
+<body>
+<canvas id="reel-canvas" width="${REEL_WIDTH}" height="${REEL_HEIGHT}"></canvas>
+<script>
+  const CARD = ${payload};
+  const W = ${REEL_WIDTH};
+  const H = ${REEL_HEIGHT};
+  const DURATION_MS = ${STORY_DURATION_MS};
+  const canvas = document.getElementById("reel-canvas");
+  const ctx = canvas.getContext("2d");
+
+  let loadedImg = null;
+  let loadedBackImg = null;
+  const frontReady = new Promise((resolve) => {
+    if (!CARD.imageUrl) { resolve(null); return; }
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    const timer = setTimeout(() => resolve(null), 8000);
+    img.onload = () => { clearTimeout(timer); loadedImg = img; resolve(img); };
+    img.onerror = () => { clearTimeout(timer); resolve(null); };
+    img.src = CARD.imageUrl;
+  });
+  const backReady = new Promise((resolve) => {
+    if (!CARD.cardBackUrl) { resolve(null); return; }
+    const img = new Image();
+    const timer = setTimeout(() => resolve(null), 3000);
+    img.onload = () => { clearTimeout(timer); loadedBackImg = img; resolve(img); };
+    img.onerror = () => { clearTimeout(timer); resolve(null); };
+    img.src = CARD.cardBackUrl;
+  });
+  const imgReady = Promise.all([frontReady, backReady]);
+
+  function roundRect(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
+  window.__drawReelFrame = function(p) {
+    const progress = Math.max(0, Math.min(1, Number(p) || 0));
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+
+    // 1. Fundo radial escuro + grade tática animada
+    const bg = ctx.createRadialGradient(W * 0.5, H * 0.38, 90, W * 0.5, H * 0.5, H * 0.8);
+    bg.addColorStop(0, "#0f172a");
+    bg.addColorStop(1, "#020617");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = "rgba(56, 189, 248, 0.06)";
+    ctx.lineWidth = 1;
+    const gridOffset = (progress * 100) % 48;
+    for (let x = 0; x <= W; x += 48) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    }
+    for (let y = gridOffset; y <= H; y += 48) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+
+    // 2. Marca discreta no topo (abaixo da barra de Story do Instagram)
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#38bdf8";
+    ctx.font = "900 32px 'Segoe UI', Roboto, Arial, sans-serif";
+    ctx.fillText("ANAHEIM HUB", W / 2, 175);
+
+    // 3. Carta grande sendo virada no centro
+    const cardW = 650;
+    const cardH = 908;
+    const cardY = 230;
+    const flipAngle = progress < 0.20 ? 0 : Math.min(1, (progress - 0.20) / 0.18);
+    const scaleX = progress < 0.20 ? 1 : Math.abs(Math.cos(flipAngle * Math.PI));
+    const isRevealed = progress >= 0.29;
+    const floatY = progress > 0.38 ? Math.sin((progress - 0.38) * Math.PI * 3.5) * 10 : 0;
+
+    ctx.save();
+    ctx.translate(W / 2, cardY + cardH / 2 + floatY);
+    ctx.scale(Math.max(0.06, scaleX), 1);
+
+    ctx.shadowColor = CARD.accent;
+    ctx.shadowBlur = isRevealed ? 56 : 32;
+    roundRect(ctx, -cardW / 2, -cardH / 2, cardW, cardH, 28);
+    ctx.fillStyle = "#0b1329";
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.save();
+    roundRect(ctx, -cardW / 2, -cardH / 2, cardW, cardH, 28);
+    ctx.clip();
+
+    if (!isRevealed) {
+      if (loadedBackImg) {
+        ctx.drawImage(loadedBackImg, -cardW / 2, -cardH / 2, cardW, cardH);
+      } else {
+        ctx.fillStyle = "#1e293b";
+        ctx.fillRect(-cardW / 2, -cardH / 2, cardW, cardH);
+      }
+      const scanY = -cardH / 2 + ((progress / 0.28) % 1) * cardH;
+      const scanGrad = ctx.createLinearGradient(0, scanY - 45, 0, scanY + 45);
+      scanGrad.addColorStop(0, "rgba(56, 189, 248, 0)");
+      scanGrad.addColorStop(0.5, CARD.accent);
+      scanGrad.addColorStop(1, "rgba(56, 189, 248, 0)");
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = scanGrad;
+      ctx.fillRect(-cardW / 2, scanY - 45, cardW, 90);
+      ctx.restore();
+    } else if (loadedImg) {
+      ctx.drawImage(loadedImg, -cardW / 2, -cardH / 2, cardW, cardH);
+    } else {
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(-cardW / 2, -cardH / 2, cardW, cardH);
+      ctx.fillStyle = CARD.accent;
+      ctx.font = "900 58px monospace";
+      ctx.fillText(CARD.code, 0, -20);
+      ctx.fillStyle = "#f8fafc";
+      ctx.font = "800 36px 'Segoe UI', Roboto, Arial, sans-serif";
+      ctx.fillText(CARD.name.slice(0, 22), 0, 44);
+    }
+    ctx.restore();
+
+    roundRect(ctx, -cardW / 2, -cardH / 2, cardW, cardH, 28);
+    ctx.strokeStyle = isRevealed ? CARD.accent : "rgba(255,255,255,0.28)";
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.restore();
+
+    // Flash de energia no giro
+    if (progress >= 0.24 && progress <= 0.34) {
+      const flashAlpha = (1 - Math.abs(progress - 0.29) / 0.05) * 0.45;
+      ctx.fillStyle = "rgba(255, 255, 255, " + Math.max(0, flashAlpha).toFixed(3) + ")";
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // 4. Centro-baixo: "CARTA DA SEMANA" + link/chamada para ver a postagem
+    const bannerAlpha = progress < 0.25 ? 0.85 : Math.min(1, 0.85 + (progress - 0.25) * 0.5);
+    ctx.save();
+    ctx.globalAlpha = bannerAlpha;
+    ctx.textAlign = "center";
+
+    // Selo principal grande "CARTA DA SEMANA"
+    const bannerY = 1230;
+    roundRect(ctx, 84, bannerY, W - 168, 128, 18);
+    ctx.fillStyle = "rgba(15, 23, 42, 0.94)";
+    ctx.fill();
+    ctx.strokeStyle = CARD.accent;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "900 56px 'Segoe UI', Roboto, Arial, sans-serif";
+    ctx.fillText(CARD.storyTitle, W / 2, bannerY + 84);
+
+    if (isRevealed) {
+      const revealTextAlpha = Math.min(1, (progress - 0.29) / 0.14);
+      ctx.globalAlpha = revealTextAlpha;
+      ctx.fillStyle = CARD.accent;
+      ctx.font = "800 32px 'Segoe UI', Roboto, Arial, sans-serif";
+      ctx.fillText(CARD.name.toUpperCase() + " (" + CARD.code + ")", W / 2, bannerY + 186);
+
+      // Chamada + link abaixo para ver a postagem
+      const linkBoxY = bannerY + 230;
+      roundRect(ctx, 110, linkBoxY, W - 220, 178, 16);
+      ctx.fillStyle = "rgba(2, 6, 23, 0.92)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = "#facc15";
+      ctx.font = "800 28px 'Segoe UI', Roboto, Arial, sans-serif";
+      ctx.fillText("CONFIRA A POSTAGEM COMPLETA NO PERFIL @ANAHEIMHUB", W / 2, linkBoxY + 64);
+
+      roundRect(ctx, 190, linkBoxY + 92, W - 380, 60, 30);
+      ctx.fillStyle = CARD.accent;
+      ctx.fill();
+      ctx.fillStyle = "#020617";
+      ctx.font = "900 26px monospace";
+      ctx.fillText("🔗 " + CARD.cardUrl, W / 2, linkBoxY + 131);
+    }
+    ctx.restore();
+
+    ctx.restore();
+  };
+
+  window.__recordReelVideo = async function() {
+    await imgReady;
+    const mimes = [
+      "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
+      "video/mp4;codecs=avc1",
+      "video/mp4",
+      "video/webm;codecs=h264",
+      "video/webm;codecs=vp8,opus",
+      "video/webm",
+    ];
+    const mimeType = typeof MediaRecorder !== "undefined" ? mimes.find((m) => MediaRecorder.isTypeSupported(m)) : null;
+    if (!mimeType) throw new Error("MediaRecorder não suportado neste navegador.");
+
+    const stream = canvas.captureStream(30);
+    let audioCtx = null;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) {
+        audioCtx = new AC();
+        const dest = audioCtx.createMediaStreamDestination();
+        const now = audioCtx.currentTime;
+        [220, 277.18, 329.63, 440].forEach((freq, i) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = i % 2 === 0 ? "sine" : "triangle";
+          osc.frequency.setValueAtTime(freq * 0.5, now);
+          osc.frequency.exponentialRampToValueAtTime(freq, now + 1.4);
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.025, now + 1.1);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + DURATION_MS / 1000);
+          osc.connect(gain);
+          gain.connect(dest);
+          osc.start(now);
+          osc.stop(now + DURATION_MS / 1000);
+        });
+        const track = dest.stream.getAudioTracks()[0];
+        if (track) stream.addTrack(track);
+      }
+    } catch {}
+
+    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 4_500_000 });
+    const chunks = [];
+    recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+    recorder.start(200);
+
+    const totalFrames = Math.round((DURATION_MS / 1000) * 30);
+    for (let f = 0; f <= totalFrames; f += 1) {
+      window.__drawReelFrame(f / totalFrames);
+      await new Promise((r) => setTimeout(r, 33));
+    }
+
+    recorder.stop();
+    await new Promise((r) => { recorder.onstop = r; });
+    if (audioCtx) audioCtx.close().catch(() => {});
+
+    const blob = new Blob(chunks, { type: mimeType });
+    const buf = await blob.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = "";
+    const step = 0x8000;
+    for (let i = 0; i < bytes.length; i += step) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + step));
+    }
+    return { base64: btoa(binary), mimeType };
+  };
+
+  imgReady.then(() => window.__drawReelFrame(0.85));
+</script>
+</body>
+</html>`;
+}
+
 /** Caminho do ffmpeg se instalado no servidor (otimiza MP4 com faststart e converte WebM no Linux). */
 export function resolveFfmpegExecutable(): string | null {
   const custom = (process.env.SOCIAL_FFMPEG_PATH || "").trim();
@@ -820,11 +1127,8 @@ export function resolveFfmpegExecutable(): string | null {
   return probe.status === 0 ? "ffmpeg" : null;
 }
 
-/**
- * Renderiza a animação de revelação da Carta da Semana em MP4 (1080x1920) e opcionalmente salva um frame JPEG de capa.
- */
-export async function renderCardRevealReel(
-  card: ReelCardInput,
+async function renderHtmlVideo(
+  htmlContent: string,
   outputMp4Path: string,
   outputCoverJpgPath?: string,
 ): Promise<{ videoOk: boolean; coverOk: boolean }> {
@@ -842,7 +1146,7 @@ export async function renderCardRevealReel(
   let coverOk = false;
   try {
     const page = await browser.newPage({ viewport: { width: REEL_WIDTH, height: REEL_HEIGHT } });
-    await page.setContent(buildCardRevealReelHtml(card), { waitUntil: "load", timeout: 25000 });
+    await page.setContent(htmlContent, { waitUntil: "load", timeout: 25000 });
 
     if (outputCoverJpgPath) {
       try {
@@ -850,7 +1154,7 @@ export async function renderCardRevealReel(
         await page.screenshot({ path: outputCoverJpgPath, type: "jpeg", quality: 90 });
         coverOk = fs.existsSync(outputCoverJpgPath);
       } catch (err) {
-        console.warn("[socialSlides] capa do Reel não renderizou:", err instanceof Error ? err.message : err);
+        console.warn("[socialSlides] capa do vídeo não renderizou:", err instanceof Error ? err.message : err);
       }
     }
 
@@ -903,11 +1207,33 @@ export async function renderCardRevealReel(
       videoOk = fs.existsSync(outputMp4Path);
     }
   } catch (err) {
-    console.warn("[socialSlides] Reel não renderizou:", err instanceof Error ? err.message : err);
+    console.warn("[socialSlides] Vídeo não renderizou:", err instanceof Error ? err.message : err);
   } finally {
     await browser.close();
   }
   return { videoOk, coverOk };
+}
+
+/**
+ * Renderiza a animação de revelação da Carta da Semana em MP4 (1080x1920) e opcionalmente salva um frame JPEG de capa.
+ */
+export async function renderCardRevealReel(
+  card: ReelCardInput,
+  outputMp4Path: string,
+  outputCoverJpgPath?: string,
+): Promise<{ videoOk: boolean; coverOk: boolean }> {
+  return renderHtmlVideo(buildCardRevealReelHtml(card), outputMp4Path, outputCoverJpgPath);
+}
+
+/**
+ * Renderiza a animação curta (5s) do Story da Carta/Spoiler da Semana em MP4 (1080x1920).
+ */
+export async function renderCardStory(
+  card: ReelCardInput,
+  outputMp4Path: string,
+): Promise<{ videoOk: boolean }> {
+  const { videoOk } = await renderHtmlVideo(buildCardStoryHtml(card), outputMp4Path);
+  return { videoOk };
 }
 
 /**

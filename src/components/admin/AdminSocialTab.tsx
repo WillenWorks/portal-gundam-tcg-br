@@ -43,6 +43,7 @@ export interface SocialMediaPost {
   imageUrl: string | null;
   /** imagens do carrossel, na ordem, ou o vídeo MP4 do Reel (vazio = imagem única em imageUrl) */
   mediaUrls?: string[];
+  metadata?: string | null;
   discordMessageId: string | null;
   instagramPostId: string | null;
   instagramPermalink: string | null;
@@ -64,13 +65,14 @@ const POST_TYPE_LABEL: Record<SocialMediaPost["type"], string> = {
   ARTICLE: "Artigo",
 };
 
-type GenerateFormat = SocialMediaPost["type"] | "CARD_REEL";
+type GenerateFormat = SocialMediaPost["type"] | "CARD_SPOILER" | "CARD_REEL";
 
-/** Formatos da agenda (segunda, quarta, sexta) + Reel da carta, na ordem em que aparecem no gerador. */
+/** Formatos da agenda (segunda, quarta, sexta) + Spoiler da semana + Reel da carta, na ordem em que aparecem no gerador. */
 const GENERATE_TYPES: { value: GenerateFormat; label: string; hint: string }[] = [
   { value: "TOURNAMENT_REPORT", label: "Torneios da semana", hint: "Carrossel com os torneios do Brasil da semana passada (segunda)." },
-  { value: "CARD_SPOTLIGHT", label: "Carta do dia", hint: "Rodízio LR → R → U → C; artes alternativas entram no carrossel (quarta)." },
-  { value: "CARD_REEL", label: "Reel da carta", hint: "Animação MP4 9:16 revelando a Carta da Semana e direcionando para o post completo do feed." },
+  { value: "CARD_SPOTLIGHT", label: "Carta da semana", hint: "Escolhe entre as cartas mais usadas nos últimos torneios filtradas por raridade (LR → R → U → C); gera Post Carrossel + Story companheiro (quarta)." },
+  { value: "CARD_SPOILER", label: "Spoiler da semana", hint: "Avaliação manual de carta recém-revelada (ex.: novas expansões como GD07), mesmo com imagem de preview; gera Post + Story companheiro." },
+  { value: "CARD_REEL", label: "Reel da carta", hint: "Animação MP4 9:16 separada revelando a Carta/Spoiler da Semana e direcionando para o post completo do feed." },
   { value: "DECK_FEATURE", label: "Deck em destaque", hint: "Arquétipo de melhor desempenho nos últimos 30 dias, com a lista (sexta)." },
   { value: "ARTICLE", label: "Artigo", hint: "Capa do artigo e um resumo do texto. Sai sozinho ao publicar um artigo; aqui dá para gerar de novo." },
 ];
@@ -81,6 +83,36 @@ type PublishedArticle = { id: string; title: string; publishedAt: string | null 
 type GenerationState = { running: boolean; postId: string | null; error: string | null };
 const GENERATION_POLL_MS = 5000;
 const GENERATION_WATCH_MS = 8 * 60_000;
+
+type PostMetaInfo = {
+  storyVideoUrl: string | null;
+  storyEnabled: boolean;
+  storyTitle: string;
+  storyPostId: string | null;
+  storyError: string | null;
+  isSpoiler: boolean;
+  cardUrl: string | null;
+};
+
+function parsePostMeta(post: SocialMediaPost | null): PostMetaInfo {
+  if (!post?.metadata) {
+    return { storyVideoUrl: null, storyEnabled: false, storyTitle: "CARTA DA SEMANA", storyPostId: null, storyError: null, isSpoiler: false, cardUrl: null };
+  }
+  try {
+    const parsed = JSON.parse(post.metadata) as Record<string, unknown>;
+    const isSpoiler = parsed.isSpoiler === true;
+    const defaultTitle = isSpoiler ? "SPOILER DA SEMANA" : "CARTA DA SEMANA";
+    const storyVideoUrl = typeof parsed.storyVideoUrl === "string" && /\.mp4$/i.test(parsed.storyVideoUrl) ? parsed.storyVideoUrl : null;
+    const storyEnabled = typeof parsed.storyEnabled === "boolean" ? parsed.storyEnabled : Boolean(storyVideoUrl);
+    const storyTitle = typeof parsed.storyTitle === "string" && parsed.storyTitle.trim() ? parsed.storyTitle.trim() : defaultTitle;
+    const storyPostId = typeof parsed.storyPostId === "string" && parsed.storyPostId ? parsed.storyPostId : null;
+    const storyError = typeof parsed.storyError === "string" && parsed.storyError ? parsed.storyError : null;
+    const cardUrl = typeof parsed.cardUrl === "string" && parsed.cardUrl ? parsed.cardUrl : null;
+    return { storyVideoUrl, storyEnabled, storyTitle, storyPostId, storyError, isSpoiler, cardUrl };
+  } catch {
+    return { storyVideoUrl: null, storyEnabled: false, storyTitle: "CARTA DA SEMANA", storyPostId: null, storyError: null, isSpoiler: false, cardUrl: null };
+  }
+}
 
 const reelUrlOf = (post: SocialMediaPost) => (post.mediaUrls ?? []).find((u) => /\.mp4$/i.test(u)) || null;
 const slidesOf = (post: SocialMediaPost) => {
@@ -130,6 +162,9 @@ export function AdminSocialTab() {
   const [selectedPost, setSelectedPost] = useState<SocialMediaPost | null>(null);
   const [editCaption, setEditCaption] = useState("");
   const [editTitle, setEditTitle] = useState("");
+  const [editStoryEnabled, setEditStoryEnabled] = useState(true);
+  const [editStoryTitle, setEditStoryTitle] = useState("CARTA DA SEMANA");
+  const [regeneratingStory, setRegeneratingStory] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [savingId, setSavingId] = useState<string | null>(null);
   const [integrations, setIntegrations] = useState<SocialStatus | null>(null);
@@ -157,6 +192,9 @@ export function AdminSocialTab() {
     setSlideIndex(0);
     setEditTitle(post.title || "");
     setEditCaption(post.caption || "");
+    const meta = parsePostMeta(post);
+    setEditStoryEnabled(meta.storyEnabled);
+    setEditStoryTitle(meta.storyTitle);
   };
 
   const fetchPosts = async () => {
@@ -224,18 +262,26 @@ export function AdminSocialTab() {
     try {
       setGenerating(true);
       const isReel = postTypeInput === "CARD_REEL";
-      const isCard = postTypeInput === "CARD_SPOTLIGHT" || isReel;
+      const isSpoiler = postTypeInput === "CARD_SPOILER";
+      const isCard = postTypeInput === "CARD_SPOTLIGHT" || isSpoiler || isReel;
       await apiFetch<GenerationState>("/admin/social/generate", {
         method: "POST",
         body: JSON.stringify({
           cardCode: isCard ? cardCodeInput.trim() || undefined : undefined,
           customTopic: customTopicInput.trim() || undefined,
-          type: isReel ? "CARD_SPOTLIGHT" : postTypeInput,
+          type: isReel || isSpoiler ? "CARD_SPOTLIGHT" : postTypeInput,
           reel: isReel,
+          spoiler: isSpoiler,
           articleId: postTypeInput === "ARTICLE" ? articleIdInput || undefined : undefined,
         }),
       });
-      toast.info(isReel ? "Gerando a animação MP4 do Reel e a legenda. Aparece aqui e no Discord em 1 a 3 minutos." : "Gerando o texto e as imagens. O rascunho aparece aqui e no Discord em 1 a 3 minutos.");
+      toast.info(
+        isReel
+          ? "Gerando a animação MP4 do Reel e a legenda. Aparece aqui e no Discord em 1 a 3 minutos."
+          : isCard
+            ? "Gerando o carrossel do post, o vídeo MP4 do Story companheiro e a legenda…"
+            : "Gerando o texto e as imagens. O rascunho aparece aqui e no Discord em 1 a 3 minutos.",
+      );
       setCardCodeInput("");
       setCustomTopicInput("");
     } catch (err: any) {
@@ -249,7 +295,7 @@ export function AdminSocialTab() {
     }
   };
 
-  const handleGenerateReelForCard = async (cardCode: string) => {
+  const handleGenerateReelForCard = async (cardCode: string, isSpoiler = false) => {
     try {
       setGenerating(true);
       await apiFetch<GenerationState>("/admin/social/generate", {
@@ -258,6 +304,7 @@ export function AdminSocialTab() {
           cardCode,
           type: "CARD_SPOTLIGHT",
           reel: true,
+          spoiler: isSpoiler,
         }),
       });
       toast.info(`Gerando o Reel de revelação para ${cardCode}…`);
@@ -271,19 +318,42 @@ export function AdminSocialTab() {
     }
   };
 
+  const handleUpdateStory = async (post: SocialMediaPost, regenerate = false) => {
+    try {
+      setRegeneratingStory(true);
+      const updated = await apiFetch<SocialMediaPost>(`/admin/social/posts/${post.id}/story`, {
+        method: "POST",
+        body: JSON.stringify({
+          storyEnabled: editStoryEnabled,
+          storyTitle: editStoryTitle,
+          regenerate,
+        }),
+      });
+      toast.success(regenerate ? "Vídeo do Story regerado com sucesso!" : "Configuração do Story atualizada!");
+      setPosts((prev) => prev.map((p) => (p.id === post.id ? updated : p)));
+      selectPost(updated);
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao atualizar o Story.");
+    } finally {
+      setRegeneratingStory(false);
+    }
+  };
+
   const handleSaveEdit = async (post: SocialMediaPost) => {
     try {
       setSavingId(post.id);
+      const isCardFeed = post.type === "CARD_SPOTLIGHT" && !reelUrlOf(post);
       const updated = await apiFetch<SocialMediaPost>(`/admin/social/posts/${post.id}`, {
         method: "PUT",
         body: JSON.stringify({
           title: editTitle,
           caption: editCaption,
+          ...(isCardFeed ? { storyEnabled: editStoryEnabled, storyTitle: editStoryTitle } : {}),
         }),
       });
       toast.success("Alterações salvas com sucesso!");
       setPosts((prev) => prev.map((p) => (p.id === post.id ? updated : p)));
-      setSelectedPost(updated);
+      selectPost(updated);
     } catch (err: any) {
       toast.error(err?.message || "Erro ao salvar alterações.");
     } finally {
@@ -294,16 +364,34 @@ export function AdminSocialTab() {
   const handleApprove = async (post: SocialMediaPost) => {
     try {
       setSavingId(post.id);
+      const isCardFeed = post.type === "CARD_SPOTLIGHT" && !reelUrlOf(post);
+      if (isCardFeed) {
+        await apiFetch<SocialMediaPost>(`/admin/social/posts/${post.id}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            title: editTitle,
+            caption: editCaption,
+            storyEnabled: editStoryEnabled,
+            storyTitle: editStoryTitle,
+          }),
+        }).catch(() => null);
+      }
       const res = await apiFetch<{ ok: boolean; post: SocialMediaPost }>(`/admin/social/posts/${post.id}/approve`, {
         method: "POST",
         body: JSON.stringify({ title: editTitle, caption: editCaption }),
       });
-      if (res.post.status === "PUBLISHED") toast.success("Aprovado e publicado no Instagram!");
-      else if (res.post.status === "FAILED") toast.error(res.post.publishError || "Aprovado, mas a publicação falhou.");
+      const publishedMeta = parsePostMeta(res.post);
+      if (res.post.status === "PUBLISHED") {
+        toast.success(
+          publishedMeta.storyPostId
+            ? "Post e Story publicados simultaneamente no Instagram!"
+            : "Aprovado e publicado no Instagram!",
+        );
+      } else if (res.post.status === "FAILED") toast.error(res.post.publishError || "Aprovado, mas a publicação falhou.");
       else if (res.post.scheduledFor && new Date(res.post.scheduledFor).getTime() > Date.now()) toast.success(`Aprovado. Sai ${formatWhen(res.post.scheduledFor)}.`);
       else toast.success("Aprovado. Configure o Instagram no servidor para publicar automaticamente.");
       setPosts((prev) => prev.map((p) => (p.id === post.id ? res.post : p)));
-      if (selectedPost?.id === post.id) setSelectedPost(res.post);
+      if (selectedPost?.id === post.id) selectPost(res.post);
     } catch (err: any) {
       toast.error(err?.message || "Erro ao aprovar post.");
     } finally {
@@ -423,21 +511,23 @@ export function AdminSocialTab() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              {(postTypeInput === "CARD_SPOTLIGHT" || postTypeInput === "CARD_REEL") && (
+              {(postTypeInput === "CARD_SPOTLIGHT" || postTypeInput === "CARD_SPOILER" || postTypeInput === "CARD_REEL") && (
               <div>
                 <label className="text-xs uppercase font-mono text-slate-300 block mb-1">
                   Código da Carta (Opcional)
                 </label>
                 <Input
-                  placeholder="Ex: ST01-001 (vazio para carta da semana / sorteio)"
+                  placeholder={postTypeInput === "CARD_SPOILER" ? "Ex: GD07-001 (vazio para carta da última expansão)" : "Ex: GD01-010 (vazio para mais usadas em torneios)"}
                   value={cardCodeInput}
                   onChange={(e) => setCardCodeInput(e.target.value.toUpperCase())}
                   className="rounded-none font-mono text-sm bg-slate-950/60"
                 />
                 <span className="text-[11px] text-slate-500 mt-1 block">
                   {postTypeInput === "CARD_REEL"
-                    ? "Se vazio, usa a carta do último post Carta do Dia para revelar no Reel e direcionar ao post."
-                    : "Se vazio, o agente sorteia uma carta da raridade da vez (impressão principal, com imagem) que não saiu nos últimos 60 posts."}
+                    ? "Se vazio, usa a carta do último post Carta/Spoiler da Semana para revelar no Reel e direcionar ao post."
+                    : postTypeInput === "CARD_SPOILER"
+                      ? "Informe o código da carta revelada (ou deixe vazio para escolher da expansão mais recente cadastrada)."
+                      : "Se vazio, escolhe entre as cartas mais usadas nos últimos torneios filtradas pela raridade da vez (LR → R → U → C), sem repetir as últimas."}
                 </span>
               </div>
               )}
@@ -595,6 +685,7 @@ export function AdminSocialTab() {
               posts.map((post) => {
                 const isSelected = selectedPost?.id === post.id;
                 const isReel = Boolean(reelUrlOf(post));
+                const meta = parsePostMeta(post);
                 return (
                   <div
                     key={post.id}
@@ -624,9 +715,10 @@ export function AdminSocialTab() {
                     <div className="flex-1 min-w-0 space-y-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-mono text-[11px] font-bold text-sky-400 truncate">
-                          {isReel ? "Reel" : POST_TYPE_LABEL[post.type] ?? post.type}
+                          {isReel ? "Reel" : meta.isSpoiler ? "Spoiler" : POST_TYPE_LABEL[post.type] ?? post.type}
                           {post.cardCode ? ` · ${post.cardCode}` : ""}
                           {isReel ? " · MP4" : (post.mediaUrls?.length ?? 0) > 1 ? ` · ${post.mediaUrls?.length} imagens` : ""}
+                          {!isReel && meta.storyEnabled && meta.storyVideoUrl ? " · +Story" : ""}
                         </span>
                         {getStatusBadge(post.status)}
                       </div>
@@ -671,7 +763,7 @@ export function AdminSocialTab() {
                         size="sm"
                         variant="outline"
                         disabled={generating}
-                        onClick={() => handleGenerateReelForCard(selectedPost.cardCode!)}
+                        onClick={() => handleGenerateReelForCard(selectedPost.cardCode!, parsePostMeta(selectedPost).isSpoiler)}
                         className="rounded-none border-sky-500/40 text-sky-300 hover:bg-sky-500/10 text-xs"
                       >
                         <Film className="size-3.5 mr-1" />
@@ -728,6 +820,7 @@ export function AdminSocialTab() {
 
                       const slides = slidesOf(selectedPost);
                       const current = slides[Math.min(slideIndex, slides.length - 1)];
+                      const meta = parsePostMeta(selectedPost);
                       return (
                         <>
                           <div className="flex items-center justify-between">
@@ -771,6 +864,91 @@ export function AdminSocialTab() {
                                   <img src={url} alt="" className="size-full object-cover" />
                                 </button>
                               ))}
+                            </div>
+                          )}
+
+                          {/* Story Companheiro (9:16) para Posts de Carta */}
+                          {selectedPost.type === "CARD_SPOTLIGHT" && (
+                            <div className="mt-4 pt-3 border-t border-white/10 space-y-2.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs uppercase font-mono text-sky-300 flex items-center gap-1.5">
+                                  <Film className="size-3.5" /> Story Companheiro (9:16)
+                                </span>
+                                {meta.storyVideoUrl && (
+                                  <a
+                                    href={meta.storyVideoUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[11px] font-mono text-slate-400 hover:text-white underline"
+                                  >
+                                    Abrir MP4
+                                  </a>
+                                )}
+                              </div>
+
+                              <label className="flex items-center gap-2 text-xs text-slate-200 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={editStoryEnabled}
+                                  onChange={(e) => setEditStoryEnabled(e.target.checked)}
+                                  disabled={selectedPost.status === "PUBLISHED" || selectedPost.status === "PUBLISHING"}
+                                  className="accent-sky-400"
+                                />
+                                <span>Publicar Story junto ao aprovar o post</span>
+                              </label>
+
+                              <div className="space-y-1">
+                                <label className="text-[11px] uppercase font-mono text-slate-400 block">
+                                  Texto Central do Story
+                                </label>
+                                <div className="flex gap-1.5">
+                                  <Input
+                                    value={editStoryTitle}
+                                    onChange={(e) => setEditStoryTitle(e.target.value)}
+                                    disabled={selectedPost.status === "PUBLISHED" || selectedPost.status === "PUBLISHING"}
+                                    className="h-8 rounded-none text-xs font-mono bg-slate-950/60"
+                                  />
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={regeneratingStory || selectedPost.status === "PUBLISHED" || selectedPost.status === "PUBLISHING"}
+                                    onClick={() => handleUpdateStory(selectedPost, true)}
+                                    className="h-8 px-2.5 rounded-none border-sky-500/40 text-sky-300 hover:bg-sky-500/10 text-[11px] shrink-0"
+                                    title="Renderizar novamente o vídeo MP4 do Story com o texto acima"
+                                  >
+                                    <RefreshCw className={`size-3 mr-1 ${regeneratingStory ? "animate-spin" : ""}`} />
+                                    {meta.storyVideoUrl ? "Regerar" : "Gerar"}
+                                  </Button>
+                                </div>
+                              </div>
+
+                              {meta.storyVideoUrl ? (
+                                <div className="border border-white/15 bg-slate-950 aspect-[9/16] max-h-72 mx-auto relative overflow-hidden flex items-center justify-center">
+                                  <video
+                                    key={meta.storyVideoUrl}
+                                    src={meta.storyVideoUrl}
+                                    controls
+                                    playsInline
+                                    loop
+                                    className="size-full object-contain"
+                                  />
+                                </div>
+                              ) : (
+                                <p className="text-[11px] text-slate-500">
+                                  Nenhum vídeo de Story gerado ainda. Clique em &quot;Gerar&quot; para criar a animação 9:16 da carta sendo revelada.
+                                </p>
+                              )}
+
+                              {meta.storyPostId && (
+                                <p className="text-[11px] text-emerald-300 font-mono">
+                                  ✓ Story publicado junto com o post (ID: {meta.storyPostId})
+                                </p>
+                              )}
+                              {meta.storyError && (
+                                <p className="text-[11px] text-amber-300">
+                                  Aviso do Story: {meta.storyError}
+                                </p>
+                              )}
                             </div>
                           )}
                         </>
@@ -838,7 +1016,7 @@ export function AdminSocialTab() {
                     className="rounded-none text-xs"
                   >
                     <Save className="size-3.5 mr-1.5" />
-                    Salvar Alterações de Texto
+                    Salvar Alterações
                   </Button>
 
                   <div className="flex items-center gap-2">
@@ -876,11 +1054,14 @@ export function AdminSocialTab() {
                         className="rounded-none bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold uppercase tracking-wider text-xs px-4"
                       >
                         <CheckCircle2 className="size-3.5 mr-1.5" />
-                        {selectedPost.scheduledFor && new Date(selectedPost.scheduledFor).getTime() > Date.now()
-                          ? `Aprovar (sai ${formatWhen(selectedPost.scheduledFor)})`
-                          : integrations?.instagram
-                            ? "Aprovar e publicar agora"
-                            : "Aprovar"}
+                        {(() => {
+                          const hasStory = selectedPost.type === "CARD_SPOTLIGHT" && !reelUrlOf(selectedPost) && editStoryEnabled && Boolean(parsePostMeta(selectedPost).storyVideoUrl);
+                          const targetLabel = hasStory ? "Post + Story" : "Post";
+                          if (selectedPost.scheduledFor && new Date(selectedPost.scheduledFor).getTime() > Date.now()) {
+                            return `Aprovar ${targetLabel} (sai ${formatWhen(selectedPost.scheduledFor)})`;
+                          }
+                          return integrations?.instagram ? `Aprovar e publicar ${targetLabel}` : `Aprovar ${targetLabel}`;
+                        })()}
                       </Button>
                     )}
                   </div>

@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import { VedaIndex, type RawCard, type RawEntry, type RawTournament } from "../vedaCore";
 import {
   articlePlainText,
+  buildCardHashtags,
   buildWeeklyReport,
   dayMonth,
   eventLabel,
   formatStoreWithInstagram,
   pickFeaturedDeck,
+  rankTournamentCards,
   rarityAttemptOrder,
   rarityTier,
   reportTournamentCount,
@@ -264,5 +266,21 @@ describe("sexta: deck em destaque", () => {
       ["A", 1, 4],
       ["B", 1, 4],
     ]);
+  });
+
+  it("rankTournamentCards ordena cartas mais usadas nos últimos torneios e buildCardHashtags gera tags de código e nome", () => {
+    const ix = build([
+      { arch: "Red / White MF", n: 8, placement: 1, date: "2026-10-25" },
+      { arch: "Blue / White Blockers", n: 4, placement: 2, date: "2026-10-24" },
+    ]);
+    const ranked = rankTournamentCards(ix, now);
+    expect(ranked[0]).toMatchObject({ code: "A", decks: 12, wins: 8, topDecks: 12 });
+    expect(ranked[0].archetypes).toEqual(["Red / White MF", "Blue / White Blockers"]);
+
+    const tags = buildCardHashtags({ code: "GD01-010", name: "Gundam Exia (Trans-Am)" }, ["GundamCardGame"]);
+    expect(tags).toContain("GD01010");
+    expect(tags).toContain("GD01");
+    expect(tags).toContain("GundamExiaTransAm");
+    expect(tags).toContain("GundamCardGame");
   });
 });

@@ -33,6 +33,7 @@ import {
   lastSpotlightTier,
   draftTournamentReport,
   draftDeckFeature,
+  draftCardSpotlight,
   draftCardRevealReel,
   startSocialPostDraft,
   socialGenerationState,
@@ -40,7 +41,7 @@ import {
   draftArticlePost,
   queueArticleSocialDraft,
 } from "./socialPublisherService";
-import { buildCardRevealReelHtml } from "./socialSlides";
+import { buildCardRevealReelHtml, buildCardStoryHtml } from "./socialSlides";
 
 const cardRow = {
   code: "ST01-001",
@@ -90,10 +91,12 @@ describe("socialPublisherService", () => {
     expect(args.where.isPrimaryPrint).toBe(true);
   });
 
-  it("modelo fixo (sem chave do Gemini) usa só os dados da carta", async () => {
+  it("modelo fixo (sem chave do Gemini) usa os dados da carta, análise de uso, link direto pro database e hashtags do código/nome", async () => {
     const content = await generateSocialContentWithGemini({ code: "ST01-001", name: "Gundam", color: "blue", type: "UNIT", ap: 3, hp: 4, cost: 3, text: "efeito" }, undefined, "", "");
     expect(content.title).toContain("ST01-001");
-    expect(content.fullCaption).toContain("CARTA DO DIA");
+    expect(content.fullCaption).toContain("CARTA DA SEMANA");
+    expect(content.fullCaption).toContain("anaheimhub.com/cards/ST01-001");
+    expect(content.fullCaption).toContain("#ST01001");
     expect(content.fullCaption).toContain("#GundamCardGame");
     expect(content.fullCaption).toContain("Unidade");
   });
@@ -118,7 +121,7 @@ describe("socialPublisherService", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const content = await generateSocialContentWithGemini({ code: "ST01-001", name: "Gundam", color: "blue", type: "UNIT", text: "efeito" }, undefined, "chave", "");
     warn.mockRestore();
-    expect(content.fullCaption).toContain("CARTA DO DIA");
+    expect(content.fullCaption).toContain("CARTA DA SEMANA");
   });
 
   it("nenhum Gemini respondendo: a legenda vem do Claude (com recusa por engano coberta pelo fallback da API)", async () => {
@@ -146,7 +149,7 @@ describe("socialPublisherService", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const content = await generateSocialContentWithGemini({ code: "ST01-001", name: "Gundam", color: "blue", type: "UNIT", text: "efeito" }, undefined, "chave", "chave-claude");
     warn.mockRestore();
-    expect(content.fullCaption).toContain("CARTA DO DIA");
+    expect(content.fullCaption).toContain("CARTA DA SEMANA");
   });
 
   it("arte: palavras-chave entre < > aparecem escapadas (antes sumiam como tag HTML)", () => {
@@ -256,6 +259,27 @@ describe("socialPublisherService", () => {
       });
       expect(result.status).toBe("PUBLISHED");
       expect(result.instagramPostId).toBe("888");
+    });
+
+    it("post de feed com Story companheiro habilitado publica o post e o Story simultaneamente", async () => {
+      const postWithStory = {
+        ...basePost,
+        metadata: JSON.stringify({
+          storyVideoUrl: "/uploads/social/social-GD01-001-story-1.mp4",
+          storyEnabled: true,
+          storyTitle: "CARTA DA SEMANA",
+        }),
+      };
+      const prisma = makePrisma(1, postWithStory);
+      const publish = vi.fn().mockResolvedValue({ mediaId: "999", permalink: "https://www.instagram.com/p/x/" });
+      const publishStory = vi.fn().mockResolvedValue({ mediaId: "story-555", permalink: null });
+      const result = await publishApprovedPost(prisma, "p1", { publish, publishStory, publicAppUrl: "https://anaheimhub.com" });
+      expect(publish).toHaveBeenCalledTimes(1);
+      expect(publishStory).toHaveBeenCalledWith(prisma, {
+        videoUrl: "https://anaheimhub.com/uploads/social/social-GD01-001-story-1.mp4",
+      });
+      expect(result.status).toBe("PUBLISHED");
+      expect(JSON.parse(String(result.metadata))).toMatchObject({ storyPostId: "story-555", storyError: null });
     });
 
     it("erro do Instagram marca FAILED e guarda a mensagem", async () => {
@@ -376,12 +400,71 @@ describe("socialPublisherService", () => {
 
     it("arte da carta mostra a raridade no selo e chama para arrastar quando há arte alternativa", () => {
       const html = buildSocialCardHtml({ code: "EB01-041", name: "Strike Freedom", color: "blue", type: "UNIT", rarity: "Legend Rare", altArtCount: 1 }, "1/2");
-      expect(html).toContain("CARTA DO DIA • LR");
+      expect(html).toContain("CARTA DA SEMANA • LR");
       expect(html).toContain("Arraste para ver a arte alternativa");
       expect(html).toContain("1/2");
+
+      const spoilerHtml = buildSocialCardHtml({ code: "GD07-001", name: "Gundam Double X", color: "white", type: "UNIT", rarity: "LR", isSpoiler: true });
+      expect(spoilerHtml).toContain("SPOILER DA SEMANA • LR");
     });
 
-    it("Reel de revelação da carta da semana: usa a última carta destacada quando não passa cardCode e direciona para o post completo no perfil @anaheimhub", async () => {
+    it("pickCardForPost prioriza as cartas mais usadas nos últimos torneios filtradas pela raridade da vez e sem repetir", async () => {
+      const tournamentCards = [
+        { ...cardRow, code: "GD01-010", nameEn: "Gundam Exia", rarity: "Legend Rare" },
+        { ...cardRow, code: "GD02-001", nameEn: "Zeta Gundam", rarity: "Rare" },
+      ];
+      const prisma = {
+        card: {
+          findMany: vi.fn().mockResolvedValue(tournamentCards),
+          count: vi.fn(),
+          findFirst: vi.fn(),
+        },
+        socialMediaPost: { findMany: vi.fn().mockResolvedValue([{ cardCode: "GD01-001" }]) },
+      } as any;
+      const tournamentRank = [
+        { code: "GD01-001", decks: 20, totalDecks: 40, tournaments: 8, wins: 5, topDecks: 15, avgCopies: 4, archetypes: ["Blue / White"] },
+        { code: "GD01-010", decks: 14, totalDecks: 40, tournaments: 6, wins: 3, topDecks: 9, avgCopies: 4, archetypes: ["Blue / Green Celestial"] },
+        { code: "GD02-001", decks: 10, totalDecks: 40, tournaments: 5, wins: 1, topDecks: 6, avgCopies: 4, archetypes: ["Red / White"] },
+      ];
+      const card = await pickCardForPost(prisma, undefined, () => 0, {
+        tiers: ["LR", "R", "U", "C"],
+        tournamentRank,
+      });
+      expect(card.code).toBe("GD01-010");
+      expect(card.tournamentUsage).toMatchObject({ decks: 14, wins: 3, archetypes: ["Blue / Green Celestial"] });
+      expect(prisma.card.count).not.toHaveBeenCalled();
+    });
+
+    it("draftCardSpotlight prepara o carrossel, o Story companheiro (9:16) sem caixa de análise abaixo e o modo Spoiler da Semana", async () => {
+      const prisma = {
+        socialMediaPost: {
+          findFirst: vi.fn().mockResolvedValue(null),
+          findMany: vi.fn().mockResolvedValue([]),
+        },
+        card: {
+          findFirst: vi.fn().mockResolvedValue({ ...cardRow, code: "GD07-001", nameEn: "Gundam Double X", rarity: "Legend Rare" }),
+          findMany: vi.fn().mockResolvedValue([]),
+        },
+      } as any;
+      const draft = await draftCardSpotlight(prisma, { cardCode: "GD07-001", spoiler: true, apiKeyGemini: "" });
+      expect(draft.cardCode).toBe("GD07-001");
+      expect(draft.content.title).toContain("Spoiler da Semana");
+      expect(draft.content.fullCaption).toContain("SPOILER DA SEMANA");
+      expect(draft.content.fullCaption).toContain("anaheimhub.com/cards/GD07-001");
+      expect(draft.content.fullCaption).toContain("#GD07001");
+      expect(draft.storyCard).toMatchObject({
+        code: "GD07-001",
+        isSpoiler: true,
+        storyTitle: "SPOILER DA SEMANA",
+        cardUrl: "anaheimhub.com/cards/GD07-001",
+      });
+      const storyHtml = buildCardStoryHtml(draft.storyCard!);
+      expect(storyHtml).toContain("SPOILER DA SEMANA");
+      expect(storyHtml).toContain("anaheimhub.com/cards/GD07-001");
+      expect(storyHtml).not.toContain("AP / HP");
+    });
+
+    it("Reel de revelação da carta da semana: usa a última carta destacada, não mostra REEL no badge do topo e inclui link e hashtags do código", async () => {
       const prisma = {
         socialMediaPost: {
           findFirst: vi.fn().mockResolvedValue({ cardCode: "ST01-001", metadata: '{"rarityTier":"LR"}' }),
@@ -389,6 +472,7 @@ describe("socialPublisherService", () => {
         },
         card: {
           findFirst: vi.fn().mockResolvedValue({ ...cardRow, rarity: "Legend Rare" }),
+          findMany: vi.fn().mockResolvedValue([]),
         },
       } as any;
       const draft = await draftCardRevealReel(prisma, { apiKeyGemini: "" });
@@ -397,9 +481,13 @@ describe("socialPublisherService", () => {
       expect(draft.reelCard).toMatchObject({ code: "ST01-001", name: "Gundam", color: "blue", typeLabel: "Unidade", rarity: "LR" });
       expect(draft.content.fullCaption).toContain("@anaheimhub");
       expect(draft.content.fullCaption).toContain("CARTA DA SEMANA REVELADA");
+      expect(draft.content.fullCaption).toContain("anaheimhub.com/cards/ST01-001");
+      expect(draft.content.fullCaption).toContain("#ST01001");
       expect(draft.metadata).toMatchObject({ mediaKind: "REEL", rarityTier: "LR" });
       const reelHtml = buildCardRevealReelHtml(draft.reelCard!);
       expect(reelHtml).toContain("window.__recordReel");
+      expect(reelHtml).toContain("CARTA DA SEMANA");
+      expect(reelHtml).not.toContain("CARTA DA SEMANA • REEL");
       expect(reelHtml).toContain("@anaheimhub");
     });
 

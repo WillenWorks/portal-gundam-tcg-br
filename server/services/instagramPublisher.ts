@@ -232,6 +232,29 @@ export async function publishInstagramReel(
   return publishContainer(ctx, containerId);
 }
 
+/**
+ * Publica um Story (vídeo MP4 H.264/AAC ou imagem JPEG 9:16 em endereço https público).
+ * Stories ficam no topo do perfil por 24h e não recebem legenda textual na Graph API.
+ */
+export async function publishInstagramStory(
+  prisma: PrismaClient,
+  input: { videoUrl?: string | null; imageUrl?: string | null },
+  deps: PublishDeps = {},
+): Promise<PublishResult> {
+  const videoUrl = input.videoUrl?.trim() || "";
+  const imageUrl = input.imageUrl?.trim() || "";
+  if (!videoUrl && !imageUrl) throw new InstagramApiError("O Story precisa de um vídeo MP4 ou imagem JPEG em endereço https público.");
+  if (videoUrl && !MP4_HTTPS.test(videoUrl)) throw new InstagramApiError("O vídeo do Story precisa ser um MP4 em endereço https público.");
+  if (!videoUrl && !JPEG_HTTPS.test(imageUrl)) throw new InstagramApiError("A imagem do Story precisa ser um JPEG em endereço https público.");
+  const ctx = await publishContext(prisma, { ...deps, maxPolls: deps.maxPolls ?? (videoUrl ? 24 : 12) });
+  const containerId = await createContainer(ctx, {
+    media_type: "STORIES",
+    ...(videoUrl ? { video_url: videoUrl } : { image_url: imageUrl }),
+  });
+  await waitContainer(ctx, containerId);
+  return publishContainer(ctx, containerId);
+}
+
 /** Renova o token de longa duração (vale mais 60 dias) quando a última renovação tem mais de 7 dias. */
 export async function refreshInstagramTokenIfNeeded(
   prisma: PrismaClient,
