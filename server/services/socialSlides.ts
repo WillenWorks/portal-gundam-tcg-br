@@ -1,12 +1,17 @@
-/* Slides 1080x1350 (4:5) dos posts do Instagram: moldura comum (marca, selo, aviso de fã, endereço) e o desenho de
- * cada tipo de slide. Todo dado que vem do banco passa por escapeHtml. A renderização em JPEG abre um navegador só
- * para todos os slides do post. */
+/* Slides 1080x1350 (4:5) e Reels 1080x1920 (9:16) dos posts do Instagram: moldura comum (marca, selo, aviso de fã,
+ * endereço), desenho de cada tipo de slide e animação de revelação da Carta da Semana em MP4. Todo dado que vem do
+ * banco passa por escapeHtml. */
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import type { FeaturedDeck, ReportArchetype, WeeklyReport, WeeklyTournament } from "./socialContent";
 
 export const SLIDE_WIDTH = 1080;
 export const SLIDE_HEIGHT = 1350;
+
+export const REEL_WIDTH = 1080;
+export const REEL_HEIGHT = 1920;
+export const REEL_DURATION_MS = 6500;
 
 /** Paleta de cores oficial de Gundam Card Game */
 export const COLOR_HEX: Record<string, string> = {
@@ -396,6 +401,495 @@ export function articleCoverHtml(article: ArticleSlide): string {
       <div class="kind">${escapeHtml(article.kind)}</div>
       <div class="title">${escapeHtml(article.title)}</div>`,
   });
+}
+
+// ---------- Reel 9:16 (1080x1920): animação de revelação da Carta da Semana ----------
+
+export type ReelCardInput = {
+  code: string;
+  name: string;
+  color: string;
+  typeLabel: string;
+  rarity?: string | null;
+  cost?: number | null;
+  level?: number | null;
+  ap?: number | null;
+  hp?: number | null;
+  imageUrl?: string | null;
+  altArtCount?: number;
+};
+
+/**
+ * Documento HTML 1080x1920 (9:16) com Canvas + Web Audio que desenha e grava a animação de revelação da Carta da Semana
+ * e direciona o espectador para o post completo no feed (@anaheimhub).
+ */
+export function buildCardRevealReelHtml(card: ReelCardInput): string {
+  const accent = accentFor(card.color);
+  const safeImg = safeImageUrl(card.imageUrl);
+  const payload = JSON.stringify({
+    code: String(card.code || ""),
+    name: String(card.name || ""),
+    typeLabel: String(card.typeLabel || "UNIDADE").toUpperCase(),
+    rarity: String(card.rarity || "GCG").toUpperCase(),
+    costText: `${card.cost ?? "—"}${card.level !== undefined && card.level !== null ? ` / Nv. ${card.level}` : ""}`,
+    apHpText: `${card.ap ?? "—"} AP / ${card.hp ?? "—"} HP`,
+    altArtCount: Number(card.altArtCount || 0),
+    accent,
+    imageUrl: safeImg,
+  }).replace(/</g, "\\u003c");
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: ${REEL_WIDTH}px; height: ${REEL_HEIGHT}px; overflow: hidden; background: #020617; }
+  canvas { width: ${REEL_WIDTH}px; height: ${REEL_HEIGHT}px; display: block; }
+</style>
+</head>
+<body>
+<canvas id="reel-canvas" width="${REEL_WIDTH}" height="${REEL_HEIGHT}"></canvas>
+<script>
+  const CARD = ${payload};
+  const W = ${REEL_WIDTH};
+  const H = ${REEL_HEIGHT};
+  const DURATION_MS = ${REEL_DURATION_MS};
+  const canvas = document.getElementById("reel-canvas");
+  const ctx = canvas.getContext("2d");
+
+  let loadedImg = null;
+  const imgReady = new Promise((resolve) => {
+    if (!CARD.imageUrl) { resolve(null); return; }
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    const timer = setTimeout(() => resolve(null), 8000);
+    img.onload = () => { clearTimeout(timer); loadedImg = img; resolve(img); };
+    img.onerror = () => { clearTimeout(timer); resolve(null); };
+    img.src = CARD.imageUrl;
+  });
+
+  function roundRect(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
+  function wrapLines(c, text, maxWidth, maxLines) {
+    const words = String(text || "").split(/\\s+/);
+    const lines = [];
+    let current = "";
+    for (const w of words) {
+      const probe = current ? current + " " + w : w;
+      if (c.measureText(probe).width > maxWidth && current) {
+        lines.push(current);
+        current = w;
+        if (lines.length >= maxLines) break;
+      } else {
+        current = probe;
+      }
+    }
+    if (current && lines.length < maxLines) lines.push(current);
+    return lines;
+  }
+
+  window.__drawReelFrame = function(p) {
+    const progress = Math.max(0, Math.min(1, Number(p) || 0));
+    ctx.save();
+
+    // 1. Fundo radial escuro + grade tática animada
+    const bg = ctx.createRadialGradient(W * 0.5, H * 0.32, 80, W * 0.5, H * 0.45, H * 0.75);
+    bg.addColorStop(0, "#0f172a");
+    bg.addColorStop(1, "#020617");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = "rgba(56, 189, 248, 0.06)";
+    ctx.lineWidth = 1;
+    const gridOffset = (progress * 120) % 48;
+    for (let x = 0; x <= W; x += 48) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    }
+    for (let y = gridOffset; y <= H; y += 48) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+
+    // 2. Cabeçalho ANAHEIM HUB
+    ctx.fillStyle = "#38bdf8";
+    ctx.font = "900 36px 'Segoe UI', Roboto, Arial, sans-serif";
+    ctx.fillText("ANAHEIM HUB", 64, 108);
+
+    roundRect(ctx, W - 410, 66, 346, 54, 8);
+    ctx.fillStyle = "rgba(56, 189, 248, 0.14)";
+    ctx.fill();
+    ctx.strokeStyle = CARD.accent;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = CARD.accent;
+    ctx.font = "800 22px 'Segoe UI', Roboto, Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("CARTA DA SEMANA • REEL", W - 237, 101);
+    ctx.textAlign = "left";
+
+    ctx.strokeStyle = "rgba(255,255,255,0.12)";
+    ctx.beginPath(); ctx.moveTo(64, 146); ctx.lineTo(W - 64, 146); ctx.stroke();
+
+    // 3. Título de chamada no topo
+    const revealPhase = Math.max(0, Math.min(1, (progress - 0.22) / 0.16));
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "800 24px monospace";
+    ctx.fillText(progress < 0.26 ? "[ ESCANEANDO ARQUIVO DA SEMANA... ]" : CARD.code + " • " + CARD.typeLabel + " • " + CARD.rarity, W / 2, 208);
+
+    // 4. Moldura da Carta com 3D Flip + Scan Laser
+    const cardW = 580;
+    const cardH = 810;
+    const cardY = 250;
+    const flipAngle = progress < 0.22 ? 0 : Math.min(1, (progress - 0.22) / 0.16);
+    const scaleX = progress < 0.22 ? 1 : Math.abs(Math.cos(flipAngle * Math.PI));
+    const isRevealed = progress >= 0.30;
+    const floatY = progress > 0.38 ? Math.sin((progress - 0.38) * Math.PI * 4) * 8 : 0;
+
+    ctx.save();
+    ctx.translate(W / 2, cardY + cardH / 2 + floatY);
+    ctx.scale(Math.max(0.06, scaleX), 1);
+
+    // Brilho externo da carta
+    ctx.shadowColor = CARD.accent;
+    ctx.shadowBlur = isRevealed ? 48 : 24;
+    roundRect(ctx, -cardW / 2, -cardH / 2, cardW, cardH, 26);
+    ctx.fillStyle = "#0b1329";
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.save();
+    roundRect(ctx, -cardW / 2, -cardH / 2, cardW, cardH, 26);
+    ctx.clip();
+
+    if (!isRevealed) {
+      // Verso / Silhueta confidencial com scan laser
+      const backGrad = ctx.createLinearGradient(-cardW / 2, -cardH / 2, cardW / 2, cardH / 2);
+      backGrad.addColorStop(0, "#0f172a");
+      backGrad.addColorStop(0.5, "#1e293b");
+      backGrad.addColorStop(1, "#020617");
+      ctx.fillStyle = backGrad;
+      ctx.fillRect(-cardW / 2, -cardH / 2, cardW, cardH);
+
+      if (loadedImg) {
+        ctx.save();
+        ctx.globalAlpha = 0.16;
+        ctx.drawImage(loadedImg, -cardW / 2, -cardH / 2, cardW, cardH);
+        ctx.restore();
+      }
+
+      ctx.fillStyle = CARD.accent;
+      ctx.font = "900 44px 'Segoe UI', Roboto, Arial, sans-serif";
+      ctx.fillText("CONFIDENCIAL", 0, -30);
+      ctx.fillStyle = "#e2e8f0";
+      ctx.font = "800 32px monospace";
+      ctx.fillText(CARD.code, 0, 30);
+
+      const scanY = -cardH / 2 + ((progress / 0.28) % 1) * cardH;
+      const scanGrad = ctx.createLinearGradient(0, scanY - 40, 0, scanY + 40);
+      scanGrad.addColorStop(0, "rgba(56, 189, 248, 0)");
+      scanGrad.addColorStop(0.5, CARD.accent);
+      scanGrad.addColorStop(1, "rgba(56, 189, 248, 0)");
+      ctx.fillStyle = scanGrad;
+      ctx.fillRect(-cardW / 2, scanY - 40, cardW, 80);
+    } else if (loadedImg) {
+      ctx.drawImage(loadedImg, -cardW / 2, -cardH / 2, cardW, cardH);
+    } else {
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(-cardW / 2, -cardH / 2, cardW, cardH);
+      ctx.fillStyle = CARD.accent;
+      ctx.font = "900 54px monospace";
+      ctx.fillText(CARD.code, 0, -20);
+      ctx.fillStyle = "#f8fafc";
+      ctx.font = "800 34px 'Segoe UI', Roboto, Arial, sans-serif";
+      ctx.fillText(CARD.name.slice(0, 22), 0, 44);
+    }
+    ctx.restore();
+
+    roundRect(ctx, -cardW / 2, -cardH / 2, cardW, cardH, 26);
+    ctx.strokeStyle = isRevealed ? CARD.accent : "rgba(255,255,255,0.25)";
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.restore();
+
+    // Flash de energia no instante da virada
+    if (progress >= 0.26 && progress <= 0.36) {
+      const flashAlpha = (1 - Math.abs(progress - 0.31) / 0.05) * 0.45;
+      ctx.fillStyle = "rgba(255, 255, 255, " + Math.max(0, flashAlpha).toFixed(3) + ")";
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // 5. Nome da carta + Atributos (aparecem após a revelação)
+    if (progress >= 0.32) {
+      const infoAlpha = Math.min(1, (progress - 0.32) / 0.12);
+      ctx.save();
+      ctx.globalAlpha = infoAlpha;
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "900 52px 'Segoe UI', Roboto, Arial, sans-serif";
+      const nameLines = wrapLines(ctx, CARD.name.toUpperCase(), W - 140, 2);
+      nameLines.forEach((line, idx) => {
+        ctx.fillText(line, W / 2, 1130 + idx * 58);
+      });
+
+      const statsY = nameLines.length > 1 ? 1265 : 1215;
+      const boxW = 446;
+      const boxH = 112;
+      // Caixa Custo/Nível
+      roundRect(ctx, 64, statsY, boxW, boxH, 12);
+      ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.14)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "700 20px 'Segoe UI', Roboto, Arial, sans-serif";
+      ctx.fillText("CUSTO / NÍVEL", 92, statsY + 40);
+      ctx.fillStyle = "#f8fafc";
+      ctx.font = "900 36px 'Segoe UI', Roboto, Arial, sans-serif";
+      ctx.fillText(CARD.costText, 92, statsY + 88);
+
+      // Caixa AP / HP
+      roundRect(ctx, W - 64 - boxW, statsY, boxW, boxH, 12);
+      ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "700 20px 'Segoe UI', Roboto, Arial, sans-serif";
+      ctx.fillText("PODER DE COMBATE", W - 64 - boxW + 28, statsY + 40);
+      ctx.fillStyle = CARD.accent;
+      ctx.font = "900 36px 'Segoe UI', Roboto, Arial, sans-serif";
+      ctx.fillText(CARD.apHpText, W - 64 - boxW + 28, statsY + 88);
+      ctx.restore();
+    }
+
+    // 6. Chamada para o Post do Feed (4.0s até 6.5s)
+    if (progress >= 0.52) {
+      const ctaAlpha = Math.min(1, (progress - 0.52) / 0.14);
+      const slideUp = (1 - ctaAlpha) * 40;
+      const ctaY = 1430 + slideUp;
+
+      ctx.save();
+      ctx.globalAlpha = ctaAlpha;
+      roundRect(ctx, 64, ctaY, W - 128, 250, 18);
+      ctx.fillStyle = "rgba(15, 23, 42, 0.95)";
+      ctx.fill();
+      ctx.strokeStyle = CARD.accent;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#facc15";
+      ctx.font = "900 28px 'Segoe UI', Roboto, Arial, sans-serif";
+      ctx.fillText("📖 ANÁLISE COMPLETA NO POST DO FEED!", W / 2, ctaY + 60);
+
+      ctx.fillStyle = "#f8fafc";
+      ctx.font = "700 28px 'Segoe UI', Roboto, Arial, sans-serif";
+      ctx.fillText("Veja o efeito em português, sinergias", W / 2, ctaY + 116);
+      ctx.fillText(
+        CARD.altArtCount > 0
+          ? "e as " + CARD.altArtCount + " arte(s) alternativa(s) no perfil 👉 @anaheimhub"
+          : "e onde jogar essa carta no perfil 👉 @anaheimhub",
+        W / 2,
+        ctaY + 158,
+      );
+
+      ctx.fillStyle = CARD.accent;
+      ctx.font = "800 24px monospace";
+      ctx.fillText("Simulador & Deckbuilder: anaheimhub.com", W / 2, ctaY + 214);
+      ctx.restore();
+    }
+
+    // 7. Rodapé fixo
+    ctx.textAlign = "left";
+    ctx.strokeStyle = "rgba(255,255,255,0.1)";
+    ctx.beginPath(); ctx.moveTo(64, H - 150); ctx.lineTo(W - 64, H - 150); ctx.stroke();
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "600 18px 'Segoe UI', Roboto, Arial, sans-serif";
+    ctx.fillText("Projeto de fãs, sem vínculo com a Bandai. Gundam Card Game © Bandai / Sotsu · Sunrise.", 64, H - 96);
+
+    ctx.restore();
+  };
+
+  window.__recordReelVideo = async function() {
+    await imgReady;
+    const mimes = [
+      "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
+      "video/mp4;codecs=avc1",
+      "video/mp4",
+      "video/webm;codecs=h264",
+      "video/webm;codecs=vp8,opus",
+      "video/webm",
+    ];
+    const mimeType = typeof MediaRecorder !== "undefined" ? mimes.find((m) => MediaRecorder.isTypeSupported(m)) : null;
+    if (!mimeType) throw new Error("MediaRecorder não suportado neste navegador.");
+
+    const stream = canvas.captureStream(30);
+    let audioCtx = null;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) {
+        audioCtx = new AC();
+        const dest = audioCtx.createMediaStreamDestination();
+        const now = audioCtx.currentTime;
+        // Acorde sci-fi sutil de revelação (garante trilha de áudio AAC válida para o Reel)
+        [220, 277.18, 329.63, 440].forEach((freq, i) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = i % 2 === 0 ? "sine" : "triangle";
+          osc.frequency.setValueAtTime(freq * 0.5, now);
+          osc.frequency.exponentialRampToValueAtTime(freq, now + 1.8);
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.025, now + 1.5);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + DURATION_MS / 1000);
+          osc.connect(gain);
+          gain.connect(dest);
+          osc.start(now);
+          osc.stop(now + DURATION_MS / 1000);
+        });
+        const track = dest.stream.getAudioTracks()[0];
+        if (track) stream.addTrack(track);
+      }
+    } catch {}
+
+    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 4_500_000 });
+    const chunks = [];
+    recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+    recorder.start(200);
+
+    const totalFrames = Math.round((DURATION_MS / 1000) * 30);
+    for (let f = 0; f <= totalFrames; f += 1) {
+      window.__drawReelFrame(f / totalFrames);
+      await new Promise((r) => setTimeout(r, 33));
+    }
+
+    recorder.stop();
+    await new Promise((r) => { recorder.onstop = r; });
+    if (audioCtx) audioCtx.close().catch(() => {});
+
+    const blob = new Blob(chunks, { type: mimeType });
+    const buf = await blob.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = "";
+    const step = 0x8000;
+    for (let i = 0; i < bytes.length; i += step) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + step));
+    }
+    return { base64: btoa(binary), mimeType };
+  };
+
+  imgReady.then(() => window.__drawReelFrame(0.85));
+</script>
+</body>
+</html>`;
+}
+
+/** Caminho do ffmpeg se instalado no servidor (otimiza MP4 com faststart e converte WebM no Linux). */
+export function resolveFfmpegExecutable(): string | null {
+  const custom = (process.env.SOCIAL_FFMPEG_PATH || "").trim();
+  if (custom && fs.existsSync(custom)) return custom;
+  const probe = spawnSync("ffmpeg", ["-version"], { stdio: "ignore", timeout: 4000 });
+  return probe.status === 0 ? "ffmpeg" : null;
+}
+
+/**
+ * Renderiza a animação de revelação da Carta da Semana em MP4 (1080x1920) e opcionalmente salva um frame JPEG de capa.
+ */
+export async function renderCardRevealReel(
+  card: ReelCardInput,
+  outputMp4Path: string,
+  outputCoverJpgPath?: string,
+): Promise<{ videoOk: boolean; coverOk: boolean }> {
+  fs.mkdirSync(path.dirname(outputMp4Path), { recursive: true });
+  if (outputCoverJpgPath) fs.mkdirSync(path.dirname(outputCoverJpgPath), { recursive: true });
+
+  const { chromium } = await import("playwright");
+  const browser = await chromium.launch({
+    headless: true,
+    executablePath: process.env.SOCIAL_CHROMIUM_PATH || undefined,
+    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--autoplay-policy=no-user-gesture-required"],
+  });
+
+  let videoOk = false;
+  let coverOk = false;
+  try {
+    const page = await browser.newPage({ viewport: { width: REEL_WIDTH, height: REEL_HEIGHT } });
+    await page.setContent(buildCardRevealReelHtml(card), { waitUntil: "load", timeout: 25000 });
+
+    if (outputCoverJpgPath) {
+      try {
+        await page.evaluate(() => (globalThis as unknown as { __drawReelFrame: (p: number) => void }).__drawReelFrame(0.85));
+        await page.screenshot({ path: outputCoverJpgPath, type: "jpeg", quality: 90 });
+        coverOk = fs.existsSync(outputCoverJpgPath);
+      } catch (err) {
+        console.warn("[socialSlides] capa do Reel não renderizou:", err instanceof Error ? err.message : err);
+      }
+    }
+
+    const recorded = (await page.evaluate(() =>
+      (globalThis as unknown as { __recordReelVideo: () => Promise<{ base64: string; mimeType: string }> }).__recordReelVideo(),
+    )) as { base64: string; mimeType: string };
+    const rawBuffer = Buffer.from(recorded.base64, "base64");
+    const ffmpeg = resolveFfmpegExecutable();
+
+    if (ffmpeg) {
+      const tmpInput = `${outputMp4Path}.raw`;
+      fs.writeFileSync(tmpInput, rawBuffer);
+      try {
+        const res = spawnSync(
+          ffmpeg,
+          [
+            "-y",
+            "-i",
+            tmpInput,
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-pix_fmt",
+            "yuv420p",
+            "-profile:v",
+            "high",
+            "-level:v",
+            "4.0",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "128k",
+            "-movflags",
+            "+faststart",
+            outputMp4Path,
+          ],
+          { stdio: "ignore", timeout: 45000 },
+        );
+        if (res.status === 0 && fs.existsSync(outputMp4Path)) {
+          videoOk = true;
+        }
+      } finally {
+        fs.rmSync(tmpInput, { force: true });
+      }
+    }
+
+    if (!videoOk && recorded.mimeType.includes("mp4") && rawBuffer.length > 0) {
+      fs.writeFileSync(outputMp4Path, rawBuffer);
+      videoOk = fs.existsSync(outputMp4Path);
+    }
+  } catch (err) {
+    console.warn("[socialSlides] Reel não renderizou:", err instanceof Error ? err.message : err);
+  } finally {
+    await browser.close();
+  }
+  return { videoOk, coverOk };
 }
 
 /**

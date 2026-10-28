@@ -3,9 +3,11 @@ import {
   countHashtags,
   decryptToken,
   encryptToken,
+  normalizeInstagramAltText,
   normalizeInstagramCaption,
   publishInstagramCarousel,
   publishInstagramImage,
+  publishInstagramReel,
   readInstagramConfig,
   refreshInstagramTokenIfNeeded,
 } from "./instagramPublisher";
@@ -46,7 +48,14 @@ describe("instagramPublisher", () => {
     expect(normalizeInstagramCaption("a".repeat(3000)).length).toBe(2200);
   });
 
-  it("publica em três passos (contêiner, status, publicação) sem pôr o token na URL de POST", async () => {
+  it("normaliza o alt_text de SEO/acessibilidade em uma linha de até 1.000 caracteres", () => {
+    expect(normalizeInstagramAltText(undefined)).toBe("");
+    expect(normalizeInstagramAltText("   ")).toBe("");
+    expect(normalizeInstagramAltText("Carta ST01-001\n\nGundam • Unidade")).toBe("Carta ST01-001 Gundam • Unidade");
+    expect(normalizeInstagramAltText("x".repeat(1200)).length).toBe(1000);
+  });
+
+  it("publica em três passos (contêiner, status, publicação) sem pôr o token na URL de POST e envia alt_text quando informado", async () => {
     const calls: { url: string; init?: RequestInit }[] = [];
     const fetchFn = vi.fn(async (url: string, init?: RequestInit) => {
       calls.push({ url, init });
@@ -59,13 +68,18 @@ describe("instagramPublisher", () => {
 
     const result = await publishInstagramImage(
       prismaWithoutStoredToken(),
-      { imageUrl: "https://anaheimhub.com/uploads/social/social-GD01-001-1.jpg", caption: "Legenda #GundamCardGame" },
+      {
+        imageUrl: "https://anaheimhub.com/uploads/social/social-GD01-001-1.jpg",
+        caption: "Legenda #GundamCardGame",
+        altText: "Carta GD01-001 do Gundam Card Game",
+      },
       { config, fetchFn, pollDelayMs: 0 },
     );
     expect(result).toEqual({ mediaId: "222", permalink: "https://www.instagram.com/p/abc/" });
     expect(calls[0].url).toBe("https://graph.instagram.com/v26.0/17841400000000000/media");
     expect(calls[0].url).not.toContain("TOKEN");
     expect(String(calls[0].init?.body)).toContain("image_url=");
+    expect(decodeURIComponent(String(calls[0].init?.body)).replace(/\+/g, " ")).toContain("alt_text=Carta GD01-001 do Gundam Card Game");
     expect(calls[2].url).toBe("https://graph.instagram.com/v26.0/17841400000000000/media_publish");
   });
 
@@ -112,7 +126,7 @@ describe("instagramPublisher", () => {
     expect(fetchFn).not.toHaveBeenCalled();
   });
 
-  it("carrossel: um contêiner por imagem, espera cada um, cria o pai CAROUSEL e publica", async () => {
+  it("carrossel: um contêiner por imagem (com alt_text), espera cada um, cria o pai CAROUSEL e publica", async () => {
     const calls: { url: string; body: string }[] = [];
     let child = 0;
     const fetchFn = vi.fn(async (url: string, init?: RequestInit) => {
@@ -127,12 +141,21 @@ describe("instagramPublisher", () => {
     }) as unknown as typeof fetch;
 
     const urls = [1, 2, 3].map((i) => `https://anaheimhub.com/uploads/social/social-x-${i}.jpg`);
-    const result = await publishInstagramCarousel(prismaWithoutStoredToken(), { imageUrls: urls, caption: "Legenda" }, { config, fetchFn, pollDelayMs: 0 });
+    const result = await publishInstagramCarousel(
+      prismaWithoutStoredToken(),
+      { imageUrls: urls, caption: "Legenda", altTexts: ["Slide 1", "Slide 2", "Slide 3"] },
+      { config, fetchFn, pollDelayMs: 0 },
+    );
     expect(result).toEqual({ mediaId: "222", permalink: "https://www.instagram.com/p/car/" });
     const posts = calls.filter((c) => c.body);
-    // filhos sem legenda, na ordem
+    // filhos sem legenda, na ordem, com alt_text individual
     expect(posts.slice(0, 3).map((c) => decodeURIComponent(c.body.match(/image_url=([^&]+)/)?.[1] ?? ""))).toEqual(urls);
     expect(posts.slice(0, 3).every((c) => !c.body.includes("caption="))).toBe(true);
+    expect(posts.slice(0, 3).map((c) => decodeURIComponent(c.body.match(/alt_text=([^&]+)/)?.[1] ?? "").replace(/\+/g, " "))).toEqual([
+      "Slide 1",
+      "Slide 2",
+      "Slide 3",
+    ]);
     const parent = posts[3].body;
     expect(parent).toContain("media_type=CAROUSEL");
     expect(decodeURIComponent(parent)).toContain("children=101,102,103");
@@ -155,5 +178,40 @@ describe("instagramPublisher", () => {
     await expect(run(Array.from({ length: 11 }, (_, i) => `https://a.com/${i}.jpg`))).rejects.toThrow(/2 a 10/);
     await expect(run(["https://a.com/1.jpg", "https://a.com/2.png"])).rejects.toThrow(/JPEG/);
     expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it("Reels: cria contêiner REELS com video_url MP4, cover_url e share_to_feed=true, aguarda FINISHED e publica", async () => {
+    const calls: { url: string; body: string }[] = [];
+    const fetchFn = vi.fn(async (url: string, init?: RequestInit) => {
+      const body = String(init?.body ?? "");
+      calls.push({ url, body });
+      if (url.endsWith("/media")) return jsonResponse({ id: "555" });
+      if (url.includes("/555?")) return jsonResponse({ status_code: "FINISHED" });
+      if (url.endsWith("/media_publish")) return jsonResponse({ id: "777" });
+      if (url.includes("/777?")) return jsonResponse({ permalink: "https://www.instagram.com/reel/xyz/" });
+      return jsonResponse({}, 404);
+    }) as unknown as typeof fetch;
+
+    const result = await publishInstagramReel(
+      prismaWithoutStoredToken(),
+      {
+        videoUrl: "https://anaheimhub.com/uploads/social/social-reel-ST01-001-1.mp4",
+        coverUrl: "https://anaheimhub.com/uploads/social/social-reel-ST01-001-1-cover.jpg",
+        caption: "Revelação da carta da semana #GundamCardGame",
+      },
+      { config, fetchFn, pollDelayMs: 0 },
+    );
+    expect(result).toEqual({ mediaId: "777", permalink: "https://www.instagram.com/reel/xyz/" });
+    const createBody = decodeURIComponent(calls[0].body).replace(/\+/g, " ");
+    expect(createBody).toContain("media_type=REELS");
+    expect(createBody).toContain("video_url=https://anaheimhub.com/uploads/social/social-reel-ST01-001-1.mp4");
+    expect(createBody).toContain("cover_url=https://anaheimhub.com/uploads/social/social-reel-ST01-001-1-cover.jpg");
+    expect(createBody).toContain("share_to_feed=true");
+  });
+
+  it("Reels: recusa URL que não seja MP4 em https", async () => {
+    await expect(
+      publishInstagramReel(prismaWithoutStoredToken(), { videoUrl: "https://anaheimhub.com/x.webm", caption: "x" }, { config, fetchFn: vi.fn() as any }),
+    ).rejects.toThrow(/MP4/);
   });
 });

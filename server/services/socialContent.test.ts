@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { VedaIndex, type RawCard, type RawEntry, type RawTournament } from "../vedaCore";
-import { articlePlainText, buildWeeklyReport, dayMonth, eventLabel, pickFeaturedDeck, rarityAttemptOrder, rarityTier, reportTournamentCount } from "./socialContent";
+import {
+  articlePlainText,
+  buildWeeklyReport,
+  dayMonth,
+  eventLabel,
+  formatStoreWithInstagram,
+  pickFeaturedDeck,
+  rarityAttemptOrder,
+  rarityTier,
+  reportTournamentCount,
+  storeInstagramHandle,
+} from "./socialContent";
 
 describe("texto do artigo para a legenda", () => {
   it("tira a marcação do markdown e fica só o texto", () => {
@@ -36,6 +47,17 @@ describe("texto do artigo para a legenda", () => {
     const text = articlePlainText("palavra ".repeat(100), 50);
     expect(text.length).toBeLessThanOrEqual(51);
     expect(text).toMatch(/ palavra…$/);
+  });
+});
+
+describe("menção de @arroba de lojas parceiras do Brasil", () => {
+  it("resolve o @arroba de lojas conhecidas e permite sobrescrever via SOCIAL_STORE_HANDLES", () => {
+    expect(storeInstagramHandle("Taverna Game House", {})).toBe("@tavernagamehouse");
+    expect(formatStoreWithInstagram("Taverna Game House", {})).toBe("Taverna Game House (@tavernagamehouse)");
+    expect(formatStoreWithInstagram("Loja Sem Arroba", {})).toBe("Loja Sem Arroba");
+    const customEnv = { SOCIAL_STORE_HANDLES: "Loja X=lojinhax, Outra Loja=@outraloja_tcg" } as NodeJS.ProcessEnv;
+    expect(storeInstagramHandle("Loja X", customEnv)).toBe("@lojinhax");
+    expect(formatStoreWithInstagram("Outra Loja", customEnv)).toBe("Outra Loja (@outraloja_tcg)");
   });
 });
 

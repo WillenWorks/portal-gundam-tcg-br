@@ -9,8 +9,8 @@
  * O token é renovado sozinho (a cada 7 dias) e o novo valor fica no banco, criptografado com uma chave
  * derivada de SOCIAL_TOKEN_SECRET (ou do JWT_SECRET). O token nunca vai para log nem para mensagem de erro.
  *
- * Regras da Meta que valem aqui: só JPEG, a imagem precisa estar num endereço público na hora da publicação,
- * legenda até 2.200 caracteres e 30 hashtags, até 100 posts pela API a cada 24 h. */
+ * Regras da Meta que valem aqui: só JPEG para fotos e MP4 (H.264/AAC) para Reels, a mídia precisa estar
+ * num endereço público na hora da publicação, legenda até 2.200 caracteres e 30 hashtags, até 100 posts pela API a cada 24 h. */
 import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
 
@@ -21,6 +21,7 @@ const TOKEN_TTL_MS = 60 * 24 * 3600_000;
 
 export const INSTAGRAM_CAPTION_MAX = 2200;
 export const INSTAGRAM_HASHTAG_MAX = 30;
+export const INSTAGRAM_ALT_TEXT_MAX = 1000;
 
 export type InstagramConfig = { userId: string; envToken: string; version: string };
 
@@ -110,6 +111,7 @@ export type PublishResult = { mediaId: string; permalink: string | null };
 
 type PublishDeps = { config?: InstagramConfig | null; fetchFn?: FetchLike; pollDelayMs?: number; maxPolls?: number };
 const JPEG_HTTPS = /^https:\/\/[^/]+\/.+\.jpe?g$/i;
+const MP4_HTTPS = /^https:\/\/[^/]+\/.+\.mp4$/i;
 export const INSTAGRAM_CAROUSEL_MAX = 10;
 
 async function publishContext(prisma: PrismaClient, deps: PublishDeps) {
@@ -140,7 +142,7 @@ async function waitContainer(ctx: PublishContext, containerId: string): Promise<
     const code = String(status.status_code || "");
     if (code === "FINISHED") return;
     if (code === "ERROR" || code === "EXPIRED") throw new InstagramApiError(`Instagram recusou a mídia (status ${code}).`);
-    if (i === ctx.maxPolls - 1) throw new InstagramApiError("Instagram não terminou de processar a imagem a tempo; tente publicar de novo.");
+    if (i === ctx.maxPolls - 1) throw new InstagramApiError("Instagram não terminou de processar a mídia a tempo; tente publicar de novo.");
     await sleep(ctx.pollDelayMs);
   }
 }
@@ -160,11 +162,20 @@ async function publishContainer(ctx: PublishContext, containerId: string): Promi
   return { mediaId, permalink };
 }
 
-/** Publica uma imagem (JPEG em endereço público) com legenda. Cria o contêiner, espera ficar pronto e publica. */
-export async function publishInstagramImage(prisma: PrismaClient, input: { imageUrl: string; caption: string }, deps: PublishDeps = {}): Promise<PublishResult> {
+/** Publica uma imagem (JPEG em endereço público) com legenda e texto alternativo opcional (SEO/acessibilidade). */
+export async function publishInstagramImage(
+  prisma: PrismaClient,
+  input: { imageUrl: string; caption: string; altText?: string },
+  deps: PublishDeps = {},
+): Promise<PublishResult> {
   if (!JPEG_HTTPS.test(input.imageUrl)) throw new InstagramApiError("A imagem precisa ser um JPEG em endereço https público.");
   const ctx = await publishContext(prisma, deps);
-  const containerId = await createContainer(ctx, { image_url: input.imageUrl, caption: normalizeInstagramCaption(input.caption) });
+  const altText = normalizeInstagramAltText(input.altText);
+  const containerId = await createContainer(ctx, {
+    image_url: input.imageUrl,
+    caption: normalizeInstagramCaption(input.caption),
+    ...(altText ? { alt_text: altText } : {}),
+  });
   await waitContainer(ctx, containerId);
   return publishContainer(ctx, containerId);
 }
@@ -173,19 +184,52 @@ export async function publishInstagramImage(prisma: PrismaClient, input: { image
  * Publica um carrossel (2 a 10 JPEGs na mesma proporção). Um contêiner por imagem, criado e processado em sequência
  * (o pai criado antes de os filhos terminarem dá invalid_children); depois o contêiner CAROUSEL com a legenda.
  */
-export async function publishInstagramCarousel(prisma: PrismaClient, input: { imageUrls: string[]; caption: string }, deps: PublishDeps = {}): Promise<PublishResult> {
+export async function publishInstagramCarousel(
+  prisma: PrismaClient,
+  input: { imageUrls: string[]; caption: string; altTexts?: string[] },
+  deps: PublishDeps = {},
+): Promise<PublishResult> {
   if (input.imageUrls.length < 2 || input.imageUrls.length > INSTAGRAM_CAROUSEL_MAX) throw new InstagramApiError("O carrossel precisa ter de 2 a 10 imagens.");
   if (!input.imageUrls.every((url) => JPEG_HTTPS.test(url))) throw new InstagramApiError("Todas as imagens do carrossel precisam ser JPEG em endereço https público.");
   const ctx = await publishContext(prisma, deps);
   const children: string[] = [];
-  for (const imageUrl of input.imageUrls) {
-    const childId = await createContainer(ctx, { image_url: imageUrl, is_carousel_item: "true" });
+  for (let i = 0; i < input.imageUrls.length; i += 1) {
+    const imageUrl = input.imageUrls[i];
+    const altText = normalizeInstagramAltText(input.altTexts?.[i]);
+    const childId = await createContainer(ctx, {
+      image_url: imageUrl,
+      is_carousel_item: "true",
+      ...(altText ? { alt_text: altText } : {}),
+    });
     await waitContainer(ctx, childId);
     children.push(childId);
   }
   const parentId = await createContainer(ctx, { media_type: "CAROUSEL", children: children.join(","), caption: normalizeInstagramCaption(input.caption) });
   await waitContainer(ctx, parentId);
   return publishContainer(ctx, parentId);
+}
+
+/**
+ * Publica um Reel (MP4 H.264/AAC em endereço https público) com legenda e capa opcional.
+ * O processamento de vídeo na Meta pode levar mais ciclos de verificação que uma imagem estática.
+ */
+export async function publishInstagramReel(
+  prisma: PrismaClient,
+  input: { videoUrl: string; caption: string; coverUrl?: string | null; shareToFeed?: boolean },
+  deps: PublishDeps = {},
+): Promise<PublishResult> {
+  if (!MP4_HTTPS.test(input.videoUrl)) throw new InstagramApiError("O vídeo do Reel precisa ser um MP4 em endereço https público.");
+  if (input.coverUrl && !JPEG_HTTPS.test(input.coverUrl)) throw new InstagramApiError("A capa do Reel precisa ser um JPEG em endereço https público.");
+  const ctx = await publishContext(prisma, { ...deps, maxPolls: deps.maxPolls ?? 24 });
+  const containerId = await createContainer(ctx, {
+    media_type: "REELS",
+    video_url: input.videoUrl,
+    caption: normalizeInstagramCaption(input.caption),
+    share_to_feed: input.shareToFeed === false ? "false" : "true",
+    ...(input.coverUrl ? { cover_url: input.coverUrl } : {}),
+  });
+  await waitContainer(ctx, containerId);
+  return publishContainer(ctx, containerId);
 }
 
 /** Renova o token de longa duração (vale mais 60 dias) quando a última renovação tem mais de 7 dias. */
@@ -212,7 +256,7 @@ export async function refreshInstagramTokenIfNeeded(
   return "refreshed";
 }
 
-/* ---------- legenda ---------- */
+/* ---------- legenda & alt_text ---------- */
 
 /** Garante os limites do Instagram: no máximo 30 hashtags (as excedentes saem) e 2.200 caracteres. */
 export function normalizeInstagramCaption(caption: string): string {
@@ -228,4 +272,13 @@ export function normalizeInstagramCaption(caption: string): string {
 
 export function countHashtags(caption: string): number {
   return (caption.match(/(^|\s)#[\p{L}\p{N}_]+/gu) || []).length;
+}
+
+/** Normaliza o texto alternativo (alt_text) da imagem para SEO e acessibilidade no Instagram (até 1.000 caracteres). */
+export function normalizeInstagramAltText(altText: string | null | undefined): string {
+  const clean = String(altText ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!clean) return "";
+  return clean.length > INSTAGRAM_ALT_TEXT_MAX ? `${clean.slice(0, INSTAGRAM_ALT_TEXT_MAX - 1).trimEnd()}…` : clean;
 }
