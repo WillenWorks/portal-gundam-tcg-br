@@ -419,9 +419,24 @@ export type ReelCardInput = {
   altArtCount?: number;
 };
 
+let cachedCardBackDataUri: string | null = null;
+
+/** Carrega a imagem oficial do verso do Gundam Card Game (`src/assets/gundam-card-back.png`) como Data URI para uso imediato no Canvas. */
+function readOfficialCardBackDataUri(): string {
+  if (cachedCardBackDataUri !== null) return cachedCardBackDataUri;
+  try {
+    const filePath = path.resolve(process.cwd(), "src/assets/gundam-card-back.png");
+    const buf = fs.readFileSync(filePath);
+    cachedCardBackDataUri = `data:image/png;base64,${buf.toString("base64")}`;
+  } catch {
+    cachedCardBackDataUri = "";
+  }
+  return cachedCardBackDataUri;
+}
+
 /**
  * Documento HTML 1080x1920 (9:16) com Canvas + Web Audio que desenha e grava a animação de revelação da Carta da Semana
- * e direciona o espectador para o post completo no feed (@anaheimhub).
+ * (mostrando primeiro o verso oficial do Gundam Card Game antes do giro 3D) e direciona o espectador para o post completo no feed (@anaheimhub).
  */
 export function buildCardRevealReelHtml(card: ReelCardInput): string {
   const accent = accentFor(card.color);
@@ -436,6 +451,7 @@ export function buildCardRevealReelHtml(card: ReelCardInput): string {
     altArtCount: Number(card.altArtCount || 0),
     accent,
     imageUrl: safeImg,
+    cardBackUrl: readOfficialCardBackDataUri(),
   }).replace(/</g, "\\u003c");
 
   return `<!DOCTYPE html>
@@ -459,7 +475,8 @@ export function buildCardRevealReelHtml(card: ReelCardInput): string {
   const ctx = canvas.getContext("2d");
 
   let loadedImg = null;
-  const imgReady = new Promise((resolve) => {
+  let loadedBackImg = null;
+  const frontReady = new Promise((resolve) => {
     if (!CARD.imageUrl) { resolve(null); return; }
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -468,6 +485,15 @@ export function buildCardRevealReelHtml(card: ReelCardInput): string {
     img.onerror = () => { clearTimeout(timer); resolve(null); };
     img.src = CARD.imageUrl;
   });
+  const backReady = new Promise((resolve) => {
+    if (!CARD.cardBackUrl) { resolve(null); return; }
+    const img = new Image();
+    const timer = setTimeout(() => resolve(null), 3000);
+    img.onload = () => { clearTimeout(timer); loadedBackImg = img; resolve(img); };
+    img.onerror = () => { clearTimeout(timer); resolve(null); };
+    img.src = CARD.cardBackUrl;
+  });
+  const imgReady = Promise.all([frontReady, backReady]);
 
   function roundRect(c, x, y, w, h, r) {
     c.beginPath();
@@ -539,13 +565,12 @@ export function buildCardRevealReelHtml(card: ReelCardInput): string {
     ctx.beginPath(); ctx.moveTo(64, 146); ctx.lineTo(W - 64, 146); ctx.stroke();
 
     // 3. Título de chamada no topo
-    const revealPhase = Math.max(0, Math.min(1, (progress - 0.22) / 0.16));
     ctx.textAlign = "center";
     ctx.fillStyle = "#94a3b8";
     ctx.font = "800 24px monospace";
-    ctx.fillText(progress < 0.26 ? "[ ESCANEANDO ARQUIVO DA SEMANA... ]" : CARD.code + " • " + CARD.typeLabel + " • " + CARD.rarity, W / 2, 208);
+    ctx.fillText(progress < 0.26 ? "[ REVELANDO A CARTA DA SEMANA... ]" : CARD.code + " • " + CARD.typeLabel + " • " + CARD.rarity, W / 2, 208);
 
-    // 4. Moldura da Carta com 3D Flip + Scan Laser
+    // 4. Moldura da Carta com Verso Oficial + Giro 3D
     const cardW = 580;
     const cardH = 810;
     const cardY = 250;
@@ -560,7 +585,7 @@ export function buildCardRevealReelHtml(card: ReelCardInput): string {
 
     // Brilho externo da carta
     ctx.shadowColor = CARD.accent;
-    ctx.shadowBlur = isRevealed ? 48 : 24;
+    ctx.shadowBlur = isRevealed ? 48 : 28;
     roundRect(ctx, -cardW / 2, -cardH / 2, cardW, cardH, 26);
     ctx.fillStyle = "#0b1329";
     ctx.fill();
@@ -571,35 +596,28 @@ export function buildCardRevealReelHtml(card: ReelCardInput): string {
     ctx.clip();
 
     if (!isRevealed) {
-      // Verso / Silhueta confidencial com scan laser
-      const backGrad = ctx.createLinearGradient(-cardW / 2, -cardH / 2, cardW / 2, cardH / 2);
-      backGrad.addColorStop(0, "#0f172a");
-      backGrad.addColorStop(0.5, "#1e293b");
-      backGrad.addColorStop(1, "#020617");
-      ctx.fillStyle = backGrad;
-      ctx.fillRect(-cardW / 2, -cardH / 2, cardW, cardH);
-
-      if (loadedImg) {
-        ctx.save();
-        ctx.globalAlpha = 0.16;
-        ctx.drawImage(loadedImg, -cardW / 2, -cardH / 2, cardW, cardH);
-        ctx.restore();
+      // Verso oficial do Gundam Card Game antes do giro 3D + feixe de scan energético
+      if (loadedBackImg) {
+        ctx.drawImage(loadedBackImg, -cardW / 2, -cardH / 2, cardW, cardH);
+      } else {
+        const backGrad = ctx.createLinearGradient(-cardW / 2, -cardH / 2, cardW / 2, cardH / 2);
+        backGrad.addColorStop(0, "#0f172a");
+        backGrad.addColorStop(0.5, "#1e293b");
+        backGrad.addColorStop(1, "#020617");
+        ctx.fillStyle = backGrad;
+        ctx.fillRect(-cardW / 2, -cardH / 2, cardW, cardH);
       }
-
-      ctx.fillStyle = CARD.accent;
-      ctx.font = "900 44px 'Segoe UI', Roboto, Arial, sans-serif";
-      ctx.fillText("CONFIDENCIAL", 0, -30);
-      ctx.fillStyle = "#e2e8f0";
-      ctx.font = "800 32px monospace";
-      ctx.fillText(CARD.code, 0, 30);
 
       const scanY = -cardH / 2 + ((progress / 0.28) % 1) * cardH;
       const scanGrad = ctx.createLinearGradient(0, scanY - 40, 0, scanY + 40);
       scanGrad.addColorStop(0, "rgba(56, 189, 248, 0)");
       scanGrad.addColorStop(0.5, CARD.accent);
       scanGrad.addColorStop(1, "rgba(56, 189, 248, 0)");
+      ctx.save();
+      ctx.globalAlpha = 0.5;
       ctx.fillStyle = scanGrad;
       ctx.fillRect(-cardW / 2, scanY - 40, cardW, 80);
+      ctx.restore();
     } else if (loadedImg) {
       ctx.drawImage(loadedImg, -cardW / 2, -cardH / 2, cardW, cardH);
     } else {
@@ -615,7 +633,7 @@ export function buildCardRevealReelHtml(card: ReelCardInput): string {
     ctx.restore();
 
     roundRect(ctx, -cardW / 2, -cardH / 2, cardW, cardH, 26);
-    ctx.strokeStyle = isRevealed ? CARD.accent : "rgba(255,255,255,0.25)";
+    ctx.strokeStyle = isRevealed ? CARD.accent : "rgba(255,255,255,0.28)";
     ctx.lineWidth = 4;
     ctx.stroke();
     ctx.restore();
