@@ -1398,6 +1398,11 @@ export const api = {
         postType: PostType;
         coverImage?: string | null;
         suggestedCards?: string[];
+        generationMeta?: {
+          provider: "gemini" | "claude" | "fallback";
+          model: string | null;
+          prompt: string;
+        };
       };
     }>("/admin/articles/generate", { method: "POST", body: JSON.stringify(payload) }, []),
   approveArticle: (id: string, payload?: { publishSocialNow?: boolean }) =>

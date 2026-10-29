@@ -52,6 +52,7 @@ export interface SocialMediaPost {
   publishedAt: string | null;
   publishError: string | null;
   rejectedReason: string | null;
+  metadata?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1113,6 +1114,60 @@ export function AdminSocialTab() {
                     </div>
                   </div>
                 </div>
+
+                {/* Auditoria do Prompt e Geração com IA */}
+                {(() => {
+                  if (!selectedPost.metadata) return null;
+                  try {
+                    const postMeta = JSON.parse(selectedPost.metadata) as Record<string, any>;
+                    if (!postMeta || (!postMeta.provider && !postMeta.customTopic && !postMeta.prompt)) return null;
+                    return (
+                      <div className="rounded border border-white/10 bg-white/[0.02] p-3 text-xs space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-semibold text-slate-300 flex items-center gap-1.5">
+                            <Bot className="size-3.5 text-cyan-400" />
+                            Origem da Legenda:
+                          </span>
+                          {postMeta.provider === "gemini" && (
+                            <Badge variant="outline" className="border-emerald-400/40 bg-emerald-400/10 text-emerald-300 font-mono text-[11px]">
+                              Gemini ({postMeta.model || "Flash"})
+                            </Badge>
+                          )}
+                          {postMeta.provider === "claude" && (
+                            <Badge variant="outline" className="border-purple-400/40 bg-purple-400/10 text-purple-300 font-mono text-[11px]">
+                              Claude ({postMeta.model || "Opus"})
+                            </Badge>
+                          )}
+                          {postMeta.provider === "fallback" && (
+                            <Badge variant="outline" className="border-amber-400/40 bg-amber-400/10 text-amber-300 font-mono text-[11px]">
+                              ⚠️ Modelo Fixo (Fallback - sem IA)
+                            </Badge>
+                          )}
+                        </div>
+
+                        {postMeta.customTopic && (
+                          <div className="text-slate-300 bg-slate-950/40 p-2 border border-white/5 font-mono text-[11px]">
+                            <span className="text-slate-400 font-sans block mb-0.5 text-[10px] uppercase tracking-wider">Instrução solicitada (Prompt do editor):</span>
+                            "{postMeta.customTopic}"
+                          </div>
+                        )}
+
+                        {postMeta.prompt && (
+                          <details className="group">
+                            <summary className="cursor-pointer text-[11px] text-cyan-400 hover:text-cyan-300 font-mono select-none">
+                              ▶ Ver prompt completo enviado à IA
+                            </summary>
+                            <pre className="mt-2 whitespace-pre-wrap font-mono text-[10px] leading-relaxed text-slate-300 bg-slate-950/80 p-2.5 border border-white/10 max-h-48 overflow-y-auto">
+                              {postMeta.prompt}
+                            </pre>
+                          </details>
+                        )}
+                      </div>
+                    );
+                  } catch {
+                    return null;
+                  }
+                })()}
 
                 {(selectedPost.scheduledFor || selectedPost.publishError || selectedPost.instagramPermalink) && (
                   <div className="space-y-2 text-xs">
