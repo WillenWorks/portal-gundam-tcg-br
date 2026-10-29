@@ -36,6 +36,7 @@ import {
   deckKeyCardsHtml,
   deckListHtml,
   escapeHtml,
+  renderArticleStory,
   renderCardRevealReel,
   renderCardStory,
   renderSlides,
@@ -45,6 +46,7 @@ import {
   tournamentCoverHtml,
   tournamentSlideHtml,
   type AltArt,
+  type ArticleStoryInput,
   type ReelCardInput,
 } from "./socialSlides";
 import type { VedaIndex } from "../vedaCore";
@@ -606,23 +608,30 @@ export type PostStoryMeta = {
   storyError: string | null;
   isSpoiler: boolean;
   storyCard: ReelCardInput | null;
+  storyArticle?: ArticleStoryInput | null;
 };
 
-/** Lê os metadados do Story companheiro atrelado a um post de carta. */
+/** Lê os metadados do Story companheiro atrelado a um post de carta ou artigo. */
 export function readPostStoryMeta(post: { cardCode?: string | null; metadata?: string | null }): PostStoryMeta {
   try {
     const parsed = JSON.parse(post.metadata || "{}") as Record<string, unknown>;
     const isSpoiler = parsed.isSpoiler === true;
-    const defaultTitle = isSpoiler ? "SPOILER DA SEMANA" : "CARTA DA SEMANA";
+    const isArticle = Boolean(parsed.storyArticle || parsed.articleId);
+    const defaultTitle = isArticle
+      ? "NOVO ARTIGO NO SITE"
+      : isSpoiler
+        ? "SPOILER DA SEMANA"
+        : "CARTA DA SEMANA";
     const storyVideoUrl = typeof parsed.storyVideoUrl === "string" && /\.mp4$/i.test(parsed.storyVideoUrl) ? parsed.storyVideoUrl : null;
     const storyEnabled = typeof parsed.storyEnabled === "boolean" ? parsed.storyEnabled : Boolean(storyVideoUrl);
     const storyTitle = typeof parsed.storyTitle === "string" && parsed.storyTitle.trim() ? parsed.storyTitle.trim() : defaultTitle;
     const storyPostId = typeof parsed.storyPostId === "string" && parsed.storyPostId ? parsed.storyPostId : null;
     const storyError = typeof parsed.storyError === "string" && parsed.storyError ? parsed.storyError : null;
     const storyCard = parsed.storyCard && typeof parsed.storyCard === "object" ? (parsed.storyCard as ReelCardInput) : null;
-    return { storyVideoUrl, storyEnabled, storyTitle, storyPostId, storyError, isSpoiler, storyCard };
+    const storyArticle = parsed.storyArticle && typeof parsed.storyArticle === "object" ? (parsed.storyArticle as ArticleStoryInput) : null;
+    return { storyVideoUrl, storyEnabled, storyTitle, storyPostId, storyError, isSpoiler, storyCard, storyArticle };
   } catch {
-    return { storyVideoUrl: null, storyEnabled: false, storyTitle: "CARTA DA SEMANA", storyPostId: null, storyError: null, isSpoiler: false, storyCard: null };
+    return { storyVideoUrl: null, storyEnabled: false, storyTitle: "CARTA DA SEMANA", storyPostId: null, storyError: null, isSpoiler: false, storyCard: null, storyArticle: null };
   }
 }
 
@@ -781,6 +790,8 @@ type DraftContent = {
   reelCard?: ReelCardInput;
   /** dados de renderização do Story companheiro (9:16 MP4) que sai junto com o post de carta */
   storyCard?: ReelCardInput;
+  /** dados de renderização do Story companheiro (9:16 MP4) que sai junto com o post de artigo */
+  storyArticle?: ArticleStoryInput;
   metadata?: Record<string, unknown>;
   /** motivo para o aviso no Discord (ex.: semana sem torneio virou carta da semana) */
   notice?: string;
@@ -832,6 +843,20 @@ async function renderDraftStory(fileStem: string, card: ReelCardInput): Promise<
     return videoOk ? `/uploads/social/${videoName}` : null;
   } catch (err) {
     console.warn("[socialPublisher] Aviso ao renderizar Story Playwright:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+/** Renderiza o vídeo MP4 (9:16, 5s) do Story de notificação de um novo artigo publicado no portal. */
+async function renderDraftArticleStory(fileStem: string, article: ArticleStoryInput): Promise<string | null> {
+  const stamp = Date.now();
+  const stem = safeFileStem(fileStem);
+  const videoName = `social-${stem}-${stamp}.mp4`;
+  try {
+    const { videoOk } = await renderArticleStory(article, path.join(socialUploadDir(), videoName));
+    return videoOk ? `/uploads/social/${videoName}` : null;
+  } catch (err) {
+    console.warn("[socialPublisher] Aviso ao renderizar Story de Artigo Playwright:", err instanceof Error ? err.message : err);
     return null;
   }
 }
@@ -1346,13 +1371,20 @@ export async function draftArticlePost(prisma: PrismaClient, input: GeneratePost
   const content = await generateCaption(articlePrompt(article, link, input.customTopic), articleTemplate(article, link), input.apiKeyGemini);
   const kind = ARTICLE_KIND_PT[article.postType] ?? "Artigo";
   const altTexts = [`${kind}: ${article.title} — Portal brasileiro de Gundam Card Game Anaheim Hub`];
+  const storyArticle: ArticleStoryInput = {
+    title: article.title,
+    kind,
+    coverUrl: absoluteUrl(article.coverImage, base),
+    articleUrl: link,
+  };
   return {
     type: SocialPostType.ARTICLE,
     content: { ...content, fullCaption: ensureArticleLink(content.fullCaption, link) },
     fileStem: `artigo-${article.slug}`.slice(0, 24),
     slides: [articleCoverHtml({ title: article.title, kind, coverUrl: absoluteUrl(article.coverImage, base) })],
     altTexts,
-    metadata: { articleId: article.id, articleSlug: article.slug, altTexts },
+    storyArticle,
+    metadata: { articleId: article.id, articleSlug: article.slug, altTexts, storyArticle },
   };
 }
 
@@ -1408,6 +1440,15 @@ export async function createSocialPostDraft(prisma: PrismaClient, input: Generat
         storyEnabled: Boolean(storyVideoUrl),
         storyTitle,
         storyCard: draft.storyCard,
+      };
+    } else if (draft.storyArticle) {
+      const storyVideoUrl = await renderDraftArticleStory(`${draft.fileStem}-story`, draft.storyArticle);
+      const storyTitle = `NOVO ${draft.storyArticle.kind.toUpperCase()} NO SITE`;
+      extraMeta = {
+        storyVideoUrl,
+        storyEnabled: Boolean(storyVideoUrl),
+        storyTitle,
+        storyArticle: draft.storyArticle,
       };
     }
   }
@@ -1468,35 +1509,45 @@ export async function updatePostStorySettings(
 
   let storyVideoUrl = currentStory.storyVideoUrl;
   let storyCard = currentStory.storyCard;
+  let storyArticle = currentStory.storyArticle;
 
   if (shouldRegenerate || (opts.storyEnabled === true && !storyVideoUrl)) {
     const base = socialPublicAppUrl();
-    const isSpoiler = Boolean(rawMeta.isSpoiler);
-    if (!storyCard) {
-      const code = existing.cardCode || undefined;
-      const picked = await pickCardForPost(prisma, code, Math.random, { spoiler: isSpoiler });
-      const altArts = await findAltArts(prisma, picked);
-      storyCard = {
-        code: picked.code,
-        name: picked.name,
-        color: picked.color,
-        typeLabel: CARD_TYPE_PT[picked.type] || picked.type,
-        rarity: rarityTier(picked.rarity) ?? picked.rarity ?? "GCG",
-        cost: picked.cost ?? null,
-        level: picked.level ?? null,
-        ap: picked.ap ?? null,
-        hp: picked.hp ?? null,
-        imageUrl: picked.imageUrl ?? null,
-        altArtCount: altArts.length,
-        isSpoiler,
-        cardUrl: cardDatabaseUrl(picked.code, base),
-        storyTitle: nextTitle,
+    if (rawMeta.storyArticle) {
+      storyArticle = {
+        ...(rawMeta.storyArticle as ArticleStoryInput),
+        kind: (rawMeta.storyArticle as ArticleStoryInput).kind || "ARTIGO",
       };
+      const rendered = await renderDraftArticleStory(`artigo-${existing.id}-story`, storyArticle);
+      if (rendered) storyVideoUrl = rendered;
     } else {
-      storyCard = { ...storyCard, storyTitle: nextTitle };
+      const isSpoiler = Boolean(rawMeta.isSpoiler);
+      if (!storyCard) {
+        const code = existing.cardCode || undefined;
+        const picked = await pickCardForPost(prisma, code, Math.random, { spoiler: isSpoiler });
+        const altArts = await findAltArts(prisma, picked);
+        storyCard = {
+          code: picked.code,
+          name: picked.name,
+          color: picked.color,
+          typeLabel: CARD_TYPE_PT[picked.type] || picked.type,
+          rarity: rarityTier(picked.rarity) ?? picked.rarity ?? "GCG",
+          cost: picked.cost ?? null,
+          level: picked.level ?? null,
+          ap: picked.ap ?? null,
+          hp: picked.hp ?? null,
+          imageUrl: picked.imageUrl ?? null,
+          altArtCount: altArts.length,
+          isSpoiler,
+          cardUrl: cardDatabaseUrl(picked.code, base),
+          storyTitle: nextTitle,
+        };
+      } else {
+        storyCard = { ...storyCard, storyTitle: nextTitle };
+      }
+      const rendered = await renderDraftStory(`${existing.cardCode || "carta"}-story`, storyCard);
+      if (rendered) storyVideoUrl = rendered;
     }
-    const rendered = await renderDraftStory(`${existing.cardCode || "carta"}-story`, storyCard);
-    if (rendered) storyVideoUrl = rendered;
   }
 
   const nextEnabled = opts.storyEnabled !== undefined ? opts.storyEnabled : Boolean(storyVideoUrl);
@@ -1506,6 +1557,7 @@ export async function updatePostStorySettings(
     storyEnabled: nextEnabled,
     storyVideoUrl,
     storyCard,
+    storyArticle,
   };
 
   return prisma.socialMediaPost.update({

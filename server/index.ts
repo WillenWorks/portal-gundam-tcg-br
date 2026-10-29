@@ -130,6 +130,7 @@ import { registerAdminDashboardRoutes } from "./routes/adminDashboardRoutes.ts";
 import { registerSocialRoutes } from "./routes/socialRoutes.ts";
 import { registerDiscordInteractionRoute } from "./routes/discordInteractionRoute.ts";
 import { registerArticleSocialRoutes } from "./routes/articleSocialRoutes.ts";
+import { registerArticleAdminRoutes } from "./routes/articleAdminRoutes.ts";
 import { attachSocialSocket } from "./socialSocket.ts";
 import { createMailer, registerAuthEmailRoutes, sendVerificationEmail, validatePasswordRequirements } from "./authEmailService.ts";
 import { recaptchaVerifier } from "./recaptchaService.ts";
@@ -3171,6 +3172,7 @@ registerVedaRoutes(app, prisma, [authRequired, roleRequired([UserRole.ADMIN])]);
 registerAdminDashboardRoutes(app, prisma, authRequired, roleRequired);
 registerSocialRoutes(app, prisma, authRequired, authOptional);
 registerArticleSocialRoutes(app, prisma, authRequired, authOptional);
+registerArticleAdminRoutes(app, prisma, authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]));
 
 // Lista de TODOS os torneios (home, estatísticas, admin, deck compartilhado). Com ~1.300 torneios / 21 mil
 // participações / 105 mil itens de lista, o include completo (`card: true` em cada item) passava de 2 GB de heap e

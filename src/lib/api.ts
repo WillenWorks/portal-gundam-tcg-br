@@ -1378,6 +1378,37 @@ export const api = {
   createPost: (payload: Partial<ApiPost>) => mutate<ApiPost>("/posts", { method: "POST", body: JSON.stringify(payload) }, ["/posts"]),
   updatePost: (id: string, payload: Partial<ApiPost>) => mutate<ApiPost>(`/posts/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/posts"]),
   deletePost: (id: string) => mutate<void>(`/posts/${id}`, { method: "DELETE" }, ["/posts"]),
+  generateArticleWithAi: (payload: {
+    topic: string;
+    category?: PostType;
+    context?: string;
+    rules?: string;
+    cardReferences?: string[];
+    imageMode?: "CARD_ART" | "CUSTOM_URL" | "AI_PROMPT";
+    customImageUrl?: string;
+    modelPreference?: "gemini" | "claude";
+  }) =>
+    mutate<{
+      ok: boolean;
+      article: {
+        title: string;
+        slug: string;
+        excerpt: string;
+        contentMd: string;
+        postType: PostType;
+        coverImage?: string | null;
+        suggestedCards?: string[];
+      };
+    }>("/admin/articles/generate", { method: "POST", body: JSON.stringify(payload) }, []),
+  approveArticle: (id: string, payload?: { publishSocialNow?: boolean }) =>
+    mutate<{
+      ok: boolean;
+      post: ApiPost;
+      socialDraftCreated?: boolean;
+      socialPublished?: boolean;
+      socialPostId?: string | null;
+      socialError?: string | null;
+    }>(`/admin/articles/${encodeURIComponent(id)}/approve`, { method: "POST", body: JSON.stringify(payload || {}) }, ["/posts"]),
   getPostLikeStatus: (slugOrId: string) =>
     request<{ liked: boolean; likeCount: number }>(`/posts/${encodeURIComponent(slugOrId)}/like-status`, undefined, { bypassCache: true }),
   togglePostLike: (slugOrId: string) =>

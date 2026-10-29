@@ -1119,6 +1119,234 @@ export function buildCardStoryHtml(card: ReelCardInput): string {
 </html>`;
 }
 
+export type ArticleStoryInput = {
+  title: string;
+  kind: string;
+  coverUrl?: string | null;
+  articleUrl: string;
+};
+
+/**
+ * Constrói o HTML Canvas 9:16 (1080x1920) para o Story de notificação de um novo artigo publicado no portal.
+ * Exibe animação visual com a capa do artigo, badge temático, título em destaque e sticker com o link do portal.
+ */
+export function buildArticleStoryHtml(article: ArticleStoryInput): string {
+  const accent = "#38bdf8";
+  const safeImg = safeImageUrl(article.coverUrl);
+  const payload = JSON.stringify({
+    title: String(article.title || ""),
+    kind: String(article.kind || "ARTIGO").toUpperCase(),
+    articleUrl: String(article.articleUrl || "anaheimhub.com"),
+    accent,
+    imageUrl: safeImg,
+  }).replace(/</g, "\\u003c");
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: ${REEL_WIDTH}px; height: ${REEL_HEIGHT}px; overflow: hidden; background: #020617; }
+  canvas { width: ${REEL_WIDTH}px; height: ${REEL_HEIGHT}px; display: block; }
+</style>
+</head>
+<body>
+<canvas id="reel-canvas" width="${REEL_WIDTH}" height="${REEL_HEIGHT}"></canvas>
+<script>
+  const ARTICLE = ${payload};
+  const W = ${REEL_WIDTH};
+  const H = ${REEL_HEIGHT};
+  const DURATION_MS = ${STORY_DURATION_MS};
+  const canvas = document.getElementById("reel-canvas");
+  const ctx = canvas.getContext("2d");
+
+  let loadedImg = null;
+  const imgReady = new Promise((resolve) => {
+    if (!ARTICLE.imageUrl) { resolve(null); return; }
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    const timer = setTimeout(() => resolve(null), 8000);
+    img.onload = () => { clearTimeout(timer); loadedImg = img; resolve(img); };
+    img.onerror = () => { clearTimeout(timer); resolve(null); };
+    img.src = ARTICLE.imageUrl;
+  });
+
+  function roundRect(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
+  window.__drawReelFrame = function(p) {
+    const progress = Math.max(0, Math.min(1, Number(p) || 0));
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+
+    // 1. Fundo cockpit espacial escuro
+    const bg = ctx.createRadialGradient(W * 0.5, H * 0.4, 100, W * 0.5, H * 0.5, H * 0.85);
+    bg.addColorStop(0, "#0f172a");
+    bg.addColorStop(1, "#020617");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = "rgba(56, 189, 248, 0.05)";
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= W; x += 48) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    }
+    const gridY = (progress * 60) % 48;
+    for (let y = gridY; y <= H; y += 48) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+
+    // 2. Marca superior
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#38bdf8";
+    ctx.font = "900 32px 'Segoe UI', Roboto, Arial, sans-serif";
+    ctx.fillText("ANAHEIM HUB", W / 2, 175);
+
+    // 3. Selo badge do tipo
+    const badgeText = ${JSON.stringify("NOVO " + String(article.kind || "ARTIGO").toUpperCase() + " NO SITE")};
+    ctx.font = "800 24px 'Segoe UI', Roboto, Arial, sans-serif";
+    const badgeW = ctx.measureText(badgeText).width + 48;
+    ctx.fillStyle = "rgba(56, 189, 248, 0.15)";
+    roundRect(ctx, (W - badgeW) / 2, 220, badgeW, 44, 22);
+    ctx.fill();
+    ctx.strokeStyle = "#38bdf8";
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, (W - badgeW) / 2, 220, badgeW, 44, 22);
+    ctx.stroke();
+    ctx.fillStyle = "#e0f2fe";
+    ctx.fillText(badgeText, W / 2, 250);
+
+    // 4. Imagem de capa do artigo com moldura tech e leve zoom
+    const boxW = 860;
+    const boxH = 500;
+    const boxX = (W - boxW) / 2;
+    const boxY = 320;
+    const revealZoom = 1 + (1 - progress) * 0.03;
+
+    ctx.save();
+    roundRect(ctx, boxX, boxY, boxW, boxH, 20);
+    ctx.clip();
+    if (loadedImg) {
+      ctx.drawImage(loadedImg, boxX - (boxW * (revealZoom - 1)) / 2, boxY - (boxH * (revealZoom - 1)) / 2, boxW * revealZoom, boxH * revealZoom);
+    } else {
+      ctx.fillStyle = "#1e293b";
+      ctx.fillRect(boxX, boxY, boxW, boxH);
+      ctx.fillStyle = "#64748b";
+      ctx.font = "700 28px 'Segoe UI', Roboto, sans-serif";
+      ctx.fillText(ARTICLE.kind, W / 2, boxY + boxH / 2);
+    }
+    ctx.restore();
+
+    ctx.strokeStyle = "rgba(56, 189, 248, 0.4)";
+    ctx.lineWidth = 3;
+    roundRect(ctx, boxX, boxY, boxW, boxH, 20);
+    ctx.stroke();
+
+    // 5. Título do Artigo em destaque
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "900 50px 'Segoe UI', Roboto, Arial, sans-serif";
+    ctx.textAlign = "center";
+    const words = ARTICLE.title.split(" ");
+    let line = "";
+    let lineY = boxY + boxH + 85;
+    for (let i = 0; i < words.length; i++) {
+      const testLine = line + (line ? " " : "") + words[i];
+      if (ctx.measureText(testLine).width > 860 && i > 0) {
+        ctx.fillText(line, W / 2, lineY);
+        line = words[i];
+        lineY += 64;
+        if (lineY > boxY + boxH + 280) {
+          line += "...";
+          break;
+        }
+      } else {
+        line = testLine;
+      }
+    }
+    if (line) ctx.fillText(line, W / 2, lineY);
+
+    // 6. Botão / Sticker CTA inferior
+    const ctaY = H - 290;
+    const ctaW = 840;
+    const ctaH = 120;
+    const ctaX = (W - ctaW) / 2;
+    const pulse = Math.sin(progress * Math.PI * 4) * 0.03;
+    ctx.save();
+    ctx.translate(W / 2, ctaY + ctaH / 2);
+    ctx.scale(1 + pulse, 1 + pulse);
+    ctx.fillStyle = "#0284c7";
+    roundRect(ctx, -ctaW / 2, -ctaH / 2, ctaW, ctaH, 22);
+    ctx.fill();
+    ctx.strokeStyle = "#38bdf8";
+    ctx.lineWidth = 3;
+    roundRect(ctx, -ctaW / 2, -ctaH / 2, ctaW, ctaH, 22);
+    ctx.stroke();
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "900 32px 'Segoe UI', Roboto, Arial, sans-serif";
+    ctx.fillText("🔗 LER ARTIGO NO SITE", 0, -6);
+    ctx.fillStyle = "#bae6fd";
+    ctx.font = "700 22px 'Consolas', monospace";
+    ctx.fillText(ARTICLE.articleUrl, 0, 32);
+    ctx.restore();
+
+    ctx.restore();
+  };
+
+  window.__recordReelVideo = async function() {
+    await imgReady;
+    const mimes = [
+      "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
+      "video/mp4;codecs=avc1",
+      "video/mp4",
+      "video/webm;codecs=h264",
+      "video/webm;codecs=vp8,opus",
+      "video/webm",
+    ];
+    const mimeType = typeof MediaRecorder !== "undefined" ? mimes.find((m) => MediaRecorder.isTypeSupported(m)) : null;
+    if (!mimeType) throw new Error("MediaRecorder não suportado.");
+
+    const stream = canvas.captureStream(30);
+    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 4_500_000 });
+    const chunks = [];
+    recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+    recorder.start(200);
+
+    const totalFrames = Math.round((DURATION_MS / 1000) * 30);
+    for (let f = 0; f <= totalFrames; f += 1) {
+      window.__drawReelFrame(f / totalFrames);
+      await new Promise((r) => setTimeout(r, 33));
+    }
+
+    recorder.stop();
+    await new Promise((r) => { recorder.onstop = r; });
+
+    const blob = new Blob(chunks, { type: mimeType });
+    const buf = await blob.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = "";
+    const step = 0x8000;
+    for (let i = 0; i < bytes.length; i += step) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + step));
+    }
+    return { base64: btoa(binary), mimeType };
+  };
+
+  imgReady.then(() => window.__drawReelFrame(0.85));
+</script>
+</body>
+</html>`;
+}
+
 /** Caminho do ffmpeg se instalado no servidor (otimiza MP4 com faststart e converte WebM no Linux). */
 export function resolveFfmpegExecutable(): string | null {
   const custom = (process.env.SOCIAL_FFMPEG_PATH || "").trim();
@@ -1233,6 +1461,17 @@ export async function renderCardStory(
   outputMp4Path: string,
 ): Promise<{ videoOk: boolean }> {
   const { videoOk } = await renderHtmlVideo(buildCardStoryHtml(card), outputMp4Path);
+  return { videoOk };
+}
+
+/**
+ * Renderiza a animação curta (5s) do Story de divulgação de Artigo em MP4 (1080x1920).
+ */
+export async function renderArticleStory(
+  article: ArticleStoryInput,
+  outputMp4Path: string,
+): Promise<{ videoOk: boolean }> {
+  const { videoOk } = await renderHtmlVideo(buildArticleStoryHtml(article), outputMp4Path);
   return { videoOk };
 }
 
