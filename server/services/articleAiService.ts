@@ -57,6 +57,11 @@ export type GeneratedArticle = {
     color?: string | null;
     rarity?: string | null;
   }>;
+  generationMeta?: {
+    provider: "gemini" | "claude" | "fallback";
+    model: string | null;
+    prompt: string;
+  };
 };
 
 export type GenerateArticleInput = {
@@ -95,13 +100,18 @@ export function slugifyArticle(value: string): string {
     .slice(0, 60);
 }
 
+export const GEMINI_ARTICLE_MODELS = [
+  "gemini-3.8-flash",
+  "gemini-flash-latest",
+  "gemini-3.6-flash",
+  "gemini-3.5-flash-lite",
+];
+
 export function geminiArticleModels(): string[] {
-  const envModel = (process.env.GEMINI_MODEL || "").trim();
+  const envModel = (process.env.GEMINI_MODEL || process.env.GEMINI_SOCIAL_MODEL || "").trim();
   const models = [
     envModel,
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-2.5-pro",
+    ...GEMINI_ARTICLE_MODELS,
   ].filter(Boolean);
   return Array.from(new Set(models));
 }
@@ -277,14 +287,16 @@ export async function generateArticleWithAi(
   const cards = await findRelevantCardsForArticle(prisma, input);
   const prompt = buildArticleAiPrompt(input, cards);
 
-  const geminiKey = input.apiKeyGemini || process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY || "";
-  const claudeKey = input.apiKeyClaude || process.env.ANTHROPIC_API_KEY || "";
+  const geminiKey = (input.apiKeyGemini !== undefined ? input.apiKeyGemini : process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY || "").trim();
+  const claudeKey = (input.apiKeyClaude !== undefined ? input.apiKeyClaude : process.env.ANTHROPIC_API_KEY || "").trim();
 
   let parsed: any = null;
+  let provider: "gemini" | "claude" | "fallback" = "fallback";
+  let modelUsed: string | null = null;
 
   // 1. Tenta com Gemini
   if (geminiKey) {
-    const ai = new GoogleGenAI({ apiKey: geminiKey, httpOptions: { timeout: 35_000 } });
+    const ai = new GoogleGenAI({ apiKey: geminiKey, httpOptions: { timeout: 25_000, retryOptions: { attempts: 1 } } });
     for (const model of geminiArticleModels()) {
       try {
         const response = await ai.models.generateContent({
@@ -296,6 +308,8 @@ export async function generateArticleWithAi(
         if (text) {
           parsed = JSON.parse(text);
           if (parsed && typeof parsed.title === "string" && typeof parsed.contentMd === "string") {
+            provider = "gemini";
+            modelUsed = model;
             break;
           }
         }
@@ -318,6 +332,10 @@ export async function generateArticleWithAi(
         messages: [{ role: "user", content: prompt }],
       });
       parsed = response.parsed_output;
+      if (parsed) {
+        provider = "claude";
+        modelUsed = "claude-3-7-sonnet-20250219";
+      }
     } catch (claudeErr) {
       console.warn("[articleAiService] Claude falhou na geração do artigo:", claudeErr instanceof Error ? claudeErr.message : claudeErr);
     }
@@ -325,7 +343,15 @@ export async function generateArticleWithAi(
 
   // 3. Fallback estruturado se IA indisponível
   if (!parsed || typeof parsed.title !== "string" || typeof parsed.contentMd !== "string") {
-    return buildFallbackArticle(input, cards);
+    const fallback = buildFallbackArticle(input, cards);
+    return {
+      ...fallback,
+      generationMeta: {
+        provider: "fallback",
+        model: null,
+        prompt,
+      },
+    };
   }
 
   const validTypes = new Set(["NEWS", "GUIDE", "REVIEW", "PREVIEW"]);
@@ -364,5 +390,10 @@ export async function generateArticleWithAi(
       color: c.color,
       rarity: c.rarity,
     })),
+    generationMeta: {
+      provider,
+      model: modelUsed,
+      prompt,
+    },
   };
 }

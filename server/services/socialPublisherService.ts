@@ -450,7 +450,7 @@ function toPostContent(defaultTitle: string, parsed: Partial<GeneratedPostConten
 // modelos na lista, a legenda chegava a levar minutos. Uma tentativa por modelo e 25 s de teto: a lista já é a reserva.
 export const GEMINI_HTTP_OPTIONS = { timeout: 25_000, retryOptions: { attempts: 1 } };
 
-async function generateWithGemini(defaultTitle: string, prompt: string, apiKey: string): Promise<GeneratedPostContent | null> {
+async function generateWithGemini(defaultTitle: string, prompt: string, apiKey: string): Promise<{ content: GeneratedPostContent; model: string } | null> {
   const ai = new GoogleGenAI({ apiKey, httpOptions: GEMINI_HTTP_OPTIONS });
   for (const model of geminiSocialModels()) {
     try {
@@ -460,7 +460,7 @@ async function generateWithGemini(defaultTitle: string, prompt: string, apiKey: 
         config: { responseMimeType: "application/json" },
       });
       const content = toPostContent(defaultTitle, JSON.parse(response.text?.trim() || "{}") as Partial<GeneratedPostContent>);
-      if (content) return content;
+      if (content) return { content, model };
       console.warn(`[socialPublisher] Gemini (${model}) respondeu sem legenda, tentando o próximo modelo`);
     } catch (err) {
       console.warn(`[socialPublisher] Gemini (${model}) falhou na geração do texto:`, err instanceof Error ? err.message : err);
@@ -469,7 +469,7 @@ async function generateWithGemini(defaultTitle: string, prompt: string, apiKey: 
   return null;
 }
 
-async function generateWithClaude(defaultTitle: string, prompt: string, apiKey: string): Promise<GeneratedPostContent | null> {
+async function generateWithClaude(defaultTitle: string, prompt: string, apiKey: string): Promise<{ content: GeneratedPostContent; model: string } | null> {
   try {
     const client = new Anthropic({ apiKey, timeout: 90_000, maxRetries: 1 });
     const response = await client.beta.messages.parse({
@@ -486,11 +486,61 @@ async function generateWithClaude(defaultTitle: string, prompt: string, apiKey: 
       console.warn("[socialPublisher] Claude recusou a legenda:", response.stop_details?.category ?? "sem categoria");
       return null;
     }
-    return toPostContent(defaultTitle, response.parsed_output);
+    const content = toPostContent(defaultTitle, response.parsed_output);
+    return content ? { content, model: CLAUDE_SOCIAL_MODEL } : null;
   } catch (err) {
     console.warn("[socialPublisher] Claude falhou na geração do texto:", err instanceof Error ? err.message : err);
     return null;
   }
+}
+
+export type CaptionGenerationMeta = {
+  provider: "gemini" | "claude" | "fallback";
+  model: string | null;
+  prompt: string;
+  customTopic?: string;
+};
+
+/**
+ * Gera a legenda com auditoria: Gemini (vários modelos) → Claude (se houver ANTHROPIC_API_KEY) → modelo fixo.
+ * Retorna também o provedor, modelo usado e o prompt para salvar no banco (metadata).
+ */
+export async function generateCaptionWithMeta(
+  prompt: string,
+  fallback: GeneratedPostContent,
+  apiKey?: string,
+  claudeApiKey?: string,
+  customTopic?: string,
+): Promise<{ content: GeneratedPostContent; meta: CaptionGenerationMeta }> {
+  const geminiKey = (apiKey !== undefined ? apiKey : process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY || "").trim();
+  const claudeKey = (claudeApiKey !== undefined ? claudeApiKey : process.env.ANTHROPIC_API_KEY || "").trim();
+
+  if (geminiKey) {
+    const fromGemini = await generateWithGemini(fallback.title, prompt, geminiKey);
+    if (fromGemini) {
+      return {
+        content: fromGemini.content,
+        meta: { provider: "gemini", model: fromGemini.model, prompt, customTopic: customTopic || undefined },
+      };
+    }
+  }
+
+  if (claudeKey) {
+    if (geminiKey) console.warn("[socialPublisher] nenhum modelo do Gemini respondeu, tentando o Claude");
+    const fromClaude = await generateWithClaude(fallback.title, prompt, claudeKey);
+    if (fromClaude) {
+      return {
+        content: fromClaude.content,
+        meta: { provider: "claude", model: fromClaude.model, prompt, customTopic: customTopic || undefined },
+      };
+    }
+  }
+
+  if (geminiKey || claudeKey) console.warn("[socialPublisher] nenhuma IA respondeu, usando o modelo fixo");
+  return {
+    content: fallback,
+    meta: { provider: "fallback", model: null, prompt, customTopic: customTopic || undefined },
+  };
 }
 
 /**
@@ -498,18 +548,8 @@ async function generateWithClaude(defaultTitle: string, prompt: string, apiKey: 
  * dados do post. As chaves podem vir por parâmetro (painel admin, testes); `undefined` lê do ambiente, "" desliga.
  */
 export async function generateCaption(prompt: string, fallback: GeneratedPostContent, apiKey?: string, claudeApiKey?: string): Promise<GeneratedPostContent> {
-  const geminiKey = (apiKey !== undefined ? apiKey : process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY || "").trim();
-  const claudeKey = (claudeApiKey !== undefined ? claudeApiKey : process.env.ANTHROPIC_API_KEY || "").trim();
-
-  const fromGemini = geminiKey ? await generateWithGemini(fallback.title, prompt, geminiKey) : null;
-  if (fromGemini) return fromGemini;
-  if (claudeKey) {
-    if (geminiKey) console.warn("[socialPublisher] nenhum modelo do Gemini respondeu, tentando o Claude");
-    const fromClaude = await generateWithClaude(fallback.title, prompt, claudeKey);
-    if (fromClaude) return fromClaude;
-  }
-  if (geminiKey || claudeKey) console.warn("[socialPublisher] nenhuma IA respondeu, usando o modelo fixo");
-  return fallback;
+  const result = await generateCaptionWithMeta(prompt, fallback, apiKey, claudeApiKey);
+  return result.content;
 }
 
 /** Legenda da carta do dia (mesma cadeia de IAs de generateCaption). */
@@ -924,7 +964,8 @@ export async function draftCardSpotlight(
     mainAlt,
     ...altArts.map((art) => `Arte alternativa da carta ${art.name} (${art.code}${art.rarity ? `, raridade ${art.rarity}` : ""}) de Gundam Card Game no Anaheim Hub`),
   ];
-  const generated = await generateSocialContentWithGemini(card, input.customTopic, input.apiKeyGemini);
+  const prompt = buildSocialPrompt(card, input.customTopic);
+  const { content: generated, meta } = await generateCaptionWithMeta(prompt, templateContent(card), input.apiKeyGemini, undefined, input.customTopic);
   const storyTitle = isSpoiler ? "SPOILER DA SEMANA" : "CARTA DA SEMANA";
   const storyCard: ReelCardInput | undefined =
     input.story === false
@@ -964,6 +1005,7 @@ export async function draftCardSpotlight(
       tournamentUsage: card.tournamentUsage ?? null,
       altArts: altArts.map((a) => ({ code: a.code, rarity: a.rarity, setCode: a.setCode })),
       altTexts,
+      ...meta,
     },
   };
 }
@@ -1071,7 +1113,8 @@ export async function draftCardRevealReel(prisma: PrismaClient, input: GenerateP
     isSpoiler,
     cardUrl,
   };
-  const generated = await generateCaption(cardReelPrompt(card, input.customTopic), cardReelTemplate(card), input.apiKeyGemini);
+  const prompt = cardReelPrompt(card, input.customTopic);
+  const { content: generated, meta } = await generateCaptionWithMeta(prompt, cardReelTemplate(card), input.apiKeyGemini, undefined, input.customTopic);
   return {
     type: SocialPostType.CARD_SPOTLIGHT,
     content: {
@@ -1089,6 +1132,7 @@ export async function draftCardRevealReel(prisma: PrismaClient, input: GenerateP
       cardUrl,
       rarityTier: rarityTier(card.rarity),
       altArtCount: altArts.length,
+      ...meta,
     },
   };
 }
@@ -1183,13 +1227,15 @@ export async function draftTournamentReport(prisma: PrismaClient, input: Generat
     }),
     `Resumo semanal do metagame brasileiro de Gundam Card Game (${dayMonth(report.from)} a ${dayMonth(report.to)}): arquétipos campeões e mais jogados — Anaheim Hub`,
   ];
+  const prompt = tournamentPrompt(report, input.customTopic);
+  const { content, meta } = await generateCaptionWithMeta(prompt, tournamentTemplate(report), input.apiKeyGemini, undefined, input.customTopic);
   return {
     type: SocialPostType.TOURNAMENT_REPORT,
-    content: await generateCaption(tournamentPrompt(report, input.customTopic), tournamentTemplate(report), input.apiKeyGemini),
+    content,
     fileStem: `torneios-${range.from}`,
     slides: [tournamentCoverHtml(report, pager(1)), ...report.featured.map((t, i) => tournamentSlideHtml(t, pager(i + 2))), tournamentClosingHtml(report, pager(total))],
     altTexts,
-    metadata: { weekStart: range.from, weekEnd: range.to, tournamentIds: [...report.featured, ...report.others].map((t) => t.id), altTexts },
+    metadata: { weekStart: range.from, weekEnd: range.to, tournamentIds: [...report.featured, ...report.others].map((t) => t.id), altTexts, ...meta },
   };
 }
 
@@ -1281,13 +1327,15 @@ export async function draftDeckFeature(prisma: PrismaClient, input: GeneratePost
     `Decklist completa de ${deck.archetype.name} pilotada por ${deck.entry.player} no Gundam Card Game — Anaheim Hub`,
     `Cartas-chave do arquétipo ${deck.archetype.name} no metagame competitivo de Gundam Card Game — Anaheim Hub`,
   ];
+  const prompt = deckPrompt(deck, input.customTopic);
+  const { content, meta } = await generateCaptionWithMeta(prompt, deckTemplate(deck), input.apiKeyGemini, undefined, input.customTopic);
   return {
     type: SocialPostType.DECK_FEATURE,
-    content: await generateCaption(deckPrompt(deck, input.customTopic), deckTemplate(deck), input.apiKeyGemini),
+    content,
     fileStem: `deck-${deck.archetype.slug}`.slice(0, 24),
     slides: [deckCoverHtml(deck, "1/3"), deckListHtml(deck, "2/3"), deckKeyCardsHtml(deck, "3/3")],
     altTexts,
-    metadata: { archetypeSlug: deck.archetype.slug, archetype: deck.archetype.name, entryId: deck.entry.id, window: deck.window, altTexts },
+    metadata: { archetypeSlug: deck.archetype.slug, archetype: deck.archetype.name, entryId: deck.entry.id, window: deck.window, altTexts, ...meta },
   };
 }
 
@@ -1368,7 +1416,8 @@ export async function draftArticlePost(prisma: PrismaClient, input: GeneratePost
   if (!article || article.status !== "PUBLISHED") throw new SocialActionError("Artigo não encontrado ou ainda não publicado.", 404);
   const base = input.publicAppUrl || socialPublicAppUrl();
   const link = articleUrl(article, base);
-  const content = await generateCaption(articlePrompt(article, link, input.customTopic), articleTemplate(article, link), input.apiKeyGemini);
+  const prompt = articlePrompt(article, link, input.customTopic);
+  const { content, meta } = await generateCaptionWithMeta(prompt, articleTemplate(article, link), input.apiKeyGemini, undefined, input.customTopic);
   const kind = ARTICLE_KIND_PT[article.postType] ?? "Artigo";
   const altTexts = [`${kind}: ${article.title} — Portal brasileiro de Gundam Card Game Anaheim Hub`];
   const storyArticle: ArticleStoryInput = {
@@ -1384,7 +1433,7 @@ export async function draftArticlePost(prisma: PrismaClient, input: GeneratePost
     slides: [articleCoverHtml({ title: article.title, kind, coverUrl: absoluteUrl(article.coverImage, base) })],
     altTexts,
     storyArticle,
-    metadata: { articleId: article.id, articleSlug: article.slug, altTexts, storyArticle },
+    metadata: { articleId: article.id, articleSlug: article.slug, altTexts, storyArticle, ...meta },
   };
 }
 
