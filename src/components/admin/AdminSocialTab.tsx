@@ -52,7 +52,6 @@ export interface SocialMediaPost {
   publishedAt: string | null;
   publishError: string | null;
   rejectedReason: string | null;
-  metadata?: string | null;
   createdAt: string;
   updatedAt: string;
 }
