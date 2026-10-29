@@ -80,6 +80,11 @@ type FormState = {
   youtubeUrl: string;
   postType: PostType;
   status: PostStatus;
+  generationMeta?: {
+    provider: "gemini" | "claude" | "fallback";
+    model: string | null;
+    prompt: string;
+  } | null;
 };
 
 const emptyForm: FormState = {
@@ -93,6 +98,7 @@ const emptyForm: FormState = {
   youtubeUrl: "",
   postType: "NEWS",
   status: "REVIEW",
+  generationMeta: null,
 };
 
 type AiDialogState = {
@@ -372,10 +378,16 @@ export default function AdminArticlesPage() {
         youtubeUrl: "",
         postType: res.article.postType || aiState.category,
         status: "REVIEW", // Criado para aprovação prévia
+        generationMeta: res.article.generationMeta || null,
       });
 
       setIsAiDialogOpen(false);
-      toast.success("Artigo gerado com sucesso pela IA! Revise e clique em 'Aprovar & Publicar' quando estiver pronto.");
+      if (res.article.generationMeta?.provider === "fallback") {
+        toast.warning("Atenção: Nenhuma IA conectada respondeu. O artigo foi estruturado pelo modelo fixo de contingência.");
+      } else {
+        const provName = res.article.generationMeta?.provider === "gemini" ? "Gemini" : "Claude";
+        toast.success(`Artigo gerado com sucesso via ${provName} (${res.article.generationMeta?.model || ""})!`);
+      }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erro ao gerar artigo com IA.");
     } finally {
@@ -644,6 +656,42 @@ export default function AdminArticlesPage() {
                       : "Status atual: Rascunho interno."}
                 </p>
               </div>
+
+            {editing.generationMeta && (
+              <div className="w-full rounded border border-primary/30 bg-primary/5 p-3 text-xs space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-semibold text-slate-200 flex items-center gap-1.5">
+                    <Sparkles className="size-3.5 text-primary" />
+                    Origem da Geração:
+                  </span>
+                  {editing.generationMeta.provider === "gemini" && (
+                    <Badge variant="outline" className="border-emerald-400/40 bg-emerald-400/10 text-emerald-300 font-mono text-[11px]">
+                      Gemini ({editing.generationMeta.model || "3.8 Flash"})
+                    </Badge>
+                  )}
+                  {editing.generationMeta.provider === "claude" && (
+                    <Badge variant="outline" className="border-purple-400/40 bg-purple-400/10 text-purple-300 font-mono text-[11px]">
+                      Claude ({editing.generationMeta.model})
+                    </Badge>
+                  )}
+                  {editing.generationMeta.provider === "fallback" && (
+                    <Badge variant="outline" className="border-amber-400/40 bg-amber-400/10 text-amber-300 font-mono text-[11px]">
+                      ⚠️ Modelo Fixo (Fallback - sem IA)
+                    </Badge>
+                  )}
+                </div>
+                {editing.generationMeta.prompt && (
+                  <details className="group">
+                    <summary className="cursor-pointer text-[11px] text-primary hover:underline font-mono select-none">
+                      ▶ Ver prompt completo usado para gerar este artigo
+                    </summary>
+                    <pre className="mt-2 whitespace-pre-wrap font-mono text-[10px] leading-relaxed text-slate-300 bg-slate-950/80 p-2.5 border border-white/10 max-h-48 overflow-y-auto">
+                      {editing.generationMeta.prompt}
+                    </pre>
+                  </details>
+                )}
+              </div>
+            )}
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="outline" className="rounded-none" onClick={() => setEditing(null)}>
                   Cancelar
