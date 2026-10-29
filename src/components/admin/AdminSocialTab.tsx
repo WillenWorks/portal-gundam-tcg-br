@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Sparkles,
@@ -169,6 +169,27 @@ export function AdminSocialTab() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [integrations, setIntegrations] = useState<SocialStatus | null>(null);
 
+  // Travas síncronas para evitar cliques duplos em botões de ação e publicação
+  const actionLockRef = useRef<Set<string>>(new Set());
+  const isGeneratingRef = useRef<boolean>(false);
+  const [actionLocks, setActionLocks] = useState<Record<string, boolean>>({});
+
+  const acquireLock = (key: string): boolean => {
+    if (actionLockRef.current.has(key)) return false;
+    actionLockRef.current.add(key);
+    setActionLocks((prev) => ({ ...prev, [key]: true }));
+    return true;
+  };
+
+  const releaseLock = (key: string) => {
+    actionLockRef.current.delete(key);
+    setActionLocks((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
   useEffect(() => {
     apiFetch<SocialStatus>("/admin/social/status")
       .then(setIntegrations)
@@ -226,6 +247,48 @@ export function AdminSocialTab() {
       .catch(() => {});
   }, []);
 
+  // monitora posts que estão sendo publicados em segundo plano na Meta e atualiza a tela automaticamente
+  const hasPublishingPost = posts.some((p) => p.status === "PUBLISHING");
+
+  useEffect(() => {
+    if (!hasPublishingPost) return;
+    const interval = window.setInterval(async () => {
+      try {
+        const url = statusFilter !== "ALL" ? `/admin/social/posts?status=${statusFilter}` : "/admin/social/posts";
+        const refreshed = await apiFetch<SocialMediaPost[]>(url);
+        if (!refreshed) return;
+
+        for (const prevPost of posts) {
+          if (prevPost.status === "PUBLISHING") {
+            const next = refreshed.find((p) => p.id === prevPost.id);
+            if (next && next.status !== "PUBLISHING") {
+              if (next.status === "PUBLISHED") {
+                const meta = parsePostMeta(next);
+                toast.success(
+                  meta.storyPostId
+                    ? "Post e Story publicados simultaneamente no Instagram!"
+                    : "Post publicado no Instagram com sucesso!",
+                );
+              } else if (next.status === "FAILED") {
+                toast.error(next.publishError || "A publicação no Instagram falhou.");
+              }
+            }
+          }
+        }
+
+        setPosts(refreshed);
+        setSelectedPost((current) => {
+          if (!current) return null;
+          return refreshed.find((p) => p.id === current.id) || current;
+        });
+      } catch {
+        // falha passageira de rede
+      }
+    }, 3000);
+
+    return () => window.clearInterval(interval);
+  }, [hasPublishingPost, posts, statusFilter]);
+
   useEffect(() => {
     if (!generating) return;
     const startedAt = Date.now();
@@ -235,12 +298,14 @@ export function AdminSocialTab() {
         if (state?.running) {
           if (Date.now() - startedAt > GENERATION_WATCH_MS) {
             window.clearInterval(timer);
+            isGeneratingRef.current = false;
             setGenerating(false);
             toast.info("A geração está demorando; o rascunho aparece aqui e no Discord quando terminar.");
           }
           return;
         }
         window.clearInterval(timer);
+        isGeneratingRef.current = false;
         setGenerating(false);
         if (state?.error) {
           toast.error(`Falha ao gerar o post: ${state.error}`);
@@ -259,8 +324,10 @@ export function AdminSocialTab() {
   }, [generating]);
 
   const handleGenerate = async () => {
+    if (isGeneratingRef.current || generating) return;
+    isGeneratingRef.current = true;
+    setGenerating(true);
     try {
-      setGenerating(true);
       const isReel = postTypeInput === "CARD_REEL";
       const isSpoiler = postTypeInput === "CARD_SPOILER";
       const isCard = postTypeInput === "CARD_SPOTLIGHT" || isSpoiler || isReel;
@@ -290,14 +357,17 @@ export function AdminSocialTab() {
         toast.info(err.message);
         return;
       }
+      isGeneratingRef.current = false;
       setGenerating(false);
       toast.error(err?.message || "Falha ao gerar post com IA.");
     }
   };
 
   const handleGenerateReelForCard = async (cardCode: string, isSpoiler = false) => {
+    if (isGeneratingRef.current || generating) return;
+    isGeneratingRef.current = true;
+    setGenerating(true);
     try {
-      setGenerating(true);
       await apiFetch<GenerationState>("/admin/social/generate", {
         method: "POST",
         body: JSON.stringify({
@@ -313,12 +383,15 @@ export function AdminSocialTab() {
         toast.info(err.message);
         return;
       }
+      isGeneratingRef.current = false;
       setGenerating(false);
       toast.error(err?.message || "Falha ao gerar o Reel da carta.");
     }
   };
 
   const handleUpdateStory = async (post: SocialMediaPost, regenerate = false) => {
+    const lockKey = `story-${post.id}`;
+    if (!acquireLock(lockKey) || regeneratingStory) return;
     try {
       setRegeneratingStory(true);
       const updated = await apiFetch<SocialMediaPost>(`/admin/social/posts/${post.id}/story`, {
@@ -335,11 +408,14 @@ export function AdminSocialTab() {
     } catch (err: any) {
       toast.error(err?.message || "Erro ao atualizar o Story.");
     } finally {
+      releaseLock(lockKey);
       setRegeneratingStory(false);
     }
   };
 
   const handleSaveEdit = async (post: SocialMediaPost) => {
+    const lockKey = `save-${post.id}`;
+    if (!acquireLock(lockKey) || savingId === post.id) return;
     try {
       setSavingId(post.id);
       const isCardFeed = post.type === "CARD_SPOTLIGHT" && !reelUrlOf(post);
@@ -357,64 +433,106 @@ export function AdminSocialTab() {
     } catch (err: any) {
       toast.error(err?.message || "Erro ao salvar alterações.");
     } finally {
+      releaseLock(lockKey);
       setSavingId(null);
     }
   };
 
   const handleApprove = async (post: SocialMediaPost) => {
+    const lockKey = post.id;
+    if (!acquireLock(lockKey)) return;
     try {
       setSavingId(post.id);
-      const isCardFeed = post.type === "CARD_SPOTLIGHT" && !reelUrlOf(post);
-      if (isCardFeed) {
-        await apiFetch<SocialMediaPost>(`/admin/social/posts/${post.id}`, {
-          method: "PUT",
+      // Feedback otimista imediato: atualiza o status na tela para PUBLICANDO para evitar duplo clique
+      setPosts((prev) =>
+        prev.map((p) => (p.id === post.id ? { ...p, status: "PUBLISHING" as const, publishError: null } : p)),
+      );
+      if (selectedPost?.id === post.id) {
+        setSelectedPost((prev) => (prev ? { ...prev, status: "PUBLISHING" as const, publishError: null } : null));
+      }
+
+      // Envia título, legenda e configurações do Story atomicamente na mesma requisição de aprovar
+      const res = await apiFetch<{ ok: boolean; post: SocialMediaPost; publishing?: boolean }>(
+        `/admin/social/posts/${post.id}/approve`,
+        {
+          method: "POST",
           body: JSON.stringify({
             title: editTitle,
             caption: editCaption,
             storyEnabled: editStoryEnabled,
             storyTitle: editStoryTitle,
           }),
-        }).catch(() => null);
-      }
-      const res = await apiFetch<{ ok: boolean; post: SocialMediaPost }>(`/admin/social/posts/${post.id}/approve`, {
-        method: "POST",
-        body: JSON.stringify({ title: editTitle, caption: editCaption }),
-      });
-      const publishedMeta = parsePostMeta(res.post);
-      if (res.post.status === "PUBLISHED") {
+        },
+      );
+
+      const returnedPost = res?.post || post;
+      setPosts((prev) => prev.map((p) => (p.id === post.id ? returnedPost : p)));
+      if (selectedPost?.id === post.id) selectPost(returnedPost);
+
+      if (res?.publishing || returnedPost.status === "PUBLISHING") {
+        toast.info("Publicando no Instagram em segundo plano… Acompanhe o status nesta tela.");
+      } else if (returnedPost.status === "PUBLISHED") {
+        const publishedMeta = parsePostMeta(returnedPost);
         toast.success(
           publishedMeta.storyPostId
             ? "Post e Story publicados simultaneamente no Instagram!"
             : "Aprovado e publicado no Instagram!",
         );
-      } else if (res.post.status === "FAILED") toast.error(res.post.publishError || "Aprovado, mas a publicação falhou.");
-      else if (res.post.scheduledFor && new Date(res.post.scheduledFor).getTime() > Date.now()) toast.success(`Aprovado. Sai ${formatWhen(res.post.scheduledFor)}.`);
-      else toast.success("Aprovado. Configure o Instagram no servidor para publicar automaticamente.");
-      setPosts((prev) => prev.map((p) => (p.id === post.id ? res.post : p)));
-      if (selectedPost?.id === post.id) selectPost(res.post);
+      } else if (returnedPost.status === "FAILED") {
+        toast.error(returnedPost.publishError || "Aprovado, mas a publicação falhou.");
+      } else if (returnedPost.scheduledFor && new Date(returnedPost.scheduledFor).getTime() > Date.now()) {
+        toast.success(`Aprovado. Sai ${formatWhen(returnedPost.scheduledFor)}.`);
+      } else {
+        toast.success("Aprovado. Configure o Instagram no servidor para publicar automaticamente.");
+      }
     } catch (err: any) {
       toast.error(err?.message || "Erro ao aprovar post.");
+      fetchPosts();
     } finally {
+      releaseLock(lockKey);
       setSavingId(null);
     }
   };
 
   const handlePublishNow = async (post: SocialMediaPost) => {
+    const lockKey = post.id;
+    if (!acquireLock(lockKey)) return;
     try {
       setSavingId(post.id);
-      const res = await apiFetch<{ ok: boolean; post: SocialMediaPost }>(`/admin/social/posts/${post.id}/publish`, { method: "POST" });
-      if (res.ok) toast.success("Publicado no Instagram!");
-      else toast.error(res.post.publishError || "A publicação falhou.");
-      setPosts((prev) => prev.map((p) => (p.id === post.id ? res.post : p)));
-      if (selectedPost?.id === post.id) setSelectedPost(res.post);
+      setPosts((prev) =>
+        prev.map((p) => (p.id === post.id ? { ...p, status: "PUBLISHING" as const, publishError: null } : p)),
+      );
+      if (selectedPost?.id === post.id) {
+        setSelectedPost((prev) => (prev ? { ...prev, status: "PUBLISHING" as const, publishError: null } : null));
+      }
+
+      const res = await apiFetch<{ ok: boolean; post: SocialMediaPost; publishing?: boolean }>(
+        `/admin/social/posts/${post.id}/publish`,
+        { method: "POST" },
+      );
+      const returnedPost = res?.post || post;
+      setPosts((prev) => prev.map((p) => (p.id === post.id ? returnedPost : p)));
+      if (selectedPost?.id === post.id) setSelectedPost(returnedPost);
+
+      if (res?.publishing || returnedPost.status === "PUBLISHING") {
+        toast.info("Publicando no Instagram em segundo plano… Acompanhe o status nesta tela.");
+      } else if (returnedPost.status === "PUBLISHED") {
+        toast.success("Publicado no Instagram!");
+      } else {
+        toast.error(returnedPost.publishError || "A publicação falhou.");
+      }
     } catch (err: any) {
       toast.error(err?.message || "Erro ao publicar.");
+      fetchPosts();
     } finally {
+      releaseLock(lockKey);
       setSavingId(null);
     }
   };
 
   const handleReject = async (post: SocialMediaPost) => {
+    const lockKey = `reject-${post.id}`;
+    if (!acquireLock(lockKey) || savingId === post.id) return;
     try {
       setSavingId(post.id);
       const res = await apiFetch<{ ok: boolean; post: SocialMediaPost }>(`/admin/social/posts/${post.id}/reject`, {
@@ -427,12 +545,18 @@ export function AdminSocialTab() {
     } catch (err: any) {
       toast.error(err?.message || "Erro ao descartar post.");
     } finally {
+      releaseLock(lockKey);
       setSavingId(null);
     }
   };
 
   const handleDelete = async (post: SocialMediaPost) => {
-    if (!confirm("Tem certeza que deseja excluir permanentemente este rascunho?")) return;
+    const lockKey = `delete-${post.id}`;
+    if (!acquireLock(lockKey)) return;
+    if (!confirm("Tem certeza que deseja excluir permanentemente este rascunho?")) {
+      releaseLock(lockKey);
+      return;
+    }
     try {
       await apiFetch(`/admin/social/posts/${post.id}`, { method: "DELETE" });
       toast.success("Post removido.");
@@ -444,6 +568,8 @@ export function AdminSocialTab() {
       }
     } catch (err: any) {
       toast.error(err?.message || "Erro ao excluir post.");
+    } finally {
+      releaseLock(lockKey);
     }
   };
 
@@ -911,7 +1037,7 @@ export function AdminSocialTab() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    disabled={regeneratingStory || selectedPost.status === "PUBLISHED" || selectedPost.status === "PUBLISHING"}
+                                    disabled={regeneratingStory || Boolean(actionLocks[`story-${selectedPost.id}`]) || selectedPost.status === "PUBLISHED" || selectedPost.status === "PUBLISHING"}
                                     onClick={() => handleUpdateStory(selectedPost, true)}
                                     className="h-8 px-2.5 rounded-none border-sky-500/40 text-sky-300 hover:bg-sky-500/10 text-[11px] shrink-0"
                                     title="Renderizar novamente o vídeo MP4 do Story com o texto acima"
@@ -1012,7 +1138,7 @@ export function AdminSocialTab() {
                     size="sm"
                     variant="outline"
                     onClick={() => handleSaveEdit(selectedPost)}
-                    disabled={savingId === selectedPost.id || selectedPost.status === "PUBLISHED" || selectedPost.status === "PUBLISHING"}
+                    disabled={savingId === selectedPost.id || Boolean(actionLocks[selectedPost.id]) || Boolean(actionLocks[`save-${selectedPost.id}`]) || selectedPost.status === "PUBLISHED" || selectedPost.status === "PUBLISHING"}
                     className="rounded-none text-xs"
                   >
                     <Save className="size-3.5 mr-1.5" />
@@ -1025,7 +1151,7 @@ export function AdminSocialTab() {
                         size="sm"
                         variant="outline"
                         onClick={() => handlePublishNow(selectedPost)}
-                        disabled={savingId === selectedPost.id}
+                        disabled={savingId === selectedPost.id || Boolean(actionLocks[selectedPost.id])}
                         className="rounded-none border-pink-500/40 text-pink-300 hover:bg-pink-500/10 text-xs"
                       >
                         <Send className="size-3.5 mr-1.5" />
@@ -1038,7 +1164,7 @@ export function AdminSocialTab() {
                         size="sm"
                         variant="outline"
                         onClick={() => handleReject(selectedPost)}
-                        disabled={savingId === selectedPost.id}
+                        disabled={savingId === selectedPost.id || Boolean(actionLocks[selectedPost.id]) || Boolean(actionLocks[`reject-${selectedPost.id}`])}
                         className="rounded-none border-red-500/40 text-red-300 hover:bg-red-500/10 text-xs"
                       >
                         <XCircle className="size-3.5 mr-1.5" />
@@ -1050,7 +1176,7 @@ export function AdminSocialTab() {
                       <Button
                         size="sm"
                         onClick={() => handleApprove(selectedPost)}
-                        disabled={savingId === selectedPost.id}
+                        disabled={savingId === selectedPost.id || Boolean(actionLocks[selectedPost.id])}
                         className="rounded-none bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold uppercase tracking-wider text-xs px-4"
                       >
                         <CheckCircle2 className="size-3.5 mr-1.5" />

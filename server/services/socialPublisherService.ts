@@ -1591,10 +1591,14 @@ export function extractPostAltTexts(post: { title?: string | null; cardCode?: st
   return Array.from({ length: Math.max(1, slideCount) }, (_, i) => (slideCount > 1 ? `${base} (slide ${i + 1} de ${slideCount})` : base));
 }
 
+/** Trava em memória para evitar que o servidor processe a mesma publicação duas vezes simultaneamente. */
+const inProgressPublishingIds = new Set<string>();
+
 /**
  * Publica um post aprovado no Instagram. Pega o post de forma atômica (APPROVED/FAILED → PUBLISHING) para que
  * duas chamadas ao mesmo tempo não publiquem duas vezes.
- * Quando o post possui um Story companheiro habilitado (`storyEnabled` + `storyVideoUrl`), publica o Story simultaneamente!
+ * Quando o post possui um Story companheiro habilitado (`storyEnabled` + `storyVideoUrl`), publica o feed e o Story
+ * simultaneamente (em paralelo), reduzindo o tempo de espera pela metade e prevenindo timeouts.
  */
 export async function publishApprovedPost(
   prisma: PrismaClient,
@@ -1607,12 +1611,29 @@ export async function publishApprovedPost(
     publicAppUrl?: string;
   } = {},
 ) {
+  if (inProgressPublishingIds.has(postId)) {
+    const existing = prisma.socialMediaPost.findUnique
+      ? await prisma.socialMediaPost.findUnique({ where: { id: postId } })
+      : null;
+    if (existing) return existing;
+  }
+
   const publicAppUrl = (deps.publicAppUrl || socialPublicAppUrl()).replace(/\/+$/, "");
   const claimed = await prisma.socialMediaPost.updateMany({
     where: { id: postId, status: { in: [SocialPostStatus.APPROVED, SocialPostStatus.FAILED] } },
     data: { status: SocialPostStatus.PUBLISHING, publishError: null },
   });
-  if (claimed.count !== 1) throw new Error("O post não está aprovado (ou já está sendo publicado).");
+  if (claimed.count !== 1) {
+    const current = prisma.socialMediaPost.findUnique
+      ? await prisma.socialMediaPost.findUnique({ where: { id: postId } })
+      : null;
+    if (current?.status === SocialPostStatus.PUBLISHING) {
+      return current;
+    }
+    throw new Error("O post não está aprovado (ou já está sendo publicado).");
+  }
+
+  inProgressPublishingIds.add(postId);
   const post = await prisma.socialMediaPost.findUniqueOrThrow({ where: { id: postId } });
 
   try {
@@ -1621,7 +1642,7 @@ export async function publishApprovedPost(
     if (missingAdDisclosure(post.type, post.caption)) throw new Error("Post de afiliado precisa estar identificado como publicidade (ex.: #publi).");
 
     const reelVideo = reelVideoUrlOf(post);
-    let result;
+    let result: { mediaId: string; permalink?: string | null };
     let updatedMetadata = post.metadata;
     if (reelVideo) {
       const coverUrl = post.imageUrl && /\.jpe?g$/i.test(post.imageUrl) ? `${publicAppUrl}${post.imageUrl}` : undefined;
@@ -1634,34 +1655,47 @@ export async function publishApprovedPost(
       if (!post.imageUrl || !/\.jpe?g$/i.test(post.imageUrl)) throw new Error("O post não tem imagem JPEG; gere de novo para ter a arte.");
       const isCarousel = (post.mediaUrls ?? []).length > 1;
       const altTexts = extractPostAltTexts(post, isCarousel ? post.mediaUrls.length : 1);
-      result = isCarousel
-        ? await (deps.publishCarousel ?? publishInstagramCarousel)(prisma, {
+
+      const storyMeta = readPostStoryMeta(post);
+      const shouldPublishStory = Boolean(storyMeta.storyEnabled && storyMeta.storyVideoUrl && !storyMeta.storyPostId);
+
+      const feedTask = isCarousel
+        ? (deps.publishCarousel ?? publishInstagramCarousel)(prisma, {
             imageUrls: post.mediaUrls.map((url) => `${publicAppUrl}${url}`),
             caption: post.caption,
             altTexts,
           })
-        : await (deps.publish ?? publishInstagramImage)(prisma, {
+        : (deps.publish ?? publishInstagramImage)(prisma, {
             imageUrl: `${publicAppUrl}${post.imageUrl}`,
             caption: post.caption,
             altText: altTexts[0],
           });
 
-      // Publica o Story companheiro simultaneamente com o post do feed
-      const storyMeta = readPostStoryMeta(post);
-      if (storyMeta.storyEnabled && storyMeta.storyVideoUrl && !storyMeta.storyPostId) {
+      const storyTask = shouldPublishStory
+        ? (deps.publishStory ?? publishInstagramStory)(prisma, {
+            videoUrl: `${publicAppUrl}${storyMeta.storyVideoUrl}`,
+          })
+        : Promise.resolve(null);
+
+      // Publica Feed e Story em paralelo para reduzir pela metade o tempo de espera da API do Instagram
+      const [feedSettled, storySettled] = await Promise.allSettled([feedTask, storyTask]);
+
+      if (feedSettled.status === "rejected") {
+        throw feedSettled.reason;
+      }
+      result = feedSettled.value;
+
+      if (shouldPublishStory) {
         let rawMeta: Record<string, unknown>;
         try {
           rawMeta = JSON.parse(post.metadata || "{}") as Record<string, unknown>;
         } catch {
           rawMeta = {};
         }
-        try {
-          const storyResult = await (deps.publishStory ?? publishInstagramStory)(prisma, {
-            videoUrl: `${publicAppUrl}${storyMeta.storyVideoUrl}`,
-          });
-          updatedMetadata = JSON.stringify({ ...rawMeta, storyPostId: storyResult.mediaId, storyError: null });
-        } catch (storyErr) {
-          const storyMsg = (storyErr instanceof Error ? storyErr.message : String(storyErr)).slice(0, 300);
+        if (storySettled.status === "fulfilled" && storySettled.value) {
+          updatedMetadata = JSON.stringify({ ...rawMeta, storyPostId: storySettled.value.mediaId, storyError: null });
+        } else if (storySettled.status === "rejected") {
+          const storyMsg = (storySettled.reason instanceof Error ? storySettled.reason.message : String(storySettled.reason)).slice(0, 300);
           console.warn("[socialPublisher] Post publicado, mas o Story companheiro falhou:", storyMsg);
           updatedMetadata = JSON.stringify({ ...rawMeta, storyError: storyMsg });
         }
@@ -1693,6 +1727,8 @@ export async function publishApprovedPost(
     const failed = await prisma.socialMediaPost.update({ where: { id: postId }, data: { status: SocialPostStatus.FAILED, publishError: message } });
     await sendDiscordSocialNotification(failed, publicAppUrl, "failed", message);
     return failed;
+  } finally {
+    inProgressPublishingIds.delete(postId);
   }
 }
 
@@ -1715,16 +1751,27 @@ export const SOCIAL_EDITABLE = new Set<SocialPostStatus>([SocialPostStatus.DRAFT
 export async function approveSocialPost(
   prisma: PrismaClient,
   id: string,
-  edits: { title?: string; caption?: string } = {},
+  edits: { title?: string; caption?: string; storyEnabled?: boolean; storyTitle?: string } = {},
   deps: { instagramReady?: boolean; publishNow?: (id: string) => Promise<SocialMediaPost> } = {},
 ) {
   const existing = await prisma.socialMediaPost.findUnique({ where: { id } });
   if (!existing) throw new SocialActionError("Post não encontrado.", 404);
+  if (existing.status === SocialPostStatus.PUBLISHING) {
+    return { ok: true, post: existing, publishing: true };
+  }
   if (!SOCIAL_EDITABLE.has(existing.status)) throw new SocialActionError("Este post já foi publicado.", 409);
   const caption = edits.caption ?? existing.caption;
   const problems = captionProblems(caption);
   if (problems.length) throw new SocialActionError(problems.join(" "), 400);
   if (missingAdDisclosure(existing.type, caption)) throw new SocialActionError("Post de afiliado precisa estar identificado como publicidade (ex.: #publi) — regra do CONAR.", 400);
+
+  // Aplica ajustes de Story companheiro no mesmo passo atômico
+  if (typeof edits.storyEnabled === "boolean" || typeof edits.storyTitle === "string") {
+    await updatePostStorySettings(prisma, id, {
+      storyEnabled: edits.storyEnabled,
+      storyTitle: edits.storyTitle,
+    });
+  }
 
   const approved = await prisma.socialMediaPost.update({
     where: { id },
@@ -1734,9 +1781,9 @@ export async function approveSocialPost(
   const instagramReady = deps.instagramReady ?? Boolean(readInstagramConfig());
   if (due && instagramReady) {
     const post = await (deps.publishNow ?? ((postId: string) => publishApprovedPost(prisma, postId)))(id);
-    return { ok: post.status === SocialPostStatus.PUBLISHED, post };
+    return { ok: post.status === SocialPostStatus.PUBLISHED, post, publishing: post.status === SocialPostStatus.PUBLISHING };
   }
-  return { ok: true, post: approved };
+  return { ok: true, post: approved, publishing: false };
 }
 
 /** Descarta o rascunho (painel e botão do Discord). Post publicado ou publicando não é descartado. */

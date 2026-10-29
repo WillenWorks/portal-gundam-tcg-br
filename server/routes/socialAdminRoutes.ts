@@ -135,13 +135,55 @@ export function registerSocialRoutes(app: Express, prisma: PrismaClient, authReq
     }
   });
 
+  /** Tempo máximo em ms que a rota HTTP aguarda a publicação na Meta antes de devolver 202 Accepted. */
+  const PUBLISH_MAX_WAIT_MS = 15000;
+
+  async function withQuickPublishResponse<T extends { ok: boolean; post: unknown; publishing?: boolean }>(
+    promise: Promise<T>,
+    fallbackPostGetter: () => Promise<unknown>,
+  ): Promise<{ result: T; status: number }> {
+    let timer: NodeJS.Timeout;
+    const timeoutPromise = new Promise<{ result: T; status: number }>((resolve) => {
+      timer = setTimeout(async () => {
+        const fallback = await fallbackPostGetter().catch(() => null);
+        resolve({
+          result: { ok: true, publishing: true, post: fallback } as unknown as T,
+          status: 202,
+        });
+      }, PUBLISH_MAX_WAIT_MS);
+    });
+
+    try {
+      const outcome = await Promise.race([
+        promise.then((res) => ({ result: res, status: 200 })),
+        timeoutPromise,
+      ]);
+      clearTimeout(timer!);
+      return outcome;
+    } catch (err) {
+      clearTimeout(timer!);
+      throw err;
+    }
+  }
+
   // aprovar: salva a edição que estiver na tela e, se já passou do horário marcado, publica na hora
   app.post("/api/admin/social/posts/:id/approve", authRequired, adminOnly, async (req: Request, res: Response) => {
     const edits = parseTextEdits(req.body);
     if (edits.error) return res.status(400).json({ error: edits.error });
+    const { storyEnabled, storyTitle } = (req.body ?? {}) as { storyEnabled?: unknown; storyTitle?: unknown };
+    const id = String(req.params.id);
     try {
       const { approveSocialPost } = await loadService();
-      res.json(await approveSocialPost(prisma, String(req.params.id), { title: edits.title, caption: edits.caption }));
+      const approveTask = approveSocialPost(prisma, id, {
+        title: edits.title,
+        caption: edits.caption,
+        storyEnabled: typeof storyEnabled === "boolean" ? storyEnabled : undefined,
+        storyTitle: typeof storyTitle === "string" ? storyTitle : undefined,
+      });
+      const { result, status } = await withQuickPublishResponse(approveTask, () =>
+        prisma.socialMediaPost.findUnique({ where: { id } }),
+      );
+      res.status(status).json(result);
     } catch (err) {
       res.status(actionStatus(err, 400)).json({ error: errorMessage(err, "Erro ao aprovar post.") });
     }
@@ -149,10 +191,18 @@ export function registerSocialRoutes(app: Express, prisma: PrismaClient, authReq
 
   // publicar agora (aprovado aguardando horário, ou nova tentativa depois de falha)
   app.post("/api/admin/social/posts/:id/publish", authRequired, adminOnly, async (req: Request, res: Response) => {
+    const id = String(req.params.id);
     try {
       const { publishApprovedPost } = await loadService();
-      const post = await publishApprovedPost(prisma, String(req.params.id));
-      res.json({ ok: post.status === SocialPostStatus.PUBLISHED, post });
+      const publishTask = publishApprovedPost(prisma, id).then((post) => ({
+        ok: post.status === SocialPostStatus.PUBLISHED,
+        post,
+        publishing: post.status === SocialPostStatus.PUBLISHING,
+      }));
+      const { result, status } = await withQuickPublishResponse(publishTask, () =>
+        prisma.socialMediaPost.findUnique({ where: { id } }),
+      );
+      res.status(status).json(result);
     } catch (err) {
       res.status(400).json({ error: errorMessage(err, "Erro ao publicar.") });
     }

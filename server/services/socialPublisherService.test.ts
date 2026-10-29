@@ -200,6 +200,21 @@ describe("socialPublisherService", () => {
       expect(publish).not.toHaveBeenCalled();
     });
 
+    it("se o post já estiver no status PUBLISHING, devolve o post de forma idempotente sem tentar publicar duas vezes", async () => {
+      const publishingPost = { ...basePost, status: "PUBLISHING" };
+      const prisma = {
+        socialMediaPost: {
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+          findUnique: vi.fn().mockResolvedValue(publishingPost),
+          findUniqueOrThrow: vi.fn().mockResolvedValue(publishingPost),
+        },
+      } as any;
+      const publish = vi.fn();
+      const res = await publishApprovedPost(prisma, "p1", { publish });
+      expect(publish).not.toHaveBeenCalled();
+      expect(res.status).toBe("PUBLISHING");
+    });
+
     it("publica com a URL pública da imagem, passa altText e marca PUBLISHED", async () => {
       const prisma = makePrisma();
       const publish = vi.fn().mockResolvedValue({ mediaId: "999", permalink: "https://www.instagram.com/p/x/" });
