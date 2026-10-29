@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import {
   CheckCircle2,
   ClipboardCopy,
-  Eye,
   Pencil,
   Plus,
   Search,

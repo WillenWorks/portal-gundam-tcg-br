@@ -1,5 +1,5 @@
 import type { Express, Request, Response, RequestHandler } from "express";
-import { PrismaClient, PostStatus, UserRole } from "@prisma/client";
+import { PrismaClient, PostStatus } from "@prisma/client";
 import { generateArticleWithAi, type ArticleAiGenerateInput } from "../services/articleAiService.ts";
 
 export function registerArticleAdminRoutes(
