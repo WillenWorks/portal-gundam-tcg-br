@@ -11,7 +11,7 @@ import type { CardDef } from "@/modules/simulator/engine/types";
 import { getScaledDuration } from "./animationSettings";
 import { SCENE_MS } from "../scene/sceneTiming";
 import { artSrc, cardBackUrl, isGenericArtCard, type ArtLookup } from "./cardArt";
-import { sfx } from "../audio/soundEffects";
+import { useSceneSound } from "../audio/useSceneSound";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export interface CommandCastPoint {
@@ -40,6 +40,8 @@ export function CommandCastAnimation({ cardDef, art, origin, dest, cardW, onDone
   const flyMs = useMemo(() => getScaledDuration(FLY_BASE_MS), []);
   const holdSettleMs = useMemo(() => getScaledDuration(HOLD_SETTLE_BASE_MS), []);
 
+  useSceneSound("command.main", { alignImpactAtMs: RISE_BASE_MS });
+
   useEffect(() => {
     const reduced =
       typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
@@ -47,7 +49,6 @@ export function CommandCastAnimation({ cardDef, art, origin, dest, cardW, onDone
       onDone();
       return;
     }
-    sfx.playNewtypeFlash();
     const t1 = setTimeout(() => setPhase("hold"), riseMs);
     const t2 = setTimeout(() => setPhase("fly"), riseMs + holdMs);
     const t3 = setTimeout(() => onDone(), riseMs + holdMs + flyMs);

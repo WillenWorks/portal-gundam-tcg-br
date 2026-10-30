@@ -14,14 +14,16 @@ import { CheckCircle2, Crosshair, ShieldCheck, Sparkles, Swords, Zap } from "luc
 import { cn } from "@/lib/utils";
 import type { CardInstance, GameState } from "@/modules/simulator/engine/types";
 import { effectiveAp, effectiveHp, effectivePilotDef, hasKeyword, keywordValue, satisfiesLinkCondition } from "@/modules/simulator/engine/types";
-import { getScaledDuration } from "./animationSettings";
 import { isGenericArtCard, type ArtLookup } from "./cardArt";
 import { CardCornerActions, type CornerAction } from "./CardCornerActions";
 import { CardFace } from "./CardFace";
 import { DockedPilot } from "./DockedPilot";
 import { useCountingNumber } from "./useCountingNumber";
 import { relaxTargetEn, relaxTargetPt } from "../scene/effectLedger";
-import { sfx } from "../audio/soundEffects";
+import { sampleSfx } from "../audio/sampleEngine";
+import { deploySound } from "../scene/soundCues";
+import { SCENE_MS } from "../scene/sceneTiming";
+import { effectiveAnimSpeed, getScaledDuration } from "./animationSettings";
 import { useCardLanguage } from "@/i18n/useCardLanguage";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
 
@@ -161,11 +163,12 @@ export function BattleSlot({
   const apCount = useCountingNumber(apNow, unit?.instanceId);
   const hpCount = useCountingNumber(hpLeftNow, unit?.instanceId);
   useEffect(() => {
-    if (justDeployed === "light") {
-      sfx.playThrusterBoost();
-    } else if (justDeployed === "heavy") {
-      sfx.playExplosion();
-    }
+    // a Unit pousou: o som acaba com o pouso (o slot fica montado, então o fim vem por `untilMs`)
+    if (!justDeployed) return;
+    const heavy = justDeployed === "heavy";
+    const landMs = getScaledDuration(heavy ? SCENE_MS.play.landHeavy : SCENE_MS.play.land);
+    const handle = sampleSfx.play(deploySound(heavy ? 5 : 1), { speed: effectiveAnimSpeed(), untilMs: landMs });
+    return () => handle?.stop();
   }, [justDeployed]);
 
   if (!unit) {

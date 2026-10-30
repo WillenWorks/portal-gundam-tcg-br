@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { sfx } from "../audio/soundEffects";
+import { getSfxPack, sampleSfx, saveSfxPack, type SfxPack } from "../audio/sampleEngine";
 import {
   ANIM_SPEED_LABELS,
   ANIM_SPEED_LABELS_EN,
@@ -38,6 +39,8 @@ export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, bu
   const { tr } = useSiteLanguage();
   const [currentSkin, setCurrentSkin] = useState<PlaymatSkinId>(getSavedPlaymatSkin);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => sfx.isEnabled());
+  const [volume, setVolume] = useState<number>(() => sfx.getVolume());
+  const [pack, setPack] = useState<SfxPack>(getSfxPack);
   const [animSpeed, setAnimSpeed] = useState<AnimSpeed>(getSavedAnimSpeed);
   const [pacing, setPacing] = useState<ResolutionPacing>(getResolutionPacing);
 
@@ -65,6 +68,21 @@ export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, bu
     setSoundEnabled(enabled);
     sfx.setEnabled(enabled);
     if (enabled) sfx.playClick();
+    else sampleSfx.stopAll();
+  };
+
+  // o som de amostra toca na hora para o jogador ouvir o volume / o pacote escolhido
+  const preview = () => sampleSfx.play("card.draw", { untilMs: 600 });
+
+  const handleVolumeChange = (value: number) => {
+    setVolume(value);
+    sfx.setVolume(value);
+  };
+
+  const handlePackChange = (value: SfxPack) => {
+    setPack(value);
+    saveSfxPack(value);
+    void sampleSfx.preload().then(preview);
   };
 
   return (
@@ -150,6 +168,33 @@ export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, bu
             </span>
             <Switch checked={soundEnabled} onCheckedChange={handleToggleSound} aria-label={tr("Efeitos Sonoros", "Sound effects")} />
           </div>
+          {soundEnabled ? (
+            <div className="-mt-2 space-y-2 border-b border-white/10 pb-3 text-xs">
+              <label className="flex items-center gap-2">
+                <span className="w-14 shrink-0 text-slate-300">{tr("Volume", "Volume")}</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={volume}
+                  onChange={(e) => handleVolumeChange(Number(e.target.value))}
+                  onPointerUp={preview}
+                  className="h-1 w-full accent-primary"
+                  aria-label={tr("Volume dos efeitos", "Effects volume")}
+                />
+              </label>
+              <select
+                value={pack}
+                onChange={(e) => handlePackChange(e.target.value as SfxPack)}
+                className="field-shell h-8 w-full px-2 text-xs"
+                aria-label={tr("Pacote de sons", "Sound pack")}
+              >
+                <option value="gundam">{tr("Sons Gundam", "Gundam sounds")}</option>
+                <option value="synth">{tr("Sintetizados (leves)", "Synthesized (light)")}</option>
+              </select>
+            </div>
+          ) : null}
 
           {/* Auto-passar Ação */}
           <label className="flex items-center justify-between gap-3 text-xs">

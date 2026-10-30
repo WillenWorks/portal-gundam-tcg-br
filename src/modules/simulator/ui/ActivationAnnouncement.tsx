@@ -11,7 +11,8 @@ import { getScaledDuration } from "./animationSettings";
 import { artSrc, cardBackUrl, isGenericArtCard, type ArtLookup } from "./cardArt";
 import { triggerLabel } from "../scene/choreography";
 import { SCENE_MS } from "../scene/sceneTiming";
-import { sfx } from "../audio/soundEffects";
+import { useSceneSound } from "../audio/useSceneSound";
+import { announceSound } from "../scene/soundCues";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export interface ActivationPoint {
@@ -67,8 +68,10 @@ export function ActivationAnnouncement({
   const holdMs = useMemo(() => getScaledDuration(holdBaseMs * tempo), [holdBaseMs, tempo]);
   const outMs = useMemo(() => getScaledDuration(OUT_BASE_MS * tempo), [tempo]);
 
+  // o selo assenta no fim da subida: é ali que o som estoura
+  useSceneSound(announceSound(trigger), { alignImpactAtMs: reduced ? 0 : RISE_BASE_MS * tempo });
+
   useEffect(() => {
-    sfx.playNewtypeFlash();
     if (reduced) {
       // sem movimento: o selo aparece parado, por menos tempo
       const t = setTimeout(onDone, Math.round(holdMs * 0.6));

@@ -110,3 +110,6 @@ docs/bot/pool-db-*.json
 # Playwright
 test-results/
 playwright-report/
+
+# Sons brutos do simulador (fonte do pnpm sfx:build; o que sobe é public/sfx)
+sons/

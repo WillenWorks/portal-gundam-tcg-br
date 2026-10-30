@@ -9,6 +9,7 @@ import type { GameOverInfo } from "@/modules/simulator/engine/types";
 import type { ReactNode } from "react";
 import { gameOverReasonLabel } from "./gameOverReason";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
+import { useSceneSound } from "../audio/useSceneSound";
 
 interface GameOverOverlayProps {
   won: boolean;
@@ -22,6 +23,7 @@ interface GameOverOverlayProps {
 
 export function GameOverOverlay({ won, reason, redirectSeconds, onLeave, children }: GameOverOverlayProps) {
   const { tr } = useSiteLanguage();
+  useSceneSound(won ? "game.win" : "game.lose");
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/85 backdrop-blur-sm"
