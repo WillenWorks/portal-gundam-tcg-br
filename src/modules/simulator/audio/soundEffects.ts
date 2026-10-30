@@ -31,6 +31,11 @@ class TacticalSoundEngine {
     return this.ctx;
   }
 
+  /** o mesmo contexto serve o pacote de amostras (`sampleEngine`) — um só relógio e um só desbloqueio de áudio */
+  public audioContext(): AudioContext | null {
+    return this.getContext();
+  }
+
   public isEnabled(): boolean {
     return this.enabled;
   }
