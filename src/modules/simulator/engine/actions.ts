@@ -1,7 +1,7 @@
 import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PendingDecision, PlayerId, QueuedTrigger } from "./types";
 import { isHiddenCard, type ViewGameState } from "./viewState";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { actionsBeforeChoice, costRestsSecondaryTarget, costTargetShortfall, specNeedsNamedTarget, exileCostShortfall, isFollowUpTrigger, specNeedsChoice, trashExileChoice } from "./effectSpec";
+import { actionsBeforeChoice, commandCostUnpayable, costRestsSecondaryTarget, costTargetShortfall, specNeedsNamedTarget, exileCostShortfall, isFollowUpTrigger, specNeedsChoice, trashExileChoice } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
 import { canPayLevel, deployCard, playCommand } from "./deploy";
 import { costRestsSelf, specResourceCost } from "./costs";
@@ -1079,6 +1079,7 @@ export function playerHasActionStepPlay(
     if (!card.def.triggerKeywords?.includes("Action")) continue;
     if (!canPayLevel(rulesState, player, card.def)) continue;
     if (activeResources < effectiveCost(card.def, rulesState, player)) continue;
+    if (commandCostUnpayable(rulesState, player, card.def.code, "Action", specs)) continue;
     return true;
   }
 
