@@ -1,9 +1,15 @@
 name: Deploy Production (AnaheimHub)
 
+# O deploy espera a CI: roda quando o workflow "CI" de um push na main termina VERDE, e publica exatamente o commit
+# que a CI aprovou. CI vermelha ou cancelada (um push mais novo cancela a anterior) não publica nada — em 29/10 um
+# erro de lint foi pro ar porque o deploy rodava em paralelo com a CI. `workflow_dispatch` refaz o deploy da main
+# na mão (Actions → Deploy Production → Run workflow).
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
 
 # o padrão da organização para o GITHUB_TOKEN é escrita; este workflow só lê o código
 permissions:
@@ -16,12 +22,20 @@ concurrency:
 jobs:
   deploy:
     name: Deploy to Hostinger VPS
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      # o commit aprovado pela CI (no disparo manual, o topo da main)
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
 
       # Deploy atômico:
       # - o site é compilado numa pasta nova (/root/anaheimhub-releases/<versão>) e só entra no ar com a troca
@@ -38,6 +52,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
           command_timeout: 18m
+          envs: DEPLOY_SHA
           # sem script_stop: ele quebra blocos multilinha; o script usa `set -e` e trata as falhas
           script: |
             set -e
@@ -62,9 +77,13 @@ jobs:
               env -u NODE_ENV pnpm exec prisma generate >/dev/null
             }
 
-            # 1. Código novo e dependências exatas
+            # 1. Código novo (o commit aprovado pela CI, que precisa estar na main) e dependências exatas
             git fetch -q origin main
-            git reset -q --hard origin/main
+            ALVO="${DEPLOY_SHA:-origin/main}"
+            if ! git merge-base --is-ancestor "$ALVO" origin/main; then
+              echo "❌ $ALVO não está na main — nada publicado"; exit 1
+            fi
+            git reset -q --hard "$ALVO"
             SHA=$(git rev-parse --short HEAD)
             pnpm install --frozen-lockfile
 
