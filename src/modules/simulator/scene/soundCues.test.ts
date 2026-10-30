@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { GameEvent } from "../engine/types";
 import { planChoreography } from "./choreography";
 import {
+  bannerSound,
   MAX_EFFECT_SOUNDS,
   announceSound,
   commandSound,
@@ -77,6 +78,16 @@ describe("sons da mesa", () => {
     );
     expect(sounds).toHaveLength(MAX_EFFECT_SOUNDS);
     expect(sounds).toEqual(["effect.damage", "unit.repair"]);
+  });
+});
+
+describe("banners de fase", () => {
+  it("a virada de turno já tem o som do turno; a fase de ações avisa; as outras fases levam o som do painel", () => {
+    expect(bannerSound("SEU TURNO")).toBeNull();
+    expect(bannerSound("TURNO DO OPONENTE")).toBeNull();
+    expect(bannerSound("FASE DE AÇÕES")).toBe("phase.action");
+    expect(bannerSound("FASE DE COMPRA")).toBe("phase.banner");
+    expect(bannerSound("FIM DE TURNO")).toBe("phase.banner");
   });
 });
 

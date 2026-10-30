@@ -52,6 +52,11 @@ export const SFX: Record<SfxId, SfxSpec> = {
   "turn.opponent": { category: "system", priority: 3, gain: 0.7, synth: () => sfx.playTurnStartAlert() },
   "game.win": { category: "system", priority: 5, gain: 0.9, synth: () => sfx.playNewtypeFlash() },
   "game.lose": { category: "system", priority: 5, gain: 0.9, synth: () => sfx.playExplosion() },
+  "phase.banner": { category: "system", priority: 2, gain: 0.6, synth: () => sfx.playTurnStartAlert() },
+  "phase.action": { category: "system", priority: 2, gain: 0.7, synth: () => sfx.playTurnStartAlert() },
+  "coin.flip": { category: "system", priority: 2, gain: 0.7, synth: () => sfx.playClick() },
+  "coin.land": { category: "system", priority: 3, gain: 0.8, synth: () => sfx.playShieldBlock() },
+  "shields.set": { category: "system", priority: 3, gain: 0.8, synth: () => sfx.playShieldBlock() },
 };
 
 export function assetsOf(id: SfxId): readonly SfxAsset[] {
