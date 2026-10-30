@@ -729,6 +729,14 @@ export function exileCostShortfall(state: GameState, spec: EffectSpec, controlle
   });
 }
 
+/**
+ * BUG-BM8YZN — Command com custo de exilar do trash sem cartas suficientes (ST13-015 com < 3 Units) não pode ser jogada:
+ * o custo tem de ser pago por inteiro (Q121 da GD01-003, "You cannot activate it if you cannot choose 12 cards").
+ */
+export function commandCostUnpayable(state: GameState, controller: PlayerId, cardCode: string, trigger: string, allSpecs: EffectSpec[]): boolean {
+  return allSpecs.some((s) => s.cardCode === cardCode && s.trigger === trigger && exileCostShortfall(state, s, controller));
+}
+
 /** W12 — filtro do `lookAtTopFilterReveal` com o Lv. máximo dinâmico ("equal to or lower than this Unit", ST13-011) */
 export function revealFilter(
   call: Extract<PrimitiveCall, { op: "lookAtTopFilterReveal" }>,

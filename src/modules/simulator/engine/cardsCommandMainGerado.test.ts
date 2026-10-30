@@ -55,8 +55,8 @@ const NAO_OFERECIDAS_NO_TABULEIRO: string[] = [
 ];
 /* 【Main】 sem rastro além de pagar e descartar, neste tabuleiro — lista cobrada. */
 const SEM_RASTRO_NO_TABULEIRO: string[] = [
-  // "If …" que o tabuleiro não tem (6 Units descansadas, (AGE System), 6 roxas na lixeira, Link (Teiwaz), 7 na lixeira, 2 (UN))
-  "EB01-073", "GD02-103", "GD02-111", "GD02-113", "GD02-116", "GD04-118",
+  // "If …" que o tabuleiro não tem (6 Units descansadas, (AGE System), 6 roxas na lixeira, Link (Teiwaz), 2 (UN))
+  "EB01-073", "GD02-103", "GD02-111", "GD02-113", "GD04-118",
   // efeito sem material: nenhuma Unit amiga danificada Lv.4-, nenhum token, nenhuma Unit pareada
   "GD01-102", "GD03-107", "GD03-112",
   // "recovers 3 HP" na 1ª Unit escolhida, sem dano

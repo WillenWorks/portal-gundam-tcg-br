@@ -2,7 +2,7 @@
  * condições comuns, resolver decisões pela jogada legal e um "fingerprint" do que dá para ver de fora. */
 import { applyPlayerAction } from "../actions";
 import { enumerateLegalActions } from "../legalActions";
-import { matchesCardDefFilter, type EffectSpec } from "../effectSpec";
+import { matchesCardDefFilter, type CardDefFilter, type EffectSpec } from "../effectSpec";
 import type { CardDef, GameState, PlayerId } from "../types";
 import { otherPlayer } from "../types";
 import { placeCard } from "./cardHarness";
@@ -12,15 +12,24 @@ import { ALL_CARD_DEFS } from "../../content/allCardDefs";
 
 export const scenarioOpts = { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver };
 
-/** 1 carta que casa o filtro de cada "Choose 1 … card from your trash" dos specs (buscar, parear ou jogar da lixeira) */
+/**
+ * 1 carta que casa o filtro de cada "Choose 1 … card from your trash" dos specs (buscar, parear ou jogar da lixeira) e
+ * as N do custo "exile N … from your trash" (sem elas a jogada não é oferecida — BUG-BM8YZN)
+ */
 export function trashMaterialFor(specs: readonly EffectSpec[]): CardDef[] {
-  return specs.flatMap((s) =>
-    [...(s.actions ?? []), ...(s.condition?.then ?? [])].flatMap((a) => {
+  const firstMatch = (filter: CardDefFilter) => Object.values(ALL_CARD_DEFS).find((d) => !d.isToken && matchesCardDefFilter(d, filter));
+  return specs.flatMap((s) => [
+    ...[...(s.actions ?? []), ...(s.condition?.then ?? [])].flatMap((a) => {
       if (a.op !== "searchTrashToHand" && a.op !== "pairFromTrashSearch" && a.op !== "deployFromTrashPayingCost") return [];
-      const def = Object.values(ALL_CARD_DEFS).find((d) => !d.isToken && matchesCardDefFilter(d, a.filter));
+      const def = firstMatch(a.filter);
       return def ? [def] : [];
     }),
-  );
+    ...(s.cost ?? []).flatMap((c) => {
+      if (c.op !== "moveZone" || c.toZone !== "exile" || c.target.kind !== "group" || c.target.group.kind !== "firstNInTrash") return [];
+      const def = firstMatch(c.target.group.filter);
+      return def ? Array.from({ length: c.target.group.count }, () => def) : [];
+    }),
+  ]);
 }
 
 // sem efeito próprio, para não somar habilidades ao tabuleiro
