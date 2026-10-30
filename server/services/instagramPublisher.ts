@@ -20,7 +20,8 @@ const REFRESH_EVERY_MS = 7 * 24 * 3600_000;
 const TOKEN_TTL_MS = 60 * 24 * 3600_000;
 
 export const INSTAGRAM_CAPTION_MAX = 2200;
-export const INSTAGRAM_HASHTAG_MAX = 30;
+// o Instagram passou a aceitar no máximo 5 hashtags por post (anúncio de dez/2025); as excedentes saem
+export const INSTAGRAM_HASHTAG_MAX = 5;
 export const INSTAGRAM_ALT_TEXT_MAX = 1000;
 
 export type InstagramConfig = { userId: string; envToken: string; version: string };
@@ -281,7 +282,7 @@ export async function refreshInstagramTokenIfNeeded(
 
 /* ---------- legenda & alt_text ---------- */
 
-/** Garante os limites do Instagram: no máximo 30 hashtags (as excedentes saem) e 2.200 caracteres. */
+/** Garante os limites do Instagram: no máximo `INSTAGRAM_HASHTAG_MAX` hashtags (as excedentes saem) e 2.200 caracteres. */
 export function normalizeInstagramCaption(caption: string): string {
   let count = 0;
   let text = caption.replace(/\r\n/g, "\n").replace(/(^|\s)#([\p{L}\p{N}_]+)/gu, (match, lead: string) => {

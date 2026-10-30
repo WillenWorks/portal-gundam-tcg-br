@@ -711,7 +711,8 @@ describe("socialPublisherService", () => {
       genai.generateContent.mockReset().mockResolvedValue({ text: JSON.stringify({ title: "Guia", fullCaption: "Resumo da IA.\n\n#GundamCardGame #AnaheimHub" }) });
       const draft = await draftArticlePost(prismaWith(article), { ...input, apiKeyGemini: "chave", customTopic: "Foque nos combos rápidos" });
       expect(genai.generateContent.mock.calls[0][0].contents).toContain("O Gundam abre o jogo e segura o ritmo.");
-      expect(draft.content.fullCaption).toMatch(/Resumo da IA\.[\s\S]*anaheimhub\.com\/articles\/guia-st01[\s\S]*#GundamCardGame #AnaheimHub$/);
+      expect(draft.content.fullCaption).toMatch(/Resumo da IA\.[\s\S]*anaheimhub\.com\/articles\/guia-st01[\s\S]*#GundamCardGame #GundamTCG #GundamBrasil #TCGBrasil #AnaheimHub$/);
+      expect(draft.content.hashtags).toHaveLength(5);
       expect(draft.metadata).toMatchObject({
         articleId: "a1",
         articleSlug: "guia-st01",

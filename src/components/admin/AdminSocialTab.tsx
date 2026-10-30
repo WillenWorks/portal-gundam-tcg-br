@@ -132,7 +132,8 @@ interface SocialStatus {
 }
 
 const CAPTION_MAX = 2200;
-const HASHTAG_MAX = 30;
+// o mesmo limite do servidor (`INSTAGRAM_HASHTAG_MAX`): 5 por post, regra do Instagram desde dez/2025
+const HASHTAG_MAX = 5;
 const WEEKDAYS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 const countHashtags = (text: string) => (text.match(/(^|\s)#[\p{L}\p{N}_]+/gu) || []).length;
 const formatWhen = (iso: string) =>
