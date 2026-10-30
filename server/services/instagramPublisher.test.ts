@@ -42,10 +42,12 @@ describe("instagramPublisher", () => {
     expect(() => decryptToken(enc, { JWT_SECRET: "outra" } as NodeJS.ProcessEnv)).toThrow();
   });
 
-  it("limita a legenda a 30 hashtags e 2.200 caracteres", () => {
+  it("limita a legenda a 5 hashtags (limite do Instagram desde dez/2025) e 2.200 caracteres", () => {
     const tags = Array.from({ length: 35 }, (_, i) => `#tag${i}`).join(" ");
     const normalized = normalizeInstagramCaption(`Texto\n\n${tags}`);
-    expect(countHashtags(normalized)).toBe(30);
+    expect(countHashtags(normalized)).toBe(5);
+    expect(normalized).toContain("#tag4");
+    expect(normalized).not.toContain("#tag5");
     expect(normalizeInstagramCaption("a".repeat(3000)).length).toBe(2200);
   });
 

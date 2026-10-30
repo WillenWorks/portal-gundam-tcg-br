@@ -2,7 +2,7 @@ import type { CardDef, GameEvent, GameState, PlayerId, QueuedTrigger } from "./t
 import { effectiveDeployCost, effectiveLevel, effectivePilotDef, hasTrait, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
 import { applyEvent, applyEvents, findCard } from "./events";
 import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { callsNeedChoice, commandHasNoAvailableMode, specActiveCalls } from "./effectSpec";
+import { callsNeedChoice, commandHasNoAvailableMode, exileCostChoiceFirst, specActiveCalls } from "./effectSpec";
 import { dispatchTrigger, findTriggerSpecs } from "./dispatcher";
 import {
   awaitingFollowUpOf,
@@ -13,6 +13,7 @@ import {
   dispatchDestroyedFromEffect,
   drainQueuedTriggers,
   filterDispatchableSpecs,
+  openCostStage,
   attachQueuedTriggers,
   unitDeployedEntries,
 } from "./abilityDispatch";
@@ -416,6 +417,16 @@ export function playCommand(
     turnNumber: next.turnNumber,
     targets: options.targets ?? {},
   };
+  // "Choose 3 Unit cards from your trash. Exile them. If you do, choose 1 enemy Unit" (ST13-015): com escolha no exílio
+  // e nada pré-escolhido (o jogador, não o bot), primeiro as cartas do trash; o alvo vem depois de pagar
+  const exileFirst = triggerSpecs.find((s) => exileCostChoiceFirst(next, s, player));
+  const preChosen = Object.values(options.targets ?? {}).some((ids) => ids.length > 0);
+  if (exileFirst && !preChosen) {
+    return openCostStage(next, player, trigger, exileFirst, cardInstanceId, specs, {
+      predicateResolver: options.predicateResolver,
+      targetFilterResolver: options.targetFilterResolver,
+    });
+  }
   const needsChoice = triggerSpecs.some((s) => callsNeedChoice(specActiveCalls(s, cmdCtx, options.predicateResolver)));
   if (needsChoice && !options.targets) {
     next = deferOrDispatchAbilities(next, player, trigger, [{ code: card.def.code, instanceId: cardInstanceId }], specs, {

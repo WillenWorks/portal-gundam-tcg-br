@@ -695,8 +695,16 @@ function applyPlayerActionInner(
             costTargets.trashExile = exileChoice;
           }
           next = payCostThenDefer(next, actingPlayer, decision.trigger, spec, q.sourceInstanceId, { targets: costTargets, predicateResolver, targetFilterResolver });
+          // Command (ST13-015): sem escolha de alvo depois do custo (nenhum alvo legal), o efeito já resolveu — a carta
+          // vai pro trash agora; com a escolha aberta, fica na mão até ela resolver (CR 3-4-4)
+          const effectStage = next.pendingDecision[actingPlayer];
+          const awaitingEffect = effectStage?.kind === "abilityResolution" && effectStage.queue.some((e) => e.sourceInstanceId === q.sourceInstanceId);
+          if (!awaitingEffect && (flowTrigger === "Main" || flowTrigger === "Action")) commandSources.add(q.sourceInstanceId);
           continue;
         }
+        // a Command jogada vai pro trash depois da resolução mesmo quando o efeito não acontece (pulado, sem alvo
+        // escolhido) — CR 3-4-4; marcada antes dos `continue` abaixo
+        if (flowTrigger === "Main" || flowTrigger === "Action") commandSources.add(q.sourceInstanceId);
 
         // "Não revelar" ainda dispara `lookAtTopFilterReveal` (as N cartas vão
         // pro fundo). `handDiscard`/`deckReorder`/`enumChoice` são MANDATÓRIOS
@@ -844,7 +852,6 @@ function applyPlayerActionInner(
           continue;
         }
 
-        if (flowTrigger === "Main" || flowTrigger === "Action") commandSources.add(q.sourceInstanceId);
         // custo já pago na etapa anterior (`costStage`): só o efeito
         const toDispatch = specs
           .filter((s) => s.id === r.specId)

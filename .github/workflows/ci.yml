@@ -3,7 +3,8 @@ name: CI
 on:
   pull_request:
     branches: [dev, main]
-  # commit direto (merge, hotfix) também passa pelo CI — o deploy não espera por ele, mas o vermelho aparece
+  # commit direto (merge, hotfix) também passa pelo CI — na main, o deploy só roda depois dele, e só se ficar verde
+  # (deploy.yml, `workflow_run`); o nome "CI" é a referência de lá
   push:
     branches: [dev, main]
 
