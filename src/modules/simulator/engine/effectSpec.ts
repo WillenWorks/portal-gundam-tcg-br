@@ -711,6 +711,15 @@ export function trashExileChoice(
   return undefined;
 }
 
+/**
+ * "Choose N … cards from your trash. Exile them. If you do, choose …" (ST13-015) / "Exile N … from your trash：…": o
+ * exílio do CUSTO tem escolha a fazer (mais elegíveis que o necessário). Nesse caso a jogada escolhe as cartas primeiro
+ * e o alvo do efeito só depois de pagar — o menu não pré-escolhe alvo.
+ */
+export function exileCostChoiceFirst(state: GameState, spec: EffectSpec, controller: PlayerId): boolean {
+  return (spec.cost ?? []).length > 0 && Boolean(trashExileChoice(state, spec, controller, []));
+}
+
 /** W2c (C3) — custo "exile N <filtro> cards from your trash" (moveZone → exile de `firstNInTrash`) sem cartas suficientes. */
 export function exileCostShortfall(state: GameState, spec: EffectSpec, controller: PlayerId): boolean {
   return (spec.cost ?? []).some((c) => {

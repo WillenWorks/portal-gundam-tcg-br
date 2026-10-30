@@ -1,6 +1,6 @@
 import type { AttackTarget, GameState, PlayerId } from "./types";
 import type { EffectSpec } from "./effectSpec";
-import { computeLegalTargets, costRestsSecondaryTarget, trashExileChoice } from "./effectSpec";
+import { computeLegalTargets, costRestsSecondaryTarget, exileCostChoiceFirst, trashExileChoice } from "./effectSpec";
 import { findTriggerSpecs } from "./dispatcher";
 import { specResourceCost } from "./costs";
 import { applyPlayerAction, type PlayerAction } from "./actions";
@@ -101,6 +101,8 @@ function commandSlots(
 ): LegalMenuSlot[] {
   const code = state.players[seat].hand.find((c) => c.instanceId === cardId)?.def.code;
   if (!code) return [];
+  // custo de exilar do trash com escolha (ST13-015): as cartas primeiro, o alvo depois de pagar — nada pré-escolhido
+  if (findTriggerSpecs(specs, code, trigger).some((s) => exileCostChoiceFirst(state, s, seat))) return [];
   const withSecondary = findTriggerSpecs(specs, code, trigger).find((s) => s.secondaryTarget);
   if (withSecondary?.secondaryTarget) {
     const sec = withSecondary.secondaryTarget;
