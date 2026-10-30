@@ -11,7 +11,8 @@
 import { useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { artSrc, cardBackUrl, isGenericArtCard, type ArtLookup } from "./cardArt";
-import { sfx } from "../audio/soundEffects";
+import { useSceneSound } from "../audio/useSceneSound";
+import { departureSound } from "../scene/soundCues";
 import { destroyMs } from "../scene/sceneTiming";
 
 /** ponto em coords de viewport (px). */
@@ -71,12 +72,10 @@ function DepartureGhost({
     [],
   );
 
+  // a explosão vive o tempo da carta quebrando: some junto com ela
+  useSceneSound(reduced ? null : departureSound(card.kind, card.cardType));
+
   useEffect(() => {
-    if (card.kind === "destroyed") {
-      sfx.playExplosion();
-    } else {
-      sfx.playCardDraw();
-    }
     if (reduced) {
       onDone(card.id);
       return;

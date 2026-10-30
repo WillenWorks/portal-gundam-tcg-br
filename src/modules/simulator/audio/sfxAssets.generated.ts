@@ -74,4 +74,40 @@ export const SFX_ASSETS = {
   "unit.repair": [
     { src: "sfx/unit-repair-1.m4a", durationMs: 1800, impactMs: 430 },
   ],
+  "combat.lockon": [
+    { src: "sfx/combat-lockon-1.m4a", durationMs: 345, impactMs: 10 },
+  ],
+  "ability.burst": [
+    { src: "sfx/ability-burst-1.m4a", durationMs: 1195, impactMs: 20 },
+  ],
+  "ability.announce": [
+    { src: "sfx/ability-announce-1.m4a", durationMs: 1300, impactMs: 400 },
+  ],
+  "effect.damage": [
+    { src: "sfx/effect-damage-1.m4a", durationMs: 1200, impactMs: 20 },
+  ],
+  "effect.buff": [
+    { src: "sfx/effect-buff-1.m4a", durationMs: 1200, impactMs: 10 },
+  ],
+  "effect.debuff": [
+    { src: "sfx/effect-debuff-1.m4a", durationMs: 1200, impactMs: 20 },
+  ],
+  "card.draw": [
+    { src: "sfx/card-draw-1.m4a", durationMs: 686, impactMs: 40 },
+  ],
+  "resource.place": [
+    { src: "sfx/resource-place-1.m4a", durationMs: 900, impactMs: 0 },
+  ],
+  "turn.mine": [
+    { src: "sfx/turn-mine-1.m4a", durationMs: 2000, impactMs: 660 },
+  ],
+  "turn.opponent": [
+    { src: "sfx/turn-opponent-1.m4a", durationMs: 1148, impactMs: 40 },
+  ],
+  "game.win": [
+    { src: "sfx/game-win-1.m4a", durationMs: 2761, impactMs: 30 },
+  ],
+  "game.lose": [
+    { src: "sfx/game-lose-1.m4a", durationMs: 2304, impactMs: 10 },
+  ],
 } as const satisfies Record<string, readonly SfxAsset[]>;

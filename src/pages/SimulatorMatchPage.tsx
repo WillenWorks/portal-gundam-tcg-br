@@ -106,6 +106,9 @@ import { api, getStoredAuth, type SimulatorMatchView } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { useMatchTransport } from "@/modules/simulator/network/useMatchTransport";
 import { sfx } from "@/modules/simulator/audio/soundEffects";
+import { sampleSfx } from "@/modules/simulator/audio/sampleEngine";
+import type { SfxId } from "@/modules/simulator/audio/sfxManifest";
+import { commandSound, declareSound, effectSounds, shieldSound, strikeSound } from "@/modules/simulator/scene/soundCues";
 
 import { attackTargetError } from "@/modules/simulator/engine/combat";
 import { otherPlayer, hasKeyword, effectiveAp, effectiveHp, effectiveCost, effectiveDeployCost, effectiveLevel, effectivePilotDef, satisfiesLinkCondition, type AttackTarget, type CardDef, type CardInstance, type GameEvent, type GameState, type PlayerId, type CombatState } from "@/modules/simulator/engine/types";
@@ -133,7 +136,7 @@ import {
 } from "@/modules/simulator/ui/menuIntent";
 import type { BurstTargetChoice } from "@/modules/simulator/ui/BurstModal";
 import { findAltDiscardCandidates, findEligibleSacrifices, playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
-import { getResolutionPacing, getSavedAnimSpeed, getScaledDuration, type ResolutionPacing } from "@/modules/simulator/ui/animationSettings";
+import { effectiveAnimSpeed, getResolutionPacing, getSavedAnimSpeed, getScaledDuration, type ResolutionPacing } from "@/modules/simulator/ui/animationSettings";
 import { hasOwnDeploy, planChoreography, tempoFor, type Beat } from "@/modules/simulator/scene/choreography";
 import { SCENE_MS, destroyMs, drawMs, landsHeavy, shieldRevealMs } from "@/modules/simulator/scene/sceneTiming";
 import { drawnCard, placedResource, unrestedIds } from "@/modules/simulator/scene/turnStart";
@@ -543,6 +546,20 @@ export function buildTurn1StagedViews(current: SimulatorMatchView): {
 
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error && err.message ? err.message : fallback;
+}
+
+/** <High-Maneuver> do atacante (inclusive o que vem do Piloto/link) — muda o som da declaração */
+function hasHighManeuverInView(view: ViewGameState, instanceId: string): boolean {
+  const card = findPublicCard(view, instanceId);
+  return Boolean(card && hasKeyword(card, "High-Maneuver", view as unknown as GameState));
+}
+
+/** o Piloto pareado satisfaz o link da Unit (som de Link em vez de Pair) */
+function isLinkedInViews(views: readonly ViewGameState[], pilotId: string, unitId: string): boolean {
+  const find = (id: string) => views.map((v) => findPublicCard(v, id)).find((c) => c !== null) ?? null;
+  const pilot = find(pilotId);
+  const unit = find(unitId);
+  return Boolean(pilot && unit && satisfiesLinkCondition(effectivePilotDef(pilot), unit.def));
 }
 
 function findPublicCard(view: ViewGameState, instanceId: string): CardInstance | null {
@@ -972,21 +989,25 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         await waitForPhaseBanners();
       };
       setMatchView(staged.viewAnnounced);
-      if (isMyTurn) sfx.playNewtypeFlash();
+      const speed = effectiveAnimSpeed();
+      // o aviso do turno vai até a recuperação começar (o som de desvirar é dela)
+      const turnSfx = sampleSfx.scope();
+      turnSfx.play(isMyTurn ? "turn.mine" : "turn.opponent", { speed });
       await banner(isMyTurn ? "SEU TURNO" : "TURNO DO OPONENTE");
 
       await banner("FASE DE RECUPERAÇÃO");
+      turnSfx.end();
       const standing = unrestedIds(staged.viewAnnounced.view, staged.viewRecovery.view, acting);
       setUnrestIds(standing);
       setMatchView(staged.viewRecovery);
-      if (standing.size > 0) sfx.playDeploy();
+      if (standing.size > 0) sampleSfx.play("unrest", { speed, untilMs: getScaledDuration(SCENE_MS.unrest) });
       await pause(SCENE_MS.unrest);
       setUnrestIds(new Set());
 
       await banner("FASE DE COMPRA");
       const drawn = drawnCard(staged.viewRecovery.view, staged.viewDraw.view, acting);
       if (drawn) {
-        sfx.playCardDraw();
+        sampleSfx.play("card.draw", { speed, untilMs: getScaledDuration(drawMs()) });
         await playOverlay(setEffectDraw, effectDrawResolveRef, {
           key: ++beatKeyRef.current,
           player: acting,
@@ -1000,6 +1021,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       await banner("FASE DE RECURSO");
       const resource = placedResource(staged.viewDraw.view, staged.viewMain.view, acting);
       if (resource) {
+        sampleSfx.play("resource.place", { speed, untilMs: getScaledDuration(SCENE_MS.resource) });
         await playOverlay(setResourceTravel, resourceTravelResolveRef, { key: ++beatKeyRef.current, player: acting, card: resource });
       } else {
         await pause(SCENE_MS.resource);
@@ -1016,18 +1038,27 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   );
 
 
+  // o pacote de sons baixa ao abrir a partida; ao sair, nada fica tocando
+  useEffect(() => {
+    void sampleSfx.preload();
+    return () => sampleSfx.stopAll();
+  }, []);
+
   const executeAttackStrike = useCallback(
-    async (attackerId: string, currentTarget: AttackTarget, defendingPlayer: PlayerId) => {
+    async (attackerId: string, currentTarget: AttackTarget, defendingPlayer: PlayerId, attackerLevel?: number | null) => {
+      // o estouro do golpe cai no fim do avanço, quando o atacante chega ao alvo; o som acaba com o recuo
+      const strikeSfx = sampleSfx.scope();
+      const strikeId = strikeSound(attackerLevel);
       const reduced =
         typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
       const a = board.rectOf(attackerId);
       const tKey = currentTarget === "player" ? playerShieldKey(defendingPlayer) : currentTarget.unitId;
       const t = board.rectOf(tKey) ?? board.rectOf(playerAreaKey(defendingPlayer));
       if (!a || !t || reduced) {
-        sfx.playAttackBeam();
-        if (currentTarget === "player") sfx.playShieldBurst();
+        sampleSfx.play(strikeId, { speed: effectiveAnimSpeed(), untilMs: getScaledDuration(SCENE_MS.strike.hit + SCENE_MS.strike.back) });
         return;
       }
+      strikeSfx.play(strikeId, { speed: effectiveAnimSpeed(), alignImpactAtMs: getScaledDuration(260) });
       const towardX = t.left + t.width / 2 - (a.left + a.width / 2);
       const towardY = t.top + t.height / 2 - (a.top + a.height / 2);
 
@@ -1037,10 +1068,6 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
       // 2. Disparo de feixe / impacto no alvo — ataque direto (jogador) ganha
       // tremor visual na trilha de shields do lado atingido (docs/55 tarefa 5).
-      sfx.playAttackBeam();
-      if (currentTarget === "player") {
-        sfx.playShieldBurst();
-      }
       setActiveStrike({
         attackerId,
         towardX,
@@ -1056,6 +1083,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
       // 4. Conclui animação
       setActiveStrike(null);
+      strikeSfx.end();
     },
     [board],
   );
@@ -1226,7 +1254,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         });
       const strike = (attackerId: string, target: AttackTarget, defendingPlayer: PlayerId) =>
         Promise.race([
-          executeAttackStrike(attackerId, target, defendingPlayer),
+          executeAttackStrike(
+            attackerId,
+            target,
+            defendingPlayer,
+            (cardDefInView(incoming.view, attackerId) ?? (prevView ? cardDefInView(prevView, attackerId) : undefined))?.level,
+          ),
           new Promise<void>((resolve) => setTimeout(resolve, VIEW_QUEUE_ITEM_TIMEOUT_MS)),
         ]);
 
@@ -1276,7 +1309,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           }
           setRestIds(new Set());
         };
+        // cada tempo toca os seus sons e os encerra quando termina (nenhum som sobra depois da ação)
+        const speed = effectiveAnimSpeed();
         for (const beat of beats) {
+          const beatSfx = sampleSfx.scope();
+          const cue = (id: SfxId, options: { delayMs?: number; alignImpactAtMs?: number } = {}) => beatSfx.play(id, { speed, ...options });
           switch (beat.kind) {
             case "strike":
               await strike(beat.attackerId, beat.target, beat.defendingPlayer);
@@ -1302,6 +1339,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               }
               setEffectLane(laneSource && laneTargets.length > 0 ? { key: ++beatKeyRef.current, source: laneSource, targets: laneTargets } : null);
               setCueBatch({ key: -++beatKeyRef.current, events: beat.events });
+              for (const id of effectSounds(beat.events, {
+                combatTarget: beat.combat,
+                linked: (pilotId, unitId) => isLinkedInViews([shown, incoming.view], pilotId, unitId),
+              })) {
+                cue(id);
+              }
               await hold(SCENE_MS.effects);
               setEffectLane(null);
               if (turns.rest.length || turns.stand.length) {
@@ -1319,7 +1362,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 for (let k = 0; k < (beat.count ?? 0); k++) {
                   const shieldId = shown.players[owner].shields[0]?.instanceId;
                   shieldsTaken[owner] += 1;
-                  sfx.playShieldBurst();
+                  // a shield estoura quando chega ao centro; o som vai até ela cair
+                  const shieldSfx = sampleSfx.scope();
+                  shieldSfx.play(shieldSound(beat.combat), { speed, alignImpactAtMs: getScaledDuration(SCENE_MS.combat.shield.fly) });
                   const isMyBurst = myBurst?.kind === "burst" && myBurst.cardInstanceId === shieldId;
                   const ownerBurst = incoming.view.pendingDecision[owner];
                   const isTheirPendingBurst = ownerBurst?.kind === "burst" && ownerBurst.cardInstanceId === shieldId;
@@ -1334,10 +1379,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                     });
                   }
                   showTable(revealBeat(shown, incoming.view, { kind: "departure", ids: [], shieldsOf: owner, count: 1 }));
+                  shieldSfx.end();
                 }
                 break;
               }
               // destruída: quebra no lugar e é arrastada à lixeira; descarte e afins só deslizam
+              // a Unit explode no clone que sai (`CardDepartureAnimation`); a Base sai como descarte, o som dela é aqui
+              if (beat.destroyed && (["A", "B"] as PlayerId[]).some((pid) => shown.players[pid].baseSection.some((c) => beat.ids.includes(c.instanceId)))) {
+                cue("base.destroyed");
+              }
               launchDepartures(prevDepartureView, incoming, new Set(beat.ids));
               await hold(beat.destroyed ? destroyMs() : SCENE_MS.departure);
               break;
@@ -1348,7 +1398,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               const inHand = incoming.view.players[owner].hand.find((c) => c.instanceId === beat.instanceId);
               const fromKey = zoneAnchorOf(shown, beat.instanceId, owner);
               const fromRect = board.rectOf(beat.instanceId) ?? (fromKey ? board.rectOf(fromKey) : null);
-              sfx.playCardDraw();
+              cue("card.draw");
               await playOverlay(setHandTravel, handTravelResolveRef, {
                 key: ++beatKeyRef.current,
                 player: owner,
@@ -1363,7 +1413,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               // P4 — o atacante deita e a linha de mira vai até o alvo
               if (beat.rests) setRestIds(new Set([beat.attackerId]));
               showTable(revealBeat(shown, incoming.view, beat));
-              sfx.playClick();
+              cue(declareSound(hasHighManeuverInView(shown, beat.attackerId)));
+              // a mira trava quando a linha sai até o alvo
+              cue("combat.lockon", { delayMs: getScaledDuration(beat.rests ? SCENE_MS.combat.declare.rest : 0) });
               await pace((beat.rests ? SCENE_MS.combat.declare.rest : 0) + SCENE_MS.combat.declare.line);
               setRestIds(new Set());
               break;
@@ -1371,7 +1423,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               // P4 — o bloqueador deita e a linha muda para ele
               if (beat.rests) setRestIds(new Set([beat.blockerId]));
               showTable(revealBeat(shown, incoming.view, beat));
-              sfx.playShieldBlock();
+              cue("blocker.block");
               await pace(SCENE_MS.combat.block);
               setRestIds(new Set());
               break;
@@ -1427,14 +1479,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 heavy,
                 opponent: !mine,
               };
-              sfx.playDeploy();
+              cue("card.draw");
               setPlayStage(stage);
               await pace(SCENE_MS.play.rise + SCENE_MS.play.hold);
               setPlayStage({ ...stage, phase: "hold" });
+              // a Command se revela no centro e o som segue até ela ser usada
+              if (beat.as === "command") cue(commandSound(beat.trigger));
               await payOneByOne(beat.paid);
               if (beat.as === "command") {
                 setPlayStage({ ...stage, phase: "used" });
-                sfx.playNewtypeFlash();
                 await pace(SCENE_MS.play.used);
                 setPlayStage(null);
                 showTable(revealBeat(shown, incoming.view, beat));
@@ -1446,10 +1499,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               setPlayStage(null);
               // a carta pousa: a Unit aparece na vaga e toca o pouso (suave/pesado); a pesada treme a mesa
               showTable(revealBeat(shown, incoming.view, beat));
-              if (heavy) {
-                setTableShake(true);
-                sfx.playShieldBlock();
-              }
+              // o pouso da Unit toca no slot (`BattleSlot`); a Base pousa aqui
+              if (beat.as === "base") cue("deploy.low");
+              if (heavy) setTableShake(true);
               await pace(heavy ? SCENE_MS.play.landHeavy : SCENE_MS.play.land);
               if (heavy) setTableShake(false);
               break;
@@ -1459,11 +1511,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 beat.player === incoming.seat && beat.instanceId
                   ? (incoming.view.players[incoming.seat].hand.find((c) => !isHidden(c) && c.instanceId === beat.instanceId) as CardInstance | undefined)
                   : undefined;
-              sfx.playCardDraw();
+              cue("card.draw");
               await playOverlay(setEffectDraw, effectDrawResolveRef, { key: ++beatKeyRef.current, player: beat.player, card });
               break;
             }
           }
+          beatSfx.end();
           // `play` revela a mesa por conta própria (a carta aparece quando pousa); o custo do `announce` já foi mostrado
           const revealsItself = beat.kind === "play" || beat.kind === "declare" || beat.kind === "block" || beat.kind === "toHand" || (beat.kind === "departure" && beat.shieldsOf);
           if (beat.kind !== "announce" && beat.kind !== "strike" && !revealsItself) showTable(revealBeat(shown, incoming.view, beat));
@@ -1754,7 +1807,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           // docs/55 tarefa 3 — 300ms de confirmação visual (a seta de combate
           // já redireciona pro blocker assim que a nova view chegar) antes de
           // avançar pro Passo de Ação.
-          sfx.playShieldBlock();
+          sfx.playClick();
           await new Promise((r) => setTimeout(r, getScaledDuration(300)));
         } else if (action.kind === "playCommand" && getResolutionPacing() === "classic") {
           // ritmo rápido: a revelação da Command antes do envio (no cinemático ela toca a partir da visão, igual à do
@@ -1777,10 +1830,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         } else if (action.kind === "playCommand") {
           sfx.playClick();
         } else if (action.kind === "finishTurn") {
-          sfx.playTurnStartAlert();
+          sfx.playClick();
           await new Promise((r) => setTimeout(r, getScaledDuration(100)));
         } else if (action.kind === "deployCard") {
-          sfx.playDeploy();
+          sfx.playClick();
           await new Promise((r) => setTimeout(r, getScaledDuration(100)));
         } else {
           sfx.playClick();
@@ -2053,11 +2106,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     }
 
     // Disparos sonoros táticos (Asticassia Sound Engine)
-    if (prev.activePlayer !== cur.activePlayer && cur.activePlayer === matchView.seat) {
-      sfx.playNewtypeFlash();
-    }
-    if (cur.shields < prev.shields || cur.oppShields < prev.oppShields) {
-      sfx.playShieldBurst();
+    // no ritmo cinemático a shield tem o tempo dela (coreografia); no rápido, o som vai aqui
+    if ((cur.shields < prev.shields || cur.oppShields < prev.oppShields) && getResolutionPacing() === "classic") {
+      sampleSfx.play("shield.destroyed", { speed: effectiveAnimSpeed(), untilMs: getScaledDuration(SCENE_MS.combat.shield.fly + SCENE_MS.combat.shield.flip) });
     }
 
     if (reduced || introStage !== "complete") return;
@@ -2578,7 +2629,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       if (!targetsReadyToAutoResolve(nextSelected.length, requiredTargetCount, maxTargetCount, primaryLegalTargetIds.size)) return;
       if (missingSecondaryTarget(secondaryTargeting, primaryLegalTargetIds.size, nextSecondary)) return;
       const targets = commandTargets(nextSelected, secondaryTargeting, nextSecondary);
-      sfx.playDeploy();
+      sfx.playClick();
       runAction({
         kind: "playCommand",
         cardInstanceId: pending.cardInstanceId,
@@ -2664,7 +2715,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       ? commandTargetsFromMenu(legalMenu, card.instanceId, commandTrigger, altDiscardId) !== null
       : findTriggerSpecs(ALL_EFFECT_SPECS, card.def.code, commandTrigger).some((s) => specNeedsNamedTarget(s));
     if (effCost === 0 && !needsTarget) {
-      sfx.playDeploy();
+      sfx.playClick();
       runAction({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: commandTrigger, altCostDiscardId: altDiscardId });
       return;
     }
@@ -2676,7 +2727,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     // Habilidade global/sem custo de recursos nem alvo (ex.: ST01-016 Asticassia "Rest this Base"):
     // sem recursos a pagar e sem alvo no tabuleiro, ativa imediatamente.
     if (ability.cost === 0 && !ability.needsTarget) {
-      sfx.playAttackBeam();
+      sfx.playClick();
       runAction({
         kind: "activateAbility",
         sourceInstanceId: card.instanceId,
@@ -2728,7 +2779,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       // de um shield (bug do feedback: Rewloola não devolvia shield). Nenhuma
       // 【Activate·Main】 de ST01–04 usa addShieldToHand, mas o alias era latente.
       const targets = selected.length ? { target: selected } : undefined;
-      sfx.playAttackBeam();
+      sfx.playClick();
       runAction({
         kind: "activateAbility",
         sourceInstanceId: pending.cardInstanceId,
@@ -2745,7 +2796,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         return;
       }
       const targets = commandTargets(selected, secondaryTargeting, secondarySelected);
-      sfx.playDeploy();
+      sfx.playClick();
       runAction({
         kind: "playCommand",
         cardInstanceId: pending.cardInstanceId,
@@ -2760,7 +2811,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const declareAttack = (target: AttackTarget, explicitAttackerId?: string) => {
     const effAttackerId = explicitAttackerId ?? attackerId;
     if (!effAttackerId) return;
-    sfx.playAttackBeam();
+    sfx.playClick();
     setAttackerId(null);
     runAction({ kind: "declareAttack", attackerId: effAttackerId, target });
   };

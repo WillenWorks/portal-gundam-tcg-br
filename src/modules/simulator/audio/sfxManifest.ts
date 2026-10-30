@@ -40,6 +40,18 @@ export const SFX: Record<SfxId, SfxSpec> = {
   "unit.activate": { category: "play", priority: 2, gain: 0.85, synth: () => sfx.playNewtypeFlash() },
   "unit.destroyed": { category: "combat", priority: 4, gain: 1, synth: () => sfx.playExplosion() },
   "unit.repair": { category: "play", priority: 2, gain: 0.8, synth: () => sfx.playCardDraw() },
+  "combat.lockon": { category: "system", priority: 2, gain: 0.7, synth: () => sfx.playMonoeyeLock() },
+  "ability.burst": { category: "play", priority: 4, gain: 0.9, synth: () => sfx.playShieldBurst() },
+  "ability.announce": { category: "play", priority: 2, gain: 0.75, synth: () => sfx.playNewtypeFlash() },
+  "effect.damage": { category: "play", priority: 3, gain: 0.85, synth: () => sfx.playImpact() },
+  "effect.buff": { category: "play", priority: 1, gain: 0.6, synth: () => sfx.playNewtypeFlash() },
+  "effect.debuff": { category: "play", priority: 1, gain: 0.6, synth: () => sfx.playMonoeyeLock() },
+  "card.draw": { category: "system", priority: 1, gain: 0.6, synth: () => sfx.playCardDraw() },
+  "resource.place": { category: "system", priority: 1, gain: 0.55, synth: () => sfx.playCardRest() },
+  "turn.mine": { category: "system", priority: 3, gain: 0.8, synth: () => sfx.playNewtypeFlash() },
+  "turn.opponent": { category: "system", priority: 3, gain: 0.7, synth: () => sfx.playTurnStartAlert() },
+  "game.win": { category: "system", priority: 5, gain: 0.9, synth: () => sfx.playNewtypeFlash() },
+  "game.lose": { category: "system", priority: 5, gain: 0.9, synth: () => sfx.playExplosion() },
 };
 
 export function assetsOf(id: SfxId): readonly SfxAsset[] {
