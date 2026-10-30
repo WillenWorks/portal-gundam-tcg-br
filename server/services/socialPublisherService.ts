@@ -131,6 +131,24 @@ const CARD_TYPE_PT: Record<string, string> = {
   UNIT_TOKEN: "Ficha de Unidade",
 };
 
+const COLOR_PT: Record<string, string> = { blue: "Azul", green: "Verde", red: "Vermelho", white: "Branco", purple: "Roxo", yellow: "Amarelo", black: "Preto" };
+/** cor da carta em português para os prompts ("blue" → "Azul"); combinações ("Blue/White") viram "Azul e Branco" */
+const colorPt = (color: string | null | undefined) =>
+  String(color || "—")
+    .split(/[/,|]/)
+    .map((c) => COLOR_PT[c.trim().toLowerCase()] ?? c.trim())
+    .join(" e ");
+
+/** Abertura comum dos prompts de legenda (quem escreve e para quem). */
+const SOCIAL_INTRO = `Você escreve os posts do Instagram do Anaheim Hub (anaheimhub.com), um portal brasileiro feito por fãs do Gundam Card Game (Bandai). O portal não é oficial nem ligado à Bandai.`;
+
+/** A legenda é cortada no feed depois de ~125 caracteres ("… mais"): o gancho precisa caber ali. */
+const HOOK_RULE = "A primeira linha da legenda é o gancho e cabe em até 125 caracteres (é o que aparece antes do \"mais\" no feed).";
+
+/** Formato da resposta pedido a todas as IAs. */
+const JSON_ANSWER = `Responda APENAS com JSON válido:
+{"title": "...", "hook": "...", "strategy": "...", "cta": "...", "hashtags": ["..."], "fullCaption": "..."}`;
+
 /** Código de carta aceito (ex.: GD01-001, ST03-012, GD02-001_p1). */
 export const CARD_CODE_PATTERN = /^[A-Z]{1,4}\d{0,3}-\d{1,4}(?:_[A-Z0-9]{1,6})?$/i;
 
@@ -326,7 +344,44 @@ export async function pickCardForPost(
   return attachMeta({ code: chosenCode, name: def?.nameEn || chosenCode, color: (def?.color || "blue").toLowerCase(), type: def?.cardType || "UNIT", ap: def?.ap, hp: def?.hp, cost: def?.cost, text: "" });
 }
 
-const DEFAULT_HASHTAGS = ["GundamCardGame", "GundamTCG", "GundamBrasil", "TCGBrasil", "CardGame", "AnaheimHub"];
+/*
+ * Hashtags: o Instagram aceita no máximo 5 por post (anúncio de dez/2025, `INSTAGRAM_HASHTAG_MAX`). Cada post leva as
+ * 5 que mais importam, nesta ordem — o assunto (código e nome da carta, torneio, decklist) e depois comunidade e marca.
+ */
+const BRAND_HASHTAGS = ["GundamCardGame", "GundamBrasil", "AnaheimHub"];
+
+function uniqueTags(tags: Array<string | undefined>): string[] {
+  const seen = new Set<string>();
+  return tags.filter((tag): tag is string => {
+    if (!tag || seen.has(tag.toLowerCase())) return false;
+    seen.add(tag.toLowerCase());
+    return true;
+  });
+}
+
+/** As 5 da carta: código e nome (o que se busca), spoiler quando for, e comunidade/marca. */
+export function cardPostHashtags(card: { code: string; name: string; isSpoiler?: boolean }): string[] {
+  const specific = buildCardHashtags(card, []);
+  const code = specific[0];
+  // fora o código, a tag da coleção ("GD01") e as de spoiler, o que sobra é a do nome
+  const name = specific.find((tag) => tag !== code && !/^[A-Z]{1,4}\d{1,3}$/.test(tag) && !/spoiler/i.test(tag));
+  const rest = card.isSpoiler ? ["GundamSpoiler", "GundamCardGame", "AnaheimHub"] : BRAND_HASHTAGS;
+  return uniqueTags([code, name, ...rest, "GundamTCG", "TCGBrasil"]).slice(0, INSTAGRAM_HASHTAG_MAX);
+}
+
+/**
+ * A legenda termina com exatamente as hashtags do post: as que a IA escreveu (a mais, a menos, outras) saem e entra o
+ * bloco certo no fim.
+ */
+export function withHashtags(caption: string, tags: string[]): string {
+  const body = caption
+    .replace(/(^|\s)#[\p{L}\p{N}_]+/gu, "$1")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return `${body}\n\n${tags.map((tag) => `#${tag}`).join(" ")}`;
+}
 
 /** Endereço direto exato da carta no database do portal (ex.: anaheimhub.com/cards/GD01-010). */
 export const cardDatabaseUrl = (code: string, base = "https://anaheimhub.com") =>
@@ -355,10 +410,10 @@ function templateContent(card: SocialCard): GeneratedPostContent {
   const headerLabel = isSpoiler ? "🚨 SPOILER DA SEMANA" : "💥 CARTA DA SEMANA";
   const titlePrefix = isSpoiler ? "Spoiler da Semana" : "Carta da Semana";
   const link = card.cardUrl || cardDatabaseUrl(card.code);
-  const hashtags = buildCardHashtags(card, DEFAULT_HASHTAGS);
+  const hashtags = cardPostHashtags(card);
   const caption =
     `${headerLabel}: ${card.name} (${card.code})\n\n` +
-    `📊 ${CARD_TYPE_PT[card.type] || card.type} · cor ${card.color}\n` +
+    `📊 ${CARD_TYPE_PT[card.type] || card.type} · cor ${colorPt(card.color)}\n` +
     `• Custo: ${card.cost ?? "—"}${card.level !== undefined ? ` · Nível: ${card.level}` : ""}\n` +
     (card.ap !== undefined || card.hp !== undefined ? `• ${card.ap ?? "—"} AP / ${card.hp ?? "—"} HP\n` : "") +
     (card.text ? `\n📝 Efeito:\n${card.text}\n` : "") +
@@ -405,21 +460,21 @@ function buildSocialPrompt(card: SocialCard, customTopic?: string): string {
     u && u.decks > 0
       ? `Uso nos últimos torneios: presente em ${u.decks} listas de ${u.tournaments} torneios (média de ${u.avgCopies} cópias por deck)${u.wins ? `, com ${u.wins} título(s)` : ""}${u.topDecks ? ` e ${u.topDecks} presença(s) no top 25%` : ""}${u.archetypes.length ? `. Arquétipos onde mais joga: ${u.archetypes.join(", ")}` : ""}.`
       : null;
-  const cardTags = buildCardHashtags(card, DEFAULT_HASHTAGS).slice(0, 12).map((h) => `#${h}`).join(" ");
-  return `Você escreve os posts do Instagram do Anaheim Hub (anaheimhub.com), um portal brasileiro feito por fãs do Gundam Card Game (Bandai). O portal não é oficial nem ligado à Bandai.
+  const cardTags = cardPostHashtags(card).map((h) => `#${h}`).join(" ");
+  return `${SOCIAL_INTRO}
 Escreva o post de "${card.isSpoiler ? "Spoiler da Semana" : "Carta da Semana"}" sobre esta carta, usando SOMENTE os dados abaixo:
 
 Formato: ${card.isSpoiler ? "SPOILER DA SEMANA (carta nova revelada)" : "CARTA DA SEMANA (destaque competitivo)"}
 Nome oficial (não traduza): ${card.name}
 Código: ${card.code}
-Tipo: ${card.type}
-Cor: ${card.color}
+Tipo: ${CARD_TYPE_PT[card.type] || card.type}
+Cor: ${colorPt(card.color)}
 Custo: ${card.cost ?? "—"}${card.level !== undefined ? ` · Nível: ${card.level}` : ""}
 AP / HP: ${card.ap ?? "—"} / ${card.hp ?? "—"}
 Texto da carta: "${card.text || "sem efeito"}"
 ${card.rarity ? `Raridade: ${card.rarity}` : ""}
 ${usageLine ? `${usageLine}\n` : ""}${card.altArtCount ? `O post é um carrossel: depois da carta vêm ${card.altArtCount} arte(s) alternativa(s) dela. Convide a arrastar para ver e pergunte qual arte a pessoa prefere.\n` : ""}Link direto da carta no database: ${link}
-Hashtags obrigatórias da carta e comunidade: ${cardTags}
+Hashtags do post (exatamente estas 5): ${cardTags}
 ${customTopic ? `Pedido do editor: "${customTopic.slice(0, 300)}"` : ""}
 
 Regras:
@@ -427,11 +482,11 @@ Regras:
 2. Não traduza nomes de cartas, personagens nem palavras-chave do jogo (ex.: Blocker, Breach, Repair, First Strike).
 3. Não invente números, porcentagens, resultados de torneio nem afirmações sobre o "meta". Se houver dados de uso nos torneios acima, cite-os na análise; se não estiver nos dados acima, não afirme.
 4. Não diga que o post é oficial nem fale em nome da Bandai.
-5. Estrutura: gancho de 1–2 linhas com nome e código (${card.code}); texto explicativo dos dados e efeito da carta; pequena análise de como ela é usada${card.isSpoiler ? " (potencial quando lançar)" : " nos decks/torneios"}; pergunta para os comentários; link direto da carta no database (${link}) e convite para testar no simulador do Anaheim Hub (link na bio); de 8 a 14 hashtags no final incluindo as de código e nome (${cardTags}).
+5. Estrutura: gancho de 1–2 linhas com nome e código (${card.code}); texto explicativo dos dados e efeito da carta; pequena análise de como ela é usada${card.isSpoiler ? " (potencial quando lançar)" : " nos decks/torneios"}; pergunta para os comentários; link direto da carta no database (${link}) e convite para testar no simulador do Anaheim Hub (link na bio); no final, exatamente estas 5 hashtags: ${cardTags}.
 6. Legenda completa com no máximo 1.800 caracteres.
+7. ${HOOK_RULE}
 
-Responda APENAS com JSON válido:
-{"title": "...", "hook": "...", "strategy": "...", "cta": "...", "hashtags": ["..."], "fullCaption": "..."}`;
+${JSON_ANSWER}`;
 }
 
 function toPostContent(defaultTitle: string, parsed: Partial<GeneratedPostContent> | null | undefined): GeneratedPostContent | null {
@@ -986,12 +1041,13 @@ export async function draftCardSpotlight(
           cardUrl,
           storyTitle,
         };
+  const tags = cardPostHashtags(card);
   return {
     type: SocialPostType.CARD_SPOTLIGHT,
     content: {
       ...generated,
-      hashtags: buildCardHashtags(card, generated.hashtags),
-      fullCaption: ensureCardLink(generated.fullCaption, card, cardUrl),
+      hashtags: tags,
+      fullCaption: ensureCardLink(withHashtags(generated.fullCaption, tags), card, cardUrl),
     },
     cardCode: card.code,
     fileStem: isSpoiler ? `${card.code}-spoiler` : card.code,
@@ -1012,17 +1068,15 @@ export async function draftCardSpotlight(
 
 // ---------- Reel da Carta da Semana (animação 9:16 com direcionamento para o post do feed) ----------
 
-const REEL_HASHTAGS = ["GundamCardGame", "GundamTCG", "GundamBrasil", "TCGBrasil", "GundamReels", "CardGame", "AnaheimHub"];
-
 function cardReelTemplate(card: SocialCard): GeneratedPostContent {
   const typeLabel = CARD_TYPE_PT[card.type] || card.type;
   const headerLabel = card.isSpoiler ? "SPOILER DA SEMANA REVELADO" : "CARTA DA SEMANA REVELADA";
   const titlePrefix = card.isSpoiler ? "Reel Spoiler da Semana" : "Reel Carta da Semana";
   const cardUrl = card.cardUrl || cardDatabaseUrl(card.code, socialPublicAppUrl());
-  const hashtags = buildCardHashtags(card, REEL_HASHTAGS);
+  const hashtags = cardPostHashtags(card);
   const caption =
     `🎬 ${headerLabel}: ${card.name} (${card.code})!\n\n` +
-    `⚡ ${typeLabel} · cor ${card.color} · Custo ${card.cost ?? "—"}${card.level !== undefined ? ` / Nível ${card.level}` : ""}` +
+    `⚡ ${typeLabel} · cor ${colorPt(card.color)} · Custo ${card.cost ?? "—"}${card.level !== undefined ? ` / Nível ${card.level}` : ""}` +
     (card.ap !== undefined || card.hp !== undefined ? ` · ${card.ap ?? "—"} AP / ${card.hp ?? "—"} HP` : "") +
     `\n\n📖 Quer ler o efeito completo em português, a análise de uso${card.altArtCount ? ` e ver ${card.altArtCount === 1 ? "a arte alternativa" : `as ${card.altArtCount} artes alternativas`}` : ""}?` +
     `\n👉 Confira o post completo que está no perfil @anaheimhub!\n\n` +
@@ -1042,15 +1096,15 @@ function cardReelTemplate(card: SocialCard): GeneratedPostContent {
 function cardReelPrompt(card: SocialCard, customTopic?: string): string {
   const label = card.isSpoiler ? "Spoiler da Semana" : "Carta da Semana";
   const cardUrl = card.cardUrl || cardDatabaseUrl(card.code, socialPublicAppUrl());
-  const codeTags = buildCardHashtags(card, []).slice(0, 3).map((h) => `#${h}`).join(", ");
+  const tags = cardPostHashtags(card).map((h) => `#${h}`).join(" ");
   return `Você escreve a legenda de um Reel do Instagram do Anaheim Hub (anaheimhub.com), portal brasileiro feito por fãs do Gundam Card Game (Bandai). O portal não é oficial nem ligado à Bandai.
 Este Reel é uma animação curta revelando a ${label} (${card.name} — ${card.code}) e tem como objetivo levar quem assistiu a abrir o post completo da carta no feed do perfil (@anaheimhub) e consultar a carta no database.
 
 Dados da carta:
 Nome oficial (não traduza): ${card.name}
 Código: ${card.code}
-Tipo: ${card.type}
-Cor: ${card.color}
+Tipo: ${CARD_TYPE_PT[card.type] || card.type}
+Cor: ${colorPt(card.color)}
 Custo: ${card.cost ?? "—"}${card.level !== undefined ? ` · Nível: ${card.level}` : ""}
 AP / HP: ${card.ap ?? "—"} / ${card.hp ?? "—"}
 ${card.rarity ? `Raridade: ${card.rarity}` : ""}
@@ -1058,12 +1112,12 @@ ${card.altArtCount ? `Artes alternativas no post do feed: ${card.altArtCount}` :
 Link direto da carta no database: ${cardUrl}
 ${customTopic ? `Pedido do editor: "${customTopic.slice(0, 300)}"` : ""}
 
- Estrutura obrigatória:
+Estrutura obrigatória:
 1. Gancho curto de 1–2 linhas anunciando a revelação da ${label} (${card.name} - ${card.code}).
 2. Destaque rápido dos atributos (custo/nível e AP/HP), sem entregar toda a análise na legenda.
 3. Chamada direta para o post do feed: convide a pessoa a entrar no perfil @anaheimhub e ver o post da ${label} com o efeito completo em português, análise de jogo${card.altArtCount ? ` e as ${card.altArtCount} arte(s) alternativa(s)` : ""}.
 4. Link direto da carta no database: ${cardUrl} (link na bio) e uma pergunta rápida para gerar comentários.
-5. De 8 a 12 hashtags no final (incluindo obrigatoriamente ${codeTags}), máximo de 1.200 caracteres.
+5. No final, exatamente estas 5 hashtags: ${tags}. Máximo de 1.200 caracteres.
 ${CAPTION_RULES}`;
 }
 
@@ -1115,12 +1169,13 @@ export async function draftCardRevealReel(prisma: PrismaClient, input: GenerateP
   };
   const prompt = cardReelPrompt(card, input.customTopic);
   const { content: generated, meta } = await generateCaptionWithMeta(prompt, cardReelTemplate(card), input.apiKeyGemini, undefined, input.customTopic);
+  const tags = cardPostHashtags(card);
   return {
     type: SocialPostType.CARD_SPOTLIGHT,
     content: {
       ...generated,
-      hashtags: buildCardHashtags(card, generated.hashtags),
-      fullCaption: ensureCardLink(generated.fullCaption, card, cardUrl),
+      hashtags: tags,
+      fullCaption: ensureCardLink(withHashtags(generated.fullCaption, tags), card, cardUrl),
     },
     cardCode: card.code,
     fileStem: `${card.code}-reel`,
@@ -1137,7 +1192,7 @@ export async function draftCardRevealReel(prisma: PrismaClient, input: GenerateP
   };
 }
 
-const TOURNAMENT_HASHTAGS = ["GundamCardGame", "GundamTCG", "GundamBrasil", "TCGBrasil", "TorneioGundam", "AnaheimHub"];
+const TOURNAMENT_HASHTAGS = ["TorneioGundam", "GundamCardGame", "GundamBrasil", "TCGBrasil", "AnaheimHub"];
 
 /** Regras comuns a todos os prompts de legenda. */
 const CAPTION_RULES = `Regras:
@@ -1146,11 +1201,11 @@ const CAPTION_RULES = `Regras:
 3. Use SOMENTE os dados acima. Não invente números, resultados, jogadores, lojas nem afirmações sobre o "meta".
 4. Nomes de jogadores e lojas exatamente como estão nos dados (quando a loja tiver @arroba nos dados, mantenha o @arroba junto do nome da loja para mencioná-la).
 5. Não diga que o post é oficial nem fale em nome da Bandai.
-6. Legenda completa com no máximo 1.800 caracteres, de 8 a 12 hashtags no final.
+6. Legenda completa com no máximo 1.800 caracteres, terminando com exatamente as 5 hashtags indicadas (nem mais, nem outras).
 7. Não cite números iguais a zero nem copie nomes de campos dos dados (escreva em português corrido).
+8. ${HOOK_RULE}
 
-Responda APENAS com JSON válido:
-{"title": "...", "hook": "...", "strategy": "...", "cta": "...", "hashtags": ["..."], "fullCaption": "..."}`;
+${JSON_ANSWER}`;
 
 const placeOf = (t: WeeklyTournament) => [t.city ? `${t.city}${t.uf ? `-${t.uf}` : ""}` : null, dayMonth(t.date)].filter(Boolean).join(", ");
 const championOf = (t: WeeklyTournament) => t.top.find((p) => p.placement === 1) ?? null;
@@ -1197,13 +1252,14 @@ function tournamentPrompt(report: WeeklyReport, customTopic?: string): string {
     })),
     arquetiposCampeoes: report.champions.map((c) => ({ arquetipo: c.archetype.name, vitorias: c.wins })),
   };
-  return `Você escreve os posts do Instagram do Anaheim Hub (anaheimhub.com), um portal brasileiro feito por fãs do Gundam Card Game (Bandai). O portal não é oficial nem ligado à Bandai.
+  return `${SOCIAL_INTRO}
 Escreva o post de segunda-feira com os torneios do Brasil da semana passada. O post é um carrossel: capa, um slide por torneio com o top 4 e um resumo. Dados (JSON):
 
 ${JSON.stringify(data, null, 1)}
 ${customTopic ? `Pedido do editor: "${customTopic.slice(0, 300)}"` : ""}
 
 Estrutura: gancho de 1–2 linhas com o tamanho da semana; os campeões (jogador, loja com @arroba quando houver/cidade e arquétipo), um por linha; o arquétipo que mais venceu, se algum venceu mais de uma vez; uma pergunta para os comentários; convite para ver os resultados completos no Anaheim Hub (link na bio).
+Hashtags do post: ${TOURNAMENT_HASHTAGS.map((h) => `#${h}`).join(" ")}
 ${CAPTION_RULES}`;
 }
 
@@ -1231,7 +1287,7 @@ export async function draftTournamentReport(prisma: PrismaClient, input: Generat
   const { content, meta } = await generateCaptionWithMeta(prompt, tournamentTemplate(report), input.apiKeyGemini, undefined, input.customTopic);
   return {
     type: SocialPostType.TOURNAMENT_REPORT,
-    content,
+    content: { ...content, hashtags: TOURNAMENT_HASHTAGS, fullCaption: withHashtags(content.fullCaption, TOURNAMENT_HASHTAGS) },
     fileStem: `torneios-${range.from}`,
     slides: [tournamentCoverHtml(report, pager(1)), ...report.featured.map((t, i) => tournamentSlideHtml(t, pager(i + 2))), tournamentClosingHtml(report, pager(total))],
     altTexts,
@@ -1239,7 +1295,7 @@ export async function draftTournamentReport(prisma: PrismaClient, input: Generat
   };
 }
 
-const DECK_HASHTAGS = ["GundamCardGame", "GundamTCG", "GundamBrasil", "TCGBrasil", "Decklist", "AnaheimHub"];
+const DECK_HASHTAGS = ["Decklist", "GundamCardGame", "GundamBrasil", "TCGBrasil", "AnaheimHub"];
 const percent = (v: number) => `${Math.round(v * 100)}%`;
 const deckPlacement = (p: number | null) => (p === 1 ? "campeã" : p ? `${p}º lugar` : "lista");
 
@@ -1284,7 +1340,7 @@ function deckPrompt(deck: FeaturedDeck, customTopic?: string): string {
     `Lista completa:`,
     ...deck.cards.map((c) => `- ${c.quantity}x ${c.name} (${c.code})`),
   ].filter((line): line is string => line !== null);
-  return `Você escreve os posts do Instagram do Anaheim Hub (anaheimhub.com), um portal brasileiro feito por fãs do Gundam Card Game (Bandai). O portal não é oficial nem ligado à Bandai.
+  return `${SOCIAL_INTRO}
 Escreva o post de sexta-feira "Deck em destaque": o arquétipo de melhor desempenho nos torneios dos últimos 30 dias. O post é um carrossel: capa com os números, a lista completa e as cartas-chave. Dados:
 
 ${lines.join("\n")}
@@ -1292,6 +1348,7 @@ ${customTopic ? `Pedido do editor: "${customTopic.slice(0, 300)}"` : ""}
 
 Estrutura: gancho de 1–2 linhas com o desempenho (use os números exatos); de quem é a lista e onde foi; 3 a 5 cartas-chave e o papel delas, só com base nos nomes e na presença (sem inventar efeitos); uma pergunta para os comentários; convite para abrir a lista e testar no simulador do Anaheim Hub (link na bio).
 Escreva as datas como estão (dd/mm). Duas cartas com o mesmo nome são cartas diferentes: diferencie pelo código ou cite só uma.
+Hashtags do post: ${DECK_HASHTAGS.map((h) => `#${h}`).join(" ")}
 ${CAPTION_RULES}`;
 }
 
@@ -1331,7 +1388,7 @@ export async function draftDeckFeature(prisma: PrismaClient, input: GeneratePost
   const { content, meta } = await generateCaptionWithMeta(prompt, deckTemplate(deck), input.apiKeyGemini, undefined, input.customTopic);
   return {
     type: SocialPostType.DECK_FEATURE,
-    content,
+    content: { ...content, hashtags: DECK_HASHTAGS, fullCaption: withHashtags(content.fullCaption, DECK_HASHTAGS) },
     fileStem: `deck-${deck.archetype.slug}`.slice(0, 24),
     slides: [deckCoverHtml(deck, "1/3"), deckListHtml(deck, "2/3"), deckKeyCardsHtml(deck, "3/3")],
     altTexts,
@@ -1339,7 +1396,7 @@ export async function draftDeckFeature(prisma: PrismaClient, input: GeneratePost
   };
 }
 
-const ARTICLE_HASHTAGS = ["GundamCardGame", "GundamTCG", "GundamBrasil", "TCGBrasil", "CardGame", "AnaheimHub"];
+const ARTICLE_HASHTAGS = ["GundamCardGame", "GundamTCG", "GundamBrasil", "TCGBrasil", "AnaheimHub"];
 const ARTICLE_KIND_PT: Record<string, string> = { NEWS: "Notícia", PREVIEW: "Preview", REVIEW: "Análise", GUIDE: "Guia" };
 
 type SocialArticle = { id: string; title: string; slug: string; excerpt: string | null; contentMd: string; coverImage: string | null; postType: string; status: string };
@@ -1382,7 +1439,7 @@ function articleTemplate(article: SocialArticle, link: string): GeneratedPostCon
 }
 
 function articlePrompt(article: SocialArticle, link: string, customTopic?: string): string {
-  return `Você escreve os posts do Instagram do Anaheim Hub (anaheimhub.com), um portal brasileiro feito por fãs do Gundam Card Game (Bandai). O portal não é oficial nem ligado à Bandai.
+  return `${SOCIAL_INTRO}
 Saiu um artigo novo no site. O post é a capa do artigo e a legenda é um resumo dele, para a pessoa querer ler o texto completo.
 
 Título: ${article.title}
@@ -1395,16 +1452,16 @@ ${articlePlainText(article.contentMd)}
 """
 ${customTopic ? `Pedido do editor: "${customTopic.slice(0, 300)}"` : ""}
 
-Estrutura: gancho de 1–2 linhas com o assunto do artigo; resumo de 3 a 5 linhas com os pontos principais, sem entregar tudo; convite para ler o artigo completo com o endereço ${link} (link na bio); de 8 a 12 hashtags no final.
+Estrutura: gancho de 1–2 linhas com o assunto do artigo; resumo de 3 a 5 linhas com os pontos principais, sem entregar tudo; convite para ler o artigo completo com o endereço ${link} (link na bio); no final, exatamente estas 5 hashtags: ${ARTICLE_HASHTAGS.map((h) => `#${h}`).join(" ")}.
 Regras:
 1. Português do Brasil, tom de jogador experiente falando com outros jogadores.
 2. Use SOMENTE o que está no texto do artigo. Não acrescente opiniões, números, cartas nem resultados que não estejam lá.
 3. Não traduza nomes de cartas, personagens nem palavras-chave do jogo.
 4. Não diga que o post é oficial nem fale em nome da Bandai.
 5. Legenda completa com no máximo 1.800 caracteres.
+6. ${HOOK_RULE}
 
-Responda APENAS com JSON válido:
-{"title": "...", "hook": "...", "strategy": "...", "cta": "...", "hashtags": ["..."], "fullCaption": "..."}`;
+${JSON_ANSWER}`;
 }
 
 /** Artigo publicado no site: a capa como imagem única e um resumo do texto na legenda. */
@@ -1428,7 +1485,7 @@ export async function draftArticlePost(prisma: PrismaClient, input: GeneratePost
   };
   return {
     type: SocialPostType.ARTICLE,
-    content: { ...content, fullCaption: ensureArticleLink(content.fullCaption, link) },
+    content: { ...content, hashtags: ARTICLE_HASHTAGS, fullCaption: ensureArticleLink(withHashtags(content.fullCaption, ARTICLE_HASHTAGS), link) },
     fileStem: `artigo-${article.slug}`.slice(0, 24),
     slides: [articleCoverHtml({ title: article.title, kind, coverUrl: absoluteUrl(article.coverImage, base) })],
     altTexts,

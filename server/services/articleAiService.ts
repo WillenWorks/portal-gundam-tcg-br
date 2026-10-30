@@ -280,6 +280,57 @@ Copie a lista no **Anaheim Hub**, faça simulações na nossa ferramenta de part
   };
 }
 
+type ArticleOutput = z.infer<typeof ArticleOutputSchema>;
+
+/** modelo do Claude para os artigos (o mesmo das legendas sociais); só entra com ANTHROPIC_API_KEY */
+export const CLAUDE_ARTICLE_MODEL = "claude-opus-5-5";
+
+function validArticle(value: unknown): ArticleOutput | null {
+  const candidate = value as Partial<ArticleOutput> | null;
+  return candidate && typeof candidate.title === "string" && typeof candidate.contentMd === "string" && candidate.contentMd.trim()
+    ? (candidate as ArticleOutput)
+    : null;
+}
+
+async function articleFromGemini(prompt: string, apiKey: string): Promise<{ parsed: ArticleOutput; model: string } | null> {
+  const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 25_000, retryOptions: { attempts: 1 } } });
+  for (const model of geminiArticleModels()) {
+    try {
+      const response = await ai.models.generateContent({ model, contents: prompt, config: { responseMimeType: "application/json" } });
+      const parsed = validArticle(JSON.parse(response.text?.trim() || "{}"));
+      if (parsed) return { parsed, model };
+      console.warn(`[articleAiService] Gemini (${model}) respondeu sem título ou texto, tentando o próximo modelo`);
+    } catch (err) {
+      console.warn(`[articleAiService] Gemini (${model}) falhou:`, err instanceof Error ? err.message : err);
+    }
+  }
+  return null;
+}
+
+async function articleFromClaude(prompt: string, apiKey: string): Promise<{ parsed: ArticleOutput; model: string } | null> {
+  try {
+    const client = new Anthropic({ apiKey, timeout: 60_000, maxRetries: 1 });
+    const response = await client.beta.messages.parse({
+      model: CLAUDE_ARTICLE_MODEL,
+      max_tokens: 8000,
+      // recusa por engano do classificador de segurança: a API refaz no modelo indicado pela própria Anthropic
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+      output_config: { format: betaZodOutputFormat(ArticleOutputSchema) },
+      messages: [{ role: "user", content: prompt }],
+    });
+    if (response.stop_reason === "refusal") {
+      console.warn("[articleAiService] Claude recusou o artigo:", response.stop_details?.category ?? "sem categoria");
+      return null;
+    }
+    const parsed = validArticle(response.parsed_output);
+    return parsed ? { parsed, model: CLAUDE_ARTICLE_MODEL } : null;
+  } catch (err) {
+    console.warn("[articleAiService] Claude falhou na geração do artigo:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
 export async function generateArticleWithAi(
   prisma: PrismaClient,
   input: GenerateArticleInput,
@@ -290,59 +341,30 @@ export async function generateArticleWithAi(
   const geminiKey = (input.apiKeyGemini !== undefined ? input.apiKeyGemini : process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY || "").trim();
   const claudeKey = (input.apiKeyClaude !== undefined ? input.apiKeyClaude : process.env.ANTHROPIC_API_KEY || "").trim();
 
-  let parsed: any = null;
+  // Gemini (vários modelos) e Claude, na ordem da preferência do painel (padrão: Gemini primeiro); resposta sem título ou
+  // texto conta como falha e passa para a próxima IA
+  const attempts = [
+    { provider: "gemini" as const, key: geminiKey, run: () => articleFromGemini(prompt, geminiKey) },
+    { provider: "claude" as const, key: claudeKey, run: () => articleFromClaude(prompt, claudeKey) },
+  ];
+  if (input.modelPreference === "claude") attempts.reverse();
+
+  let parsed: ArticleOutput | null = null;
   let provider: "gemini" | "claude" | "fallback" = "fallback";
   let modelUsed: string | null = null;
-
-  // 1. Tenta com Gemini
-  if (geminiKey) {
-    const ai = new GoogleGenAI({ apiKey: geminiKey, httpOptions: { timeout: 25_000, retryOptions: { attempts: 1 } } });
-    for (const model of geminiArticleModels()) {
-      try {
-        const response = await ai.models.generateContent({
-          model,
-          contents: prompt,
-          config: { responseMimeType: "application/json" },
-        });
-        const text = response.text?.trim() || "";
-        if (text) {
-          parsed = JSON.parse(text);
-          if (parsed && typeof parsed.title === "string" && typeof parsed.contentMd === "string") {
-            provider = "gemini";
-            modelUsed = model;
-            break;
-          }
-        }
-      } catch (err) {
-        console.warn(`[articleAiService] Gemini (${model}) falhou:`, err instanceof Error ? err.message : err);
-      }
-    }
-  }
-
-  // 2. Fallback para Claude se Gemini não respondeu
-  if (!parsed && claudeKey) {
-    try {
-      const client = new Anthropic({ apiKey: claudeKey, timeout: 60_000, maxRetries: 1 });
-      const response = await client.beta.messages.parse({
-        model: "claude-3-7-sonnet-20250219",
-        max_tokens: 8000,
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
-        output_config: { format: betaZodOutputFormat(ArticleOutputSchema) },
-        messages: [{ role: "user", content: prompt }],
-      });
-      parsed = response.parsed_output;
-      if (parsed) {
-        provider = "claude";
-        modelUsed = "claude-3-7-sonnet-20250219";
-      }
-    } catch (claudeErr) {
-      console.warn("[articleAiService] Claude falhou na geração do artigo:", claudeErr instanceof Error ? claudeErr.message : claudeErr);
+  for (const attempt of attempts) {
+    if (!attempt.key) continue;
+    const result = await attempt.run();
+    if (result) {
+      parsed = result.parsed;
+      provider = attempt.provider;
+      modelUsed = result.model;
+      break;
     }
   }
 
   // 3. Fallback estruturado se IA indisponível
-  if (!parsed || typeof parsed.title !== "string" || typeof parsed.contentMd !== "string") {
+  if (!parsed) {
     const fallback = buildFallbackArticle(input, cards);
     return {
       ...fallback,
