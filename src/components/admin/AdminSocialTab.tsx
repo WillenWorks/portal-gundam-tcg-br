@@ -1118,7 +1118,7 @@ export function AdminSocialTab() {
                 {(() => {
                   if (!selectedPost.metadata) return null;
                   try {
-                    const postMeta = JSON.parse(selectedPost.metadata) as Record<string, any>;
+                    const postMeta = JSON.parse(selectedPost.metadata) as { provider?: "gemini" | "claude" | "fallback"; model?: string | null; prompt?: string; customTopic?: string } | null;
                     if (!postMeta || (!postMeta.provider && !postMeta.customTopic && !postMeta.prompt)) return null;
                     return (
                       <div className="rounded border border-white/10 bg-white/[0.02] p-3 text-xs space-y-2">
