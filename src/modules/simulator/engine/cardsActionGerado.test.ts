@@ -211,8 +211,6 @@ const COMMAND_SEM_RASTRO: string[] = [
 const ACTIVATE_NAO_OFERECIDAS: string[] = [
   // "this Unit is battling an enemy Base/Shield" (só atacando com ela) / "damaged enemy Unit battling this Unit"
   "GD02-011", "ST12-011",
-  // custo "Exile N cards from your trash" sem as cartas
-  "GD05-022", "ST12-006",
   // "Choose 1 friendly (ZAFT) Unit with 5 or more AP" sem alvo
   "GD01-127",
 ];

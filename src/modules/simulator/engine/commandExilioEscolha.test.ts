@@ -4,7 +4,8 @@
 import { describe, expect, it } from "vitest";
 import { createGame } from "./setup";
 import { advanceToMainPhase } from "./phases";
-import { applyPlayerAction, type PlayerAction } from "./actions";
+import { applyPlayerAction, playerHasActionStepPlay, type PlayerAction } from "./actions";
+import { enumerateLegalActions } from "./legalActions";
 import { legalMenuFor } from "./legalMenu";
 import { placeCard } from "./__testkit__/cardHarness";
 import { scenarioOpts } from "./__testkit__/cardScenario";
@@ -85,11 +86,52 @@ describe("Operation to Intercept Solomon ST13-015 — escolher as Units do trash
     expect(done.pendingDecision.A).toBeNull();
   });
 
+  it("com exatamente 3 Units no trash continua jogável", () => {
+    const { state, command } = solomonReady(3);
+    expect(enumerateLegalActions(state, "A", ALL_EFFECT_SPECS, scenarioOpts).some((a) => a.kind === "playCommand" && a.cardInstanceId === command)).toBe(true);
+  });
+
   it("bot/fluxo antigo (alvo já na ação): resolve de uma vez, como antes", () => {
     const { state, command, enemy } = solomonReady(4);
     const done = apply(state, "A", { kind: "playCommand", cardInstanceId: command, trigger: "Main", targets: { target: [enemy] } });
     expect(done.pendingDecision.A).toBeNull();
     expect(done.players.A.exile).toHaveLength(3);
     expect(done.players.A.trash.some((c) => c.instanceId === command)).toBe(true);
+  });
+});
+
+/* BUG-BM8YZN — com 1 Unit (e 2 Bases) no trash a Command foi jogada: exilou a única Unit e deu os 3 de dano. O custo não
+ * pode ser pago por inteiro, então a carta não pode ser jogada (Q121 da GD01-003: "You cannot activate it if you cannot
+ * choose 12 cards"). */
+describe("Operation to Intercept Solomon ST13-015 — menos de 3 Units no trash", () => {
+  function shortTrash(units: number) {
+    const ready = solomonReady(units);
+    placeCard(ready.state, "A", ALL_CARD_DEFS["GD05-128"], "trash");
+    placeCard(ready.state, "A", ALL_CARD_DEFS["GD05-130"], "trash");
+    return ready;
+  }
+
+  it.each([0, 1, 2])("com %i Unit(s) e 2 Bases no trash não aparece no menu nem nas jogadas legais", (units) => {
+    const { state, command } = shortTrash(units);
+    expect(legalMenuFor(state, "A", ALL_EFFECT_SPECS, scenarioOpts).entries.some((e) => e.kind === "playCommand" && e.cardInstanceId === command)).toBe(false);
+    const raw = enumerateLegalActions(state, "A", ALL_EFFECT_SPECS, { ...scenarioOpts, validate: false });
+    expect(raw.some((a) => a.kind === "playCommand" && a.cardInstanceId === command)).toBe(false);
+  });
+
+  it("o motor recusa a jogada e nada muda (sem exílio, sem dano, a Command fica na mão)", () => {
+    const { state, command, enemy } = shortTrash(1);
+    expect(() => apply(state, "A", { kind: "playCommand", cardInstanceId: command, trigger: "Main" })).toThrow(/trash/);
+    expect(() => apply(state, "A", { kind: "playCommand", cardInstanceId: command, trigger: "Main", targets: { target: [enemy] } })).toThrow(/trash/);
+    expect(state.players.A.exile).toHaveLength(0);
+    expect(state.players.A.hand.some((c) => c.instanceId === command)).toBe(true);
+  });
+
+  it("não conta como jogada de Action Step (o auto-pass não espera por ela)", () => {
+    const { state } = shortTrash(1);
+    state.players.A.hand = state.players.A.hand.filter((c) => c.def.code === "ST13-015");
+    expect(playerHasActionStepPlay(state, "A", ALL_EFFECT_SPECS)).toBe(false);
+    placeCard(state, "A", ST01_CARD_DEFS.GM, "trash");
+    placeCard(state, "A", ST01_CARD_DEFS.GM, "trash");
+    expect(playerHasActionStepPlay(state, "A", ALL_EFFECT_SPECS)).toBe(true);
   });
 });
