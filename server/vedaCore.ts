@@ -1,5 +1,6 @@
 // Lógica pura das rotas /api/veda/* (sem banco): recebe os torneios, inscrições e listas já carregados e monta as
 // respostas do contrato (src/lib/veda/types.ts). O carregamento e o cache ficam em vedaService.ts.
+import { seasonAlias } from "../src/lib/seasons.ts";
 import type {
   GameColor,
   Paginated,
@@ -90,8 +91,7 @@ export interface VedaData {
 export function normalizeSeason(season: string | null | undefined): string | null {
   if (!season) return null;
   const trimmed = season.trim();
-  if (trimmed === "GD05.5" || trimmed === "GD05_COMBINED" || trimmed === "GD05/GD05.5") return "GD05";
-  return trimmed;
+  return seasonAlias(trimmed) ?? trimmed;
 }
 
 function unifySeasons(
@@ -104,12 +104,12 @@ function unifySeasons(
     if (!existing) {
       map.set(code, {
         code,
-        name: code === "GD05" ? s.name.replace(/GD05\.5/g, "GD05") : s.name,
+        name: code !== s.code ? s.name.split(s.code).join(code) : s.name,
         isCurrent: s.isCurrent,
       });
     } else {
       existing.isCurrent = existing.isCurrent || s.isCurrent;
-      if (s.code === "GD05") existing.name = s.name;
+      if (s.code === code) existing.name = s.name;
     }
   }
   return [...map.values()];

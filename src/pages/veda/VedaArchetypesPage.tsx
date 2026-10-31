@@ -13,8 +13,9 @@ import { VedaEmptyView, VedaErrorView, VedaLoadingView } from "@/components/veda
 import { vedaApi, type VedaArchetypesQueryParams } from "@/lib/veda/api";
 import type { VedaArchetypeRow, VedaFilters } from "@/lib/veda/types";
 import { resolveGameColorHex, TOURNAMENT_TIER_OPTIONS } from "@/lib/gundam-catalog";
+import { DEFAULT_ANALYSIS_SEASON } from "@/lib/seasons";
 
-const DEFAULT_SEASON = "GD05";
+const DEFAULT_SEASON = DEFAULT_ANALYSIS_SEASON;
 
 function readFiltersFromUrl() {
   const searchPart = window.location.hash.includes("?")
@@ -199,7 +200,7 @@ export default function VedaArchetypesPage() {
                       </option>
                     ))
                   ) : (
-                    <option value={DEFAULT_SEASON}>Temporada GD05 (Atual)</option>
+                    <option value={DEFAULT_SEASON}>Temporada {DEFAULT_SEASON}</option>
                   )}
                 </select>
               </div>

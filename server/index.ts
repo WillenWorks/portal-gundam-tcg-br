@@ -14,6 +14,7 @@ import { OAuth2Client } from "google-auth-library";
 import { resolvePublicAppUrl as resolvePublicAppUrlFrom } from "./publicAppUrl.ts";
 import { apiRateLimitOptions } from "./apiRateLimit.ts";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
+import { LATEST_SEASON, normalizeSeasonCode } from "../src/lib/seasons.ts";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, NON_STATS_SECTIONS, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
 import { buildSt01DeckList } from "../src/modules/simulator/fixtures/st01Deck.ts";
 import { buildSt02DeckList } from "../src/modules/simulator/fixtures/st02Deck.ts";
@@ -2665,22 +2666,9 @@ app.get("/api/stats/metagame", async (req, res) => {
   const startDate = typeof req.query.startDate === "string" && req.query.startDate ? new Date(req.query.startDate) : undefined;
   const endDate = typeof req.query.endDate === "string" && req.query.endDate ? new Date(req.query.endDate) : undefined;
 
-  let seasonId: string | null;
-  let season: { id: string; code: string; name: string } | null = null;
-  if (seasonParam === "all") {
-    seasonId = null;
-  } else if (seasonParam === "current" || seasonParam === "GD05_COMBINED" || seasonParam === "GD05" || seasonParam === "GD05.5") {
-    const current = (await prisma.season.findFirst({ where: { isCurrent: true } })) ||
-      (await prisma.season.findFirst({ where: { code: { in: ["GD05", "GD05.5"] } } }));
-    seasonId = current?.id ?? null;
-    season = current ? { id: current.id, code: current.code, name: current.name } : null;
-  } else {
-    const found = (await prisma.season.findUnique({ where: { id: seasonParam } })) ||
-      (await prisma.season.findFirst({ where: { code: seasonParam } }));
-    if (!found) return res.status(404).json({ error: "Temporada não encontrada." });
-    seasonId = found.id;
-    season = { id: found.id, code: found.code, name: found.name };
-  }
+  const resolved = await resolveSeasonFilter(seasonParam);
+  if (!resolved) return res.status(404).json({ error: "Temporada não encontrada." });
+  const { seasonId, season } = resolved;
 
   const stats = await getMetagameStats(prisma, { seasonId, setId, color, trait, series, startDate, endDate });
   res.json({ season, ...stats });
@@ -2691,13 +2679,14 @@ app.get("/api/stats/metagame", async (req, res) => {
 // centralizado aqui pra Power Rankings e Matriz de Confrontos usarem o mesmo critério.
 async function resolveSeasonFilter(seasonParam: string): Promise<{ seasonId: string | null; season: { id: string; code: string; name: string } | null } | null> {
   if (seasonParam === "all") return { seasonId: null, season: null };
-  if (seasonParam === "current" || seasonParam === "GD05_COMBINED" || seasonParam === "GD05" || seasonParam === "GD05.5") {
+  if (seasonParam === "current") {
     const current = (await prisma.season.findFirst({ where: { isCurrent: true } })) ||
-      (await prisma.season.findFirst({ where: { code: { in: ["GD05", "GD05.5"] } } }));
+      (await prisma.season.findFirst({ where: { code: LATEST_SEASON } }));
     return { seasonId: current?.id ?? null, season: current ? { id: current.id, code: current.code, name: current.name } : null };
   }
+  // um código pede aquela temporada mesmo depois de ela deixar de ser a atual (GD05.5/GD05_COMBINED contam como GD05)
   const found = (await prisma.season.findUnique({ where: { id: seasonParam } })) ||
-    (await prisma.season.findFirst({ where: { code: seasonParam } }));
+    (await prisma.season.findFirst({ where: { code: normalizeSeasonCode(seasonParam) ?? seasonParam } }));
   if (!found) return null;
   return { seasonId: found.id, season: { id: found.id, code: found.code, name: found.name } };
 }

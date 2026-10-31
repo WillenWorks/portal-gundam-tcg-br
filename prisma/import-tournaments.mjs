@@ -11,14 +11,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-// Lançamento oficial (EN) de cada coleção; a temporada vai até a véspera da próxima.
-export const SEASONS = [
-  { code: "GD01", name: "GD01 — Newtype Rising", startDate: "2025-07-25" },
-  { code: "GD02", name: "GD02 — Dual Impact", startDate: "2025-10-24" },
-  { code: "GD03", name: "GD03 — Steel Requiem", startDate: "2026-01-30" },
-  { code: "GD04", name: "GD04 — Phantom Aria", startDate: "2026-04-24" },
-  { code: "GD05", name: "GD05 — Freedom Ascension", startDate: "2026-07-24" },
-];
+// Lançamento oficial (EN) de cada coleção; a temporada vai até a véspera da próxima. Fonte única: src/lib/seasons.ts
+// (JSON e não o .ts: este script roda na VPS com `node` puro)
+export const SEASONS = JSON.parse(fs.readFileSync(new URL("../src/lib/seasons.json", import.meta.url), "utf8")).seasons;
 
 const DAY_MS = 86_400_000;
 const slug = (s) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "");

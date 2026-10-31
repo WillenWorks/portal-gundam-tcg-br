@@ -16,6 +16,7 @@ import { VedaSampleNote } from "@/components/veda/VedaSampleNote";
 import { VedaErrorView, VedaLoadingView } from "@/components/veda/VedaStateViews";
 import { vedaApi } from "@/lib/veda/api";
 import type { VedaArchetypeDetail, VedaCardInclusion } from "@/lib/veda/types";
+import { seasonsNewestFirst } from "@/lib/seasons";
 
 function formatDatePtBr(raw?: string | null): string {
   if (!raw) return "Data não informada";
@@ -147,11 +148,11 @@ export default function VedaArchetypeDetailPage() {
                 className="h-8 px-2 rounded-none border border-slate-300 dark:border-white/15 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white font-mono focus:border-primary outline-none"
               >
                 <option value="">Todas as Temporadas</option>
-                <option value="GD05">GD05</option>
-                <option value="GD04">GD04</option>
-                <option value="GD03">GD03</option>
-                <option value="GD02">GD02</option>
-                <option value="GD01">GD01</option>
+                {seasonsNewestFirst().map((s) => (
+                  <option key={s.code} value={s.code}>
+                    {s.code}
+                  </option>
+                ))}
               </select>
             </div>
           </div>

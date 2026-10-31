@@ -1,5 +1,5 @@
 /* Estatísticas públicas — visão de metagame por coleção, cor, tipo e atividade competitiva.
- * Reformulado com segmentação modular em 4 Abas Táticas (Metagame Atual GD05/GD05.5,
+ * Reformulado com segmentação modular em 4 Abas Táticas (Metagame da temporada padrão — src/lib/seasons.ts,
  * Metagame Nacional/Brasil, Acervo Geral e Telemetria Avançada VEDA). */
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
@@ -37,7 +37,8 @@ import { PowerRankingsPanel } from "@/components/stats/PowerRankingsPanel";
 import { FormatArchetypeCoresPanel } from "@/components/stats/FormatArchetypeCoresPanel";
 import { RegionalMetaPanel } from "@/components/stats/RegionalMetaPanel";
 import { MatchupMatrixPanel } from "@/components/stats/MatchupMatrixPanel";
-import { WeeklyTrendsPanel } from "@/components/stats/WeeklyTrendsPanel";
+import { WeeklyTrendsPanel } from "@/components/stats/WeeklyTrendsPanel";
+import { DEFAULT_ANALYSIS_SEASON, LATEST_SEASON, normalizeSeasonCode, seasonsNewestFirst } from "@/lib/seasons";
 
 const chartConfig = {
   value: { label: "Valor", color: "var(--primary)" },
@@ -46,7 +47,7 @@ const chartConfig = {
 const FALLBACK_SLICE_COLOR = "#94a3b8";
 const typeLabel = (raw: string) => CARD_TYPE_OPTIONS.find((opt) => opt.value === raw)?.label || raw;
 const ALL_VALUE = "__all__";
-const DEFAULT_FORMAT = "GD05";
+const DEFAULT_FORMAT = DEFAULT_ANALYSIS_SEASON;
 
 export default function StatsPage() {
   const [health, setHealth] = useState<{ userCount: number; cardCount: number; deckCount: number } | null>(null);
@@ -54,7 +55,7 @@ export default function StatsPage() {
   const [cards, setCards] = useState<any[]>([]);
   const [publicDecks, setPublicDecks] = useState<any[]>([]);
 
-  // Filtro de formato / temporada (padrão oficial: GD05_COMBINED = GD05 / GD05.5)
+  // Filtro de formato / temporada (padrão: DEFAULT_ANALYSIS_SEASON; recortes como GD05.5 contam no próprio formato)
   const [selectedFormat, setSelectedFormat] = useState<string>(DEFAULT_FORMAT);
   const [selectedSetId, setSelectedSetId] = useState<string>(ALL_VALUE);
   const [selectedColor, setSelectedColor] = useState<string>("");
@@ -284,17 +285,18 @@ export default function StatsPage() {
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-xs uppercase tracking-[0.2em] dark:text-slate-400 light:text-slate-600 font-bold">Temporada:</span>
 
-                {/* Seletor de Temporada / Formato Unificado (GD05 Atual) */}
+                {/* Seletor de Temporada / Formato (lista em src/lib/seasons.ts) */}
                 <select
                   value={selectedFormat}
                   onChange={(event) => setSelectedFormat(event.target.value)}
                   className="field-shell h-9 rounded-none border border-primary/40 dark:bg-slate-950/90 light:bg-white px-3 text-sm text-primary font-bold shadow-[0_0_10px_rgba(20,184,166,0.2)]"
                 >
-                  <option value="GD05">Formato GD05 (Temporada Atual)</option>
-                  <option value="GD04">Formato GD04</option>
-                  <option value="GD03">Formato GD03</option>
-                  <option value="GD02">Formato GD02</option>
-                  <option value="GD01">Formato GD01</option>
+                  {seasonsNewestFirst().map((s) => (
+                    <option key={s.code} value={s.code}>
+                      Formato {s.code}
+                      {s.code === LATEST_SEASON ? " (Temporada Atual)" : ""}
+                    </option>
+                  ))}
                   <option value="ALL">Todas as Temporadas (Histórico Geral)</option>
                 </select>
 
@@ -318,7 +320,7 @@ export default function StatsPage() {
                     className="flex items-center gap-1 text-xs uppercase tracking-[0.16em] text-primary hover:underline ml-auto"
                   >
                     <RotateCcw className="size-3" />
-                    Restaurar Padrão (GD05)
+                    Restaurar Padrão ({DEFAULT_FORMAT})
                   </button>
                 )}
               </div>
@@ -381,7 +383,7 @@ export default function StatsPage() {
               className="panel-cut rounded-none border border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/20 dark:data-[state=active]:text-white light:data-[state=active]:text-primary data-[state=active]:font-bold dark:text-slate-400 dark:hover:text-white light:text-slate-600 light:hover:text-slate-900 px-4 py-2.5 text-xs uppercase font-mono tracking-wider transition-all flex items-center gap-2"
             >
               <Swords className="size-4 text-accent" />
-              1. Metagame Competitivo ({selectedFormat === "GD05_COMBINED" || selectedFormat === "GD05" ? "GD05" : selectedFormat})
+              1. Metagame Competitivo ({normalizeSeasonCode(selectedFormat) ?? selectedFormat})
             </TabsTrigger>
 
             <TabsTrigger
@@ -410,7 +412,7 @@ export default function StatsPage() {
           </TabsList>
 
           {/* ========================================================================= */}
-          {/* ABA 1: METAGAME COMPETITIVO (TEMPORADA ATUAL GD05)              */}
+          {/* ABA 1: METAGAME COMPETITIVO (TEMPORADA SELECIONADA)            */}
           {/* ========================================================================= */}
           <TabsContent value="competitive" className="space-y-6 focus-visible:outline-none">
             {/* Painel de Núcleos de Arquétipo com seletor sincronizado */}

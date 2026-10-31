@@ -34,7 +34,7 @@ export const GUNDAM_SERIES_CATALOG: SeriesInfo[] = [
     year: "1979",
     cardCount: 171,
     highlightMecha: "RX-78-2 Gundam & Char's Gelgoog / Zaku II",
-    startersOrPacks: "ST01, ST02, ST03, GD01, GD02, GD04, GD05",
+    startersOrPacks: "ST01, ST02, ST03, GD01, GD02, GD04, GD05, GD06",
     description:
       "A lendária Guerra de Um Ano entre a Federação Terrestre e o Principado de Zeon. O jovem civil Amuro Ray pilota o protótipo RX-78-2 e desperta suas habilidades Newtype diante do temido 'Cometa Vermelho' Char Aznable.",
     tcgStyle: "Fundamento do jogo: equilíbrio clássico, sinergia militar da Federação e investidas táticas agressivas de Zeon.",
@@ -82,7 +82,7 @@ export const GUNDAM_SERIES_CATALOG: SeriesInfo[] = [
     year: "1988",
     cardCount: 41,
     highlightMecha: "ν Gundam (Nu Gundam) & MSN-04 Sazabi",
-    startersOrPacks: "GD05, EXBP, RP",
+    startersOrPacks: "GD05, GD06, EXBP, RP",
     description:
       "O confronto final entre Amuro Ray e Char Aznable. Determinado a forçar a humanidade a migrar para o espaço para deixar a Terra descansar, Char tenta lançar o asteroide Axis em rota de colisão contra o planeta.",
     tcgStyle: "Fin Funnels teleguiados de longo alcance, armadura com ressonância Psycoframe e finalizações letais de alto custo.",
@@ -142,7 +142,7 @@ export const GUNDAM_SERIES_CATALOG: SeriesInfo[] = [
     year: "1994",
     cardCount: 34,
     highlightMecha: "Shining Gundam, Master Gundam & God Gundam",
-    startersOrPacks: "GD05, EXBP, RP",
+    startersOrPacks: "GD05, GD06, EXBP, RP",
     description:
       "Guerras entre nações espaciais foram substituídas pelo lendário 'Gundam Fight', um torneio global de artes marciais entre mechas. Domon Kasshu luta pelo Neo Japão buscando o paradeiro de seu irmão e do Dark Gundam.",
     tcgStyle: "Combate corpo a corpo supremo, golpes marciais devastadores (Sekiha Tenkyoken) e buffs explosivos de AP no duelo.",
@@ -172,7 +172,7 @@ export const GUNDAM_SERIES_CATALOG: SeriesInfo[] = [
     year: "1997",
     cardCount: 22,
     highlightMecha: "Wing Gundam Zero (EW) & Tallgeese III",
-    startersOrPacks: "GD05, EXBP",
+    startersOrPacks: "GD05, GD06, EXBP",
     description:
       "Um ano após o fim da guerra, o Exército de Mariemaia desafia o desarmamento mundial sequestrando Relena Peacecraft. Heero Yuy e os pilotos de Gundam voltam à ação em seus mechas com asas angelicais definitivas.",
     tcgStyle: "Asas angelicais de altíssima manobrabilidade aérea, precisão cirúrgica de disparo e resistência lendária.",
@@ -202,7 +202,7 @@ export const GUNDAM_SERIES_CATALOG: SeriesInfo[] = [
     year: "1999",
     cardCount: 20,
     highlightMecha: "System-∀99 ∀ Gundam (Turn A) & Concept-X Turn X",
-    startersOrPacks: "GD04, GD05, RP",
+    startersOrPacks: "GD04, GD05, GD06, RP",
     description:
       "Milênios após todas as eras de Gundam convergirem no apocalipse da História Negra, a civilização da Terra vive em tecnologia rural e pacífica até a chegada dos povos lunares Moonrace. Loran Cehack desenterra o misterioso 'Bigode Branco' Turn A.",
     tcgStyle: "Efeito lendário Moonlight Butterfly (Borboleta do Luar), regeneração nanotecnológica e anulação de recursos do oponente.",
@@ -233,7 +233,7 @@ export const GUNDAM_SERIES_CATALOG: SeriesInfo[] = [
     year: "2004",
     cardCount: 85,
     highlightMecha: "ZGMF-X42S Destiny & ZGMF-X20A Strike Freedom",
-    startersOrPacks: "ST09, ST10, GD04, GD05",
+    startersOrPacks: "ST09, ST10, GD04, GD05, GD06",
     description:
       "Dois anos após a Batalha de Jachin Due, a tensão reacende com o atentado em Armory ONE. O jovem piloto da ZAFT Shinn Asuka luta para proteger inocentes enquanto o mundo descarrilha no Plano Destiny de Gilbert Durandal.",
     tcgStyle: "Ativação do Modo SEED, asas de energia luminosa (Wings of Light) e ataques letais contínuos de altíssimo dano.",
@@ -278,7 +278,7 @@ export const GUNDAM_SERIES_CATALOG: SeriesInfo[] = [
     year: "2025",
     cardCount: 119,
     highlightMecha: "GQuuuuuuX (Omega Psycommu), GFreD & Red Gundam",
-    startersOrPacks: "ST06 (Red Assemble), GD02, GD03, GD04, GD05",
+    startersOrPacks: "ST06 (Red Assemble), GD02, GD03, GD04, GD05, GD06",
     description:
       "Linha original criada para expandir as fronteiras do Gundam Card Game. Máquinas experimentais equipadas com o misterioso sistema Omega Psycommu capazes de dobrar as regras convencionais de combate mecha.",
     tcgStyle: "Mecânicas experimentais revolucionárias, manipulação da zona de recursos e combos imprevisíveis com Omega Psycommu.",
@@ -293,7 +293,7 @@ export const GUNDAM_SERIES_CATALOG: SeriesInfo[] = [
     year: "2015",
     cardCount: 154,
     highlightMecha: "Gundam Barbatos (1st/4th/Lupus/Rex) & Gusion Rebake",
-    startersOrPacks: "ST05, GD02, GD03, GD04, GD05",
+    startersOrPacks: "ST05, GD02, GD03, GD04, GD05, GD06",
     description:
       "Em Marte três séculos após a Calamity War, crianças-soldado formam a companhia mercenária Tekkadan para escoltar a ativista Kudelia Aina Bernstein até a Terra. O implacável Mikazuki Augus pilota a relíquia Gundam Barbatos.",
     tcgStyle: "Combate físico visceral sem feixes ópticos, armadura Nanolaminate de alta absorção e dano contundente com maças e garras.",
@@ -308,7 +308,7 @@ export const GUNDAM_SERIES_CATALOG: SeriesInfo[] = [
     year: "2022",
     cardCount: 110,
     highlightMecha: "XVX-016 Gundam Aerial, Aerial Rebuild & Calibarn",
-    startersOrPacks: "ST01, GD01, GD02, GD04, GD05",
+    startersOrPacks: "ST01, GD01, GD02, GD04, GD05, GD06",
     description:
       "Na prestigiada Academia Asticassia de Tecnologia, disputas comerciais e corporativas são decididas em duelos de Mobile Suits. Suletta Mercury chega de Mercúrio pilotando o misterioso Aerial com tecnologia GUND proibida.",
     tcgStyle: "Sinergia de GUND-Format com Bit Staves: alternância fluida entre escudo impenetrável e rajadas teleguiadas direcionadas.",
