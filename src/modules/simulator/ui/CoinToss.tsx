@@ -7,9 +7,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
-import { sfx } from "../audio/soundEffects";
+import { sampleSfx } from "../audio/sampleEngine";
 import { SCENE_MS } from "../scene/sceneTiming";
-import { getScaledDuration } from "./animationSettings";
+import { effectiveAnimSpeed, getScaledDuration } from "./animationSettings";
 import { AhMonogram, AnaheimLogoFace } from "./CoinFaces";
 
 export type CoinFace = "heads" | "tails";
@@ -70,23 +70,28 @@ export function CoinToss({ goesFirst, onDone, startFace }: CoinTossProps) {
     }
     const at = { up: ms.idle, down: ms.idle + ms.up, settle: ms.idle + ms.up + ms.down };
     const result = at.settle + ms.settle;
+    const scope = sampleSfx.scope();
+    const speed = effectiveAnimSpeed();
     const timers = [
       setTimeout(() => {
         setPhase("up");
-        sfx.playClick();
+        scope.play("coin.flip", { speed });
       }, at.up),
       setTimeout(() => setPhase("down"), at.down),
       setTimeout(() => {
         setPhase("settle");
-        sfx.playShieldBlock();
+        scope.play("coin.land", { speed });
       }, at.settle),
       setTimeout(() => {
         setPhase("result");
-        if (goesFirst) sfx.playNewtypeFlash();
+        if (goesFirst) scope.play("ability.announce", { speed, untilMs: ms.result });
       }, result),
       setTimeout(() => onDoneRef.current(), result + ms.result),
     ];
-    return () => timers.forEach(clearTimeout);
+    return () => {
+      timers.forEach(clearTimeout);
+      scope.end();
+    };
   }, [reduced, ms, goesFirst]);
 
   const deg = phase === "idle" ? rotation.startDeg : phase === "up" ? rotation.apexDeg : rotation.finalDeg;

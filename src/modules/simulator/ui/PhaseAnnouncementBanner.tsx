@@ -1,11 +1,12 @@
 /* PhaseAnnouncementBanner.tsx — Banner tático de transição e anúncio de fases
  * Apresenta anúncios cinematográficos ("FASE DE COMPRA", "FASE DE RECUPERAÇÃO", "FASE PRINCIPAL")
- * com estilo HUD mecha/Gundam, brilhos de neon e sincronia de som procedural.
+ * com estilo HUD mecha/Gundam, brilhos de neon e o som do painel (`bannerSound`).
  */
 import { useEffect, useRef, useState } from "react";
-import { getScaledDuration } from "./animationSettings";
+import { effectiveAnimSpeed, getScaledDuration } from "./animationSettings";
 import { SCENE_MS } from "../scene/sceneTiming";
-import { sfx } from "../audio/soundEffects";
+import { sampleSfx } from "../audio/sampleEngine";
+import { bannerSound } from "../scene/soundCues";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export interface PhaseAnnouncementBannerProps {
@@ -44,7 +45,9 @@ export function PhaseAnnouncementBanner({
   });
 
   useEffect(() => {
-    sfx.playTurnStartAlert();
+    const scope = sampleSfx.scope();
+    const sound = bannerSound(phase);
+    if (sound) scope.play(sound, { speed: effectiveAnimSpeed(), untilMs: durationMs });
     const hideTimer = setTimeout(() => {
       setVisible(false);
     }, Math.max(250, durationMs - 200));
@@ -56,6 +59,7 @@ export function PhaseAnnouncementBanner({
     return () => {
       clearTimeout(hideTimer);
       clearTimeout(doneTimer);
+      scope.end();
     };
   }, [phase, durationMs]);
 

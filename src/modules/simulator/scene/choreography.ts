@@ -20,7 +20,7 @@ export type Beat =
    * spec simulador-cadencia-de-mesa (P3) — carta jogada da mão, igual para os dois lados: revelada, os recursos pagos
    * (`paid`) giram um a um, e ela pousa no campo (Unit/Base/Piloto) ou é usada no centro (Command)
    */
-  | { kind: "play"; player: PlayerId; instanceId: string; as: "unit" | "base" | "pilot" | "command"; paid: string[] }
+  | { kind: "play"; player: PlayerId; instanceId: string; as: "unit" | "base" | "pilot" | "command"; paid: string[]; trigger?: "Main" | "Action" }
   /** habilidade resolvendo: 【Deploy】, 【Attack】, 【Activate】 (com o custo pago em `paid`), 【Burst】 do oponente… */
   | { kind: "announce"; player: PlayerId; instanceId: string; trigger: string; paid: string[] }
   | { kind: "draw"; player: PlayerId; instanceId: string | null }
@@ -35,12 +35,12 @@ export type Beat =
    * o que um efeito fez, mostrado junto (os cues do `EffectResolutionOverlay`); `source` = a carta da habilidade /
    * Command que o causou (spec simulador-efeitos-na-mesa: a linha neon vai dela até cada alvo)
    */
-  | { kind: "effects"; events: GameEvent[]; source?: { instanceId: string; player: PlayerId } }
+  | { kind: "effects"; events: GameEvent[]; source?: { instanceId: string; player: PlayerId }; combat?: AttackTarget }
   /**
    * cartas indo para a lixeira/exílio (`ids`; `destroyed` = destruída: quebra e é arrastada) ou shields quebradas
    * (`shieldsOf`/`count`: as do topo na visão anterior — P4: cada uma vai ao centro e vira para os dois verem)
    */
-  | { kind: "departure"; ids: string[]; shieldsOf?: PlayerId; count?: number; destroyed?: boolean };
+  | { kind: "departure"; ids: string[]; shieldsOf?: PlayerId; count?: number; destroyed?: boolean; combat?: AttackTarget };
 
 /** eventos que o `EffectResolutionOverlay` sabe desenhar */
 const CUE_EVENTS = new Set<GameEvent["type"]>([
@@ -109,7 +109,12 @@ export function planChoreography({ events, viewerSeat, pendingAttack, phase: sta
   let playedCommand: string | null = null;
 
   const holding = () => attack !== null && !abilityOpen;
-  const push = (beat: Beat) => (holding() ? heldForStrike.push(beat) : beats.push(beat));
+  /** o que sai do combate leva o alvo do ataque (o som do dano de batalha e do <Breach> depende dele) */
+  const push = (beat: Beat) => {
+    if (!holding()) return beats.push(beat);
+    const target = attack?.target;
+    return heldForStrike.push(target && (beat.kind === "effects" || beat.kind === "departure") ? { ...beat, combat: target } : beat);
+  };
   const flushCues = () => {
     if (cues.length > 0) push(abilityOpen && abilitySource ? { kind: "effects", events: cues, source: abilitySource } : { kind: "effects", events: cues });
     cues = [];
@@ -140,7 +145,14 @@ export function planChoreography({ events, viewerSeat, pendingAttack, phase: sta
         break;
       case "CARD_PLAYED": {
         closeAbility();
-        const beat: Extract<Beat, { kind: "play" }> = { kind: "play", player: event.player, instanceId: event.instanceId, as: event.as, paid: [] };
+        const beat: Extract<Beat, { kind: "play" }> = {
+          kind: "play",
+          player: event.player,
+          instanceId: event.instanceId,
+          as: event.as,
+          paid: [],
+          ...(event.trigger ? { trigger: event.trigger } : {}),
+        };
         beats.push(beat);
         paying = beat;
         if (event.as === "command") {

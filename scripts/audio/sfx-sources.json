@@ -1,0 +1,63 @@
+{
+  "$comment": "Pacote de sons do simulador. `sources` são relativos a `sons/` (fora do git); `sons/Extras/` são os que vieram da biblioteca Gundam SFX V2.1 (Extreme Vs Force, 0079, Unsorted). `maxMs` corta o arquivo na preparação; o corte fino é em tempo de jogo, no fim do tempo da cena. Gerar: pnpm sfx:build",
+  "sounds": {
+    "combat.start": { "maxMs": 1400, "sources": ["Attack/Battle Phase/Battle Phase.wav"] },
+    "attack.high": {
+      "maxMs": 2000,
+      "sources": [
+        "Attack/High Level/Attack1.wav",
+        "Attack/High Level/Attack2.wav",
+        "Attack/High Level/Attack3.wav",
+        "Attack/High Level/Attack4.wav",
+        "Attack/High Level/Attack5.mp3",
+        "Attack/High Level/Attack6.mp3"
+      ]
+    },
+    "attack.low": {
+      "maxMs": 1800,
+      "sources": [
+        "Attack/Low Level/Attack1.wav",
+        "Attack/Low Level/Attack2.wav",
+        "Attack/Low Level/Attack3.wav",
+        "Attack/Low Level/Attack4.wav",
+        "Attack/Low Level/Attack5.wav",
+        "Attack/Low Level/Attack6.wav",
+        "Attack/Low Level/Attack7.mp3"
+      ]
+    },
+    "base.damaged": { "maxMs": 2000, "sources": ["Base/Base Damaged.wav"] },
+    "base.destroyed": { "maxMs": 2400, "sources": ["Base/Base Destroyed.wav"] },
+    "blocker.block": { "maxMs": 1400, "sources": ["Blocker/If Blocked.wav"] },
+    "blocker.damaged": { "maxMs": 1600, "sources": ["Blocker/If Damaged.mp3"] },
+    "breach": { "maxMs": 1800, "sources": ["Breach/Damaged and Destroyed.mp3"] },
+    "command.action": { "maxMs": 1800, "sources": ["Command/Action/Action Activation.wav"] },
+    "command.main": { "maxMs": 1800, "sources": ["Command/Main/Activate Main.mp3"] },
+    "deploy.high": { "maxMs": 1900, "sources": ["Deploy/high level.wav"] },
+    "deploy.low": { "maxMs": 1500, "sources": ["Deploy/low level.wav"] },
+    "highManeuver": { "maxMs": 1800, "sources": ["High-Maneuver/HighManeuver1.wav"] },
+    "link": { "maxMs": 2000, "sources": ["Link/Linked.wav"] },
+    "pair": { "maxMs": 1500, "sources": ["Pair/Paired.wav"] },
+    "unrest": { "maxMs": 1200, "sources": ["Rest/Unrested.wav"] },
+    "shield.destroyed": { "maxMs": 1800, "sources": ["Shields/Shield Destroyed.wav"] },
+    "unit.activate": { "maxMs": 1600, "sources": ["Units/Activate/Activate.wav"] },
+    "unit.destroyed": { "maxMs": 1600, "sources": ["Units/Destroyed/Destroyed.wav", "Units/Destroyed/Destroyed2.mp3"] },
+    "unit.repair": { "maxMs": 1800, "sources": ["Units/Repair/Repaired.mp3"] },
+    "combat.lockon": { "maxMs": 900, "sources": ["Extras/Combat - Lockon.wav"] },
+    "ability.burst": { "maxMs": 1600, "sources": ["Extras/Burst - Newtype Flash.mp3"] },
+    "ability.announce": { "maxMs": 1300, "sources": ["Extras/Announce - Newtype Ping.wma"] },
+    "effect.damage": { "maxMs": 1200, "sources": ["Extras/Effect - Damage.wav"] },
+    "effect.buff": { "maxMs": 1200, "sources": ["Extras/Effect - Buff.wav"] },
+    "effect.debuff": { "maxMs": 1200, "sources": ["Extras/Effect - Debuff.wav"] },
+    "card.draw": { "maxMs": 800, "sources": ["Extras/Card - Draw.wav"] },
+    "resource.place": { "maxMs": 900, "sources": ["Extras/Resource - Place.wav"] },
+    "turn.mine": { "maxMs": 2000, "sources": ["Extras/Turn - Mine.wav"] },
+    "turn.opponent": { "maxMs": 1300, "sources": ["Extras/Turn - Opponent.wav"] },
+    "game.win": { "maxMs": 3000, "sources": ["Extras/Game - Win.wav"] },
+    "game.lose": { "maxMs": 2400, "sources": ["Extras/Game - Lose.wav"] },
+    "phase.banner": { "maxMs": 700, "sources": ["Extras/Phase - Banner.wav"] },
+    "phase.action": { "maxMs": 1000, "sources": ["Extras/Phase - Action.wav"] },
+    "coin.flip": { "maxMs": 400, "sources": ["Extras/Coin - Flip.wav"] },
+    "coin.land": { "maxMs": 1200, "sources": ["Extras/Coin - Land.wav"] },
+    "shields.set": { "maxMs": 1000, "sources": ["Extras/Shields - Set.wav"] }
+  }
+}

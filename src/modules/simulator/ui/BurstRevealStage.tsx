@@ -13,7 +13,7 @@ import type { CardDef } from "@/modules/simulator/engine/types";
 import { getScaledDuration } from "./animationSettings";
 import { SCENE_MS } from "../scene/sceneTiming";
 import { artSrc, cardBackUrl, isGenericArtCard, type ArtLookup } from "./cardArt";
-import { sfx } from "../audio/soundEffects";
+import { useSceneSound } from "../audio/useSceneSound";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export interface BurstRevealOrigin {
@@ -40,6 +40,9 @@ export function BurstRevealStage({ cardDef, art, origin, cardW, onDone }: BurstR
   const flipMs = useMemo(() => getScaledDuration(FLIP_BASE_MS), []);
   const holdMs = useMemo(() => getScaledDuration(HOLD_BASE_MS), []);
 
+  // o 【Burst】 estoura quando a shield vira de frente
+  useSceneSound("ability.burst", { alignImpactAtMs: FLY_BASE_MS + FLIP_BASE_MS * 0.3 });
+
   useEffect(() => {
     const reduced =
       typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
@@ -47,14 +50,11 @@ export function BurstRevealStage({ cardDef, art, origin, cardW, onDone }: BurstR
       onDone();
       return;
     }
-    sfx.playCardDraw();
     const t1 = setTimeout(() => setPhase("flip"), flyMs);
-    const t2 = setTimeout(() => sfx.playShieldBurst(), flyMs + flipMs * 0.3);
     const t3 = setTimeout(() => setPhase("hold"), flyMs + flipMs);
     const t4 = setTimeout(() => onDone(), flyMs + flipMs + holdMs);
     return () => {
       clearTimeout(t1);
-      clearTimeout(t2);
       clearTimeout(t3);
       clearTimeout(t4);
     };

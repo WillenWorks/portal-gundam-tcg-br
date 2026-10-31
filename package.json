@@ -10,7 +10,8 @@
       "ip-address": ">=10.7.4",
       "undici": "^8.12.2",
       "qs": "^6.16.1",
-      "fast-uri": "^3.1.9"
+      "fast-uri": "^3.1.9",
+      "follow-redirects": "^1.16.2"
     },
     "onlyBuiltDependencies": [
       "@google/genai",
@@ -38,6 +39,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:fast": "vitest run --exclude \"**/bot/mctsPolicy.test.ts\" --exclude \"**/bot/neuralPolicy.test.ts\" --exclude \"**/engine/selfPlay.test.ts\" --exclude \"**/engine/goldenMaster.test.ts\" --exclude \"scripts/gundam-golden.test.mjs\"",
+    "sfx:build": "node scripts/audio/build-sfx.mjs",
     "test:smoke:regional-meta": "vitest run server/services/regionalMetaService.smoke.test.ts",
     "gundam:fuzz": "node scripts/gundam-fuzz.mjs",
     "gundam:fuzz:tokens": "node scripts/gundam-fuzz.mjs --pool=GD01,ST08 --totalGames=5000 --policyA=heuristic --policyB=random",
