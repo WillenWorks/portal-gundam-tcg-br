@@ -3,6 +3,7 @@ import { createGame } from "./setup";
 import type { CardDef, GameState, PlayerId } from "./types";
 import { effectiveAp, hasKeyword, keywordValue, trashCardDef } from "./types";
 import { enumerateLegalActions } from "./legalActions";
+import { legalMenuFor } from "./legalMenu";
 import { advanceToMainPhase } from "./phases";
 import { applyPlayerAction, type PlayerAction } from "./actions";
 import { findCard } from "./events";
@@ -76,8 +77,6 @@ const inZone = (s: GameState, p: PlayerId, zone: "hand" | "trash" | "exile" | "b
   s.players[p][zone].some((c) => c.instanceId === id);
 const deploy = (s: GameState, code: string, pairWithUnitId?: string) =>
   act(s, "A", { kind: "deployCard", cardInstanceId: placeCard(s, "A", card(code), "hand"), ...(pairWithUnitId ? { pairWithUnitId } : {}) });
-const play = (s: GameState, code: string, trigger: "Main" | "Action", targets?: Record<string, string[]>) =>
-  act(s, "A", { kind: "playCommand", cardInstanceId: placeCard(s, "A", card(code), "hand"), trigger, ...(targets ? { targets } : {}) });
 function pair(s: GameState, unitId: string, pilotId: string) {
   findCard(s, unitId).pairedPilotId = pilotId;
   findCard(s, pilotId).pairedUnitId = unitId;
@@ -365,13 +364,36 @@ describe("GD06 — primitivas novas", () => {
     expect(keywordValue(findCard(s, unit), "Breach", s)).toBe(2);
   });
 
-  it("GD06-118 Infinite Variations: AP-2 em no máximo N inimigas (N = Units brancas com <Blocker>)", () => {
+  it("GD06-118 Infinite Variations: o máximo de alvos é N (Units brancas com <Blocker>) — fila, menu e validação", () => {
     let s = game();
-    placeCard(s, "A", UNIT({ code: "TEST-WB", color: "white", effectKeywords: ["Blocker"] }), "battleArea");
+    placeCard(s, "A", UNIT({ code: "TEST-WB1", color: "white", effectKeywords: ["Blocker"] }), "battleArea");
+    placeCard(s, "A", UNIT({ code: "TEST-WB2", color: "white", effectKeywords: ["Blocker"] }), "battleArea");
+    placeCard(s, "A", UNIT({ code: "TEST-RB", color: "red", effectKeywords: ["Blocker"] }), "battleArea");
     const enemies = [0, 1, 2].map((i) => placeCard(s, "B", UNIT({ code: `TEST-E${i}`, ap: 5 }), "battleArea"));
-    s = play(s, "GD06-118", "Main", { target: enemies });
-    if (pending(s, "A")) s = resolveWith(s, "A", { specId: "GD06-118-Main", targetIds: enemies });
-    expect(enemies.map((id) => effectiveAp(findCard(s, id), s))).toEqual([3, 5, 5]);
+    // o menu de jogadas (o que a tela oferece) já vem limitado a 2
+    const cmd = placeCard(s, "A", card("GD06-118"), "hand");
+    const offer = enumerateLegalActions(s, "A", ALL_EFFECT_SPECS, { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver }).find(
+      (a) => a.kind === "playCommand" && a.cardInstanceId === cmd && a.trigger === "Main",
+    );
+    expect(offer && "targets" in offer ? offer.targets?.target : []).toHaveLength(2);
+    // o seletor da tela (legalMenu) também: até 2 marcados entre as 3 inimigas
+    const menu = legalMenuFor(s, "A", ALL_EFFECT_SPECS, { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver });
+    const entryMenu = menu.entries.find((e) => e.kind === "playCommand" && e.cardInstanceId === cmd && e.trigger === "Main");
+    const slot = entryMenu?.kind === "playCommand" ? entryMenu.slots.find((sl) => sl.name === "target") : undefined;
+    expect(slot && { min: slot.min, max: slot.max, n: slot.legalTargets.length }).toEqual({ min: 1, max: 2, n: 3 });
+    expect(() => act(s, "A", { kind: "playCommand", cardInstanceId: cmd, trigger: "Main", targets: { target: enemies } })).toThrow();
+    s = act(s, "A", { kind: "playCommand", cardInstanceId: cmd, trigger: "Main", targets: { target: enemies.slice(0, 2) } });
+    expect(enemies.map((id) => effectiveAp(findCard(s, id), s))).toEqual([3, 3, 5]);
+  });
+
+  it("GD06-118: sem Unit branca com <Blocker>, não há alvo — a Command não é oferecida", () => {
+    const s = game();
+    placeCard(s, "B", UNIT({ code: "TEST-E" }), "battleArea");
+    const cmd = placeCard(s, "A", card("GD06-118"), "hand");
+    const offered = enumerateLegalActions(s, "A", ALL_EFFECT_SPECS, { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver }).some(
+      (a) => a.kind === "playCommand" && a.cardInstanceId === cmd,
+    );
+    expect(offered).toBe(false);
   });
 
   it("GD06-037 Reginlaze Julia: <First Strike> contra Unit danificada no seu turno; pareada, inimigas não se reativam por efeito próprio", () => {

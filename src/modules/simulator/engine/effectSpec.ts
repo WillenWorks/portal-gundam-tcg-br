@@ -57,8 +57,6 @@ export type TargetRef =
   | {
       kind: "namedGroup";
       name: string;
-      /** W13b — GD06-118 "Choose a number of enemy Units up to the number of …": no máximo N dos escolhidos (contagem na hora) */
-      limitFrom?: AmountFrom;
     }
   /** grupo de alvo COLETIVO, computado dinamicamente a partir de `ctx.state` — não precisa de escolha externa, porque o próprio padrão já define quem entra (ex.: "toda Unit amiga com Link ativo agora"). Ver docs/18, lacuna #5. */
   | { kind: "group"; group: TargetGroup }
@@ -313,10 +311,7 @@ function resolveTargetIds(ref: TargetRef, ctx: EffectContext): string[] {
   if (ref.kind === "group") return resolveTargetGroup(ref.group, ctx);
   // Lote 4 — "namedGroup" consome TODO o array escolhido (0..max), nunca lança:
   // 0 escolhidos é uma escolha legal ("Choose 1 to 2 ..." com o jogador optando por menos).
-  if (ref.kind === "namedGroup") {
-    const chosen = ctx.targets[ref.name] ?? [];
-    return ref.limitFrom ? chosen.slice(0, Math.max(0, resolveAmount({ amount: 1, amountFrom: ref.limitFrom }, ctx))) : chosen;
-  }
+  if (ref.kind === "namedGroup") return ctx.targets[ref.name] ?? [];
   if (ref.kind === "selfPairedPilot") {
     const pilotId = findCard(ctx.state, ctx.sourceInstanceId).pairedPilotId;
     return pilotId ? [pilotId] : [];
@@ -1676,7 +1671,12 @@ export interface EffectSpec {
    * — um jogador humano escolhe no máximo 1 destes até a UI ganhar seletor múltiplo;
    * bots/testes escolhem o pool inteiro até `max` (`legalActions.ts`).
    */
-  targetCount?: { min: number; max: number };
+  targetCount?: {
+    min: number;
+    max: number;
+    /** W13b — GD06-118 "Choose a number of enemy Units up to the number of …": o máximo é a contagem na hora (teto `max`) */
+    maxFrom?: AmountFrom;
+  };
   /**
    * Lote 5 (docs/debates 2026-09-13) — 2º pool de alvo, com ESCOPO PRÓPRIO
    * (diferente do pool principal de `targetScope`/`targetFilter`/`ctx.targets.target`),
@@ -1741,12 +1741,14 @@ export type TargetFilterResolver = (
  */
 export function computeLegalTargets(
   state: GameState,
-  spec: Pick<EffectSpec, "targetScope" | "targetFilter" | "baseRestSubstitutable">,
+  spec: Pick<EffectSpec, "targetScope" | "targetFilter" | "baseRestSubstitutable"> & Partial<Pick<EffectSpec, "targetCount">>,
   controller: PlayerId,
   resolveFilter?: TargetFilterResolver,
   sourceInstanceId?: string,
   implicitTargets?: Record<string, string[]>,
 ): string[] {
+  // W13b — GD06-118 "up to the number of …" com contagem 0: não há o que escolher (o efeito não ativa)
+  if (spec.targetCount?.maxFrom && resolveTargetCount(state, spec, controller, sourceInstanceId)?.max === 0) return [];
   const scope = spec.targetScope ?? "enemyUnit";
   const pool: CardInstance[] =
     scope === "enemyUnit"
@@ -2142,4 +2144,23 @@ export function isDispatchedTrigger(trigger: string): boolean {
   if (/^Then:\d+$/.test(trigger) || /^Mode:.+$/.test(trigger)) return true;
   const reactive = /^(Reaction|Delayed):(.+)$/.exec(trigger);
   return reactive !== null && reactive[2] in REACTION_EVENTS;
+}
+
+/**
+ * W13b — a cardinalidade da escolha AGORA: com `targetCount.maxFrom` (GD06-118 "up to the number of white Units with
+ * <Blocker> you have in play") o máximo é a contagem no estado atual. É o que a fila de decisão, o menu de jogadas e a
+ * validação usam — a tela só deixa marcar até esse número.
+ */
+export function resolveTargetCount(
+  state: GameState,
+  spec: Pick<EffectSpec, "targetCount">,
+  controller: PlayerId,
+  sourceInstanceId?: string,
+): { min: number; max: number } | undefined {
+  const tc = spec.targetCount;
+  if (!tc) return undefined;
+  if (!tc.maxFrom) return { min: tc.min, max: tc.max };
+  const ctx = { state, controller, sourceInstanceId: sourceInstanceId ?? "", targets: {}, turnNumber: state.turnNumber } as EffectContext;
+  const max = Math.min(tc.max, Math.max(0, resolveAmount({ amount: 1, amountFrom: tc.maxFrom }, ctx)));
+  return { min: Math.min(tc.min, max), max };
 }

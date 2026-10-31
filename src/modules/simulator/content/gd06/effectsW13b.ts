@@ -187,14 +187,14 @@ const INFINITE_VARIATIONS = {
   actions: [
     {
       op: "modifyStat",
-      target: { kind: "namedGroup", name: "target", limitFrom: { kind: "friendlyUnitCount", color: "white", keyword: "Blocker" } },
+      target: { kind: "namedGroup", name: "target" },
       stat: "ap",
       amount: -2,
       duration: "endOfTurn",
     },
   ],
   targetScope: "enemyUnit",
-  targetCount: { min: 1, max: 6 },
+  targetCount: { min: 1, max: 6, maxFrom: { kind: "friendlyUnitCount", color: "white", keyword: "Blocker" } },
   sourceText: "【Main】/【Action】Choose a number of enemy Units up to the number of white Units with<Blocker> you have in play. They get AP-2 during this turn.",
 } satisfies Omit<EffectSpec, "id" | "cardCode" | "trigger">;
 
@@ -203,7 +203,7 @@ export const GD06_W13B_EFFECT_SPECS: EffectSpec[] = [
   ...DAMAGE,
   ...TRACKED,
   ...NEW_PRIMITIVES,
-  // "up to the number of …": escolhe até 6 e só as N primeiras recebem (N contado na hora, `limitFrom`)
+  // "up to the number of …": o máximo de alvos é N, contado na hora (`targetCount.maxFrom`) — tela, bot e validação
   { ...INFINITE_VARIATIONS, id: "GD06-118-Main", cardCode: "GD06-118", trigger: "Main" },
   { ...INFINITE_VARIATIONS, id: "GD06-118-Action", cardCode: "GD06-118", trigger: "Action" },
 ];

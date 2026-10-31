@@ -1,7 +1,7 @@
 import type { AttackTarget, CardInstance, GameState, PlayerId } from "./types";
 import { effectiveCost, effectiveDeployCost, effectivePilotDef, hasKeyword, satisfiesLinkCondition, specPairGateOpen } from "./types";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { commandCostUnpayable, commandHasNoAvailableMode, computeLegalTargets, costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, specNeedsNamedTarget, trashExileChoice } from "./effectSpec";
+import { commandCostUnpayable, commandHasNoAvailableMode, computeLegalTargets, costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, resolveTargetCount, specNeedsNamedTarget, trashExileChoice } from "./effectSpec";
 import { findTriggerSpecs, specOncePerTurnMarker } from "./dispatcher";
 import { findCard } from "./events";
 import { attackIneligibilityReason, attackTargetError, canActivateBlocker } from "./combat";
@@ -114,7 +114,7 @@ export function neededTargetIds(
   }
   // Lote 4 — na prática 1 só spec por (cardCode, trigger) precisa de alvo; usa o
   // targetCount dela (ou o default singular {1,1} se não declarar).
-  const targetCount = needing[0]?.targetCount ?? { min: 1, max: 1 };
+  const targetCount = (needing[0] && resolveTargetCount(state, needing[0], seat, sourceInstanceId)) ?? { min: 1, max: 1 };
   return { ids: [...ids], someSpecNeeds: true, targetCount };
 }
 

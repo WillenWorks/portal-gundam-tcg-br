@@ -29,7 +29,7 @@ import {
   trashExileChoice,
 } from "./effectSpec";
 import type { EffectContext, EffectSpec, PredicateResolver, PrimitiveCall, ReactionEvent, TargetFilterResolver } from "./effectSpec";
-import { compileActions } from "./effectSpec";
+import { compileActions, resolveTargetCount } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
 import { TOKEN_EX_RESOURCE_CODE } from "./setup";
 import type { CardInstance, DestroyedInBattle, GameEvent, GameState, PendingDecision, PlayerId, QueuedTrigger } from "./types";
@@ -94,7 +94,7 @@ function buildQueueEntry(
     needsTarget,
     targetScope: spec.targetScope ?? "enemyUnit",
     legalTargets: needsTarget ? computeLegalTargets(state, spec, player, targetFilterResolver, sourceInstanceId, implicitTargets) : [],
-    targetCount: spec.targetCount,
+    targetCount: resolveTargetCount(state, spec, player, sourceInstanceId),
     implicitTargets,
     // docs/47 Fase 5 — ST05-010 Mikazuki Augus 【When Paired】: 2º pool de alvo
     // com escopo PRÓPRIO, igual ao já usado por Command (GD01-103/112), agora
@@ -1012,6 +1012,11 @@ export function filterDispatchableSpecs(
     const chosen = suppliedTargetIds?.[0];
     if (!chosen || !legal.includes(chosen)) {
       throw new Error(`Alvo inválido pra ${spec.id} — escolha um dos alvos legais mostrados no tabuleiro.`);
+    }
+    // W13b — "Choose 1 to N"/"up to N": não passa do máximo de agora (GD06-118, N contado na hora)
+    const count = resolveTargetCount(state, spec, controller, sourceInstanceId);
+    if (count && (suppliedTargetIds ?? []).length > count.max) {
+      throw new Error(`Escolha de alvos inválida pra ${spec.id} — no máximo ${count.max}.`);
     }
     return true;
   });
