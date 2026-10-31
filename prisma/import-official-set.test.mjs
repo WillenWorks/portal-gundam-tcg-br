@@ -52,3 +52,29 @@ describe("import-official-set — linhas do catálogo a partir dos dados oficiai
     expect(rows.find((r) => r.code === "ST11-014").model.pilotName).toBe("Marco Morassim");
   });
 });
+
+describe("import-official-set — booster GD06 (Stardust Trails)", () => {
+  const { set, rows } = buildCatalogRows("GD06", { ...data, translations: new Map(read("data/translations-gd06.json").map((t) => [t.code, t.effectPt])) });
+
+  it("set de booster com o nome do produto, lançamento em 30/10 e capa local", () => {
+    expect(set).toMatchObject({ nameEn: "Stardust Trails", setType: "BOOSTER_PACK", coverImage: "/images/sets/gd06.webp" });
+    expect(set.releaseDate.toISOString()).toBe("2026-10-30T12:00:00.000Z");
+  });
+
+  it("130 cartas + 8 tokens; as 5 Special (reimpressões de GD02/GD05) ficam fora do set", () => {
+    expect(rows).toHaveLength(138);
+    expect(rows.every((r) => r.code.startsWith("GD06-") || /^T-03[0-7]$/.test(r.code))).toBe(true);
+    for (const r of rows) expect(r.cards[0].imageUrl, r.code).toMatch(/^https:\/\/tcgplayer-cdn\.tcgplayer\.com\//);
+  });
+
+  it("token de Base (Axis) entra como BASE com HP e sem custo", () => {
+    expect(rows.find((r) => r.code === "T-037").model).toMatchObject({ cardType: "BASE", hp: 5, cost: null, level: null });
+    expect(rows.find((r) => r.code === "T-031").model).toMatchObject({ cardType: "UNIT", ap: 2, hp: 3 });
+  });
+
+  it("Command com 【Pilot】 e texto em pt-BR no formato do catálogo", () => {
+    const sturm = rows.find((r) => r.code === "GD06-119").model;
+    expect(sturm).toMatchObject({ cardType: "COMMAND", pilotName: "Schwarz Bruder", ap: 1, hp: 2 });
+    expect(sturm.effectPt.startsWith("[Action]")).toBe(true);
+  });
+});

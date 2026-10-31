@@ -274,5 +274,50 @@
     "status": "OK",
     "motivo": "carta sem texto de efeito (nada a traduzir)",
     "tokens": []
+  },
+  {
+    "code": "T-030",
+    "name": "Gozzo",
+    "set": "GD06",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "T-034",
+    "name": "Nu Gundam",
+    "set": "GD06",
+    "effectEn": "<First Strike> (While this Unit is attacking, it deals damage before the enemy Unit.)",
+    "effectPt": "<First Strike> (Enquanto esta Unidade estiver atacando, ela causa dano antes da Unidade inimiga.)",
+    "status": "OK",
+    "tokens": [
+      "<First Strike>"
+    ]
+  },
+  {
+    "code": "T-035",
+    "name": "Gundam Calibarn",
+    "set": "GD06",
+    "effectEn": "<High-Maneuver> (This Unit can't be blocked.)",
+    "effectPt": "<High-Maneuver> (Esta Unidade não pode ser bloqueada.)",
+    "status": "OK",
+    "tokens": [
+      "<High-Maneuver>"
+    ]
+  },
+  {
+    "code": "T-036",
+    "name": "Gundam Aerial Rebuild",
+    "set": "GD06",
+    "effectEn": "<Breach 3> (During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)",
+    "effectPt": "<Breach 3> (Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano de batalha, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)",
+    "status": "OK",
+    "tokens": [
+      "<Breach 3>"
+    ]
   }
 ]

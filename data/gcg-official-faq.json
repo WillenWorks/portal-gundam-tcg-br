@@ -2743,7 +2743,7 @@
     {
       "id": "Q490",
       "date": "October 16, 2026",
-      "question": "With the conditions for its effect fulfilled, this Unit gains  and blocks an enemy Unit. After that, the conditions become unfulfilled and it loses . At this time, what happens to this Unit's block?",
+      "question": "With the conditions for its effect fulfilled, this Unit gains <Blocker> and blocks an enemy Unit. After that, the conditions become unfulfilled and it loses <Blocker>. At this time, what happens to this Unit's block?",
       "answer": "Since the block is already established, the two Units continue their battle.",
       "questionPt": "Com as condições para seu efeito cumpridas, esta Unit ganha <Blocker> e bloqueia uma Unit inimiga. Depois disso, as condições deixam de ser cumpridas e ela perde <Blocker>. Neste momento, o que acontece com o bloqueio desta Unit?",
       "answerPt": "Como o bloqueio já foi estabelecido, as duas Unidades continuam sua batalha normalmente."
@@ -2753,7 +2753,7 @@
     {
       "id": "Q491",
       "date": "October 16, 2026",
-      "question": "With the conditions for its effect fulfilled, this Unit gains  and blocks an enemy Unit. After that, the conditions become unfulfilled and it loses . At this time, what happens to this Unit's block?",
+      "question": "With the conditions for its effect fulfilled, this Unit gains <Blocker> and blocks an enemy Unit. After that, the conditions become unfulfilled and it loses <Blocker>. At this time, what happens to this Unit's block?",
       "answer": "Since the block is already established, the two Units continue their battle.",
       "questionPt": "Com as condições para seu efeito cumpridas, esta Unit ganha <Blocker> e bloqueia uma Unit inimiga. Depois disso, as condições deixam de ser cumpridas e ela perde <Blocker>. Neste momento, o que acontece com o bloqueio desta Unit?",
       "answerPt": "Como o bloqueio já foi estabelecido, as duas Unidades continuam sua batalha normalmente."
@@ -2763,7 +2763,7 @@
     {
       "id": "Q492",
       "date": "October 16, 2026",
-      "question": "With the conditions for its effect fulfilled, this Unit gains  and blocks an enemy Unit. After that, the conditions become unfulfilled and it loses . At this time, what happens to this Unit's block?",
+      "question": "With the conditions for its effect fulfilled, this Unit gains <Blocker> and blocks an enemy Unit. After that, the conditions become unfulfilled and it loses <Blocker>. At this time, what happens to this Unit's block?",
       "answer": "Since the block is already established, the two Units continue their battle.",
       "questionPt": "Com as condições para seu efeito cumpridas, esta Unit ganha <Blocker> e bloqueia uma Unit inimiga. Depois disso, as condições deixam de ser cumpridas e ela perde <Blocker>. Neste momento, o que acontece com o bloqueio desta Unit?",
       "answerPt": "Como o bloqueio já foi estabelecido, as duas Unidades continuam sua batalha normalmente."
@@ -2837,7 +2837,7 @@
     {
       "id": "Q500",
       "date": "October 16, 2026",
-      "question": "When I use this 【When Linked】 effect to begin a battle with an enemy GD02-073 Carta's Graze Ritter (Ground Type), does its \"During your opponent's turn, the enemy Unit battling this Unit gains \" effect activate?",
+      "question": "When I use this 【When Linked】 effect to begin a battle with an enemy GD02-073 Carta's Graze Ritter (Ground Type), does its \"During your opponent's turn, the enemy Unit battling this Unit gains <First Strike>\" effect activate?",
       "answer": "Yes, it does. Effects that activate during battle apart from effects like 【Attack】 and \"When [...] attacks\" activate even during battles initiated by effects.",
       "questionPt": "Quando uso este efeito 【When Linked】 para iniciar uma batalha com um GD02-073 Carta's Graze Ritter (Ground Type) inimigo, o efeito dele \"Durante o turno do seu oponente, a Unit inimiga batalhando contra esta Unit recebe \" é ativado?",
       "answerPt": "Sim, ativa. Efeitos que ativam durante a batalha, exceto efeitos como 【Attack】 e \"Quando [...] ataca\", ativam mesmo durante batalhas iniciadas por efeitos."
@@ -2919,7 +2919,7 @@
     {
       "id": "Q509",
       "date": "October 16, 2026",
-      "question": "This Unit attacks a damaged enemy Unit and gains . Then, that damaged Unit recovers HP, and Unit being battled is no longer damaged. At this time, does this Unit lose ?",
+      "question": "This Unit attacks a damaged enemy Unit and gains <First Strike>. Then, that damaged Unit recovers HP, and Unit being battled is no longer damaged. At this time, does this Unit lose <First Strike>?",
       "answer": "Yes, it does.",
       "questionPt": "Esta Unit ataca uma Unit inimiga danificada e recebe . Em seguida, essa Unit danificada recupera HP, e a Unit contra a qual está batalhando não está mais danificada. Nesse momento, esta Unit perde ?",
       "answerPt": "Sim, ativa."
@@ -3047,7 +3047,7 @@
     {
       "id": "Q523",
       "date": "October 16, 2026",
-      "question": "With the conditions for its effect fulfilled, this Unit gains  and blocks an enemy Unit. After that, the conditions become unfulfilled and it loses . At this time, what happens to this Unit's block?",
+      "question": "With the conditions for its effect fulfilled, this Unit gains <Blocker> and blocks an enemy Unit. After that, the conditions become unfulfilled and it loses <Blocker>. At this time, what happens to this Unit's block?",
       "answer": "Since the block is already established, the two Units continue their battle.",
       "questionPt": "Com as condições para seu efeito cumpridas, esta Unit ganha <Blocker> e bloqueia uma Unit inimiga. Depois disso, as condições deixam de ser cumpridas e ela perde <Blocker>. Neste momento, o que acontece com o bloqueio desta Unit?",
       "answerPt": "Como o bloqueio já foi estabelecido, as duas Unidades continuam sua batalha normalmente."
@@ -3067,7 +3067,7 @@
     {
       "id": "Q525",
       "date": "October 16, 2026",
-      "question": "If a Unit set as active by this 【Activate･Main】 effect loses  that turn, does it become able to attack?",
+      "question": "If a Unit set as active by this 【Activate･Main】 effect loses <Blocker> that turn, does it become able to attack?",
       "answer": "No. It cannot attack during that turn.",
       "questionPt": "Se uma Unit colocada como ativa por este efeito 【Activate･Main】 perder  naquele turno, ela se torna capaz de atacar?",
       "answerPt": "Não. Ela não pode atacar durante aquele turno."
@@ -3205,7 +3205,7 @@
     {
       "id": "Q539",
       "date": "October 16, 2026",
-      "question": "Does \"your shield area cards can't receive damage from enemy Units with 6 or less AP\" mean they can't receive battle damage or damage from effects like ?",
+      "question": "Does \"your shield area cards can't receive damage from enemy Units with 6 or less AP\" mean they can't receive battle damage or damage from effects like <Breach>?",
       "answer": "Yes, that is correct.",
       "questionPt": "\"As cartas na sua área de escudos não podem receber dano de Units inimigas com 6 ou menos de AP\" significa que elas não podem receber dano de batalha nem dano de efeitos como ?",
       "answerPt": "Sim, está correto."
@@ -3281,8 +3281,8 @@
     {
       "id": "Q547",
       "date": "October 16, 2026",
-      "question": "Does this effect activate in response to damage from my opponent's  effects?",
-      "answer": "No, it does not activate, because  is effect damage.",
+      "question": "Does this effect activate in response to damage from my opponent's <Breach> effects?",
+      "answer": "No, it does not activate, because <Breach> is effect damage.",
       "questionPt": "Este efeito é ativado em resposta a dano causado por efeitos do meu oponente?",
       "answerPt": "Não, não ativa, porque é dano de efeito."
     }

@@ -25,7 +25,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const readJson = (rel) => JSON.parse(readFileSync(path.join(ROOT, rel), "utf8"));
 
 /** Lançamento confirmado nas páginas oficiais dos produtos (gundam-gcg.com/en/products/<set>.html); gravado ao meio-dia UTC pra não virar o dia anterior no fuso do Brasil */
-const RELEASE_DATES = { ST11: "2026-09-25", ST12: "2026-09-25", ST13: "2026-09-25", ST14: "2026-09-25" };
+const RELEASE_DATES = { ST11: "2026-09-25", ST12: "2026-09-25", ST13: "2026-09-25", ST14: "2026-09-25", GD06: "2026-10-30" };
 const STARTER_NUMBER = (code) => Number(code.slice(2));
 const RARITY = { C: "Common", U: "Uncommon", R: "Rare", LR: "Legend Rare", P: "Promo" };
 const CARD_TYPE = { UNIT: "UNIT", PILOT: "PILOT", COMMAND: "COMMAND", BASE: "BASE", "UNIT TOKEN": "UNIT" };

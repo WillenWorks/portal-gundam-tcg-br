@@ -1,0 +1,1750 @@
+[
+  {
+    "code": "GD06-001",
+    "name": "Gundam GP01Fb",
+    "set": "GD06",
+    "effectEn": "【Once per Turn】When this Unit is attacked, draw 1.\n【During Pair】This Unit gains<High-Maneuver>.\n\n(This Unit can't be blocked.)",
+    "effectPt": "【Once per Turn】Quando esta Unidade for atacada, compre 1 carta.\n【During Pair】Esta Unidade ganha <High-Maneuver>.\n\n(Esta Unidade não pode ser bloqueada.)",
+    "status": "OK",
+    "tokens": [
+      "【Once per Turn】",
+      "【During Pair】",
+      "<High-Maneuver>"
+    ]
+  },
+  {
+    "code": "GD06-002",
+    "name": "Infinite Justice Gundam",
+    "set": "GD06",
+    "effectEn": "【Once per Turn】During your turn, when this Unit destroys an enemy card with battle damage, choose 1 of your (Orb) Units. It recovers 3 HP.\n【Deploy】You may choose 3 Unit cards from your trash. Exile them from the game. If you do, choose 1 active enemy Unit. Return it to its owner's hand.",
+    "effectPt": "【Once per Turn】Durante o seu turno, quando esta Unidade destruir uma carta inimiga com dano de batalha, escolha 1 das suas Unidades (Orb). Ela recupera 3 de HP.\n【Deploy】Você pode escolher 3 cartas de Unidade do seu lixo. Exile-as do jogo. Se fizer isso, escolha 1 Unidade inimiga ativa. Devolva-a para a mão do seu dono.",
+    "status": "OK",
+    "tokens": [
+      "【Once per Turn】",
+      "【Deploy】",
+      "(Orb)",
+      "HP"
+    ]
+  },
+  {
+    "code": "GD06-003",
+    "name": "GQuuuuuuX (Omega Psycommu Released)",
+    "set": "GD06",
+    "effectEn": "Increase this Unit's AP by an amount equal to the number of cards in your hand.\n【Attack】If another friendly (Alphacide) Unit is in play and you have 5 or less cards in your hand, draw 1.",
+    "effectPt": "Aumente o AP desta Unidade em uma quantidade igual ao número de cartas na sua mão.\n【Attack】Se outra Unidade (Alphacide) aliada estiver em jogo e você tiver 5 ou menos cartas na sua mão, compre 1 carta.",
+    "status": "OK",
+    "tokens": [
+      "【Attack】",
+      "(Alphacide)",
+      "AP"
+    ]
+  },
+  {
+    "code": "GD06-004",
+    "name": "Gundam GP01",
+    "set": "GD06",
+    "effectEn": "【During Link】【Destroyed】If it is your turn, return this Unit's paired Pilot to its owner's hand. Then, discard 1.",
+    "effectPt": "【During Link】【Destroyed】Se for o seu turno, retorne o Piloto pareado desta Unidade para a mão do seu dono. Em seguida, descarte 1.",
+    "status": "OK",
+    "tokens": [
+      "【During Link】",
+      "【Destroyed】"
+    ]
+  },
+  {
+    "code": "GD06-005",
+    "name": "Akatsuki (Shiranui)",
+    "set": "GD06",
+    "effectEn": "【Attack】You may choose 1 damaged enemy Unit that is Lv.5 or lower. Return it to its owner's hand.",
+    "effectPt": "【Attack】Você pode escolher 1 Unidade inimiga danificada de Lv.5 ou menor. Devolva-a à mão do dono.",
+    "status": "OK",
+    "tokens": [
+      "【Attack】",
+      "Lv.5"
+    ]
+  },
+  {
+    "code": "GD06-006",
+    "name": "GQuuuuuuX (Omega Psycommu)",
+    "set": "GD06",
+    "effectEn": "【Deploy】If another friendly (Alphacide) Unit is in play, you may choose 1 enemy Unit with 3 or less HP. Return it to its owner's hand.",
+    "effectPt": "【Deploy】Se outra Unidade aliada (Alphacide) estiver em jogo, você pode escolher 1 Unidade inimiga com 3 ou menos HP. Retorne-a para a mão do seu dono.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "(Alphacide)",
+      "HP"
+    ]
+  },
+  {
+    "code": "GD06-007",
+    "name": "Kikeroga (MS Mode) (GQ)",
+    "set": "GD06",
+    "effectEn": "<Repair 2> (At the end of your turn, this Unit recovers the specified number of HP.)\n【Deploy】Choose 1 rested enemy Unit. Deal 2 damage to it.",
+    "effectPt": "<Repair 2> (No fim do seu turno, esta Unidade recupera a quantidade especificada de HP.)\n【Deploy】Escolha 1 Unidade inimiga em Rest. Cause 2 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "<Repair 2>",
+      "HP"
+    ]
+  },
+  {
+    "code": "GD06-008",
+    "name": "Powered GM",
+    "set": "GD06",
+    "effectEn": "【Attack】If a friendly (Earth Federation) Base is in play, this Unit gets AP+2 during this turn.",
+    "effectPt": "【Attack】 Se uma Base (Earth Federation) aliada estiver em jogo, esta Unidade recebe AP+2 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Attack】",
+      "(Earth Federation)",
+      "AP+2"
+    ]
+  },
+  {
+    "code": "GD06-009",
+    "name": "GM Custom",
+    "set": "GD06",
+    "effectEn": "【Deploy】You may choose 1 enemy Unit with 1 HP. Return it to its owner's hand.",
+    "effectPt": "【Deploy】Você pode escolher 1 Unidade inimiga com 1 HP. Devolva-a para a mão do seu dono.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "HP"
+    ]
+  },
+  {
+    "code": "GD06-010",
+    "name": "GM Cannon Ⅱ",
+    "set": "GD06",
+    "effectEn": "【When Linked】Draw 1.",
+    "effectPt": "【When Linked】Compre 1 carta.",
+    "status": "OK",
+    "tokens": [
+      "【When Linked】"
+    ]
+  },
+  {
+    "code": "GD06-011",
+    "name": "Red Gundam",
+    "set": "GD06",
+    "effectEn": "【When Linked】All your Units gain<Repair 1> during this turn.\n\n(At the end of your turn, this Unit recovers the specified number of HP.)",
+    "effectPt": "【When Linked】Todas as suas Unidades ganham <Repair 1> durante este turno.\n\n(No fim do seu turno, esta Unidade recupera a quantidade especificada de HP.)",
+    "status": "OK",
+    "tokens": [
+      "【When Linked】",
+      "<Repair 1>",
+      "HP"
+    ]
+  },
+  {
+    "code": "GD06-012",
+    "name": "Z'Gok",
+    "set": "GD06",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD06-013",
+    "name": "Zaku Ⅱ F2 (EFSF)",
+    "set": "GD06",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD06-014",
+    "name": "GM Type C",
+    "set": "GD06",
+    "effectEn": "While 3 or more enemy Units are in play, this Unit gains<Blocker>.\n\n(Rest this Unit to change the attack target to it.)",
+    "effectPt": "Enquanto 3 ou mais Unidades inimigas estiverem em jogo, esta Unidade ganha <Blocker>.\n\n(Rest esta Unidade para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-015",
+    "name": "Waldfeld's Gaia Gundam",
+    "set": "GD06",
+    "effectEn": "【During Pair･(Orb) Pilot】This Unit gains<Blocker>.\n\n(Rest this Unit to change the attack target to it.)",
+    "effectPt": "【During Pair･(Orb) Pilot】Esta Unidade ganha <Blocker>.\n\n(Rest esta Unidade para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "【During Pair･(Orb) Pilot】",
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-016",
+    "name": "Dom Trooper",
+    "set": "GD06",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD06-017",
+    "name": "GQuuuuuuX",
+    "set": "GD06",
+    "effectEn": "While another friendly (Alphacide) Unit is in play, this Unit gains<Blocker>.\n\n(Rest this Unit to change the attack target to it.)",
+    "effectPt": "Enquanto outra Unidade (Alphacide) aliada estiver em jogo, esta Unidade ganha <Blocker>.\n\n(Rest esta Unidade para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "(Alphacide)",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-018",
+    "name": "Elpeo Ple's Qubeley Mk-Ⅱ",
+    "set": "GD06",
+    "effectEn": "<Breach 1> (During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)\n【During Pair】【Activate･Action】【Once per Turn】Choose 1 of your (Neo Zeon)/(Long-Range Weapon) Units or 1 of your (Neo Zeon) Bases. During this battle, battle damage this Unit would receive is dealt to that Unit/Base instead.",
+    "effectPt": "<Breach 1> (Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano de batalha, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)\n【During Pair】【Activate･Action】【Once per Turn】Escolha 1 das suas Unidades (Neo Zeon)/(Long-Range Weapon) ou 1 das suas Bases (Neo Zeon). Durante esta batalha, o dano de batalha que esta Unidade receberia é causado àquela Unidade/Base em vez disso.",
+    "status": "OK",
+    "tokens": [
+      "【During Pair】",
+      "【Activate･Action】",
+      "【Once per Turn】",
+      "<Breach 1>",
+      "(Neo Zeon)",
+      "(Long-Range Weapon)",
+      "(Neo Zeon)"
+    ]
+  },
+  {
+    "code": "GD06-019",
+    "name": "Turn X",
+    "set": "GD06",
+    "effectEn": "Enemy Units choose one of your rested Unit tokens as their attack target if possible when attacking.\n【Attack】If you have no (Ghingnham Fleet) Unit tokens in play, deploy 1 rested [Turn X (Arms)]((Ghingnham Fleet) (Long-Range Weapon)･AP2･HP3) Unit token and 1 rested [Turn X (Legs)]((Ghingnham Fleet) (Long-Range Weapon)･AP3･HP2) Unit token.",
+    "effectPt": "Unidades inimigas escolhem 1 das suas fichas de Unidade viradas como alvo de ataque, se possível, ao atacar.\n【Attack】Se você não tiver fichas de Unidade (Ghingnham Fleet) em jogo, posicione 1 ficha de Unidade [Turn X (Arms)]((Ghingnham Fleet) (Long-Range Weapon)･AP2･HP3) virada e 1 ficha de Unidade [Turn X (Legs)]((Ghingnham Fleet) (Long-Range Weapon)･AP3･HP2) virada.",
+    "status": "OK",
+    "tokens": [
+      "【Attack】",
+      "[Turn X (Arms)]",
+      "[Turn X (Legs)]",
+      "(Ghingnham Fleet)",
+      "(Ghingnham Fleet)",
+      "(Long-Range Weapon)",
+      "(Ghingnham Fleet)",
+      "(Long-Range Weapon)",
+      "AP2",
+      "HP3",
+      "AP3",
+      "HP2"
+    ]
+  },
+  {
+    "code": "GD06-020",
+    "name": "Hamma-Hamma",
+    "set": "GD06",
+    "effectEn": "During your turn, when one of your (Neo Zeon) Units destroys an enemy card with damage, this Unit recovers 1 HP.",
+    "effectPt": "Durante o seu turno, quando uma das suas Unidades (Neo Zeon) destruir uma carta inimiga com dano, esta Unidade recupera 1 HP.",
+    "status": "OK",
+    "tokens": [
+      "(Neo Zeon)",
+      "HP"
+    ]
+  },
+  {
+    "code": "GD06-021",
+    "name": "Turn X (Top)",
+    "set": "GD06",
+    "effectEn": "【Deploy】Choose 1 of your Unit tokens. Deploy 1 rested Unit token of the same kind.",
+    "effectPt": "【Deploy】Escolha 1 das suas fichas de Unidade. Faça o Deploy de 1 ficha de Unidade descansada do mesmo tipo.\r",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】"
+    ]
+  },
+  {
+    "code": "GD06-022",
+    "name": "Merrybell's Bandit",
+    "set": "GD06",
+    "effectEn": "【When Linked】Choose 1 enemy Unit with 3 or less AP. Begin a battle between this Unit and it and only perform the damage step.",
+    "effectPt": "【When Linked】Escolha 1 Unidade inimiga com AP 3 ou menos. Inicie uma batalha entre esta Unidade e ela e realize apenas o passo de dano.\r",
+    "status": "OK",
+    "tokens": [
+      "【When Linked】",
+      "AP"
+    ]
+  },
+  {
+    "code": "GD06-023",
+    "name": "Galluss J",
+    "set": "GD06",
+    "effectEn": "【Deploy】Rest this Unit. Then, choose 1 of your (Neo Zeon) Units that is Lv.3 or higher. It gets AP+1 during this turn. If you increase a Link Unit's AP with this effect, set this Unit as active.",
+    "effectPt": "【Deploy】Coloque esta Unidade em Rest. Então, escolha 1 das suas Unidades (Neo Zeon) de Lv.3 ou maior. Ela recebe AP+1 durante este turno. Se você aumentar o AP de uma Unidade com Link com este efeito, coloque esta Unidade como ativa.\r",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "(Neo Zeon)",
+      "AP+1",
+      "AP",
+      "Lv.3",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-024",
+    "name": "R-Jarja",
+    "set": "GD06",
+    "effectEn": "【Destroyed】Choose 1 enemy Unit with<Blocker> and 3 or less AP. Destroy it.",
+    "effectPt": "【Destroyed】Escolha 1 Unidade inimiga com <Blocker> e AP 3 ou menos. Destrua-a.\r",
+    "status": "OK",
+    "tokens": [
+      "【Destroyed】",
+      "<Blocker>",
+      "AP"
+    ]
+  },
+  {
+    "code": "GD06-025",
+    "name": "Re-GZ",
+    "set": "GD06",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD06-026",
+    "name": "Stero's Mahiroo",
+    "set": "GD06",
+    "effectEn": "【Attack】If you have 3 or more other (Ghingnham Fleet)/(Long-Range Weapon) Units in play, choose 1 of your Units. It gets AP+1 and<Repair 2> during this turn.\n\n(At the end of your turn, this Unit recovers the specified number of HP.)",
+    "effectPt": "【Attack】Se você tiver 3 ou mais outras Unidades (Ghingnham Fleet)/(Long-Range Weapon) em jogo, escolha 1 das suas Unidades. Ela recebe AP+1 e <Repair 2> durante este turno.\r\n\n(No fim do seu turno, esta Unidade recupera a quantidade especificada de HP.)",
+    "status": "OK",
+    "tokens": [
+      "【Attack】",
+      "<Repair 2>",
+      "(Ghingnham Fleet)",
+      "(Long-Range Weapon)",
+      "AP+1",
+      "HP"
+    ]
+  },
+  {
+    "code": "GD06-027",
+    "name": "Mashymre's Zssa",
+    "set": "GD06",
+    "effectEn": "【Deploy】Choose 1 of your (Neo Zeon) Units. During this turn, it may choose an active enemy Unit with 4 or less AP as its attack target.",
+    "effectPt": "【Deploy】Escolha 1 das suas Unidades (Neo Zeon). Durante este turno, ela pode escolher uma Unidade inimiga ativa com AP 4 ou menos como alvo de ataque.\r",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "(Neo Zeon)",
+      "AP"
+    ]
+  },
+  {
+    "code": "GD06-028",
+    "name": "Gaza D",
+    "set": "GD06",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD06-029",
+    "name": "Elpeo Ple's Qubeley Mk-Ⅱ",
+    "set": "GD06",
+    "effectEn": "<Breach 3> (During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)",
+    "effectPt": "<Breach 3> (Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano de batalha, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)",
+    "status": "OK",
+    "tokens": [
+      "<Breach 3>"
+    ]
+  },
+  {
+    "code": "GD06-030",
+    "name": "Mahiroo",
+    "set": "GD06",
+    "effectEn": "While you have 3 or more other (Ghingnham Fleet)/(Long-Range Weapon) Units in play, this Unit gets AP+2.",
+    "effectPt": "Enquanto você tiver 3 ou mais outras Unidades (Ghingnham Fleet)/(Long-Range Weapon) em jogo, esta Unidade recebe AP+2.\r",
+    "status": "OK",
+    "tokens": [
+      "(Ghingnham Fleet)",
+      "(Long-Range Weapon)",
+      "AP+2"
+    ]
+  },
+  {
+    "code": "GD06-031",
+    "name": "Zssan",
+    "set": "GD06",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD06-032",
+    "name": "Bellona",
+    "set": "GD06",
+    "effectEn": "【Destroyed】Look at the top 2 cards of your deck. You may reveal 1 (Ghingnham Fleet)/(Dianna Counter) Unit card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck.",
+    "effectPt": "【Destroyed】Olhe as 2 cartas do topo do seu deck. Você pode revelar 1 carta de Unidade (Ghingnham Fleet)/(Dianna Counter) entre elas e adicioná-la à sua mão. Coloque as cartas restantes no fundo do seu deck em ordem aleatória.\r",
+    "status": "OK",
+    "tokens": [
+      "【Destroyed】",
+      "(Ghingnham Fleet)",
+      "(Dianna Counter)"
+    ]
+  },
+  {
+    "code": "GD06-033",
+    "name": "ZZ Gundam",
+    "set": "GD06",
+    "effectEn": "When your (AEUG) cards deal damage to enemy Units, increase the damage dealt by 1.\n【Deploy】Deal 2 damage to all enemy Units.",
+    "effectPt": "Quando as suas cartas (AEUG) causarem dano a Unidades inimigas, aumente o dano causado em 1.\r\n【Deploy】Cause 2 de dano a todas as Unidades inimigas.\r",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "(AEUG)"
+    ]
+  },
+  {
+    "code": "GD06-034",
+    "name": "Gundam Bael",
+    "set": "GD06",
+    "effectEn": "<High-Maneuver> (This Unit can't be blocked.)\n【Deploy】If there are 4 or more (Gjallarhorn) cards in your trash, look at the top 4 cards of your deck. You may deploy 1 (Gjallarhorn)/(Tekkadan) Unit card that is Lv.6 or lower among them. Return the remaining cards randomly to the bottom of your deck.",
+    "effectPt": "<High-Maneuver> (Esta Unidade não pode ser bloqueada.)\n【Deploy】Se houver 4 ou mais cartas (Gjallarhorn) no seu lixo, olhe as 4 cartas do topo do seu deck. Você pode fazer o Deploy de 1 carta de Unidade (Gjallarhorn)/(Tekkadan) de Lv.6 ou menor entre elas. Coloque as cartas restantes no fundo do seu deck em ordem aleatória.\r",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "<High-Maneuver>",
+      "(Gjallarhorn)",
+      "(Gjallarhorn)",
+      "(Tekkadan)",
+      "Lv.6"
+    ]
+  },
+  {
+    "code": "GD06-035",
+    "name": "Zeta Gundam",
+    "set": "GD06",
+    "effectEn": "【Once per Turn】During your turn, when this Unit destroys an enemy Unit with battle damage, choose 1 enemy Unit with 3 or less AP. Deal 2 damage to it.",
+    "effectPt": "【Once per Turn】Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano de batalha, escolha 1 Unidade inimiga com AP 3 ou menos. Cause 2 de dano a ela.\r",
+    "status": "OK",
+    "tokens": [
+      "【Once per Turn】",
+      "AP"
+    ]
+  },
+  {
+    "code": "GD06-036",
+    "name": "Gundam Vidar",
+    "set": "GD06",
+    "effectEn": "【When Linked】Choose 1 enemy Unit. Deal 1 damage to it.",
+    "effectPt": "【When Linked】Escolha 1 Unidade inimiga. Cause 1 de dano a ela.\r",
+    "status": "OK",
+    "tokens": [
+      "【When Linked】"
+    ]
+  },
+  {
+    "code": "GD06-037",
+    "name": "Reginlaze Julia",
+    "set": "GD06",
+    "effectEn": "During your turn, while this Unit is battling a damaged enemy Unit, it gains<First Strike>.\n\n(While this Unit is attacking, it deals damage before the enemy Unit.)\n【During Pair】Enemy Units can't be set as active by enemy effects.",
+    "effectPt": "Durante o seu turno, enquanto esta Unidade estiver em batalha com uma Unidade inimiga danificada, ela ganha <First Strike>.\r\n\n(Enquanto esta Unidade estiver atacando, ela causa dano antes da Unidade inimiga.)\n【During Pair】Unidades inimigas não podem ser colocadas como ativas por efeitos inimigos.\r",
+    "status": "OK",
+    "tokens": [
+      "【During Pair】",
+      "<First Strike>"
+    ]
+  },
+  {
+    "code": "GD06-038",
+    "name": "Gundam Kimaris Vidar",
+    "set": "GD06",
+    "effectEn": "<Breach 3> (During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)\n【When Paired】Choose 1 enemy Unit with the highest Lv. Deal 3 damage to it.",
+    "effectPt": "<Breach 3> (Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano de batalha, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)\n【When Paired】Escolha 1 Unidade inimiga com o maior Lv. Cause 3 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【When Paired】",
+      "<Breach 3>"
+    ]
+  },
+  {
+    "code": "GD06-039",
+    "name": "Neo Core Fighter",
+    "set": "GD06",
+    "effectEn": "【Activate･Main】Destroy 2 of your (Gundam Team) Units with unique card names that are Lv.3 and this Unit：Deploy 1 (Gundam Team) Unit card that is Lv.8 or higher from your hand.",
+    "effectPt": "【Activate･Main】Destrua 2 das suas Unidades (Gundam Team) de Lv.3 com nomes de carta diferentes e esta Unidade：Faça o Deploy de 1 carta de Unidade (Gundam Team) de Lv.8 ou maior da sua mão.\r",
+    "status": "OK",
+    "tokens": [
+      "【Activate･Main】",
+      "(Gundam Team)",
+      "(Gundam Team)",
+      "Lv.3",
+      "Lv.8"
+    ]
+  },
+  {
+    "code": "GD06-040",
+    "name": "Gundam Mk-Ⅱ",
+    "set": "GD06",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD06-041",
+    "name": "Neo Lorrnoke's Windam (Jet Striker)",
+    "set": "GD06",
+    "effectEn": "【Deploy】Choose 1 enemy Unit with 5 or less AP. Deal 1 damage to it.",
+    "effectPt": "【Deploy】Escolha 1 Unidade inimiga com AP 5 ou menos. Cause 1 de dano a ela.\r",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "AP"
+    ]
+  },
+  {
+    "code": "GD06-042",
+    "name": "Destroy Gundam (MA Mode)",
+    "set": "GD06",
+    "effectEn": "【Deploy】Look at the top 4 cards of your deck. You may pair 1 (Biological CPU) Pilot card among them with this Unit. Return the remaining cards randomly to the bottom of your deck.",
+    "effectPt": "【Deploy】Olhe as 4 cartas do topo do seu deck. Você pode parear 1 carta de Piloto (Biological CPU) entre elas com esta Unidade. Coloque as cartas restantes no fundo do seu deck em ordem aleatória.\r",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "(Biological CPU)"
+    ]
+  },
+  {
+    "code": "GD06-043",
+    "name": "Julieta's Reginlaze",
+    "set": "GD06",
+    "effectEn": "【During Link】During your turn, all other (Gjallarhorn) Units get AP+1.",
+    "effectPt": "【During Link】Durante o seu turno, todas as outras Unidades (Gjallarhorn) recebem AP+1.\r",
+    "status": "OK",
+    "tokens": [
+      "【During Link】",
+      "(Gjallarhorn)",
+      "AP+1"
+    ]
+  },
+  {
+    "code": "GD06-044",
+    "name": "Core Top",
+    "set": "GD06",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD06-045",
+    "name": "Core Base",
+    "set": "GD06",
+    "effectEn": "【Destroyed】Choose 1 enemy Unit that is Lv.5 or lower. Deal 1 damage to it.",
+    "effectPt": "【Destroyed】Escolha 1 Unidade inimiga de Lv.5 ou menor. Cause 1 de dano a ela.\r",
+    "status": "OK",
+    "tokens": [
+      "【Destroyed】",
+      "Lv.5"
+    ]
+  },
+  {
+    "code": "GD06-046",
+    "name": "Hyaku-Shiki",
+    "set": "GD06",
+    "effectEn": "【Attack】Choose 1 of your other (Gundam Team) Units. It gets AP+2 during this turn.",
+    "effectPt": "【Attack】Escolha 1 das suas outras Unidades (Gundam Team). Ela recebe AP+2 durante este turno.\r",
+    "status": "OK",
+    "tokens": [
+      "【Attack】",
+      "(Gundam Team)",
+      "AP+2"
+    ]
+  },
+  {
+    "code": "GD06-047",
+    "name": "Windam",
+    "set": "GD06",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD06-048",
+    "name": "Helmwige Reincar",
+    "set": "GD06",
+    "effectEn": "【Deploy】Choose 1 enemy Unit that is Lv.2 or lower. Deal 1 damage to it. If there are 4 or more (Gjallarhorn) cards in your trash, choose 1 enemy Unit instead.",
+    "effectPt": "【Deploy】Escolha 1 Unidade inimiga de Lv.2 ou menor. Cause 1 de dano a ela. Se houver 4 ou mais cartas (Gjallarhorn) no seu lixo, escolha 1 Unidade inimiga qualquer no lugar dela.\r",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "(Gjallarhorn)",
+      "Lv.2"
+    ]
+  },
+  {
+    "code": "GD06-049",
+    "name": "Gundam GP02A",
+    "set": "GD06",
+    "effectEn": "【When Paired】If there are 10 or more (Zeon) Unit cards in your trash, destroy every enemy player's Base.\n【Destroyed】Look at the top 3 cards of your deck. You may reveal 1 (Delaz Fleet) Unit card among them and add it to your hand. Place the remaining cards into your trash.",
+    "effectPt": "【When Paired】Se houver 10 ou mais cartas de Unidade (Zeon) no seu lixo, destrua a Base de cada jogador inimigo.\r\n【Destroyed】Olhe as 3 cartas do topo do seu deck. Você pode revelar 1 carta de Unidade (Delaz Fleet) entre elas e adicioná-la à sua mão. Coloque as cartas restantes no seu lixo.\r",
+    "status": "OK",
+    "tokens": [
+      "【When Paired】",
+      "【Destroyed】",
+      "(Zeon)",
+      "(Delaz Fleet)"
+    ]
+  },
+  {
+    "code": "GD06-050",
+    "name": "Legend Gundam",
+    "set": "GD06",
+    "effectEn": "While you have a (ZAFT) Link Unit in play, this card in your trash gets Lv. -3 and cost -3.\n【Deploy】Choose 1 enemy Unit that is Lv.3 or lower. Destroy it. If you deploy this Unit from your trash, choose 1 to 2 enemy Units that are Lv.3 or lower instead.",
+    "effectPt": "Enquanto você tiver uma Unidade com Link (ZAFT) em jogo, esta carta no seu lixo recebe Lv. -3 e custo -3.\r\n【Deploy】Escolha 1 Unidade inimiga de Lv.3 ou menor. Destrua-a. Se você fizer o Deploy desta Unidade a partir do seu lixo, escolha de 1 a 2 Unidades inimigas de Lv.3 ou menor no lugar disso.\r",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "(ZAFT)",
+      "Lv.3",
+      "Lv.3"
+    ]
+  },
+  {
+    "code": "GD06-051",
+    "name": "GFreD",
+    "set": "GD06",
+    "effectEn": "【Activate･Main】【Once per Turn】②, rest this Unit：Choose 1 (Alphacide) Unit card that is Lv.5 or lower from your trash. Deploy it.\n【Deploy】If another friendly (Alphacide) Unit is in play, this Unit gains the following effect during this turn:\n\n■At the end of the turn, choose 2 of your Resources. Set them as active.",
+    "effectPt": "【Activate･Main】【Once per Turn】②, descanse esta Unidade：Escolha 1 carta de Unidade (Alphacide) de Lv.5 ou menor do seu lixo. Faça o Deploy dela.\r\n【Deploy】Se outra Unidade (Alphacide) aliada estiver em jogo, esta Unidade ganha o seguinte efeito durante este turno:\r\n\n■No fim do turno, escolha 2 dos seus Recursos. Coloque-os como ativos.\r",
+    "status": "OK",
+    "tokens": [
+      "【Activate･Main】",
+      "【Once per Turn】",
+      "【Deploy】",
+      "②",
+      "(Alphacide)",
+      "(Alphacide)",
+      "Lv.5"
+    ]
+  },
+  {
+    "code": "GD06-052",
+    "name": "Val Walo",
+    "set": "GD06",
+    "effectEn": "While there are 5 or more (Zeon) Unit cards in your trash, this Unit gains<High-Maneuver>.\n\n(This Unit can't be blocked.)\n【Deploy】Place the top card of your deck into your trash. If you place a (Zeon) card with this effect, choose 1 enemy Unit with 4 or less AP. Rest it.",
+    "effectPt": "Enquanto houver 5 ou mais cartas de Unidade (Zeon) no seu lixo, esta Unidade ganha <High-Maneuver>.\r\n\n(Esta Unidade não pode ser bloqueada.)\n【Deploy】Coloque a carta do topo do seu deck no seu lixo. Se você colocou uma carta (Zeon) com este efeito, escolha 1 Unidade inimiga com AP 4 ou menos. Coloque-a em Rest.\r",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "<High-Maneuver>",
+      "(Zeon)",
+      "(Zeon)",
+      "AP",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-053",
+    "name": "Xavier's Gyan Hakuji-Packs (GQ)",
+    "set": "GD06",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)\n【Destroyed】Choose 1 of your Resources. Set it as active.",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)\n【Destroyed】Escolha 1 dos seus Recursos. Coloque-o como ativo.\r",
+    "status": "OK",
+    "tokens": [
+      "【Destroyed】",
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-054",
+    "name": "GFreD",
+    "set": "GD06",
+    "effectEn": "<Suppression> (Damage to Shields by an attack is dealt to the first 2 cards simultaneously.)\n【Deploy】You may choose 1 of your Units and 1 enemy Unit. Deal 1 damage to them.",
+    "effectPt": "<Suppression> (O dano de um ataque aos escudos é causado às 2 primeiras cartas ao mesmo tempo.)\n【Deploy】Você pode escolher 1 das suas Unidades e 1 Unidade inimiga. Cause 1 de dano a elas.\r",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "<Suppression>"
+    ]
+  },
+  {
+    "code": "GD06-055",
+    "name": "Gundam GP02A",
+    "set": "GD06",
+    "effectEn": "【During Pair】【Attack】You may deal 1 damage to this Unit. If you do, this Unit gains<Breach 2> during this battle.\n\n(During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)",
+    "effectPt": "【During Pair】【Attack】Você pode causar 1 de dano a esta Unidade. Se fizer isso, esta Unidade ganha <Breach 2> durante esta batalha.\r\n\n(Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano de batalha, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)",
+    "status": "OK",
+    "tokens": [
+      "【During Pair】",
+      "【Attack】",
+      "<Breach 2>"
+    ]
+  },
+  {
+    "code": "GD06-056",
+    "name": "Xamel",
+    "set": "GD06",
+    "effectEn": "【Attack】You may pay ②. If you do, choose 1 enemy Unit that is Lv.2 or lower. Destroy it.",
+    "effectPt": "【Attack】Você pode pagar ②. Se fizer isso, escolha 1 Unidade inimiga de Lv.2 ou menor. Destrua-a.\r",
+    "status": "OK",
+    "tokens": [
+      "【Attack】",
+      "②",
+      "Lv.2"
+    ]
+  },
+  {
+    "code": "GD06-057",
+    "name": "Karius' Rick Dom Ⅱ",
+    "set": "GD06",
+    "effectEn": "While you have another (Delaz Fleet) Unit in play, this Unit gains<Blocker>.\n\n(Rest this Unit to change the attack target to it.)",
+    "effectPt": "Enquanto você tiver outra Unidade (Delaz Fleet) em jogo, esta Unidade ganha <Blocker>.\r\n\n(Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "(Delaz Fleet)",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-058",
+    "name": "Blast Impulse Gundam",
+    "set": "GD06",
+    "effectEn": "On the turn this Unit is deployed, it may choose a rested enemy Unit as its attack target and attack it.",
+    "effectPt": "No turno em que esta Unidade entrar em jogo, ela pode escolher uma Unidade inimiga descansada como alvo de ataque e atacá-la.",
+    "status": "OK",
+    "tokens": []
+  },
+  {
+    "code": "GD06-059",
+    "name": "Dom Tropen",
+    "set": "GD06",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD06-060",
+    "name": "Zaku Ⅱ F2",
+    "set": "GD06",
+    "effectEn": "While there are 4 or more (Zeon) Unit cards in your trash, this Unit gets AP+1.",
+    "effectPt": "Enquanto houver 4 ou mais cartas de Unidade (Zeon) no seu lixo, esta Unidade recebe AP+1.\r",
+    "status": "OK",
+    "tokens": [
+      "(Zeon)",
+      "AP+1"
+    ]
+  },
+  {
+    "code": "GD06-061",
+    "name": "Dra-C",
+    "set": "GD06",
+    "effectEn": "【Activate･Main】<Support 1> (Rest this Unit. 1 other friendly Unit gets AP+(specified amount) during this turn.)",
+    "effectPt": "【Activate･Main】<Support 1> (Coloque esta Unidade em Rest. 1 outra Unidade aliada recebe AP+(quantidade especificada) durante este turno.)",
+    "status": "OK",
+    "tokens": [
+      "【Activate･Main】",
+      "<Support 1>",
+      "AP",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-062",
+    "name": "Gyan Hakuji-Packs (GQ)",
+    "set": "GD06",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD06-063",
+    "name": "GFreD",
+    "set": "GD06",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD06-064",
+    "name": "Altron Gundam (EW)",
+    "set": "GD06",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)\nWhile an enemy Unit that is Lv.5 or higher is in play, this Unit gets AP+3.",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)\nEnquanto uma Unidade inimiga de Lv.5 ou maior estiver em jogo, esta Unidade recebe AP+3.\r",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "AP+3",
+      "Lv.5",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-065",
+    "name": "SUMO Gold Type",
+    "set": "GD06",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)\n【Activate･Main】【Once per Turn】④：Set all your (Dianna Counter)/(Militia) Units with<Blocker> as active. They can't attack during this turn.",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)\n【Activate･Main】【Once per Turn】④：Coloque como ativas todas as suas Unidades (Dianna Counter)/(Militia) com <Blocker>. Elas não podem atacar durante este turno.\r",
+    "status": "OK",
+    "tokens": [
+      "【Activate･Main】",
+      "【Once per Turn】",
+      "<Blocker>",
+      "<Blocker>",
+      "④",
+      "(Dianna Counter)",
+      "(Militia)",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-066",
+    "name": "Shadow Gundam",
+    "set": "GD06",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)\n【During Link】【Attack】Activate 【Action】 on the card paired with this Unit.",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)\n【During Link】【Attack】Ative o 【Action】 da carta pareada com esta Unidade.\r",
+    "status": "OK",
+    "tokens": [
+      "【During Link】",
+      "【Attack】",
+      "【Action】",
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-067",
+    "name": "Gundam Sandrock Custom (EW)",
+    "set": "GD06",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)\n【When Paired･Lv.4 or Higher Pilot】Choose 1 rested enemy Unit with 3 or less HP. It won't be set as active during the start phase of your opponent's next turn.",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)\n【When Paired･Lv.4 or Higher Pilot】Escolha 1 Unidade inimiga descansada com HP 3 ou menos. Ela não será colocada como ativa durante a fase inicial do próximo turno do seu oponente.\r",
+    "status": "OK",
+    "tokens": [
+      "【When Paired･Lv.4 or Higher Pilot】",
+      "<Blocker>",
+      "HP",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-068",
+    "name": "Gundam Heavyarms Custom (EW)",
+    "set": "GD06",
+    "effectEn": "【Deploy】Choose 1 enemy Unit that is Lv.3 or lower. Rest it. If you have another (G Team)/(Preventer) Unit in play, that enemy Unit gets AP-2 during this turn.",
+    "effectPt": "【Deploy】Escolha 1 Unidade inimiga de Lv.3 ou menor. Coloque-a em Rest. Se você tiver outra Unidade (G Team)/(Preventer) em jogo, aquela Unidade inimiga recebe AP-2 durante este turno.\r",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "(G Team)",
+      "(Preventer)",
+      "AP-2",
+      "Lv.3",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-069",
+    "name": "SUMO Silver Type",
+    "set": "GD06",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)\n【Activate･Action】【Once per Turn】①：Choose 1 of your damaged (Dianna Counter) Units. It recovers 1 HP.",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)\n【Activate･Action】【Once per Turn】①：Escolha 1 das suas Unidades (Dianna Counter) danificadas. Ela recupera 1 de HP.\r",
+    "status": "OK",
+    "tokens": [
+      "【Activate･Action】",
+      "【Once per Turn】",
+      "<Blocker>",
+      "①",
+      "(Dianna Counter)",
+      "HP",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-070",
+    "name": "Eagail",
+    "set": "GD06",
+    "effectEn": "【Deploy】Deploy 1 [Gozzo]((Dianna Counter)･AP0･HP3･<Blocker>) Unit token.\n【Attack】If you have paid a total of ③ or more for your Units' effects this turn, choose 1 enemy Unit. It gets AP-5 during this battle.",
+    "effectPt": "【Deploy】Faça o Deploy de 1 ficha de Unidade [Gozzo]((Dianna Counter)･AP0･HP3･<Blocker>).\r\n【Attack】Se você pagou um total de ③ ou mais pelos efeitos das suas Unidades neste turno, escolha 1 Unidade inimiga. Ela recebe AP-5 durante esta batalha.\r",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "【Attack】",
+      "[Gozzo]",
+      "((Dianna Counter)･AP0･HP3･<Blocker>)",
+      "③",
+      "AP-5"
+    ]
+  },
+  {
+    "code": "GD06-071",
+    "name": "Shining Gundam (Meikyo Shisui)",
+    "set": "GD06",
+    "effectEn": "【Once per Turn】During your turn, when you activate a (Special Move) Command's 【Main】/【Action】, choose 1 enemy Unit. It gets AP-2 during this turn. If you do, this Unit gets AP+2.",
+    "effectPt": "【Once per Turn】Durante o seu turno, quando você ativar o 【Main】/【Action】 de um Comando (Special Move), escolha 1 Unidade inimiga. Ela recebe AP-2 durante este turno. Se fizer isso, esta Unidade recebe AP+2.\r",
+    "status": "OK",
+    "tokens": [
+      "【Once per Turn】",
+      "【Main】",
+      "【Action】",
+      "(Special Move)",
+      "AP-2",
+      "AP+2"
+    ]
+  },
+  {
+    "code": "GD06-072",
+    "name": "Gundam Deathscythe Hell (EW)",
+    "set": "GD06",
+    "effectEn": "【During Pair】【Destroyed】If you have another (G Team)/(Preventer) Unit in play, you may choose 1 Command card that is Lv.5 or lower from your trash. Add it to your hand.",
+    "effectPt": "【During Pair】【Destroyed】Se você tiver outra Unidade (G Team)/(Preventer) em jogo, você pode escolher 1 carta de Comando de Lv.5 ou menor do seu lixo. Adicione-a à sua mão.\r",
+    "status": "OK",
+    "tokens": [
+      "【During Pair】",
+      "【Destroyed】",
+      "(G Team)",
+      "(Preventer)",
+      "Lv.5"
+    ]
+  },
+  {
+    "code": "GD06-073",
+    "name": "Wing Gundam Zero (EW)",
+    "set": "GD06",
+    "effectEn": "【During Pair】【Once per Turn】When this Unit destroys an enemy shield area card with battle damage, choose 1 enemy Unit that is Lv.3 or lower. Rest it.",
+    "effectPt": "【During Pair】【Once per Turn】Quando esta Unidade destruir uma carta da área de escudo inimiga com dano de batalha, escolha 1 Unidade inimiga de Lv.3 ou menor. Coloque-a em Rest.\r",
+    "status": "OK",
+    "tokens": [
+      "【During Pair】",
+      "【Once per Turn】",
+      "Lv.3",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-074",
+    "name": "Flat",
+    "set": "GD06",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD06-075",
+    "name": "Serpent",
+    "set": "GD06",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD06-076",
+    "name": "WaDom",
+    "set": "GD06",
+    "effectEn": "【Deploy】Choose 1 enemy Unit with 4 or less HP. Rest it.",
+    "effectPt": "【Deploy】Escolha 1 Unidade inimiga com HP 4 ou menos. Coloque-a em Rest.\r",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "HP",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-077",
+    "name": "Cannon Illfuto",
+    "set": "GD06",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-078",
+    "name": "WaD",
+    "set": "GD06",
+    "effectEn": "【Activate･Main】③, rest this Unit：If you have another (Dianna Counter) Unit in play, choose 1 enemy Unit that is Lv.4 or lower. Rest it.",
+    "effectPt": "【Activate･Main】③, descanse esta Unidade：Se você tiver outra Unidade (Dianna Counter) em jogo, escolha 1 Unidade inimiga de Lv.4 ou menor. Coloque-a em Rest.\r",
+    "status": "OK",
+    "tokens": [
+      "【Activate･Main】",
+      "③",
+      "(Dianna Counter)",
+      "Lv.4",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-079",
+    "name": "Muttowooo",
+    "set": "GD06",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "GD06-080",
+    "name": "Kou Uraki",
+    "set": "GD06",
+    "effectEn": "【Burst】Add this card to your hand.\n【Activate･Action】【Once per Turn】If you have drawn with an effect during this turn, choose 1 of your Units. It recovers 2 HP.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Activate･Action】【Once per Turn】Se você comprou carta por efeito durante este turno, escolha 1 das suas Unidades. Ela recupera 2 de HP.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Activate･Action】",
+      "【Once per Turn】",
+      "HP"
+    ]
+  },
+  {
+    "code": "GD06-081",
+    "name": "Amate Yuzuriha (Machu)",
+    "set": "GD06",
+    "effectEn": "【Burst】Add this card to your hand.\nWhile this Unit is (Alphacide), it gains<Repair 2>.\n\n(At the end of your turn, this Unit recovers the specified number of HP.)",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\nEnquanto esta Unidade for (Alphacide), ela ganha <Repair 2>.\r\n\n(No fim do seu turno, esta Unidade recupera a quantidade especificada de HP.)",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "<Repair 2>",
+      "(Alphacide)",
+      "HP"
+    ]
+  },
+  {
+    "code": "GD06-082",
+    "name": "Athrun Zala",
+    "set": "GD06",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Paired】Choose 1 rested enemy Unit. Deal 1 damage to it.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Paired】Escolha 1 Unidade inimiga descansada. Cause 1 de dano a ela.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Paired】"
+    ]
+  },
+  {
+    "code": "GD06-083",
+    "name": "Challia Bull (GQ)",
+    "set": "GD06",
+    "effectEn": "【Burst】Add this card to your hand.\n【During Link】While this Unit has<Repair>, it gains<High-Maneuver>.\n\n(This Unit can't be blocked.)",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【During Link】Enquanto esta Unidade tiver <Repair>, ela ganha <High-Maneuver>.\r\n\n(Esta Unidade não pode ser bloqueada.)",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【During Link】",
+      "<Repair>",
+      "<High-Maneuver>"
+    ]
+  },
+  {
+    "code": "GD06-084",
+    "name": "Elpeo Ple",
+    "set": "GD06",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Paired】During this turn, this Unit gains the same number of<Breach 1> as the number of (Neo Zeon)/(Long-Range Weapon) Units you have in play.\n\n(During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Paired】Durante este turno, esta Unidade ganha <Breach 1> tantas vezes quanto o número de Unidades (Neo Zeon)/(Long-Range Weapon) que você tiver em jogo.\r\n\n(Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano de batalha, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Paired】",
+      "<Breach 1>",
+      "(Neo Zeon)",
+      "(Long-Range Weapon)"
+    ]
+  },
+  {
+    "code": "GD06-085",
+    "name": "Gym Ghingnham",
+    "set": "GD06",
+    "effectEn": "【Burst】Add this card to your hand.\n【During Link】All your (Ghingnham Fleet) Units get AP+1 during your opponent's turn.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【During Link】Todas as suas Unidades (Ghingnham Fleet) recebem AP+1 durante o turno do seu oponente.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【During Link】",
+      "(Ghingnham Fleet)",
+      "AP+1"
+    ]
+  },
+  {
+    "code": "GD06-086",
+    "name": "Mashymre Cello",
+    "set": "GD06",
+    "effectEn": "When playing this card from your hand and pairing it with a Unit with the [Mashymre Cello] link condition, it gets cost -1.\n\n【Burst】Add this card to your hand.",
+    "effectPt": "Ao jogar esta carta da sua mão pareando-a com uma Unidade com a condição de Link [Mashymre Cello], ela recebe custo -1.\r\n\n【Burst】Adicione esta carta à sua mão.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "[Mashymre Cello]"
+    ]
+  },
+  {
+    "code": "GD06-087",
+    "name": "Merrybell Gadget",
+    "set": "GD06",
+    "effectEn": "【Burst】Add this card to your hand.\n【Attack】Choose 1 of your (Ghingnham Fleet) Units. During this turn, it may choose an active enemy Unit that is Lv.4 or lower as its attack target.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Attack】Escolha 1 das suas Unidades (Ghingnham Fleet). Durante este turno, ela pode escolher uma Unidade inimiga ativa de Lv.4 ou menor como alvo de ataque.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Attack】",
+      "(Ghingnham Fleet)",
+      "Lv.4"
+    ]
+  },
+  {
+    "code": "GD06-088",
+    "name": "Judau Ashta",
+    "set": "GD06",
+    "effectEn": "【Burst】Add this card to your hand.\n【During Link】【Destroyed】Choose 1 (Gundam Team) Unit card that is Lv.2 or lower from your trash. Add it to your hand.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【During Link】【Destroyed】Escolha 1 carta de Unidade (Gundam Team) de Lv.2 ou menor do seu lixo. Adicione-a à sua mão.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【During Link】",
+      "【Destroyed】",
+      "(Gundam Team)",
+      "Lv.2"
+    ]
+  },
+  {
+    "code": "GD06-089",
+    "name": "McGillis Fareed",
+    "set": "GD06",
+    "effectEn": "【Burst】Add this card to your hand.\n【During Link】When this Unit destroys an enemy shield area card with battle damage, choose 1 of your (Gjallarhorn) Units. During this turn, it may choose an active enemy Unit that is Lv.5 or lower as its attack target.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【During Link】Quando esta Unidade destruir uma carta da área de escudo inimiga com dano de batalha, escolha 1 das suas Unidades (Gjallarhorn). Durante este turno, ela pode escolher uma Unidade inimiga ativa de Lv.5 ou menor como alvo de ataque.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【During Link】",
+      "(Gjallarhorn)",
+      "Lv.5"
+    ]
+  },
+  {
+    "code": "GD06-090",
+    "name": "Vidar",
+    "set": "GD06",
+    "effectEn": "This card's name is also treated as [Gaelio Bauduin].\n\n【Burst】Add this card to your hand.\n【Attack】If you have 2 or more (Gjallarhorn) Units in play, choose 1 enemy Unit with 5 or less AP. Deal 1 damage to it.",
+    "effectPt": "O nome desta carta também é considerado [Gaelio Bauduin].\r\n\n【Burst】Adicione esta carta à sua mão.\n【Attack】Se você tiver 2 ou mais Unidades (Gjallarhorn) em jogo, escolha 1 Unidade inimiga com AP 5 ou menos. Cause 1 de dano a ela.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Attack】",
+      "[Gaelio Bauduin]",
+      "(Gjallarhorn)",
+      "AP"
+    ]
+  },
+  {
+    "code": "GD06-091",
+    "name": "Roux Louka",
+    "set": "GD06",
+    "effectEn": "【Burst】Add this card to your hand.\nWhile this Unit is (AEUG), it gains<Breach 1>.\n\n(During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\nEnquanto esta Unidade for (AEUG), ela ganha <Breach 1>.\r\n\n(Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano de batalha, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "<Breach 1>",
+      "(AEUG)"
+    ]
+  },
+  {
+    "code": "GD06-092",
+    "name": "Neo Lorrnoke",
+    "set": "GD06",
+    "effectEn": "This card's name is also treated as [Mu La Flaga].\n\n【Burst】Add this card to your hand.\n【When Paired】If this is a (Phantom Pain)/(Orb) Unit, choose 1 enemy Unit whose AP is equal to or less than this Unit. Deal 1 damage to it.",
+    "effectPt": "O nome desta carta também é considerado [Mu La Flaga].\r\n\n【Burst】Adicione esta carta à sua mão.\n【When Paired】Se esta for uma Unidade (Phantom Pain)/(Orb), escolha 1 Unidade inimiga cujo AP seja igual ou menor que o desta Unidade. Cause 1 de dano a ela.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Paired】",
+      "[Mu La Flaga]",
+      "(Phantom Pain)",
+      "(Orb)",
+      "AP"
+    ]
+  },
+  {
+    "code": "GD06-093",
+    "name": "Anavel Gato",
+    "set": "GD06",
+    "effectEn": "【Burst】Add this card to your hand.\n【Attack】During this battle, when this Unit receives battle damage from an enemy Unit whose Lv. is equal to or lower than it, reduce it by 2.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Attack】Durante esta batalha, quando esta Unidade receber dano de batalha de uma Unidade inimiga cujo Lv. seja igual ou menor que o dela, reduza-o em 2.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Attack】"
+    ]
+  },
+  {
+    "code": "GD06-094",
+    "name": "Nyaan",
+    "set": "GD06",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Paired】Choose 1 friendly Unit. It gains the following effect during this turn:\n\n■When this Unit deals battle damage to an enemy Unit that is Lv.4 or lower, destroy that enemy Unit.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Paired】Escolha 1 Unidade aliada. Ela ganha o seguinte efeito durante este turno:\r\n\n■Quando esta Unidade causar dano de batalha a uma Unidade inimiga de Lv.4 ou menor, destrua aquela Unidade inimiga.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Paired】",
+      "Lv.4"
+    ]
+  },
+  {
+    "code": "GD06-095",
+    "name": "Kelley Layzner",
+    "set": "GD06",
+    "effectEn": "【Burst】Add this card to your hand.\n【Attack】You may deal 1 damage to this Unit. If you do, choose 1 of your (Zeon) Units. It gets AP+2 during this turn.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Attack】Você pode causar 1 de dano a esta Unidade. Se fizer isso, escolha 1 das suas Unidades (Zeon). Ela recebe AP+2 durante este turno.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Attack】",
+      "(Zeon)",
+      "AP+2"
+    ]
+  },
+  {
+    "code": "GD06-096",
+    "name": "Xavier Olivette",
+    "set": "GD06",
+    "effectEn": "【Burst】Add this card to your hand.\n【During Link】【Attack】Place the top card of your deck into your trash. If you place a (Zeon)/(Alphacide) card with this effect, all enemy Units get AP-1 during this battle.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【During Link】【Attack】Coloque a carta do topo do seu deck no seu lixo. Se você colocou uma carta (Zeon)/(Alphacide) com este efeito, todas as Unidades inimigas recebem AP-1 durante esta batalha.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【During Link】",
+      "【Attack】",
+      "(Zeon)",
+      "(Alphacide)",
+      "AP-1"
+    ]
+  },
+  {
+    "code": "GD06-097",
+    "name": "Harry Ord",
+    "set": "GD06",
+    "effectEn": "【Burst】Add this card to your hand.\n【Once per Turn】When this Unit activates<Blocker>, set it as active.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Once per Turn】Quando esta Unidade ativar <Blocker>, coloque-a como ativa.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Once per Turn】",
+      "<Blocker>"
+    ]
+  },
+  {
+    "code": "GD06-098",
+    "name": "Duo Maxwell",
+    "set": "GD06",
+    "effectEn": "【Burst】Add this card to your hand.\n【During Link】While this Unit is rested, friendly Bases can't receive damage from enemy Units whose Lv. are equal to or lower than this Unit.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【During Link】Enquanto esta Unidade estiver descansada, Bases aliadas não podem receber dano de Unidades inimigas cujo Lv. seja igual ou menor que o desta Unidade.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【During Link】"
+    ]
+  },
+  {
+    "code": "GD06-099",
+    "name": "Chang Wufei",
+    "set": "GD06",
+    "effectEn": "【Burst】Add this card to your hand.\n【Attack】Choose 1 enemy Unit that is Lv.5 or higher. It gets AP-3 during this battle.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Attack】Escolha 1 Unidade inimiga de Lv.5 ou maior. Ela recebe AP-3 durante esta batalha.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Attack】",
+      "AP-3",
+      "Lv.5"
+    ]
+  },
+  {
+    "code": "GD06-100",
+    "name": "Corin Nander",
+    "set": "GD06",
+    "effectEn": "When playing this card from your hand and pairing it with a (Dianna Counter) Unit that is Lv.5 or higher, it gets cost -1.\n\n【Burst】Add this card to your hand.",
+    "effectPt": "Ao jogar esta carta da sua mão pareando-a com uma Unidade (Dianna Counter) de Lv.5 ou maior, ela recebe custo -1.\r\n\n【Burst】Adicione esta carta à sua mão.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "(Dianna Counter)",
+      "Lv.5"
+    ]
+  },
+  {
+    "code": "GD06-101",
+    "name": "The Gundam Says",
+    "set": "GD06",
+    "effectEn": "【Burst】Choose 1 enemy Unit with 5 or less HP. Return it to its owner's hand.\n【Main】/【Action】Choose 1 enemy Unit with 5 or less HP. Return it to its owner's hand. Then, if a friendly (Alphacide) Link Unit is in play, draw 1.",
+    "effectPt": "【Burst】Escolha 1 Unidade inimiga com HP 5 ou menos. Devolva-a à mão do dono.\r\n【Main】/【Action】Escolha 1 Unidade inimiga com HP 5 ou menos. Devolva-a à mão do dono. Então, se uma Unidade com Link (Alphacide) aliada estiver em jogo, compre 1 carta.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Main】",
+      "【Action】",
+      "(Alphacide)",
+      "HP",
+      "HP"
+    ]
+  },
+  {
+    "code": "GD06-102",
+    "name": "A Miracle",
+    "set": "GD06",
+    "effectEn": "【Burst】Add this card to your hand.\n【Action】If it is your opponent's turn and no enemy Units have attacked this turn, draw 2.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Action】Se for o turno do seu oponente e nenhuma Unidade inimiga tiver atacado neste turno, compre 2 cartas.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Action】"
+    ]
+  },
+  {
+    "code": "GD06-103",
+    "name": "Restore the Front Line",
+    "set": "GD06",
+    "effectEn": "【Main】Choose 1 rested enemy Unit. Deal 1 damage to it.\n【Pilot】[South Burning]",
+    "effectPt": "【Main】Escolha 1 Unidade inimiga em Rest. Cause 1 de dano a ela.\n【Pilot】[South Burning]\r",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Pilot】",
+      "[South Burning]"
+    ]
+  },
+  {
+    "code": "GD06-104",
+    "name": "Steady Support",
+    "set": "GD06",
+    "effectEn": "【Main】/【Action】Choose 1 enemy Unit with 3 or less HP. Return it to its owner's hand.\n【Pilot】[Chuck Keith]",
+    "effectPt": "【Main】/【Action】Escolha 1 Unidade inimiga com 3 ou menos de HP. Devolva-a à mão do dono.\n【Pilot】[Chuck Keith]\r",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Action】",
+      "【Pilot】",
+      "[Chuck Keith]",
+      "HP"
+    ]
+  },
+  {
+    "code": "GD06-105",
+    "name": "Grace Under Pressure",
+    "set": "GD06",
+    "effectEn": "【Main】Deploy 1 [Gundam Calibarn]((Academy)･AP5･HP3･<High-Maneuver>) Unit token or 1 [Gundam Aerial Rebuild]((Quiet Zero)･AP3･HP5･<Breach 3>) Unit token.",
+    "effectPt": "【Main】Faça o Deploy de 1 ficha de Unidade [Gundam Calibarn]((Academy)･AP5･HP3･<High-Maneuver>) ou de 1 ficha de Unidade [Gundam Aerial Rebuild]((Quiet Zero)･AP3･HP5･<Breach 3>).\r",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "[Gundam Calibarn]",
+      "[Gundam Aerial Rebuild]",
+      "((Academy)･AP5･HP3･<High-Maneuver>)",
+      "((Quiet Zero)･AP3･HP5･<Breach 3>)"
+    ]
+  },
+  {
+    "code": "GD06-106",
+    "name": "Presence Detected",
+    "set": "GD06",
+    "effectEn": "【Action】During this battle, your shield area cards can't receive damage from enemy Units with 6 or less AP.",
+    "effectPt": "【Action】Durante esta batalha, as cartas da sua área de escudo não podem receber dano de Unidades inimigas com AP 6 ou menos.\r",
+    "status": "OK",
+    "tokens": [
+      "【Action】",
+      "AP"
+    ]
+  },
+  {
+    "code": "GD06-107",
+    "name": "Wheel Spoke Formation",
+    "set": "GD06",
+    "effectEn": "【Main】If you have a (Ghingnham Fleet) Unit in play, choose 1 enemy Unit with<Blocker> and 3 or less AP. Destroy it.\n【Pilot】[Sweatson Stero]",
+    "effectPt": "【Main】Se você tiver uma Unidade (Ghingnham Fleet) em jogo, escolha 1 Unidade inimiga com <Blocker> e AP 3 ou menos. Destrua-a.\r\n【Pilot】[Sweatson Stero]\r",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Pilot】",
+      "[Sweatson Stero]",
+      "<Blocker>",
+      "(Ghingnham Fleet)",
+      "AP"
+    ]
+  },
+  {
+    "code": "GD06-108",
+    "name": "On Edge",
+    "set": "GD06",
+    "effectEn": "【Main】All friendly (Neo Zeon) Units that are Lv.4 or lower get AP+2 during this turn.\n【Pilot】[Chara Soon]",
+    "effectPt": "【Main】Todas as Unidades (Neo Zeon) aliadas de Lv.4 ou menor recebem AP+2 durante este turno.\r\n【Pilot】[Chara Soon]\r",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Pilot】",
+      "[Chara Soon]",
+      "(Neo Zeon)",
+      "AP+2",
+      "Lv.4"
+    ]
+  },
+  {
+    "code": "GD06-109",
+    "name": "God of War Ghingnham",
+    "set": "GD06",
+    "effectEn": "【Main】Deploy 1 rested [Turn X (Arms)]((Ghingnham Fleet) (Long-Range Weapon)･AP2･HP3) Unit token or 1 rested [Turn X (Legs)]((Ghingnham Fleet) (Long-Range Weapon)･AP3･HP2) Unit token.",
+    "effectPt": "【Main】Faça o Deploy de 1 ficha de Unidade descansada [Turn X (Arms)]((Ghingnham Fleet) (Long-Range Weapon)･AP2･HP3) ou de 1 ficha de Unidade descansada [Turn X (Legs)]((Ghingnham Fleet) (Long-Range Weapon)･AP3･HP2).\r",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "[Turn X (Arms)]",
+      "[Turn X (Legs)]",
+      "(Ghingnham Fleet)",
+      "(Long-Range Weapon)",
+      "(Ghingnham Fleet)",
+      "(Long-Range Weapon)",
+      "AP2",
+      "HP3",
+      "AP3",
+      "HP2"
+    ]
+  },
+  {
+    "code": "GD06-110",
+    "name": "Familial Love",
+    "set": "GD06",
+    "effectEn": "【Burst】Add this card to your hand.\n【Action】Choose 1 of your Units. It gets AP+2 during this battle. Then, if you have 3 or less cards in your hand, draw 1.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Action】Escolha 1 das suas Unidades. Ela recebe AP+2 durante esta batalha. Então, se você tiver 3 ou menos cartas na mão, compre 1 carta.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Action】",
+      "AP+2"
+    ]
+  },
+  {
+    "code": "GD06-111",
+    "name": "Steely Loyalty",
+    "set": "GD06",
+    "effectEn": "【Action】If there are 4 or more (Gjallarhorn) cards in your trash, choose 1 enemy Unit. Deal 2 damage to it.\n【Pilot】[Julieta Juris]",
+    "effectPt": "【Action】Se houver 4 ou mais cartas (Gjallarhorn) no seu lixo, escolha 1 Unidade inimiga. Cause 2 de dano a ela.\r\n【Pilot】[Julieta Juris]\r",
+    "status": "OK",
+    "tokens": [
+      "【Action】",
+      "【Pilot】",
+      "[Julieta Juris]",
+      "(Gjallarhorn)"
+    ]
+  },
+  {
+    "code": "GD06-112",
+    "name": "Rivalry with Roux",
+    "set": "GD06",
+    "effectEn": "【Action】Choose 1 enemy Unit battling a friendly (AEUG) Unit. Deal 2 damage to it.\n【Pilot】[Elle Vianno]",
+    "effectPt": "【Action】Escolha 1 Unidade inimiga em batalha com uma Unidade (AEUG) aliada. Cause 2 de dano a ela.\r\n【Pilot】[Elle Vianno]\r",
+    "status": "OK",
+    "tokens": [
+      "【Action】",
+      "【Pilot】",
+      "[Elle Vianno]",
+      "(AEUG)"
+    ]
+  },
+  {
+    "code": "GD06-113",
+    "name": "Unsanctioned Ordnance",
+    "set": "GD06",
+    "effectEn": "【Burst】Choose 1 enemy Unit. Deal 2 damage to it.\n【Main】/【Action】Choose 1 damaged enemy Unit. Deal 5 damage to it.",
+    "effectPt": "【Burst】Escolha 1 Unidade inimiga. Cause 2 de dano a ela.\n【Main】/【Action】Escolha 1 Unidade inimiga danificada. Cause 5 de dano a ela.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Main】",
+      "【Action】"
+    ]
+  },
+  {
+    "code": "GD06-114",
+    "name": "Alphaciders",
+    "set": "GD06",
+    "effectEn": "【Action】When playing this card, choose 1 of the following effects and activate it:\n\n■Choose 1 friendly (Alphacide) Unit. During this battle, when it receives enemy battle damage, reduce it by 3.\n\n■Choose 1 enemy Unit that is Lv.2 or lower. Destroy it.",
+    "effectPt": "【Action】Ao jogar esta carta, escolha 1 dos efeitos a seguir e ative-o:\n\n■Escolha 1 Unidade (Alphacide) aliada. Durante esta batalha, quando ela receber dano de batalha inimigo, reduza-o em 3.\r\n\n■Escolha 1 Unidade inimiga de Lv.2 ou menor. Destrua-a.",
+    "status": "OK",
+    "tokens": [
+      "【Action】",
+      "(Alphacide)",
+      "Lv.2"
+    ]
+  },
+  {
+    "code": "GD06-115",
+    "name": "Teaching New Techniques",
+    "set": "GD06",
+    "effectEn": "【Main】Choose 1 enemy Unit that is Lv.4 or lower. Destroy it. Then, deploy 1 [Sazabi]((Neo Zeon)･AP4･HP4) Unit token. The destroyed Unit's owner deploys 1 [Nu Gundam]((Londo Bell)･AP3･HP3･<First Strike>) Unit token.",
+    "effectPt": "【Main】Escolha 1 Unidade inimiga de Lv.4 ou menor. Destrua-a. Então, faça o Deploy de 1 ficha de Unidade [Sazabi]((Neo Zeon)･AP4･HP4). O dono da Unidade destruída faz o Deploy de 1 ficha de Unidade [Nu Gundam]((Londo Bell)･AP3･HP3･<First Strike>).\r",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "[Sazabi]",
+      "[Nu Gundam]",
+      "((Neo Zeon)･AP4･HP4)",
+      "((Londo Bell)･AP3･HP3･<First Strike>)",
+      "Lv.4"
+    ]
+  },
+  {
+    "code": "GD06-116",
+    "name": "Afterglow of Zeon",
+    "set": "GD06",
+    "effectEn": "【Burst】Add this card to your hand.\n【Main】Choose 1 purple (Zeon) Unit card that is Lv.5 or lower from your trash. Deploy it.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Main】Escolha 1 carta de Unidade (Zeon) roxa de Lv.5 ou menor do seu lixo. Faça o Deploy dela.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Main】",
+      "(Zeon)",
+      "Lv.5"
+    ]
+  },
+  {
+    "code": "GD06-117",
+    "name": "Veterans Joining Forces",
+    "set": "GD06",
+    "effectEn": "【Action】Choose 1 rested friendly (Delaz Fleet) Unit. Change a battling enemy Unit's attack target to it.\n【Pilot】[Karius]",
+    "effectPt": "【Action】Escolha 1 Unidade (Delaz Fleet) aliada descansada. Mude o alvo de ataque de uma Unidade inimiga em batalha para ela.\r\n【Pilot】[Karius]\r",
+    "status": "OK",
+    "tokens": [
+      "【Action】",
+      "【Pilot】",
+      "[Karius]",
+      "(Delaz Fleet)"
+    ]
+  },
+  {
+    "code": "GD06-118",
+    "name": "Infinite Variations",
+    "set": "GD06",
+    "effectEn": "【Main】/【Action】Choose a number of enemy Units up to the number of white Units with<Blocker> you have in play. They get AP-2 during this turn.",
+    "effectPt": "【Main】/【Action】Escolha Unidades inimigas, até o número de Unidades brancas com <Blocker> que você tiver em jogo. Elas recebem AP-2 durante este turno.\r",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Action】",
+      "<Blocker>",
+      "AP-2"
+    ]
+  },
+  {
+    "code": "GD06-119",
+    "name": "Sturm und Drang",
+    "set": "GD06",
+    "effectEn": "【Action】Choose 1 enemy Unit with 3 or less HP. Rest it. After activating this card's 【Action】, you may pair this card from your trash with one of your (MF) Units.\n【Pilot】[Schwarz Bruder]",
+    "effectPt": "【Action】Escolha 1 Unidade inimiga com HP 3 ou menos. Coloque-a em Rest. Depois de ativar o 【Action】 desta carta, você pode parear esta carta do seu lixo com uma das suas Unidades (MF).\r\n【Pilot】[Schwarz Bruder]\r",
+    "status": "OK",
+    "tokens": [
+      "【Action】",
+      "【Action】",
+      "【Pilot】",
+      "[Schwarz Bruder]",
+      "(MF)",
+      "HP",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-120",
+    "name": "Hoping for Peace",
+    "set": "GD06",
+    "effectEn": "【Burst】Choose 1 enemy Unit with 5 or less HP. Rest it.\n【Main】/【Action】Choose 1 enemy Unit. Rest it.",
+    "effectPt": "【Burst】Escolha 1 Unidade inimiga com HP de 5 ou menos. Coloque-a em Rest.\n【Main】/【Action】Escolha 1 Unidade inimiga. Coloque-a em Rest.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Main】",
+      "【Action】",
+      "HP",
+      "Rest",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-121",
+    "name": "Crybaby Poe",
+    "set": "GD06",
+    "effectEn": "【Action】Choose 1 enemy Unit. It gets AP-2 during this battle. If it has<High-Maneuver>, AP-6 instead.\n【Pilot】[Poe Aijee]",
+    "effectPt": "【Action】Escolha 1 Unidade inimiga. Ela recebe AP-2 durante esta batalha. Se ela tiver <High-Maneuver>, AP-6 no lugar disso.\r\n【Pilot】[Poe Aijee]\r",
+    "status": "OK",
+    "tokens": [
+      "【Action】",
+      "【Pilot】",
+      "[Poe Aijee]",
+      "<High-Maneuver>",
+      "AP-2",
+      "AP-6"
+    ]
+  },
+  {
+    "code": "GD06-122",
+    "name": "Albion",
+    "set": "GD06",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, choose 1 enemy Unit that is Lv.2 or lower. Return it to its owner's hand.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão. Então, escolha 1 Unidade inimiga de Lv.2 ou menor. Devolva-a à mão do dono.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "Lv.2"
+    ]
+  },
+  {
+    "code": "GD06-123",
+    "name": "Endra",
+    "set": "GD06",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, if it is your turn and you have a (Neo Zeon) Unit paired with a Pilot that is Lv.3 or lower in play, choose 1 enemy Unit with<Blocker> and 3 or less AP. Destroy it.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão. Então, se for o seu turno e você tiver em jogo uma Unidade (Neo Zeon) pareada com um Piloto de Lv.3 ou menor, escolha 1 Unidade inimiga com <Blocker> e AP 3 ou menos. Destrua-a.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "<Blocker>",
+      "(Neo Zeon)",
+      "AP",
+      "Lv.3"
+    ]
+  },
+  {
+    "code": "GD06-124",
+    "name": "Aspite",
+    "set": "GD06",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Activate･Main】Rest this Base：If you have 3 or more (Ghingnham Fleet)/(Long-Range Weapon) Units in play, all your (Ghingnham Fleet) Units get AP+1 during this turn.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\n【Activate･Main】Coloque esta Base em Rest：Se você tiver 3 ou mais Unidades (Ghingnham Fleet)/(Long-Range Weapon) em jogo, todas as suas Unidades (Ghingnham Fleet) recebem AP+1 durante este turno.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "【Activate･Main】",
+      "(Ghingnham Fleet)",
+      "(Long-Range Weapon)",
+      "(Ghingnham Fleet)",
+      "AP+1",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-125",
+    "name": "Argama",
+    "set": "GD06",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Once per Turn】When this Base receives battle damage while you have a rested (AEUG) Unit in play, choose 1 enemy Unit. Deal 1 damage to it.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\n【Once per Turn】Quando esta Base receber dano de batalha enquanto você tiver uma Unidade (AEUG) descansada em jogo, escolha 1 Unidade inimiga. Cause 1 de dano a ela.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "【Once per Turn】",
+      "(AEUG)"
+    ]
+  },
+  {
+    "code": "GD06-126",
+    "name": "Skipjack-class Warship",
+    "set": "GD06",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, if a friendly (Gjallarhorn) Unit is in play, choose 1 damaged enemy Unit. Deal 1 damage to it.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão. Então, se uma Unidade (Gjallarhorn) aliada estiver em jogo, escolha 1 Unidade inimiga danificada. Cause 1 de dano a ela.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "(Gjallarhorn)"
+    ]
+  },
+  {
+    "code": "GD06-127",
+    "name": "Yomagn'tho",
+    "set": "GD06",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, if it is your turn, place the top 2 cards of your deck into your trash. If you place an (Alphacide) card with this effect, choose 1 enemy Unit with 2 or less AP. Destroy it.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão. Então, se for o seu turno, coloque as 2 cartas do topo do seu deck no seu lixo. Se você colocou uma carta (Alphacide) com este efeito, escolha 1 Unidade inimiga com AP 2 ou menos. Destrua-a.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "(Alphacide)",
+      "AP"
+    ]
+  },
+  {
+    "code": "GD06-128",
+    "name": "Gwaden",
+    "set": "GD06",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Activate･Main】Rest this Base：Choose 1 friendly (Zeon) Unit. During this turn, when it receives enemy battle damage, reduce it by 1.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\n【Activate･Main】Coloque esta Base em Rest：Escolha 1 Unidade (Zeon) aliada. Durante este turno, quando ela receber dano de batalha inimigo, reduza-o em 1.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "【Activate･Main】",
+      "(Zeon)",
+      "Rest"
+    ]
+  },
+  {
+    "code": "GD06-129",
+    "name": "5th Luna",
+    "set": "GD06",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Destroyed】If you have any Shields in play, deploy 1 [Axis]((Neo Zeon)･AP0･HP5) Base token.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\n【Destroyed】Se você tiver algum escudo em jogo, faça o Deploy de 1 ficha de Base [Axis]((Neo Zeon)･AP0･HP5).\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "【Destroyed】",
+      "[Axis]",
+      "((Neo Zeon)･AP0･HP5)"
+    ]
+  },
+  {
+    "code": "GD06-130",
+    "name": "Soleil",
+    "set": "GD06",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, choose 1 enemy Unit with no paired Pilot. Reduce its AP by an amount equal to the number of friendly (Dianna Counter)/(Militia) Units during this turn.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão. Então, escolha 1 Unidade inimiga sem Piloto pareado. Reduza o AP dela em uma quantidade igual ao número de Unidades (Dianna Counter)/(Militia) aliadas, durante este turno.\r",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "(Dianna Counter)",
+      "(Militia)",
+      "AP"
+    ]
+  }
+]

@@ -63,6 +63,12 @@ const officialSetMap = {
     page: "https://www.gundam-gcg.com/en/products/gd05.html",
     fallbackUrl: "https://www.gundam-gcg.com/gcg/bccard/en/news/2026/04/30/rx2iVMb1gZkF1QUf/GD05_thumbnail_en.webp",
   },
+  GD06: {
+    code: "GD06",
+    name: "Stardust Trails",
+    page: "https://www.gundam-gcg.com/en/products/gd06.html",
+    fallbackUrl: "https://www.gundam-gcg.com/gcg/bccard/en/news/2026/08/25/rUSe7r98pogn8Y3M/GD06_thumbnail_en.webp",
+  },
   GD01_b: {
     code: "GD01_b",
     name: "Edition Beta",
