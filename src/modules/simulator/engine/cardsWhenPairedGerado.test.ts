@@ -49,6 +49,8 @@ const SEM_RASTRO_NO_TABULEIRO: string[] = [
   "EB01-021", "EB01-047", "EB01-060", "GD02-061", "GD02-099", "GD03-020", "GD03-054", "GD05-017",
   // W13a — "10 or more (Zeon) Unit cards in your trash"
   "GD06-049",
+  // W13b — "<Breach 1> as the number of (Neo Zeon)/(Long-Range Weapon) Units" — nenhuma no tabuleiro (0)
+  "GD06-084",
   // "Choose … (keyword/HP/nível/trait de outra Unit)" sem alvo que case no tabuleiro
   "EB01-045", "EB01-072", "GD01-032", "GD02-089", "GD05-036", "GD05-083", "ST14-012",
   // "If you have 2 or more other (X) Units" / "All friendly (Marine) Units" — nenhuma Unit do trait

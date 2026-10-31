@@ -3,6 +3,7 @@ import { effectiveCost, effectiveDeployCost, effectivePilotDef, hasKeyword, sati
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { commandCostUnpayable, commandHasNoAvailableMode, computeLegalTargets, costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, specNeedsNamedTarget, trashExileChoice } from "./effectSpec";
 import { findTriggerSpecs, specOncePerTurnMarker } from "./dispatcher";
+import { findCard } from "./events";
 import { attackIneligibilityReason, attackTargetError, canActivateBlocker } from "./combat";
 import { canPayLevel } from "./deploy";
 import { costRestsSelf, specResourceCost } from "./costs";
@@ -304,7 +305,7 @@ function mainPhaseCandidates(state: GameState, seat: PlayerId, specs: EffectSpec
           out.push(...commandPlayCandidates(state, seat, card, "Main", specs, opts).map((a) => ({ ...a, altCostDiscardId: discard.instanceId })));
         }
       }
-      if (def.zeroCostWhenPairedWithUnitNameContains && canPayLevel(state, seat, def)) {
+      if ((def.zeroCostWhenPairedWithUnitNameContains || def.pairingCostReduction) && canPayLevel(state, seat, def)) {
         for (const unit of friendlyUnits(state, seat)) {
           if (unit.pairedPilotId || unit.def.cannotBePaired) continue;
           if (!canAfford(state, seat, effectiveDeployCost(def, state, seat, unit.instanceId))) continue;
@@ -425,7 +426,14 @@ function pendingDecisionCandidates(state: GameState, seat: PlayerId, specs: Effe
         // W8 — com `count` (custo "Rest N"), uma escolha gulosa com as N primeiras (mesma postura do `targetCount`)
         const secondaryChoices: string[][] = q.secondaryTarget
           ? q.secondaryTarget.count && q.secondaryTarget.count > 1
-            ? [q.secondaryTarget.legalTargets.slice(0, q.secondaryTarget.count)]
+            ? [
+                (q.secondaryTarget.uniqueNames
+                  ? q.secondaryTarget.legalTargets.filter(
+                      (id, i, all) => all.findIndex((other) => findCard(state, other).def.nameEn === findCard(state, id).def.nameEn) === i,
+                    )
+                  : q.secondaryTarget.legalTargets
+                ).slice(0, q.secondaryTarget.count),
+              ]
             : q.secondaryTarget.legalTargets.length > 0
               ? q.secondaryTarget.legalTargets.map((id) => [id])
               : [[]]

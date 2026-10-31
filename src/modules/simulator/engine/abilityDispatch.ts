@@ -33,7 +33,7 @@ import { compileActions } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
 import { TOKEN_EX_RESOURCE_CODE } from "./setup";
 import type { CardInstance, DestroyedInBattle, GameEvent, GameState, PendingDecision, PlayerId, QueuedTrigger } from "./types";
-import { effectivePilotDef, hasTrait, isActingAsPilot, otherPlayer, satisfiesLinkCondition, specPairGateOpen } from "./types";
+import { effectivePilotDef, hasTrait, isActingAsPilot, otherPlayer, satisfiesLinkCondition, specPairGateOpen, trashCardDef } from "./types";
 
 /**
  * Orçamento COMPARTILHADO (mesma referência ao longo de toda a árvore de
@@ -105,6 +105,7 @@ function buildQueueEntry(
           targetScope: spec.secondaryTarget.targetScope,
           sequential: spec.secondaryTarget.sequential,
           ...(spec.secondaryTarget.count ? { count: spec.secondaryTarget.count } : {}),
+          ...(spec.secondaryTarget.uniqueNames ? { uniqueNames: true } : {}),
           legalTargets: [
             ...computeLegalTargets(
               state,
@@ -216,7 +217,7 @@ function buildQueueEntry(
       .filter(
         (c) =>
           (choice.op !== "deployFromTrashPayingCost" || c.def.cardType === "UNIT" || (c.def.cardType === "BASE" && choice.filter.cardType === "BASE")) &&
-          matchesCardDefFilter(c.def, choice.filter),
+          matchesCardDefFilter(trashCardDef(state, c), choice.filter),
       )
       .map((c) => c.instanceId);
     return { ...entry, trashSearch: { legalTrashIds, label: spec.sourceText } };
@@ -1107,20 +1108,24 @@ export function collectEffectReactions(
   if (sourceInstanceId) {
     const source = [...before.players.A.battleArea, ...before.players.B.battleArea].find((c) => c.instanceId === sourceInstanceId);
     const unit = source && (source.def.cardType === "UNIT" ? source : source.pairedUnitId ? findCard(before, source.pairedUnitId) : undefined);
-    const damaged = new Set(events.flatMap((e) => (e.type === "DAMAGE_UNIT" && e.amount > 0 ? [e.instanceId] : [])));
+    const damaged = new Set(events.flatMap((e) => ((e.type === "DAMAGE_UNIT" || e.type === "DAMAGE_BASE") && e.amount > 0 ? [e.instanceId] : [])));
     if (unit && unit.def.cardType === "UNIT") {
+      const enemySide = before.players[otherPlayer(unit.owner)];
+      const paired = unit.pairedPilotId ? { subjectPairedPilotId: unit.pairedPilotId } : {};
       for (const e of events) {
         if (e.type !== "DESTROY_CARD" || !damaged.has(e.instanceId)) continue;
-        const victim = before.players[otherPlayer(unit.owner)].battleArea.find((c) => c.instanceId === e.instanceId);
-        if (!victim || victim.def.cardType !== "UNIT") continue;
-        out.push({
-          event: "destroyedEnemyWithDamage",
-          subjectId: unit.instanceId,
-          owner: unit.owner,
-          effectController,
-          victimId: victim.instanceId,
-          ...(unit.pairedPilotId ? { subjectPairedPilotId: unit.pairedPilotId } : {}),
-        });
+        const victim = enemySide.battleArea.find((c) => c.instanceId === e.instanceId);
+        if (victim && victim.def.cardType === "UNIT") {
+          const occ = { subjectId: unit.instanceId, owner: unit.owner, effectController, victimId: victim.instanceId, ...paired };
+          out.push({ event: "destroyedEnemyWithDamage", ...occ }, { event: "destroyedEnemyCardWithDamage", ...occ });
+        } else if (enemySide.baseSection.some((b) => b.instanceId === e.instanceId)) {
+          // W13b — Base inimiga destruída por dano de efeito da Unit (GD06-020, Q496/Q497)
+          out.push({ event: "destroyedEnemyCardWithDamage", subjectId: unit.instanceId, owner: unit.owner, effectController, ...paired });
+        }
+      }
+      // W13b — escudo inimigo destruído por dano de efeito da Unit ("deal N damage to the first card in … shield area")
+      if (events.some((e) => e.type === "DAMAGE_SHIELD" && e.player !== unit.owner) && enemySide.shields.length > 0) {
+        out.push({ event: "destroyedEnemyCardWithDamage", subjectId: unit.instanceId, owner: unit.owner, effectController, ...paired });
       }
     }
   }

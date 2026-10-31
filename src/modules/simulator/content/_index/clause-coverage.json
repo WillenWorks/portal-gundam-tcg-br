@@ -20616,29 +20616,33 @@
     "GD06": {
       "counts": {
         "vanilla": 18,
-        "full": 91,
+        "full": 112,
         "partial": 0,
-        "missing": 21,
+        "missing": 0,
         "withErrors": 0
       },
       "cards": [
         {
           "code": "GD06-001",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD06-001-Attacked"
+              ],
               "text": "【Once per Turn】When this Unit is attacked, draw 1."
             },
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "【During Pair】This Unit gains<High-Maneuver>."
             }
           ]
@@ -20919,7 +20923,7 @@
         },
         {
           "code": "GD06-018",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -20936,10 +20940,9 @@
               "triggers": [
                 "Activate·Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Action"
+              "by": "spec",
+              "refs": [
+                "GD06-018-ActivateAction"
               ],
               "text": "【During Pair】【Activate·Action】【Once per Turn】Choose 1 of your (Neo Zeon)/(Long-Range Weapon) Units or 1 of your (Neo Zeon) Bases. During this battle, battle damage this Unit would receive is dealt to that Unit/Base instead."
             }
@@ -20974,21 +20977,23 @@
         },
         {
           "code": "GD06-020",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD06-020-DestroyedEnemyCard"
+              ],
               "text": "During your turn, when one of your (Neo Zeon) Units destroys an enemy card with damage, this Unit recovers 1 HP."
             }
           ]
         },
         {
           "code": "GD06-021",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -20996,10 +21001,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD06-021-Deploy"
               ],
               "text": "【Deploy】Choose 1 of your Unit tokens. Deploy 1 rested Unit token of the same kind."
             }
@@ -21166,14 +21170,16 @@
         },
         {
           "code": "GD06-033",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "damageBoost"
+              ],
               "text": "When your (AEUG) cards deal damage to enemy Units, increase the damage dealt by 1."
             },
             {
@@ -21252,21 +21258,25 @@
         },
         {
           "code": "GD06-037",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "During your turn, while this Unit is battling a damaged enemy Unit, it gains<First Strike>."
             },
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "preventsEnemySelfSetActive"
+              ],
               "text": "【During Pair】Enemy Units can't be set as active by enemy effects."
             }
           ]
@@ -21300,7 +21310,7 @@
         },
         {
           "code": "GD06-039",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -21308,10 +21318,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "spec",
+              "refs": [
+                "GD06-039-ActivateMain"
               ],
               "text": "【Activate·Main】Destroy 2 of your (Gundam Team) Units with unique card names that are Lv.3 and this Unit:Deploy 1 (Gundam Team) Unit card that is Lv.8 or higher from your hand."
             }
@@ -21343,7 +21352,7 @@
         },
         {
           "code": "GD06-042",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -21351,10 +21360,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD06-042-Deploy"
               ],
               "text": "【Deploy】Look at the top 4 cards of your deck. You may pair 1 (Biological CPU) Pilot card among them with this Unit. Return the remaining cards randomly to the bottom of your deck."
             }
@@ -21473,14 +21481,16 @@
         },
         {
           "code": "GD06-050",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "trashModifier"
+              ],
               "text": "While you have a (ZAFT) Link Unit in play, this card in your trash gets Lv. -3 and cost -3."
             },
             {
@@ -21498,7 +21508,7 @@
         },
         {
           "code": "GD06-051",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -21517,10 +21527,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD06-051-Deploy",
+                "GD06-051-EndOfTurn"
               ],
               "text": "【Deploy】If another friendly (Alphacide) Unit is in play, this Unit gains the following effect during this turn:\n■At the end of the turn, choose 2 of your Resources. Set them as active."
             }
@@ -21880,7 +21890,7 @@
         },
         {
           "code": "GD06-070",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -21899,10 +21909,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD06-070-Attack"
               ],
               "text": "【Attack】If you have paid a total of ③ or more for your Units'effects this turn, choose 1 enemy Unit. It gets AP-5 during this battle."
             }
@@ -22030,7 +22039,7 @@
         },
         {
           "code": "GD06-080",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -22049,10 +22058,9 @@
               "triggers": [
                 "Activate·Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Action"
+              "by": "spec",
+              "refs": [
+                "GD06-080-ActivateAction"
               ],
               "text": "【Activate·Action】【Once per Turn】If you have drawn with an effect during this turn, choose 1 of your Units. It recovers 2 HP."
             }
@@ -22143,7 +22151,7 @@
         },
         {
           "code": "GD06-084",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -22162,10 +22170,9 @@
               "triggers": [
                 "When Paired"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Paired"
+              "by": "spec",
+              "refs": [
+                "GD06-084-WhenPaired"
               ],
               "text": "【When Paired】During this turn, this Unit gains the same number of<Breach 1> as the number of (Neo Zeon)/(Long-Range Weapon) Units you have in play."
             }
@@ -22200,14 +22207,16 @@
         },
         {
           "code": "GD06-086",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "pairingCostReduction"
+              ],
               "text": "When playing this card from your hand and pairing it with a Unit with the [Mashymre Cello] link condition, it gets cost -1."
             },
             {
@@ -22413,7 +22422,7 @@
         },
         {
           "code": "GD06-093",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -22432,10 +22441,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD06-093-Attack"
               ],
               "text": "【Attack】During this battle, when this Unit receives battle damage from an enemy Unit whose Lv. is equal to or lower than it, reduce it by 2."
             }
@@ -22531,7 +22539,7 @@
         },
         {
           "code": "GD06-097",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -22548,15 +22556,17 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD06-097-BlockerActivated"
+              ],
               "text": "【Once per Turn】When this Unit activates<Blocker>, set it as active."
             }
           ]
         },
         {
           "code": "GD06-098",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -22573,8 +22583,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "damageReductions"
+              ],
               "text": "【During Link】While this Unit is rested, friendly Bases can't receive damage from enemy Units whose Lv. are equal to or lower than this Unit."
             }
           ]
@@ -22610,14 +22622,16 @@
         },
         {
           "code": "GD06-100",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "pairingCostReduction"
+              ],
               "text": "When playing this card from your hand and pairing it with a (Dianna Counter) Unit that is Lv.5 or higher, it gets cost -1."
             },
             {
@@ -22671,7 +22685,7 @@
         },
         {
           "code": "GD06-102",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -22690,10 +22704,9 @@
               "triggers": [
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD06-102-Action"
               ],
               "text": "【Action】If it is your opponent's turn and no enemy Units have attacked this turn, draw 2."
             }
@@ -23073,7 +23086,7 @@
         },
         {
           "code": "GD06-118",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -23082,11 +23095,10 @@
                 "Main",
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main",
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD06-118-Main",
+                "GD06-118-Action"
               ],
               "text": "【Main】/【Action】Choose a number of enemy Units up to the number of white Units with<Blocker> you have in play. They get AP-2 during this turn."
             }
@@ -23278,7 +23290,7 @@
         },
         {
           "code": "GD06-125",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -23306,8 +23318,10 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD06-125-DamagedByEnemy"
+              ],
               "text": "【Once per Turn】When this Base receives battle damage while you have a rested (AEUG) Unit in play, choose 1 enemy Unit. Deal 1 damage to it."
             }
           ]

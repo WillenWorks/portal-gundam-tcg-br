@@ -47,7 +47,17 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
     },
     "triggerKeywords": [
       "Deploy"
-    ]
+    ],
+    "trashModifier": {
+      "level": -3,
+      "cost": -3,
+      "boardCondition": {
+        "kind": "friendlyOtherLinkUnitTraitCountAtLeast",
+        "trait": "ZAFT",
+        "n": 1
+      },
+      "sourceText": "While you have a (ZAFT) Link Unit in play, this card in your trash gets Lv. -3 and cost -3."
+    }
   },
   "GD06-051": {
     "code": "GD06-051",

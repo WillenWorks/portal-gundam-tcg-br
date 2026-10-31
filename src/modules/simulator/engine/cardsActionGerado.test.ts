@@ -207,6 +207,8 @@ const COMMAND_SEM_RASTRO: string[] = [
   "GD02-113", "GD02-119", "GD04-118", "ST10-015",
   // W13a — "If there are 4 or more (Gjallarhorn) cards in your trash"
   "GD06-111",
+  // W13b — "If it is your opponent's turn …" — o Action Step aqui é no turno do próprio jogador
+  "GD06-102",
   // efeito sem material: nenhuma Unit pareada
   "GD03-112",
   // "recovers 2 HP" na 1ª Unit (Academy) escolhida, sem dano
@@ -223,6 +225,8 @@ const ACTIVATE_SEM_RASTRO: string[] = [
   "EB01-020", "GD01-014",
   // "If there are 6 or more (Gjallarhorn) cards in your trash" / "If an enemy Unit with 1 or less AP is in play"
   "GD03-073", "GD01-098",
+  // W13b — "If you have drawn with an effect during this turn"
+  "GD06-080",
 ];
 
 describe(`【Action】 gerado — ${ACTION_CARDS.length} Commands e ${ACTIVATE_CARDS.length} cartas com 【Activate･Action】, no Action Step`, () => {
