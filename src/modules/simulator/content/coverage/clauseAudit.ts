@@ -99,6 +99,10 @@ export const STRUCTURED_FIELDS = [
   "lowestLevelEnemyRestedStayRested",
   "damageBoost",
   "preventsEnemySelfSetActive",
+  // tokens com restrição impressa (T-014/T-022/T-029): "can't be set as active / paired with a Pilot / attack"
+  "cannotBeSetActive",
+  "cannotBePaired",
+  "cannotAttack",
 ] as const satisfies ReadonlyArray<keyof CardDef>;
 
 const TIMING_TRIGGERS = new Set([
