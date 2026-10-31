@@ -167,7 +167,12 @@ export const PILOTS: Record<string, CardDef> = {
     "triggerKeywords": [
       "Burst"
     ],
-    "hasBurst": true
+    "hasBurst": true,
+    "pairingCostReduction": {
+      "amount": 1,
+      "unitLinkPilotName": "Mashymre Cello",
+      "sourceText": "When playing this card from your hand and pairing it with a Unit with the [Mashymre Cello] link condition, it gets cost -1."
+    }
   },
   "GD06-087": {
     "code": "GD06-087",
@@ -420,7 +425,20 @@ export const PILOTS: Record<string, CardDef> = {
     "triggerKeywords": [
       "Burst"
     ],
-    "hasBurst": true
+    "hasBurst": true,
+    "damageReductions": [
+      {
+        "immune": true,
+        "aura": {
+          "bases": true
+        },
+        "holderLinked": true,
+        "holderUnitRested": true,
+        "sourceUnitOnly": true,
+        "sourceLevelAtMostHolderUnit": true,
+        "sourceText": "【During Link】While this Unit is rested, friendly Bases can't receive damage from enemy Units whose Lv. are equal to or lower than this Unit."
+      }
+    ]
   },
   "GD06-099": {
     "code": "GD06-099",
@@ -458,6 +476,12 @@ export const PILOTS: Record<string, CardDef> = {
     "triggerKeywords": [
       "Burst"
     ],
-    "hasBurst": true
+    "hasBurst": true,
+    "pairingCostReduction": {
+      "amount": 1,
+      "unitTrait": "Dianna Counter",
+      "unitMinLevel": 5,
+      "sourceText": "When playing this card from your hand and pairing it with a (Dianna Counter) Unit that is Lv.5 or higher, it gets cost -1."
+    }
   },
 };

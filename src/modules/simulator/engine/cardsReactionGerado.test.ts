@@ -26,6 +26,7 @@ const PLAIN_COMMAND = ALL_CARD_DEFS["ST01-013"]; // 【Main】Choose 1 friendly 
 const SCENARIO_EVENTS: ReactionEvent[] = [
   "destroyedEnemyInBattle",
   "destroyedEnemyWithDamage",
+  "destroyedEnemyCardWithDamage",
   "battleDamageToEnemyUnit",
   "destroyedShieldInBattle",
   "attack",
@@ -129,7 +130,7 @@ function scenario(code: string): Scenario | null {
     }
   }
   const actorId = reaction.subject === "self" ? selfUnitId : placeCard(state, "A", actorFor(spec), "battleArea");
-  if (!actorId && ["destroyedEnemyInBattle", "destroyedEnemyWithDamage", "battleDamageToEnemyUnit", "destroyedShieldInBattle", "attack"].includes(reaction.event)) {
+  if (!actorId && ["destroyedEnemyInBattle", "destroyedEnemyWithDamage", "destroyedEnemyCardWithDamage", "battleDamageToEnemyUnit", "destroyedShieldInBattle", "attack"].includes(reaction.event)) {
     return null;
   }
 
@@ -142,7 +143,8 @@ function scenario(code: string): Scenario | null {
 
   switch (reaction.event) {
     case "destroyedEnemyInBattle":
-    case "destroyedEnemyWithDamage": {
+    case "destroyedEnemyWithDamage":
+    case "destroyedEnemyCardWithDamage": {
       const weakId = placeCard(state, "B", WEAK, "battleArea", { rested: true });
       return { state, run: attackThen(weakId) };
     }
@@ -213,6 +215,8 @@ const SEM_CENARIO_ESPERADO: string[] = [
   // ou só no turno do oponente — o evento depende de uma carta de efeito específica
   "GD03-038", "GD03-053", "GD03-060", "GD03-095", "GD03-098", "GD03-128", "GD03-129", "GD04-018", "GD04-041", "GD04-069",
   "GD04-100", "GD04-124", "GD04-126", "GD04-129", "GD05-018", "GD05-054", "GD05-101", "ST08-011", "ST13-012",
+  // W13b — provocados pelo oponente: "is attacked", "activates <Blocker>", "this Base receives battle damage"
+  "GD06-001", "GD06-097", "GD06-125",
 ];
 const NAO_PROVOCADAS: string[] = [];
 const SEM_RASTRO_NO_TABULEIRO: string[] = [
@@ -228,6 +232,8 @@ const SEM_RASTRO_NO_TABULEIRO: string[] = [
   "GD05-085",
   // W13a — "(Special Move) Command" que o tabuleiro não joga
   "GD06-071",
+  // W13b — "this Unit recovers 1 HP" sem dano
+  "GD06-020",
 ];
 
 describe(`Reaction gerado — ${CARDS.length} cartas com evento provocável pelo jogador`, () => {

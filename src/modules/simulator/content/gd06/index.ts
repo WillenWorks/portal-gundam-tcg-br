@@ -9,6 +9,7 @@ import { PILOTS } from "./pilots";
 import { COMMANDS } from "./commands";
 import { BASES } from "./bases";
 import { GD06_W13A_EFFECT_SPECS } from "./effectsW13a";
+import { GD06_W13B_EFFECT_SPECS } from "./effectsW13b";
 
 export * from "./tokens";
 
@@ -24,4 +25,4 @@ export const GD06_CARD_DEFS: Record<string, CardDef> = {
 };
 
 /** Booster GD06 (Stardust Trails) — EffectSpecs (W13). */
-export const GD06_EFFECT_SPECS: EffectSpec[] = [...GD06_W13A_EFFECT_SPECS];
+export const GD06_EFFECT_SPECS: EffectSpec[] = [...GD06_W13A_EFFECT_SPECS, ...GD06_W13B_EFFECT_SPECS];

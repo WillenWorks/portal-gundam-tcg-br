@@ -34,6 +34,7 @@ import { GD05_DECKS } from "../../fixtures/gd05Decks";
 import { ST10_TEST_DECKS } from "../../fixtures/st10Decks";
 import { EB01_TEST_DECKS } from "../../fixtures/eb01Decks";
 import { ST11_TO_14_DECKS } from "../../fixtures/st11to14Decks";
+import { GD06_TEST_DECKS } from "../../fixtures/gd06Decks";
 
 export type DeckKey =
   | "ST01" | "ST02" | "ST03" | "ST04" | "ST05" | "GD01"
@@ -45,7 +46,8 @@ export type DeckKey =
   | "GD05-G-GUNDAM" | "GD05-NEO-ZEON"
   | "ST10-G-GENERATION" | "GD05-ORB"
   | "EB01-AZUL-BRANCO" | "EB01-VERDE-BRANCO"
-  | "ST11-MARINE" | "ST12-CLOSE-COMBAT" | "ST13-BIT-FUNNEL" | "ST14-HEAVY-ARMED";
+  | "ST11-MARINE" | "ST12-CLOSE-COMBAT" | "ST13-BIT-FUNNEL" | "ST14-HEAVY-ARMED"
+  | "GD06-VERDE-ROXO" | "GD06-VERMELHO-BRANCO";
 
 export const DECK_BUILDERS: Record<DeckKey, () => DeckList> = {
   ST01: buildSt01DeckList,
@@ -79,6 +81,8 @@ export const DECK_BUILDERS: Record<DeckKey, () => DeckList> = {
   "ST12-CLOSE-COMBAT": ST11_TO_14_DECKS["ST12-CLOSE-COMBAT"].build,
   "ST13-BIT-FUNNEL": ST11_TO_14_DECKS["ST13-BIT-FUNNEL"].build,
   "ST14-HEAVY-ARMED": ST11_TO_14_DECKS["ST14-HEAVY-ARMED"].build,
+  "GD06-VERDE-ROXO": GD06_TEST_DECKS["GD06-VERDE-ROXO"].build,
+  "GD06-VERMELHO-BRANCO": GD06_TEST_DECKS["GD06-VERMELHO-BRANCO"].build,
 };
 
 /** limite de turnos da partida golden — fixado aqui pra não depender do default de `runSelfPlay`. */
@@ -219,6 +223,12 @@ const ST11_14_PAIRS: GoldenPair[] = [
   { key: `ST13-BIT-FUNNEL_vs_ST14-HEAVY-ARMED_seed${ST11_14_SEED + 1}`, a: "ST13-BIT-FUNNEL", b: "ST14-HEAVY-ARMED", seed: ST11_14_SEED + 1 },
 ];
 
+/** W13b — GD06 fechado: 1 par dos decks de teste (tokens do Turn X, Alphacide, ZZ +1, Neo Core Fighter, Dianna Counter), seed 36. */
+const GD06_SEED = ST11_14_SEED + ST11_14_PAIRS.length;
+const GD06_PAIRS: GoldenPair[] = [
+  { key: `GD06-VERDE-ROXO_vs_GD06-VERMELHO-BRANCO_seed${GD06_SEED}`, a: "GD06-VERDE-ROXO", b: "GD06-VERMELHO-BRANCO", seed: GD06_SEED },
+];
+
 export const GOLDEN_PAIRS: GoldenPair[] = [
   ...ST01_04_PAIRS,
   ...GD01_PAIRS,
@@ -231,6 +241,7 @@ export const GOLDEN_PAIRS: GoldenPair[] = [
   ...ST10_PAIRS,
   ...EB01_PAIRS,
   ...ST11_14_PAIRS,
+  ...GD06_PAIRS,
 ];
 
 /**

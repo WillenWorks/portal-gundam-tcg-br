@@ -217,7 +217,8 @@
     "preventBeingAttackTarget": {
       "description": "As Units escolhidas não podem ser escolhidas como alvo de ataque inimigo neste turno.",
       "since": "ST11-014"
-    }
+    },
+    "spawnTokenCopy": { "description": "Deploya 1 token novo igual ao token escolhido (mesmo número de carta, sem dano/efeitos — Q498).", "since": "GD06-021 Turn X (Top)" }
   },
   "targetRefKinds": {
     "self": {
@@ -677,7 +678,11 @@
     "controllerShieldCountAtLeast:<n>": { "description": "O controlador tem N ou mais escudos (a Base não conta).", "since": "GD06-129 5th Luna" },
     "controllerBaseWithTraitInPlay:<value>": { "description": "O controlador tem uma Base em jogo com o trait.", "since": "GD06-008 Powered GM" },
     "chosenIsLinkUnit:<value>": { "description": "O alvo escolhido em ctx.targets[<nome>] é Link Unit.", "since": "GD06-023 Galluss J" },
-    "controllerUnitWithTraitPairedPilotLevelAtMost:<value>:<n>": { "description": "O controlador tem uma Unit com o trait pareada com Piloto de Lv. N ou menos.", "since": "GD06-123 Endra" }
+    "controllerUnitWithTraitPairedPilotLevelAtMost:<value>:<n>": { "description": "O controlador tem uma Unit com o trait pareada com Piloto de Lv. N ou menos.", "since": "GD06-123 Endra" },
+    "controllerRestedUnitWithTraitInPlay:<value>": { "description": "O controlador tem uma Unit descansada com o trait em jogo.", "since": "GD06-125 Argama" },
+    "controllerDrewByEffectThisTurn": { "description": "O controlador comprou por efeito neste turno (lido do eventLog do turno; a Draw Phase não conta).", "since": "GD06-080 Kou Uraki" },
+    "noEnemyAttackedThisTurn": { "description": "Nenhuma Unit inimiga atacou neste turno (lido do eventLog do turno).", "since": "GD06-102 A Miracle" },
+    "controllerPaidForUnitEffectsThisTurnAtLeast:<n>": { "description": "O controlador pagou N+ em efeitos de Units neste turno (PlayerState.paidForUnitEffectsOnTurn).", "since": "GD06-070 Eagail" }
   },
   "targetFilters": {
     "hp<=<n>": {

@@ -9,6 +9,7 @@ import { GD05_DECKS } from "../fixtures/gd05Decks";
 import { ST10_TEST_DECKS } from "../fixtures/st10Decks";
 import { EB01_TEST_DECKS } from "../fixtures/eb01Decks";
 import { ST11_TO_14_DECKS } from "../fixtures/st11to14Decks";
+import { GD06_TEST_DECKS } from "../fixtures/gd06Decks";
 import { TEST_VER_DECKS } from "../fixtures/testVerDecks";
 import { SIMULATOR_DECK_PRESETS, TEST_DECK_PRESETS } from "./simulatorDeckPresets";
 import { VALIDATED_DECKS, checkDeckListLegality } from "./validatedDecks";
@@ -26,6 +27,7 @@ const REGISTRIES: Record<string, { build: () => DeckList }>[] = [
   ST10_TEST_DECKS,
   EB01_TEST_DECKS,
   ST11_TO_14_DECKS,
+  GD06_TEST_DECKS,
   TEST_VER_DECKS,
 ];
 
@@ -42,9 +44,9 @@ describe("SIMULATOR_DECK_PRESETS", () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it("inclui os decks do fechamento do GD03, do GD04, do ST09, do GD05, do ST10, do EB01 e do ST11–ST14", () => {
+  it("inclui os decks do fechamento do GD03, do GD04, do ST09, do GD05, do ST10, do EB01, do ST11–ST14 e do GD06", () => {
     const keys = new Set(SIMULATOR_DECK_PRESETS.map((p) => p.key));
-    const closing = [GD03_TEST_DECKS, GD04_TEST_DECKS, ST09_DECKS, GD05_DECKS, ST10_TEST_DECKS, EB01_TEST_DECKS, ST11_TO_14_DECKS];
+    const closing = [GD03_TEST_DECKS, GD04_TEST_DECKS, ST09_DECKS, GD05_DECKS, ST10_TEST_DECKS, EB01_TEST_DECKS, ST11_TO_14_DECKS, GD06_TEST_DECKS];
     for (const key of closing.flatMap((r) => Object.keys(r))) {
       expect(keys.has(key), key).toBe(true);
     }

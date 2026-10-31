@@ -64,6 +64,8 @@ const SEM_RASTRO_NO_TABULEIRO: string[] = [
   "ST14-003",
   // W13a — "3 Unit cards from your trash" / "4+ (Gjallarhorn) in your trash" / "another (Alphacide)" / "enemy Unit with 1 HP"
   "GD06-002", "GD06-034", "GD06-006", "GD06-009",
+  // W13b — "Choose 1 of your Unit tokens" sem token; "another (Alphacide)" (o efeito ganho é de fim de turno)
+  "GD06-021", "GD06-051",
 ];
 
 describe(`【Deploy】 gerado — ${DEPLOY_CARDS.length} cartas, caminho do jogador`, () => {

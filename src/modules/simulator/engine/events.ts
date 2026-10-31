@@ -186,6 +186,7 @@ function cloneManualPlayer(player: PlayerState): PlayerState {
     ...(player.shieldAreaEffectReduction ? { shieldAreaEffectReduction: { ...player.shieldAreaEffectReduction } } : {}),
     ...(player.pairedUnitDestroyedEnemyInBattleOnTurn !== undefined ? { pairedUnitDestroyedEnemyInBattleOnTurn: player.pairedUnitDestroyedEnemyInBattleOnTurn } : {}),
     ...(player.resourceSetActiveByEffectOnTurn !== undefined ? { resourceSetActiveByEffectOnTurn: player.resourceSetActiveByEffectOnTurn } : {}),
+    ...(player.paidForUnitEffectsOnTurn ? { paidForUnitEffectsOnTurn: { ...player.paidForUnitEffectsOnTurn } } : {}),
     ...(player.commandTraitsActivatedOnTurn ? { commandTraitsActivatedOnTurn: { ...player.commandTraitsActivatedOnTurn, traits: [...player.commandTraitsActivatedOnTurn.traits] } } : {}),
     ...(player.ownUnitDestroyedByOwnEffectOnTurn ? { ownUnitDestroyedByOwnEffectOnTurn: { ...player.ownUnitDestroyedByOwnEffectOnTurn, traits: [...player.ownUnitDestroyedByOwnEffectOnTurn.traits] } } : {}),
   };
@@ -497,6 +498,12 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       const player = state.players[event.player];
       const current = player.shieldAreaEffectReduction?.turn === event.turn ? player.shieldAreaEffectReduction.amount : 0;
       player.shieldAreaEffectReduction = { turn: event.turn, amount: current + event.amount };
+      return state;
+    }
+    case "MARK_PAID_FOR_UNIT_EFFECT": {
+      const player = state.players[event.player];
+      const current = player.paidForUnitEffectsOnTurn?.turn === event.turn ? player.paidForUnitEffectsOnTurn.amount : 0;
+      player.paidForUnitEffectsOnTurn = { turn: event.turn, amount: current + event.amount };
       return state;
     }
     case "MARK_RESOURCE_SET_ACTIVE_BY_EFFECT": {

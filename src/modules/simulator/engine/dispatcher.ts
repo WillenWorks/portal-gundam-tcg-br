@@ -218,6 +218,11 @@ export function dispatchTrigger(
     if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) break;
     // W5 (C6) — "when you pay ① or more for one of your Units' effects"
     const paidOcc = paidForUnitEffectOccurrence(before, sourceInstanceId, resourcePaymentAmount(before, events, current.owner));
+    // W13b — GD06-070 "paid a total of ③ or more for your Units' effects this turn" (só com uma carta que lê isso no jogo,
+    // pra não mudar o log/golden de partidas sem ela — mesma ideia de `TRACKED_COMMAND_TRAITS`)
+    if (paidOcc && tracksUnitEffectPayments(next, current.owner)) {
+      next = applyEvent(next, { type: "MARK_PAID_FOR_UNIT_EFFECT", player: current.owner, turn: next.turnNumber, amount: paidOcc.amount ?? 0 });
+    }
     if (paidOcc) {
       next = dispatchReactions(next, [paidOcc], allSpecs, {
         predicateResolver: opts.predicateResolver,
@@ -462,4 +467,12 @@ function offerBurstForShieldsDestroyedByEffect(before: GameState, after: GameSta
     });
   }
   return next;
+}
+
+/** W13b — cartas que leem o total pago em efeitos de Units no turno (GD06-070 Eagail) */
+export const TRACKED_UNIT_EFFECT_PAYMENT_CODES: readonly string[] = ["GD06-070"];
+
+function tracksUnitEffectPayments(state: GameState, player: PlayerId): boolean {
+  const side = state.players[player];
+  return [side.deck, side.hand, side.battleArea, side.shields, side.trash].some((zone) => zone.some((c) => TRACKED_UNIT_EFFECT_PAYMENT_CODES.includes(c.def.code)));
 }

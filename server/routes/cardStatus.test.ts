@@ -28,20 +28,19 @@ describe("cardStatus — lógica de playability", () => {
     expect(gd01.motivo).toBeUndefined();
   });
 
-  it("W11 — a última carta de EB01 que faltava é apta (EB01-003); fora do GD06, nenhuma carta do catálogo fica em revisão", () => {
+  it("W11 — a última carta de EB01 que faltava é apta (EB01-003); nenhuma carta do catálogo fica em revisão", () => {
     const eb01 = getCardStatus("EB01-003");
     expect(eb01.status).toBe("apta");
     expect(eb01.set).toBe("EB01");
-    const all = getAllCardStatuses();
-    expect(all.summary.revisao).toBe(all.sets.GD06.revisao);
+    expect(getAllCardStatuses().summary.revisao).toBe(0);
   });
 
-  it("W13a — GD06 no simulador: 109 aptas, 21 em revisão até a W13b (GD06-002 apta, GD06-001 em revisão)", () => {
-    expect(getCardStatus("GD06-002").status).toBe("apta");
-    expect(getCardStatus("GD06-001").status).toBe("revisao");
+  it("W13b — GD06 fechado: as 130 cartas aptas (GD06-001 e GD06-039 incluídas)", () => {
+    expect(getCardStatus("GD06-001").status).toBe("apta");
+    expect(getCardStatus("GD06-039").status).toBe("apta");
     const gd06 = getAllCardStatuses().sets.GD06;
-    expect(gd06.aptas).toBe(109);
-    expect(gd06.revisao).toBe(21);
+    expect(gd06.aptas).toBe(130);
+    expect(gd06.revisao).toBe(0);
   });
 
   it("uma carta de EB01 implementada é apta (EB01-001)", () => {
@@ -88,10 +87,10 @@ describe("cardStatus — lógica de playability", () => {
     const response = getAllCardStatuses();
     const sets = response.sets;
 
-    // Sets fechados (ST01..ST10, GD01..GD05, EB01 desde a W11) têm 100% aptas
+    // Sets fechados (ST01..ST10, GD01..GD05, EB01 desde a W11, GD06 desde a W13b) têm 100% aptas
     const closedSets = [
       "ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "ST09", "ST10",
-      "GD01", "GD02", "GD03", "GD04", "GD05", "EB01",
+      "GD01", "GD02", "GD03", "GD04", "GD05", "EB01", "GD06",
     ];
 
     for (const set of closedSets) {

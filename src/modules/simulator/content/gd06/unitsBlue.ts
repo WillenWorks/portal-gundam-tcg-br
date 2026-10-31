@@ -20,7 +20,15 @@ export const UNITS_BLUE: Record<string, CardDef> = {
       "values": [
         "Kou Uraki"
       ]
-    }
+    },
+    "staticAbilities": [
+      {
+        "condition": "duringPair",
+        "scope": "self",
+        "keyword": "High-Maneuver",
+        "sourceText": "【During Pair】This Unit gains<High-Maneuver>."
+      }
+    ]
   },
   "GD06-002": {
     "code": "GD06-002",

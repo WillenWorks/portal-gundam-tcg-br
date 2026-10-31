@@ -598,6 +598,32 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
     return !!selfUnit && selfHasAnyTrait[1].split(",").some((t) => hasTrait(selfUnit, t, ctx.state));
   }
+  // W13b — GD06-080 "If you have drawn with an effect during this turn" / GD06-102 "no enemy Units have attacked this turn":
+  // lidos do `eventLog` do turno atual (a compra da Draw Phase não conta) — sem estado novo no jogo
+  if (predicate === "controllerDrewByEffectThisTurn" || predicate === "noEnemyAttackedThisTurn") {
+    const log = ctx.state.eventLog;
+    let start = log.length;
+    while (start > 0 && !(log[start - 1].type === "PHASE_CHANGE" && (log[start - 1] as { phase: string }).phase === "start")) start--;
+    let phase = "start";
+    for (let i = start; i < log.length; i++) {
+      const e = log[i];
+      if (e.type === "PHASE_CHANGE") phase = e.phase;
+      else if (predicate === "controllerDrewByEffectThisTurn" && e.type === "DRAW_CARD" && e.from === "deck" && e.player === ctx.controller && phase !== "draw") return true;
+      else if (predicate === "noEnemyAttackedThisTurn" && e.type === "ATTACK_DECLARED" && e.attackingPlayer !== ctx.controller) return false;
+    }
+    return predicate === "noEnemyAttackedThisTurn";
+  }
+  // W13b — GD06-070 "If you have paid a total of ③ or more for your Units' effects this turn"
+  const paidForUnitEffects = predicate.match(/^controllerPaidForUnitEffectsThisTurnAtLeast:(\d+)$/);
+  if (paidForUnitEffects) {
+    const mark = ctx.state.players[ctx.controller].paidForUnitEffectsOnTurn;
+    return !!mark && mark.turn === ctx.state.turnNumber && mark.amount >= Number(paidForUnitEffects[1]);
+  }
+  // W13b — GD06-125 "while you have a rested (AEUG) Unit in play"
+  const controllerRestedUnitWithTrait = predicate.match(/^controllerRestedUnitWithTraitInPlay:(.+)$/);
+  if (controllerRestedUnitWithTrait) {
+    return ctx.state.players[ctx.controller].battleArea.some((u) => u.def.cardType === "UNIT" && u.rested && hasTrait(u, controllerRestedUnitWithTrait[1], ctx.state));
+  }
   // W13a — GD06-129 "If you have any Shields in play" (escudos; a Base não conta)
   const controllerShieldCountAtLeast = predicate.match(/^controllerShieldCountAtLeast:(\d+)$/);
   if (controllerShieldCountAtLeast) return ctx.state.players[ctx.controller].shields.length >= Number(controllerShieldCountAtLeast[1]);

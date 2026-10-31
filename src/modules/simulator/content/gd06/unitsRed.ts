@@ -23,7 +23,12 @@ export const UNITS_RED: Record<string, CardDef> = {
     },
     "triggerKeywords": [
       "Deploy"
-    ]
+    ],
+    "damageBoost": {
+      "sourceTrait": "AEUG",
+      "amount": 1,
+      "sourceText": "When your (AEUG) cards deal damage to enemy Units, increase the damage dealt by 1."
+    }
   },
   "GD06-034": {
     "code": "GD06-034",
@@ -111,6 +116,22 @@ export const UNITS_RED: Record<string, CardDef> = {
       "values": [
         "Julieta Juris"
       ]
+    },
+    "staticAbilities": [
+      {
+        "condition": "always",
+        "scope": "self",
+        "keyword": "First Strike",
+        "duringYourTurnOnly": true,
+        "boardCondition": {
+          "kind": "battlingEnemyDamaged"
+        },
+        "sourceText": "During your turn, while this Unit is battling a damaged enemy Unit, it gains<First Strike>."
+      }
+    ],
+    "preventsEnemySelfSetActive": {
+      "condition": "duringPair",
+      "sourceText": "【During Pair】Enemy Units can't be set as active by enemy effects."
     }
   },
   "GD06-038": {
