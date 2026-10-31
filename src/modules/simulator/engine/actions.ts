@@ -876,7 +876,9 @@ function applyPlayerActionInner(
           next = applyEvent(next, { type: "MOVE_CARD", instanceId: srcId, toZone: "trash" });
           next = dispatchCommandActivated(next, srcId, specs, { predicateResolver, targetFilterResolver });
           // W7 — "After activating this card's 【Main】…" (a Command já está no trash)
-          if (flowTrigger === "Main") next = dispatchAfterMain(next, srcId, specs, { predicateResolver, targetFilterResolver });
+          if (flowTrigger === "Main" || flowTrigger === "Action") {
+            next = dispatchAfterMain(next, srcId, specs, { predicateResolver, targetFilterResolver }, flowTrigger);
+          }
         }
       }
       // W7 (C9) — a resolução abriu uma continuação ("If you do, choose …", alvo do modo): ela herda a origem e as

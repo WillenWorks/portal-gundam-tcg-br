@@ -357,7 +357,9 @@ export function forcedAttackTargets(state: GameState, defendingPlayer: PlayerId,
         ? [card]
         : rule.scope === "pairedUnit"
           ? (paired ? [paired] : [])
-          : side.battleArea.filter((u) => u.def.cardType === "UNIT" && !!rule.trait && hasTrait(u, rule.trait, state));
+          : rule.scope === "friendlyUnitTokens"
+            ? side.battleArea.filter((u) => u.def.cardType === "UNIT" && !!u.def.isToken)
+            : side.battleArea.filter((u) => u.def.cardType === "UNIT" && !!rule.trait && hasTrait(u, rule.trait, state));
     for (const unit of pool) if (unit.def.cardType === "UNIT" && unit.rested) out.add(unit.instanceId);
   }
   // W5 — GD04-107 "all enemy Units must choose that Unit as their attack target" (keyword sintética, este turno)
@@ -598,7 +600,11 @@ export function resolveDamageStep(state: GameState): GameState {
         if (!c.rested || !guard) return false;
         return guard === true || isBoardConditionMet(state, c.owner, guard.boardCondition, c.instanceId);
       });
-      const shieldsProtected = (!!protection && attackerLevel <= protection.maxAttackerLevel) || restedGuard;
+      const shieldsProtected =
+        (!!protection &&
+          ((protection.maxAttackerLevel !== undefined && attackerLevel <= protection.maxAttackerLevel) ||
+            (protection.maxAttackerAp !== undefined && effectiveAp(attacker, state) <= protection.maxAttackerAp))) ||
+        restedGuard;
       if (!shieldsProtected) {
         const hadShields = state.players[defendingPlayer].shields.length > 0;
         events.push(...shieldDamageEvents(defendingPlayer, suppression ? 2 : 1, state));

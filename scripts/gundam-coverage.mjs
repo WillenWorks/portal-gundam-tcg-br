@@ -65,6 +65,7 @@ const { GD02_CARD_DEFS } = await import("../src/modules/simulator/content/gd02/i
 const { GD03_CARD_DEFS } = await import("../src/modules/simulator/content/gd03/index.ts");
 const { GD04_CARD_DEFS } = await import("../src/modules/simulator/content/gd04/index.ts");
 const { GD05_CARD_DEFS } = await import("../src/modules/simulator/content/gd05/index.ts");
+const { GD06_CARD_DEFS } = await import("../src/modules/simulator/content/gd06/index.ts");
 const { ST09_CARD_DEFS } = await import("../src/modules/simulator/content/st09/index.ts");
 const { ST10_CARD_DEFS } = await import("../src/modules/simulator/content/st10/index.ts");
 const { EB01_CARD_DEFS } = await import("../src/modules/simulator/content/eb01/index.ts");
@@ -95,6 +96,7 @@ for (const defs of [
   GD03_CARD_DEFS,
   GD04_CARD_DEFS,
   GD05_CARD_DEFS,
+  GD06_CARD_DEFS,
 ]) {
   for (const def of Object.values(defs)) DEF_BY_CODE.set(def.code, def);
 }
@@ -336,7 +338,7 @@ function auditCode(code) {
     deferrals: DEFERRALS_BY_CODE.get(code) ?? [],
   });
 }
-const CLAUSE_AUDIT_SETS = [...new Set([...GATED_SETS, "GD02", "GD03", "GD04", "ST09", "GD05", "EB01", "ST11", "ST12", "ST13", "ST14"])];
+const CLAUSE_AUDIT_SETS = [...new Set([...GATED_SETS, "GD02", "GD03", "GD04", "ST09", "GD05", "EB01", "ST11", "ST12", "ST13", "ST14", "GD06"])];
 const clauseTotalsBySet = {};
 const clauseJsonSets = {};
 for (const set of [...new Set([...CLAUSE_AUDIT_SETS, ...sets])]) {

@@ -94,6 +94,20 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
     },
     "triggerKeywords": [
       "Deploy"
+    ],
+    "staticAbilities": [
+      {
+        "condition": "always",
+        "scope": "self",
+        "keyword": "High-Maneuver",
+        "boardCondition": {
+          "kind": "trashTraitCountAtLeast",
+          "trait": "Zeon",
+          "cardType": "UNIT",
+          "n": 5
+        },
+        "sourceText": "While there are 5 or more (Zeon) Unit cards in your trash, this Unit gains<High-Maneuver>."
+      }
     ]
   },
   "GD06-053": {
@@ -205,7 +219,20 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
       "values": [
         "Karius"
       ]
-    }
+    },
+    "staticAbilities": [
+      {
+        "condition": "always",
+        "scope": "self",
+        "keyword": "Blocker",
+        "boardCondition": {
+          "kind": "friendlyOtherUnitTraitCountAtLeast",
+          "trait": "Delaz Fleet",
+          "n": 1
+        },
+        "sourceText": "While you have another (Delaz Fleet) Unit in play, this Unit gains<Blocker>."
+      }
+    ]
   },
   "GD06-058": {
     "code": "GD06-058",
@@ -225,6 +252,9 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
       "values": [
         "Lunamaria Hawke"
       ]
+    },
+    "attackOnDeployTurnVsRestedUnit": {
+      "sourceText": "On the turn this Unit is deployed, it may choose a rested enemy Unit as its attack target and attack it."
     }
   },
   "GD06-059": {
@@ -259,6 +289,21 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
     "traits": [
       "Zeon",
       "Delaz Fleet"
+    ],
+    "staticAbilities": [
+      {
+        "condition": "always",
+        "scope": "self",
+        "stat": "ap",
+        "amount": 1,
+        "boardCondition": {
+          "kind": "trashTraitCountAtLeast",
+          "trait": "Zeon",
+          "cardType": "UNIT",
+          "n": 4
+        },
+        "sourceText": "While there are 4 or more (Zeon) Unit cards in your trash, this Unit gets AP+1."
+      }
     ]
   },
   "GD06-061": {
@@ -273,6 +318,12 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
     "traits": [
       "Zeon",
       "Delaz Fleet"
+    ],
+    "effectKeywords": [
+      "Support"
+    ],
+    "keywordTags": [
+      "Support 1"
     ],
     "triggerKeywords": [
       "Activate·Main"

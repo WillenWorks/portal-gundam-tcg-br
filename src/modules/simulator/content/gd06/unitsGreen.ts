@@ -50,7 +50,14 @@ export const UNITS_GREEN: Record<string, CardDef> = {
     },
     "triggerKeywords": [
       "Attack"
-    ]
+    ],
+    "forcedAttackTarget": {
+      "condition": "always",
+      "scope": "friendlyUnitTokens"
+    },
+    "structuredSourceText": {
+      "forcedAttackTarget": "Enemy Units choose one of your rested Unit tokens as their attack target if possible when attacking."
+    }
   },
   "GD06-020": {
     "code": "GD06-020",
@@ -266,6 +273,23 @@ export const UNITS_GREEN: Record<string, CardDef> = {
     "hp": 4,
     "traits": [
       "Ghingnham Fleet"
+    ],
+    "staticAbilities": [
+      {
+        "condition": "always",
+        "scope": "self",
+        "stat": "ap",
+        "amount": 2,
+        "boardCondition": {
+          "kind": "friendlyOtherUnitWithAnyTraitCountAtLeast",
+          "traits": [
+            "Ghingnham Fleet",
+            "Long-Range Weapon"
+          ],
+          "n": 3
+        },
+        "sourceText": "While you have 3 or more other (Ghingnham Fleet)/(Long-Range Weapon) Units in play, this Unit gets AP+2."
+      }
     ]
   },
   "GD06-031": {

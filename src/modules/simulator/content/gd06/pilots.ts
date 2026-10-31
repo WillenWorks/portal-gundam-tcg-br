@@ -37,7 +37,20 @@ export const PILOTS: Record<string, CardDef> = {
     "triggerKeywords": [
       "Burst"
     ],
-    "hasBurst": true
+    "hasBurst": true,
+    "staticAbilities": [
+      {
+        "condition": "always",
+        "scope": "pairedUnit",
+        "keyword": "Repair",
+        "keywordValue": 2,
+        "targetCondition": {
+          "kind": "traitIs",
+          "trait": "Alphacide"
+        },
+        "sourceText": "While this Unit is (Alphacide), it gains<Repair 2>."
+      }
+    ]
   },
   "GD06-082": {
     "code": "GD06-082",
@@ -74,7 +87,19 @@ export const PILOTS: Record<string, CardDef> = {
     "triggerKeywords": [
       "Burst"
     ],
-    "hasBurst": true
+    "hasBurst": true,
+    "staticAbilities": [
+      {
+        "condition": "duringLink",
+        "scope": "pairedUnit",
+        "keyword": "High-Maneuver",
+        "targetCondition": {
+          "kind": "hasKeyword",
+          "keyword": "Repair"
+        },
+        "sourceText": "【During Link】While this Unit has<Repair>, it gains<High-Maneuver>."
+      }
+    ]
   },
   "GD06-084": {
     "code": "GD06-084",
@@ -111,7 +136,21 @@ export const PILOTS: Record<string, CardDef> = {
     "triggerKeywords": [
       "Burst"
     ],
-    "hasBurst": true
+    "hasBurst": true,
+    "staticAbilities": [
+      {
+        "condition": "duringLink",
+        "scope": "allFriendlyUnits",
+        "stat": "ap",
+        "amount": 1,
+        "duringOpponentTurnOnly": true,
+        "targetCondition": {
+          "kind": "traitIs",
+          "trait": "Ghingnham Fleet"
+        },
+        "sourceText": "【During Link】All your (Ghingnham Fleet) Units get AP+1 during your opponent's turn."
+      }
+    ]
   },
   "GD06-086": {
     "code": "GD06-086",
@@ -204,7 +243,13 @@ export const PILOTS: Record<string, CardDef> = {
       "Burst",
       "Attack"
     ],
-    "hasBurst": true
+    "hasBurst": true,
+    "nameAliases": [
+      "Gaelio Bauduin"
+    ],
+    "structuredSourceText": {
+      "nameAliases": "This card's name is also treated as [Gaelio Bauduin]."
+    }
   },
   "GD06-091": {
     "code": "GD06-091",
@@ -223,7 +268,20 @@ export const PILOTS: Record<string, CardDef> = {
     "triggerKeywords": [
       "Burst"
     ],
-    "hasBurst": true
+    "hasBurst": true,
+    "staticAbilities": [
+      {
+        "condition": "always",
+        "scope": "pairedUnit",
+        "keyword": "Breach",
+        "keywordValue": 1,
+        "targetCondition": {
+          "kind": "traitIs",
+          "trait": "AEUG"
+        },
+        "sourceText": "While this Unit is (AEUG), it gains<Breach 1>."
+      }
+    ]
   },
   "GD06-092": {
     "code": "GD06-092",
@@ -243,7 +301,13 @@ export const PILOTS: Record<string, CardDef> = {
       "Burst",
       "When Paired"
     ],
-    "hasBurst": true
+    "hasBurst": true,
+    "nameAliases": [
+      "Mu La Flaga"
+    ],
+    "structuredSourceText": {
+      "nameAliases": "This card's name is also treated as [Mu La Flaga]."
+    }
   },
   "GD06-093": {
     "code": "GD06-093",

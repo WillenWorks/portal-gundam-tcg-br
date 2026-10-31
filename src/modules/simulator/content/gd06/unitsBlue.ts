@@ -67,6 +67,18 @@ export const UNITS_BLUE: Record<string, CardDef> = {
     },
     "triggerKeywords": [
       "Attack"
+    ],
+    "staticAbilities": [
+      {
+        "condition": "always",
+        "scope": "self",
+        "stat": "ap",
+        "amount": 1,
+        "amountFrom": {
+          "kind": "controllerHandCount"
+        },
+        "sourceText": "Increase this Unit's AP by an amount equal to the number of cards in your hand."
+      }
     ]
   },
   "GD06-004": {
@@ -296,6 +308,18 @@ export const UNITS_BLUE: Record<string, CardDef> = {
     "hp": 1,
     "traits": [
       "Earth Federation"
+    ],
+    "staticAbilities": [
+      {
+        "condition": "always",
+        "scope": "self",
+        "keyword": "Blocker",
+        "boardCondition": {
+          "kind": "enemyUnitCountAtLeast",
+          "n": 3
+        },
+        "sourceText": "While 3 or more enemy Units are in play, this Unit gains<Blocker>."
+      }
     ]
   },
   "GD06-015": {
@@ -315,7 +339,19 @@ export const UNITS_BLUE: Record<string, CardDef> = {
       "values": [
         "Andrew Waldfeld"
       ]
-    }
+    },
+    "staticAbilities": [
+      {
+        "condition": "duringPair",
+        "scope": "self",
+        "keyword": "Blocker",
+        "boardCondition": {
+          "kind": "pairedPilotHasTrait",
+          "trait": "Orb"
+        },
+        "sourceText": "【During Pair･(Orb) Pilot】This Unit gains<Blocker>."
+      }
+    ]
   },
   "GD06-016": {
     "code": "GD06-016",
@@ -356,6 +392,19 @@ export const UNITS_BLUE: Record<string, CardDef> = {
       "orTraits": [
         "Machu"
       ]
-    }
+    },
+    "staticAbilities": [
+      {
+        "condition": "always",
+        "scope": "self",
+        "keyword": "Blocker",
+        "boardCondition": {
+          "kind": "friendlyOtherUnitTraitCountAtLeast",
+          "trait": "Alphacide",
+          "n": 1
+        },
+        "sourceText": "While another friendly (Alphacide) Unit is in play, this Unit gains<Blocker>."
+      }
+    ]
   },
 };

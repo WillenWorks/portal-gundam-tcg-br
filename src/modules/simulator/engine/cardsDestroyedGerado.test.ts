@@ -82,6 +82,8 @@ const SEM_RASTRO_NO_TABULEIRO: string[] = [
   "GD05-053",
   // "Choose 1 of your (Neo Zeon) Units" — a única do trait era a que morreu
   "GD05-094",
+  // W13a — "enemy Unit with <Blocker> and 3 or less AP" sem alvo; "another (G Team)/(Preventer)"; "Set 1 Resource as active" com todos ativos
+  "GD06-024", "GD06-072", "GD06-053",
 ];
 
 describe(`【Destroyed】 gerado — ${DESTROYED_CARDS.length} cartas, caminho do jogador`, () => {

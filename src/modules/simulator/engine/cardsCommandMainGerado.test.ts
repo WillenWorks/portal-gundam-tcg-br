@@ -52,6 +52,8 @@ const NAO_OFERECIDAS_NO_TABULEIRO: string[] = [
   // "Choose 1 friendly Link Unit / Unit paired with a (Newtype) Pilot / rested friendly Base / damaged enemy Unit /
   // Pilot paired with an enemy Unit" — o tabuleiro não tem o alvo
   "GD01-101", "ST08-012", "GD04-119", "GD03-119", "GD01-111", "GD03-110",
+  // W13a — "(Ghingnham Fleet) Unit in play" (condição de jogar) / "damaged enemy Unit"
+  "GD06-107", "GD06-113",
 ];
 /* 【Main】 sem rastro além de pagar e descartar, neste tabuleiro — lista cobrada. */
 const SEM_RASTRO_NO_TABULEIRO: string[] = [
@@ -59,6 +61,8 @@ const SEM_RASTRO_NO_TABULEIRO: string[] = [
   "EB01-073", "GD02-103", "GD02-111", "GD02-113", "GD04-118",
   // efeito sem material: nenhuma Unit amiga danificada Lv.4-, nenhum token, nenhuma Unit pareada
   "GD01-102", "GD03-107", "GD03-112",
+  // W13a — nenhuma (Neo Zeon) amiga Lv.4-
+  "GD06-108",
   // "recovers 3 HP" na 1ª Unit escolhida, sem dano
   "ST01-013",
 ];

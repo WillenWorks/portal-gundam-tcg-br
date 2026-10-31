@@ -62,6 +62,8 @@ const SEM_RASTRO_NO_TABULEIRO: string[] = [
   "GD01-039", "GD02-025", "GD04-026", "GD05-029", "ST13-004",
   // "Choose 1 enemy player. That player chooses 2 Unit cards from their trash" — lixeira do oponente sem Units
   "ST14-003",
+  // W13a — "3 Unit cards from your trash" / "4+ (Gjallarhorn) in your trash" / "another (Alphacide)" / "enemy Unit with 1 HP"
+  "GD06-002", "GD06-034", "GD06-006", "GD06-009",
 ];
 
 describe(`【Deploy】 gerado — ${DEPLOY_CARDS.length} cartas, caminho do jogador`, () => {

@@ -475,9 +475,12 @@ export function playCommand(
     targetFilterResolver: options.targetFilterResolver,
   });
   // W7 — "After activating this card's 【Main】, you may pair this card from your trash…"
-  if (trigger !== "Main") return next;
-  return dispatchAfterMain(next, cardInstanceId, specs, {
-    predicateResolver: options.predicateResolver,
-    targetFilterResolver: options.targetFilterResolver,
-  });
+  if (trigger !== "Main" && trigger !== "Action") return next;
+  return dispatchAfterMain(
+    next,
+    cardInstanceId,
+    specs,
+    { predicateResolver: options.predicateResolver, targetFilterResolver: options.targetFilterResolver },
+    trigger,
+  );
 }

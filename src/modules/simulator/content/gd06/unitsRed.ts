@@ -242,7 +242,22 @@ export const UNITS_RED: Record<string, CardDef> = {
       "values": [
         "Gjallarhorn"
       ]
-    }
+    },
+    "staticAbilities": [
+      {
+        "condition": "duringLink",
+        "scope": "allUnits",
+        "stat": "ap",
+        "amount": 1,
+        "duringYourTurnOnly": true,
+        "excludeSelf": true,
+        "targetCondition": {
+          "kind": "traitIs",
+          "trait": "Gjallarhorn"
+        },
+        "sourceText": "【During Link】During your turn, all other (Gjallarhorn) Units get AP+1."
+      }
+    ]
   },
   "GD06-044": {
     "code": "GD06-044",

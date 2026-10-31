@@ -672,7 +672,12 @@
     "controllerTrashCardTypeCountAtLeast:<value>:<n>": {
       "description": "O trash do controlador tem N ou mais cartas do tipo (UNIT, PILOT, COMMAND, BASE).",
       "since": "ST14-014"
-    }
+    },
+    "selfHasAnyTrait:<value>": { "description": "'This Unit' tem QUALQUER um dos traits (vírgula) — num Piloto, a Unit pareada.", "since": "GD06-092 Neo Lorrnoke" },
+    "controllerShieldCountAtLeast:<n>": { "description": "O controlador tem N ou mais escudos (a Base não conta).", "since": "GD06-129 5th Luna" },
+    "controllerBaseWithTraitInPlay:<value>": { "description": "O controlador tem uma Base em jogo com o trait.", "since": "GD06-008 Powered GM" },
+    "chosenIsLinkUnit:<value>": { "description": "O alvo escolhido em ctx.targets[<nome>] é Link Unit.", "since": "GD06-023 Galluss J" },
+    "controllerUnitWithTraitPairedPilotLevelAtMost:<value>:<n>": { "description": "O controlador tem uma Unit com o trait pareada com Piloto de Lv. N ou menos.", "since": "GD06-123 Endra" }
   },
   "targetFilters": {
     "hp<=<n>": {
@@ -838,6 +843,8 @@
     "beingAttacked": {
       "description": "A Unit é o alvo do ataque em andamento.",
       "since": "EB01-033"
-    }
+    },
+    "battlingFriendlyHasTrait:<value>": { "description": "Unit inimiga em batalha com uma Unit do controlador que tem o trait.", "since": "GD06-112 Rivalry with Roux" },
+    "ap<=selfUnit": { "description": "AP efetivo do candidato <= AP da Unit da fonte (num Piloto, a pareada).", "since": "GD06-092 Neo Lorrnoke" }
   }
 }

@@ -23,6 +23,19 @@ export const UNITS_WHITE: Record<string, CardDef> = {
     },
     "effectKeywords": [
       "Blocker"
+    ],
+    "staticAbilities": [
+      {
+        "condition": "always",
+        "scope": "self",
+        "stat": "ap",
+        "amount": 3,
+        "boardCondition": {
+          "kind": "enemyUnitLevelAtLeast",
+          "n": 5
+        },
+        "sourceText": "While an enemy Unit that is Lv.5 or higher is in play, this Unit gets AP+3."
+      }
     ]
   },
   "GD06-065": {
