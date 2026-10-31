@@ -313,6 +313,19 @@ function shieldDamageEvents(defendingPlayer: PlayerId, count: number, state: Gam
  * dano de batalha comum, `shieldDamageEvents`). `destroyedShieldAreaCard` alimenta
  * gatilhos "destrói uma carta da área de escudo com dano" (GD02-001 Psycho Gundam).
  */
+/**
+ * ST02-013/GD02-106/GD06-106 — "During this battle, your shield area cards can't receive damage from enemy Units that
+ * are Lv.N or lower / with N or less AP": vale pra Base e escudos, no dano de batalha e no <Breach> (ruling Q539).
+ */
+function shieldAreaProtectedFrom(state: GameState, attacker: CardInstance): boolean {
+  const protection = state.combat?.shieldProtection;
+  if (!protection) return false;
+  return (
+    (protection.maxAttackerLevel !== undefined && (attacker.def.level ?? 0) <= protection.maxAttackerLevel) ||
+    (protection.maxAttackerAp !== undefined && effectiveAp(attacker, state) <= protection.maxAttackerAp)
+  );
+}
+
 function breachEvents(
   attacker: CardInstance,
   defendingPlayer: PlayerId,
@@ -322,10 +335,15 @@ function breachEvents(
   // W12 — ST11-006: o dano do <Breach> é reduzido pela proteção da área de escudo (ruling Q431)
   const breachValue = rawBreach === null ? null : rawBreach - shieldAreaEffectReduction(state, defendingPlayer);
   if (breachValue === null || breachValue <= 0) return { events: [], destroyedShieldAreaCard: false };
+  // W13b — ruling Q539: "your shield area cards can't receive damage from enemy Units …" barra também o <Breach>
+  if (shieldAreaProtectedFrom(state, attacker)) return { events: [], destroyedShieldAreaCard: false };
   const base = state.players[defendingPlayer].baseSection[0];
   if (base) {
-    const events: GameEvent[] = [{ type: "DAMAGE_BASE", instanceId: base.instanceId, amount: breachValue }];
-    const destroyed = base.damage + breachValue >= effectiveHp(base, state);
+    // W13b — o <Breach> é dano de efeito da Unit: passa pela camada de dano (GD06-098 protege a Base de Units de Lv. até o seu)
+    const hit = incomingDamage(state, base, breachValue, { kind: "effect", controller: attacker.owner, sourceId: attacker.instanceId });
+    if (hit.amount <= 0) return { events: [], destroyedShieldAreaCard: false };
+    const events: GameEvent[] = [{ type: "DAMAGE_BASE", instanceId: base.instanceId, amount: hit.amount, consume: hit.consume }];
+    const destroyed = base.damage + hit.amount >= effectiveHp(base, state);
     if (destroyed) events.push({ type: "DESTROY_CARD", instanceId: base.instanceId });
     return { events, destroyedShieldAreaCard: destroyed };
   }
@@ -357,7 +375,9 @@ export function forcedAttackTargets(state: GameState, defendingPlayer: PlayerId,
         ? [card]
         : rule.scope === "pairedUnit"
           ? (paired ? [paired] : [])
-          : side.battleArea.filter((u) => u.def.cardType === "UNIT" && !!rule.trait && hasTrait(u, rule.trait, state));
+          : rule.scope === "friendlyUnitTokens"
+            ? side.battleArea.filter((u) => u.def.cardType === "UNIT" && !!u.def.isToken)
+            : side.battleArea.filter((u) => u.def.cardType === "UNIT" && !!rule.trait && hasTrait(u, rule.trait, state));
     for (const unit of pool) if (unit.def.cardType === "UNIT" && unit.rested) out.add(unit.instanceId);
   }
   // W5 — GD04-107 "all enemy Units must choose that Unit as their attack target" (keyword sintética, este turno)
@@ -574,7 +594,10 @@ export function resolveDamageStep(state: GameState): GameState {
   if (combat.currentTarget === "player") {
     const defendingPlayer = combat.defendingPlayer;
     const base = state.players[defendingPlayer].baseSection[0];
-    if (base) {
+    // W13b — ruling Q539: a proteção da área de escudo vale também pra Base
+    if (base && shieldAreaProtectedFrom(state, attacker)) {
+      // a Base é a 1ª carta da área de escudo: protegida, o ataque não causa dano nenhum
+    } else if (base) {
       // W5 (C2) — GD04-123/ST07-015: a Base pode reduzir/ignorar o dano de batalha
       const hit = incomingDamage(state, base, effectiveAp(attacker, state), { kind: "battle", controller: attacker.owner, sourceId: attacker.instanceId });
       events.push({ type: "DAMAGE_BASE", instanceId: base.instanceId, amount: hit.amount, consume: hit.consume });
@@ -590,15 +613,13 @@ export function resolveDamageStep(state: GameState): GameState {
       const suppression = hasKeyword(attacker, "Suppression", state);
       // ST02-013 Peaceful Timbre — "During this battle, your shield area cards can't
       // receive damage from enemy Units that are Lv.4 or lower" (docs/18, lacuna #7).
-      const protection = combat.shieldProtection;
-      const attackerLevel = attacker.def.level ?? 0;
       // W11 — EB01-055: a guarda pode ter condição ("If there are 2 or more enemy players and this Unit is rested")
       const restedGuard = state.players[defendingPlayer].battleArea.some((c) => {
         const guard = c.def.protectsShieldsWhileRested;
         if (!c.rested || !guard) return false;
         return guard === true || isBoardConditionMet(state, c.owner, guard.boardCondition, c.instanceId);
       });
-      const shieldsProtected = (!!protection && attackerLevel <= protection.maxAttackerLevel) || restedGuard;
+      const shieldsProtected = shieldAreaProtectedFrom(state, attacker) || restedGuard;
       if (!shieldsProtected) {
         const hadShields = state.players[defendingPlayer].shields.length > 0;
         events.push(...shieldDamageEvents(defendingPlayer, suppression ? 2 : 1, state));
@@ -746,6 +767,7 @@ export function resolveDamageStep(state: GameState): GameState {
     );
     if (destroyedShieldArea) {
       reactions.push({ event: "destroyedShieldInBattle", subjectId: attacker.instanceId, owner: attacker.owner });
+      reactions.push({ event: "destroyedEnemyCardWithDamage", subjectId: attacker.instanceId, owner: attacker.owner });
     }
   } else {
     // W5 — com redirecionamento, a "vítima" é quem recebeu o dano de fato
@@ -765,7 +787,10 @@ export function resolveDamageStep(state: GameState): GameState {
     const breachHitShieldArea = events.some(
       (e) => (e.type === "DAMAGE_SHIELD" && defSide.shields.length > 0) || (e.type === "DESTROY_CARD" && defBaseIds.has(e.instanceId)),
     );
-    if (breachHitShieldArea) reactions.push({ event: "destroyedShieldInBattle", subjectId: attacker.instanceId, owner: attacker.owner });
+    if (breachHitShieldArea) {
+      reactions.push({ event: "destroyedShieldInBattle", subjectId: attacker.instanceId, owner: attacker.owner });
+      reactions.push({ event: "destroyedEnemyCardWithDamage", subjectId: attacker.instanceId, owner: attacker.owner });
+    }
     if (damaged(defenderId)) {
       reactions.push({ event: "damagedByEnemy", subjectId: defenderId, owner: findCard(state, defenderId).owner, victimId: attacker.instanceId });
     }
@@ -777,7 +802,11 @@ export function resolveDamageStep(state: GameState): GameState {
     const destroyedBy = (subjectId: string, owner: PlayerId, victimId: string) => {
       const pilotId = findCard(state, subjectId).pairedPilotId;
       const base = { subjectId, owner, victimId, ...(pilotId ? { subjectPairedPilotId: pilotId } : {}) };
-      reactions.push({ event: "destroyedEnemyInBattle", ...base }, { event: "destroyedEnemyWithDamage", ...base });
+      reactions.push(
+        { event: "destroyedEnemyInBattle", ...base },
+        { event: "destroyedEnemyWithDamage", ...base },
+        { event: "destroyedEnemyCardWithDamage", ...base },
+      );
       if (pilotId) next.players[owner].pairedUnitDestroyedEnemyInBattleOnTurn = state.turnNumber;
     };
     if (destroyed(defenderId)) destroyedBy(attacker.instanceId, attacker.owner, defenderId);

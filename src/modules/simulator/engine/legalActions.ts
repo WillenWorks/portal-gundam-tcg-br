@@ -1,8 +1,9 @@
 import type { AttackTarget, CardInstance, GameState, PlayerId } from "./types";
 import { effectiveCost, effectiveDeployCost, effectivePilotDef, hasKeyword, satisfiesLinkCondition, specPairGateOpen } from "./types";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { commandCostUnpayable, commandHasNoAvailableMode, computeLegalTargets, costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, specNeedsNamedTarget, trashExileChoice } from "./effectSpec";
+import { commandCostUnpayable, commandHasNoAvailableMode, computeLegalTargets, costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, resolveTargetCount, specNeedsNamedTarget, trashExileChoice } from "./effectSpec";
 import { findTriggerSpecs, specOncePerTurnMarker } from "./dispatcher";
+import { findCard } from "./events";
 import { attackIneligibilityReason, attackTargetError, canActivateBlocker } from "./combat";
 import { canPayLevel } from "./deploy";
 import { costRestsSelf, specResourceCost } from "./costs";
@@ -113,7 +114,7 @@ export function neededTargetIds(
   }
   // Lote 4 — na prática 1 só spec por (cardCode, trigger) precisa de alvo; usa o
   // targetCount dela (ou o default singular {1,1} se não declarar).
-  const targetCount = needing[0]?.targetCount ?? { min: 1, max: 1 };
+  const targetCount = (needing[0] && resolveTargetCount(state, needing[0], seat, sourceInstanceId)) ?? { min: 1, max: 1 };
   return { ids: [...ids], someSpecNeeds: true, targetCount };
 }
 
@@ -304,7 +305,7 @@ function mainPhaseCandidates(state: GameState, seat: PlayerId, specs: EffectSpec
           out.push(...commandPlayCandidates(state, seat, card, "Main", specs, opts).map((a) => ({ ...a, altCostDiscardId: discard.instanceId })));
         }
       }
-      if (def.zeroCostWhenPairedWithUnitNameContains && canPayLevel(state, seat, def)) {
+      if ((def.zeroCostWhenPairedWithUnitNameContains || def.pairingCostReduction) && canPayLevel(state, seat, def)) {
         for (const unit of friendlyUnits(state, seat)) {
           if (unit.pairedPilotId || unit.def.cannotBePaired) continue;
           if (!canAfford(state, seat, effectiveDeployCost(def, state, seat, unit.instanceId))) continue;
@@ -425,7 +426,14 @@ function pendingDecisionCandidates(state: GameState, seat: PlayerId, specs: Effe
         // W8 — com `count` (custo "Rest N"), uma escolha gulosa com as N primeiras (mesma postura do `targetCount`)
         const secondaryChoices: string[][] = q.secondaryTarget
           ? q.secondaryTarget.count && q.secondaryTarget.count > 1
-            ? [q.secondaryTarget.legalTargets.slice(0, q.secondaryTarget.count)]
+            ? [
+                (q.secondaryTarget.uniqueNames
+                  ? q.secondaryTarget.legalTargets.filter(
+                      (id, i, all) => all.findIndex((other) => findCard(state, other).def.nameEn === findCard(state, id).def.nameEn) === i,
+                    )
+                  : q.secondaryTarget.legalTargets
+                ).slice(0, q.secondaryTarget.count),
+              ]
             : q.secondaryTarget.legalTargets.length > 0
               ? q.secondaryTarget.legalTargets.map((id) => [id])
               : [[]]

@@ -12,6 +12,7 @@ import { GD02_EFFECT_SPECS } from "./gd02";
 import { GD03_EFFECT_SPECS } from "./gd03";
 import { GD04_EFFECT_SPECS } from "./gd04";
 import { GD05_EFFECT_SPECS } from "./gd05";
+import { GD06_EFFECT_SPECS } from "./gd06";
 import { ST09_EFFECT_SPECS } from "./st09";
 import { ST10_EFFECT_SPECS } from "./st10";
 import { EB01_EFFECT_SPECS } from "./eb01";
@@ -27,6 +28,7 @@ export { GD02_EFFECT_SPECS, GD02_CARD_DEFS } from "./gd02";
 export { GD03_EFFECT_SPECS, GD03_CARD_DEFS } from "./gd03";
 export { GD04_EFFECT_SPECS, GD04_CARD_DEFS } from "./gd04";
 export { GD05_EFFECT_SPECS, GD05_CARD_DEFS } from "./gd05";
+export { GD06_EFFECT_SPECS, GD06_CARD_DEFS } from "./gd06";
 export { ST09_EFFECT_SPECS, ST09_CARD_DEFS } from "./st09";
 export { ST10_EFFECT_SPECS, ST10_CARD_DEFS } from "./st10";
 export { EB01_EFFECT_SPECS, EB01_CARD_DEFS } from "./eb01";
@@ -48,7 +50,7 @@ export {
 } from "./validatedDecks";
 
 /**
- * Todo EffectSpec real cadastrado até agora (ST01..ST10, GD01..GD05).
+ * Todo EffectSpec real cadastrado até agora (ST01..ST14, GD01..GD06, EB01).
  * Ponto único de agregação pra quem precisa da lista completa sem saber qual
  * carta é de qual produto — servidor (`server/matchStore.ts`), que dispatcha
  * triggers pra qualquer carta em jogo independente do deck de origem.
@@ -74,4 +76,5 @@ export const ALL_EFFECT_SPECS: EffectSpec[] = [
   ...GD03_EFFECT_SPECS,
   ...GD04_EFFECT_SPECS,
   ...GD05_EFFECT_SPECS,
+  ...GD06_EFFECT_SPECS,
 ];

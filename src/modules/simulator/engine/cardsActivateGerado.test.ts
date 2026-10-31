@@ -66,12 +66,18 @@ const NAO_OFERECIDAS_NO_TABULEIRO: string[] = [
   "GD04-006", "GD04-125", "GD05-038", "ST13-010",
   // "Choose 1 (Londo Bell)/damaged/token Unit" sem alvo legal
   "GD05-125", "ST05-015", "ST13-001",
+  // W13a — "Choose 1 friendly (Zeon) Unit" sem alvo
+  "GD06-128",
+  // W13b — custo "Destroy 2 of your (Gundam Team) Units with unique card names that are Lv.3" sem as Units
+  "GD06-039",
 ];
 
 /* 【Activate･Main】 sem rastro além do custo, neste tabuleiro, por motivo. A lista é cobrada. */
 const SEM_RASTRO_NO_TABULEIRO: string[] = [
   // "If …" que o tabuleiro não tem (trait, Link Unit, nome, destruída por efeito, combate no turno)
   "GD05-079", "GD05-126", "GD05-128", "GD05-129", "ST06-014", "ST12-016",
+  // W13a — "another (Dianna Counter) Unit" / "3 or more (Ghingnham Fleet)/(Long-Range Weapon) Units"
+  "GD06-078", "GD06-124",
   // efeito sem material: Link Units
   "ST01-016",
   // escolha que não muda nada: "recovers HP" na 1ª Unit (sem dano); "Set this Unit as active" já ativa

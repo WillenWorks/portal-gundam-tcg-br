@@ -1,5 +1,5 @@
 import type { CardDef, CardInstance, Duration, GameEvent, GameState, PlayerId, StatKey, Zone } from "./types";
-import { effectiveAp, effectiveCost, effectiveHp, effectivePilotDef, hasKeyword, hasTrait, otherPlayer, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
+import { effectiveAp, effectiveCost, effectiveHp, effectivePilotDef, hasKeyword, hasTrait, otherPlayer, pairedPilotFollowEvents, satisfiesLinkCondition, trashCardDef } from "./types";
 import { findCard, findCardOwner } from "./events";
 import { payResourceCostEvents } from "./costs";
 import { EX_BASE_TOKEN, TOKEN_EX_RESOURCE_CODE } from "./setup";
@@ -54,7 +54,10 @@ export type TargetRef =
    * `ctx.targets[name]` (0..`EffectSpec.targetCount.max`), não só `group[0]`.
    * Ver `EffectSpec.targetCount` pra cardinalidade.
    */
-  | { kind: "namedGroup"; name: string }
+  | {
+      kind: "namedGroup";
+      name: string;
+    }
   /** grupo de alvo COLETIVO, computado dinamicamente a partir de `ctx.state` — não precisa de escolha externa, porque o próprio padrão já define quem entra (ex.: "toda Unit amiga com Link ativo agora"). Ver docs/18, lacuna #5. */
   | { kind: "group"; group: TargetGroup }
   /** W2c — GD03-110 "Choose 1 Pilot paired with an enemy Unit …": o Piloto pareado com a Unit escolhida em `name` */
@@ -83,7 +86,14 @@ export type TargetGroup =
       maxLevelOf?: string;
     }
   /** GD01-102 The Path to Victory or Defeat / ST07-009 Setsuna — "All friendly Units [with trait] ..." */
-  | { kind: "allFriendlyUnits"; maxLevel?: number; trait?: string }
+  | {
+      kind: "allFriendlyUnits";
+      maxLevel?: number;
+      trait?: string;
+      /** W13a — GD06-065 "all your (Dianna Counter)/(Militia) Units with <Blocker>" */
+      anyTraits?: string[];
+      hasKeyword?: string;
+    }
   /**
    * GD01-024 Wing Gundam Zero ("Deal 3 damage to all Units that are Lv.5 or
    * lower"), GD01-027 Big Zam / GD01-108 Strategic Arms ("all Units with
@@ -157,7 +167,11 @@ export type AmountFrom =
   /** W5 — GD04-036 "equal to the number of Units rested with this effect": quantos foram escolhidos em `name` */
   | { kind: "namedCount"; name: string }
   /** W12 — ST14-011 "by an amount equal to the number of rested enemy Units" */
-  | { kind: "enemyRestedUnitCount" };
+  | { kind: "enemyRestedUnitCount" }
+  /** W13a — GD06-130 "by an amount equal to the number of friendly (Dianna Counter)/(Militia) Units" */
+  | { kind: "friendlyUnitWithAnyTraitCount"; traits: string[] }
+  /** W13b — GD06-118 "the number of white Units with <Blocker> you have in play" */
+  | { kind: "friendlyUnitCount"; color?: string; keyword?: string };
 
 function resolveAmount(call: { amount: number; amountFrom?: AmountFrom }, ctx: EffectContext): number {
   const from = call.amountFrom;
@@ -167,13 +181,27 @@ function resolveAmount(call: { amount: number; amountFrom?: AmountFrom }, ctx: E
     return call.amount * Math.floor(effectiveAp(source, ctx.state) / from.div);
   }
   if (from.kind === "controllerTrashCount") {
-    return call.amount * ctx.state.players[ctx.controller].trash.filter((c) => matchesCardDefFilter(c.def, from.filter)).length;
+    return call.amount * ctx.state.players[ctx.controller].trash.filter((c) => matchesCardDefFilter(trashCardDef(ctx.state, c), from.filter)).length;
   }
   if (from.kind === "reactionAmount") return call.amount * Number(ctx.targets.reactionAmount?.[0] ?? 0);
   if (from.kind === "enemyRestedUnitCount") {
     return call.amount * ctx.state.players[otherPlayer(ctx.controller)].battleArea.filter((c) => c.def.cardType === "UNIT" && c.rested).length;
   }
   if (from.kind === "namedCount") return call.amount * (ctx.targets[from.name]?.length ?? 0);
+  if (from.kind === "friendlyUnitCount") {
+    return (
+      call.amount *
+      ctx.state.players[ctx.controller].battleArea.filter(
+        (c) => c.def.cardType === "UNIT" && (!from.color || c.def.color === from.color) && (!from.keyword || hasKeyword(c, from.keyword, ctx.state)),
+      ).length
+    );
+  }
+  if (from.kind === "friendlyUnitWithAnyTraitCount") {
+    return (
+      call.amount *
+      ctx.state.players[ctx.controller].battleArea.filter((c) => c.def.cardType === "UNIT" && from.traits.some((t) => hasTrait(c, t, ctx.state))).length
+    );
+  }
   if (from.kind === "topOfDeckTraitCount") {
     return call.amount * ctx.state.players[ctx.controller].deck.slice(0, from.n).filter((c) => hasTrait(c, from.trait, ctx.state)).length;
   }
@@ -192,7 +220,9 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
         (u) =>
           u.def.cardType === "UNIT" &&
           (group.maxLevel === undefined || (u.def.level ?? 0) <= group.maxLevel) &&
-          (!group.trait || hasTrait(u, group.trait, ctx.state)),
+          (!group.trait || hasTrait(u, group.trait, ctx.state)) &&
+          (!group.anyTraits || group.anyTraits.some((t) => hasTrait(u, t, ctx.state))) &&
+          (!group.hasKeyword || hasKeyword(u, group.hasKeyword, ctx.state)),
       )
       .map((u) => u.instanceId);
   }
@@ -229,7 +259,7 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
   }
   if (group.kind === "firstNInTrash") {
     const owner = ctx.state.players[resolvePlayerRef(group.player ?? "controller", ctx.controller)];
-    const eligible = owner.trash.filter((c) => matchesCardDefFilter(c.def, group.filter)).map((c) => c.instanceId);
+    const eligible = owner.trash.filter((c) => matchesCardDefFilter(trashCardDef(ctx.state, c), group.filter)).map((c) => c.instanceId);
     // W9 — o jogador escolhe quais (CR 10-2-2-1 / Q194); sem escolha (bot, fluxo antigo), as N primeiras
     const chosen = (ctx.targets.trashExile ?? []).filter((id) => eligible.includes(id)).slice(0, group.count);
     return [...chosen, ...eligible.filter((id) => !chosen.includes(id))].slice(0, group.count);
@@ -333,7 +363,14 @@ export type PrimitiveCall =
   | { op: "destroy"; target: TargetRef }
   | { op: "moveZone"; target: TargetRef; toZone: Zone }
   | { op: "modifyStat"; target: TargetRef; stat: StatKey; amount: number; duration: Duration; amountFrom?: AmountFrom }
-  | { op: "grantKeyword"; target: TargetRef; keyword: string; duration: Duration }
+  | {
+      op: "grantKeyword";
+      target: TargetRef;
+      keyword: string;
+      duration: Duration;
+      /** W13b — GD06-084 "gains the same number of <Breach 1> as the number of …": valor da keyword pela contagem (0 = nada) */
+      valueFrom?: AmountFrom;
+    }
   | { op: "rest"; target: TargetRef }
   | { op: "setActive"; target: TargetRef }
   | { op: "heal"; target: TargetRef; amount: number }
@@ -355,6 +392,8 @@ export type PrimitiveCall =
   | { op: "spawnToken"; def: CardDef; player: PlayerRef; zone: Zone; count?: number; rested?: boolean }
   /** variante de spawnToken que escolhe QUAL CardDef instanciar contando as próprias Units em campo (ex.: ST01-015 White Base — Gundam/Guncannon/Guntank token conforme 0/1/2+ Units já em jogo). `thresholds` é avaliado em ordem crescente de `maxUnits`; o 1º cuja contagem atual seja <= maxUnits vence. */
   | { op: "spawnTokenByOwnUnitCount"; player: PlayerRef; zone: Zone; thresholds: { maxUnits: number; def: CardDef }[] }
+  /** W13b — GD06-021 "Choose 1 of your Unit tokens. Deploy 1 rested Unit token of the same kind." (token novo, sem dano/efeitos — Q498) */
+  | { op: "spawnTokenCopy"; target: TargetRef; rested?: boolean }
   /** reordena 1 carta já revelada (via peekAndReorderDeck) de volta pro topo ou pro fundo do próprio deck, sem trocar de zona. Ex.: ST02-015 Saint Gabriel Institute. Com `target.kind: "named"` é interativo (camada de decisão, `deckReorder`). */
   /** W6 — `trash`: ST09-010/GD03-097 "look at the top 2 … return 1 to the top. Place the remaining card into your trash." */
   | { op: "moveWithinDeck"; target: TargetRef; position: "top" | "bottom" | "trash" }
@@ -373,7 +412,7 @@ export type PrimitiveCall =
    * escolha vem em `ctx.targets[key]` (0 ou 1 valor de `options[].value`),
    * resolvida pela camada de decisão (`enumChoice`). Sem escolha → `options[0]`
    * (default defensivo — a camada de decisão sempre força a escolha). */
-  | { op: "spawnTokenChoice"; player: PlayerRef; zone: Zone; key: string; options: { value: string; label: string; def: CardDef }[] }
+  | { op: "spawnTokenChoice"; player: PlayerRef; zone: Zone; key: string; options: { value: string; label: string; def: CardDef }[]; /** W13a — GD06-109 "Deploy 1 rested …" */ rested?: boolean }
   /**
    * W7 (C9) — "choose 1 of the following effects and activate it: ■… ■…" (GD05-102/106). A escolha é ENUM
    * (`enumChoice`); o modo escolhido roda depois como gatilho próprio `Mode:<value>` da mesma carta
@@ -415,7 +454,7 @@ export type PrimitiveCall =
    * (GD05-097, a Command descartada): roda o 【Main】 da carta (`card`) como continuação, sem pagar custo e sem
    * movê-la; conta como "ativou o 【Main】 de uma Command" (rulings Q376/Q397).
    */
-  | { op: "activateMainOf"; card: TargetRef }
+  | { op: "activateMainOf"; card: TargetRef; /** W13a — GD06-066 "Activate 【Action】 on the card paired with this Unit" (padrão: Main) */ trigger?: "Main" | "Action" }
   /** W8 — GD05-017 "Begin a battle between this Unit and it and only perform the damage step" (CR 5-22-3) */
   | { op: "beginDamageOnlyBattle"; target: TargetRef; /** W12 — ST12-013: a Unit amiga escolhida (padrão: a fonte) */ attacker?: TargetRef }
   /** W8 — GD05-089 "you may deploy it as an (AP3･HP3) Unit instead. (Don't treat it as a Pilot.)" */
@@ -443,7 +482,7 @@ export type PrimitiveCall =
    */
   | { op: "addShieldToHand"; player: PlayerRef; count: number }
   /** ST02-013 Peaceful Timbre — impede que shields recebam dano de Units inimigas até o level dado, durante esta batalha (docs/18, lacuna #7). Não-op fora de combate. */
-  | { op: "preventShieldDamage"; maxAttackerLevel: number }
+  | { op: "preventShieldDamage"; maxAttackerLevel?: number; /** W13a — GD06-106 "enemy Units with 6 or less AP" */ maxAttackerAp?: number }
   /**
    * ST03-014 The Blue Giant 【Action】 — "Choose 1 friendly Unit. It can't receive
    * battle damage from enemy Units with 2 or less AP during this battle." Instala
@@ -490,6 +529,8 @@ export type PrimitiveCall =
       enemyOnly?: boolean;
       sourceUnitOnly?: boolean;
       sourceMaxLevel?: number;
+      /** W13b — GD06-093 "from an enemy Unit whose Lv. is equal to or lower than it" */
+      sourceLevelAtMostTarget?: boolean;
     }
   /**
    * GD04-067 "Choose 1 Unit card with <keywords> from your trash. During this turn, this Unit gets AP+1 and all
@@ -553,7 +594,8 @@ export type PrimitiveCall =
       /** W11 — "keep": as não reveladas ficam onde estão (EB01-023/078 "return … to the top or bottom" vem na continuação) */
       restTo?: "bottom" | "trash" | "keep";
       /** W11 — EB01-067 "reveal 1 … and return it to the top of your deck" (padrão: mão) */
-      revealTo?: "hand" | "top";
+      /** W13b — GD06-042 "You may pair 1 (Biological CPU) Pilot card among them with this Unit" (sem custo, Q513) */
+      revealTo?: "hand" | "top" | "pairWithSelf";
       /** W12 — ST13-011 "whose Lv. is equal to or lower than this Unit" (a Unit da fonte; num Piloto, a pareada) */
       maxLevelOfSelfUnit?: boolean;
     }
@@ -686,7 +728,9 @@ export function costTargetShortfall(
 ): boolean {
   if (!costRestsSecondaryTarget(spec) || !spec.secondaryTarget) return false;
   const st = spec.secondaryTarget;
-  return computeLegalTargets(state, { targetScope: st.targetScope, targetFilter: st.targetFilter }, controller, resolveFilter, sourceInstanceId).length < (st.count ?? 1);
+  const legal = computeLegalTargets(state, { targetScope: st.targetScope, targetFilter: st.targetFilter }, controller, resolveFilter, sourceInstanceId);
+  const available = st.uniqueNames ? new Set(legal.map((id) => findCard(state, id).def.nameEn)).size : legal.length;
+  return available < (st.count ?? 1);
 }
 
 /**
@@ -704,7 +748,7 @@ export function trashExileChoice(
     if (c.op !== "moveZone" || c.toZone !== "exile" || c.target.kind !== "group" || c.target.group.kind !== "firstNInTrash") continue;
     const group = c.target.group;
     const legalTrashIds = state.players[resolvePlayerRef(group.player ?? "controller", controller)].trash
-      .filter((card) => matchesCardDefFilter(card.def, group.filter))
+      .filter((card) => matchesCardDefFilter(trashCardDef(state, card), group.filter))
       .map((card) => card.instanceId);
     if (legalTrashIds.length > group.count) return { legalTrashIds, count: group.count };
   }
@@ -725,7 +769,7 @@ export function exileCostShortfall(state: GameState, spec: EffectSpec, controlle
   return (spec.cost ?? []).some((c) => {
     if (c.op !== "moveZone" || c.toZone !== "exile" || c.target.kind !== "group" || c.target.group.kind !== "firstNInTrash") return false;
     const group = c.target.group;
-    return state.players[controller].trash.filter((card) => matchesCardDefFilter(card.def, group.filter)).length < group.count;
+    return state.players[controller].trash.filter((card) => matchesCardDefFilter(trashCardDef(state, card), group.filter)).length < group.count;
   });
 }
 
@@ -874,6 +918,17 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       return events;
     }
     case "grantKeyword": {
+      if (call.valueFrom) {
+        const value = resolveAmount({ amount: 1, amountFrom: call.valueFrom }, ctx);
+        if (value <= 0) return [];
+        return resolveTargetIds(call.target, ctx).map(
+          (instanceId): GameEvent => ({
+            type: "GRANT_KEYWORD",
+            instanceId,
+            grant: { keyword: `${call.keyword} ${value}`, duration: call.duration, appliedOnTurn: ctx.turnNumber },
+          }),
+        );
+      }
       return resolveTargetIds(call.target, ctx).map(
         (instanceId): GameEvent => ({
           type: "GRANT_KEYWORD",
@@ -886,7 +941,16 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       return resolveTargetIds(call.target, ctx).map((instanceId): GameEvent => ({ type: "REST_CARD", instanceId }));
     }
     case "setActive": {
-      const ids = resolveTargetIds(call.target, ctx);
+      // W13b — GD06-037 "Enemy Units can't be set as active by enemy effects": Unit do controlador do efeito, com uma
+      // Reginlaze Julia (pareada) do lado do oponente dele
+      const blocked = (id: string) => {
+        const card = findCard(ctx.state, id);
+        if (card.def.cardType !== "UNIT" || card.zone !== "battleArea" || card.owner !== ctx.controller) return false;
+        return ctx.state.players[otherPlayer(ctx.controller)].battleArea.some(
+          (c) => !!c.def.preventsEnemySelfSetActive && (c.def.preventsEnemySelfSetActive.condition !== "duringPair" || !!c.pairedPilotId),
+        );
+      };
+      const ids = resolveTargetIds(call.target, ctx).filter((id) => !blocked(id));
       const events: GameEvent[] = ids.map((instanceId): GameEvent => ({ type: "SET_ACTIVE", instanceId }));
       // W12 — ST14-015 "if you have not set one of your Resources as active with an effect this turn"
       for (const id of ids) {
@@ -916,6 +980,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
             enemyOnly: call.enemyOnly,
             sourceUnitOnly: call.sourceUnitOnly,
             sourceMaxLevel: call.sourceMaxLevel,
+            sourceLevelAtMostTarget: call.sourceLevelAtMostTarget,
             turn: ctx.turnNumber,
           },
         }),
@@ -1071,6 +1136,13 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       }
       return events;
     }
+    case "spawnTokenCopy": {
+      return resolveTargetIds(call.target, ctx).flatMap((id): GameEvent[] => {
+        const token = findCard(ctx.state, id);
+        if (!token.def.isToken || token.zone !== "battleArea") return [];
+        return [{ type: "SPAWN_TOKEN", player: ctx.controller, def: token.def, zone: "battleArea", rested: call.rested }];
+      });
+    }
     case "spawnTokenByOwnUnitCount": {
       const player = resolvePlayerRef(call.player, ctx.controller);
       const unitCount = ctx.state.players[player].battleArea.filter((c) => c.def.cardType === "UNIT").length;
@@ -1150,10 +1222,10 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       const player = resolvePlayerRef(call.player, ctx.controller);
       const chosen = ctx.targets[call.key]?.[0];
       const match = call.options.find((o) => o.value === chosen) ?? call.options[0];
-      return [{ type: "SPAWN_TOKEN", player, def: match.def, zone: call.zone }];
+      return [{ type: "SPAWN_TOKEN", player, def: match.def, zone: call.zone, rested: call.rested }];
     }
     case "preventShieldDamage": {
-      return [{ type: "SET_SHIELD_PROTECTION", maxAttackerLevel: call.maxAttackerLevel }];
+      return [{ type: "SET_SHIELD_PROTECTION", maxAttackerLevel: call.maxAttackerLevel, maxAttackerAp: call.maxAttackerAp }];
     }
     case "preventUnitBattleDamage": {
       return resolveTargetIds(call.target, ctx).map(
@@ -1221,7 +1293,14 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
         if (!matchesCardDefFilter(card.def, revealFilter(call, ctx.state, ctx.sourceInstanceId))) {
           throw new Error(`lookAtTopFilterReveal: carta revelada "${card.def.code}" não casa o filtro exigido pelo efeito`);
         }
-        if (call.revealTo !== "top") events.push({ type: "MOVE_CARD", instanceId: revealed, toZone: "hand" });
+        if (call.revealTo === "pairWithSelf") {
+          const unit = findCard(ctx.state, ctx.sourceInstanceId);
+          if (unit.zone === "battleArea" && unit.def.cardType === "UNIT" && !unit.pairedPilotId && card.def.cardType === "PILOT") {
+            events.push({ type: "MOVE_CARD", instanceId: revealed, toZone: "battleArea" }, { type: "PAIR_CARDS", pilotId: revealed, unitId: unit.instanceId, asPilotMode: false });
+          } else {
+            events.push({ type: "MOVE_WITHIN_DECK", instanceId: revealed, position: "bottom" });
+          }
+        } else if (call.revealTo !== "top") events.push({ type: "MOVE_CARD", instanceId: revealed, toZone: "hand" });
       }
       for (const card of top) {
         if (card.instanceId === revealed || call.restTo === "keep") continue;
@@ -1305,7 +1384,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       if (!chosen) return [];
       const card = ctx.state.players[player].trash.find((c) => c.instanceId === chosen);
       if (!card) throw new Error(`searchTrashToHand: carta "${chosen}" não está na lixeira de ${player}`);
-      if (!matchesCardDefFilter(card.def, call.filter)) {
+      if (!matchesCardDefFilter(trashCardDef(ctx.state, card), call.filter)) {
         throw new Error(`searchTrashToHand: "${card.def.code}" não casa o filtro do efeito`);
       }
       return [{ type: "MOVE_CARD", instanceId: chosen, toZone: "hand" }];
@@ -1316,7 +1395,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       if (!chosen) return [];
       const card = ctx.state.players[player].trash.find((c) => c.instanceId === chosen);
       if (!card) throw new Error(`pairFromTrashSearch: carta "${chosen}" não está na lixeira de ${player}`);
-      if (!matchesCardDefFilter(card.def, call.filter)) {
+      if (!matchesCardDefFilter(trashCardDef(ctx.state, card), call.filter)) {
         throw new Error(`pairFromTrashSearch: "${card.def.code}" não casa o filtro do efeito`);
       }
       return [
@@ -1360,11 +1439,12 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
         return [...payResourceCostEvents(ctx.state, player, baseCost), ...replace, { type: "MOVE_CARD", instanceId: chosen, toZone: "baseSection" }];
       }
       if (card.def.cardType !== "UNIT") throw new Error(`deployFromTrashPayingCost: "${card.def.code}" não é Unit`);
-      if (!matchesCardDefFilter(card.def, call.filter)) {
+      const inTrash = trashCardDef(ctx.state, card);
+      if (!matchesCardDefFilter(inTrash, call.filter)) {
         throw new Error(`deployFromTrashPayingCost: "${card.def.code}" não casa o filtro do efeito`);
       }
       // GD03-058 — "This card in your trash gets cost -1."
-      const cost = call.free ? 0 : Math.max(0, effectiveCost(card.def, ctx.state, player) + (card.def.costModifierInTrash ?? 0));
+      const cost = call.free ? 0 : Math.max(0, effectiveCost(inTrash, ctx.state, player) + (card.def.costModifierInTrash ?? 0));
       const deployed: GameEvent[] = [{ type: "MOVE_CARD", instanceId: chosen, toZone: "battleArea" }];
       // W12 — ST11-015 "Deploy it rested."
       if (call.rested) deployed.push({ type: "REST_CARD", instanceId: chosen });
@@ -1482,7 +1562,16 @@ export type ReactionEvent =
    */
   | "destroyedEnemyWithDamage"
   /** W12 — ST13-012 "When an enemy Unit is destroyed with effect damage" (qualquer efeito; "destroy" sem dano não conta, Q459). A carta do evento é a Unit destruída; escutam as cartas do oponente dela. */
-  | "enemyDestroyedByEffectDamage";
+  | "enemyDestroyedByEffectDamage"
+  /** W13b — GD06-001 "When this Unit is attacked": a Unit escolhida como alvo do ataque (lado do defensor) */
+  | "attacked"
+  /** W13b — GD06-097 "When this Unit activates <Blocker>" */
+  | "blockerActivated"
+  /**
+   * W13b — GD06-020 "when one of your (Neo Zeon) Units destroys an enemy card with damage": Unit, Base ou escudo, com
+   * dano de batalha ou de efeito da Unit (ou do Piloto pareado) — rulings Q496/Q497. A carta do evento é a Unit.
+   */
+  | "destroyedEnemyCardWithDamage";
 
 export interface ReactionSpec {
   event: ReactionEvent;
@@ -1582,7 +1671,12 @@ export interface EffectSpec {
    * — um jogador humano escolhe no máximo 1 destes até a UI ganhar seletor múltiplo;
    * bots/testes escolhem o pool inteiro até `max` (`legalActions.ts`).
    */
-  targetCount?: { min: number; max: number };
+  targetCount?: {
+    min: number;
+    max: number;
+    /** W13b — GD06-118 "Choose a number of enemy Units up to the number of …": o máximo é a contagem na hora (teto `max`) */
+    maxFrom?: AmountFrom;
+  };
   /**
    * Lote 5 (docs/debates 2026-09-13) — 2º pool de alvo, com ESCOPO PRÓPRIO
    * (diferente do pool principal de `targetScope`/`targetFilter`/`ctx.targets.target`),
@@ -1606,6 +1700,8 @@ export interface EffectSpec {
     sequential?: boolean;
     /** W8 — GD05-001/038 "Rest 2/3 of your … Units:": quantas Units o 2º alvo exige (padrão 1) */
     count?: number;
+    /** W13b — GD06-039 "Destroy 2 of your (Gundam Team) Units with unique card names": nomes diferentes entre as escolhidas */
+    uniqueNames?: boolean;
   };
 }
 
@@ -1645,12 +1741,14 @@ export type TargetFilterResolver = (
  */
 export function computeLegalTargets(
   state: GameState,
-  spec: Pick<EffectSpec, "targetScope" | "targetFilter" | "baseRestSubstitutable">,
+  spec: Pick<EffectSpec, "targetScope" | "targetFilter" | "baseRestSubstitutable"> & Partial<Pick<EffectSpec, "targetCount">>,
   controller: PlayerId,
   resolveFilter?: TargetFilterResolver,
   sourceInstanceId?: string,
   implicitTargets?: Record<string, string[]>,
 ): string[] {
+  // W13b — GD06-118 "up to the number of …" com contagem 0: não há o que escolher (o efeito não ativa)
+  if (spec.targetCount?.maxFrom && resolveTargetCount(state, spec, controller, sourceInstanceId)?.max === 0) return [];
   const scope = spec.targetScope ?? "enemyUnit";
   const pool: CardInstance[] =
     scope === "enemyUnit"
@@ -2015,6 +2113,9 @@ const REACTION_EVENTS: Record<ReactionEvent, true> = {
   drewByEffect: true,
   destroyedEnemyWithDamage: true,
   enemyDestroyedByEffectDamage: true,
+  attacked: true,
+  blockerActivated: true,
+  destroyedEnemyCardWithDamage: true,
 };
 
 /** rótulos de gatilho que o motor despacha pelo nome exato (`findTriggerSpecs`) */
@@ -2031,6 +2132,7 @@ const DISPATCHED_TRIGGERS = new Set([
   "When Linked",
   "AnyPairing",
   "AfterMain",
+  "AfterAction",
 ]);
 
 /**
@@ -2042,4 +2144,23 @@ export function isDispatchedTrigger(trigger: string): boolean {
   if (/^Then:\d+$/.test(trigger) || /^Mode:.+$/.test(trigger)) return true;
   const reactive = /^(Reaction|Delayed):(.+)$/.exec(trigger);
   return reactive !== null && reactive[2] in REACTION_EVENTS;
+}
+
+/**
+ * W13b — a cardinalidade da escolha AGORA: com `targetCount.maxFrom` (GD06-118 "up to the number of white Units with
+ * <Blocker> you have in play") o máximo é a contagem no estado atual. É o que a fila de decisão, o menu de jogadas e a
+ * validação usam — a tela só deixa marcar até esse número.
+ */
+export function resolveTargetCount(
+  state: GameState,
+  spec: Pick<EffectSpec, "targetCount">,
+  controller: PlayerId,
+  sourceInstanceId?: string,
+): { min: number; max: number } | undefined {
+  const tc = spec.targetCount;
+  if (!tc) return undefined;
+  if (!tc.maxFrom) return { min: tc.min, max: tc.max };
+  const ctx = { state, controller, sourceInstanceId: sourceInstanceId ?? "", targets: {}, turnNumber: state.turnNumber } as EffectContext;
+  const max = Math.min(tc.max, Math.max(0, resolveAmount({ amount: 1, amountFrom: tc.maxFrom }, ctx)));
+  return { min: Math.min(tc.min, max), max };
 }

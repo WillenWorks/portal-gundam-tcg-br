@@ -79,6 +79,12 @@ const SEM_RASTRO_NO_TABULEIRO: string[] = [
   "EB01-018", "GD01-015", "ST06-010",
   // "Choose 1 enemy player. That player …" — sem a condição do 2º passo
   "ST13-009",
+  // W13a — "another (Alphacide)", "(Earth Federation) Base", "3 other (Ghingnham Fleet)", "2 (Gjallarhorn) Units"
+  "GD06-003", "GD06-008", "GD06-026", "GD06-090",
+  // W13a — "other (Gundam Team) Unit" / "enemy Unit Lv.5 or higher" sem alvo; "Activate 【Action】" — o Piloto de teste não tem 【Action】
+  "GD06-046", "GD06-099", "GD06-066",
+  // W13b — "If you have paid a total of ③ or more for your Units' effects this turn"
+  "GD06-070",
 ];
 
 describe(`【Attack】 gerado — ${ATTACK_CARDS.length} cartas, caminho do jogador`, () => {

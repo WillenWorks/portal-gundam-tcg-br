@@ -592,6 +592,62 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
     return !!selfUnit && hasTrait(selfUnit, selfHasTrait[1], ctx.state);
   }
+  // W13a — GD06-092 "If this is a (Phantom Pain)/(Orb) Unit" (OR, vírgula; resolve pra Unit pareada num Piloto)
+  const selfHasAnyTrait = predicate.match(/^selfHasAnyTrait:(.+)$/);
+  if (selfHasAnyTrait) {
+    const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
+    return !!selfUnit && selfHasAnyTrait[1].split(",").some((t) => hasTrait(selfUnit, t, ctx.state));
+  }
+  // W13b — GD06-080 "If you have drawn with an effect during this turn" / GD06-102 "no enemy Units have attacked this turn":
+  // lidos do `eventLog` do turno atual (a compra da Draw Phase não conta) — sem estado novo no jogo
+  if (predicate === "controllerDrewByEffectThisTurn" || predicate === "noEnemyAttackedThisTurn") {
+    const log = ctx.state.eventLog;
+    let start = log.length;
+    while (start > 0 && !(log[start - 1].type === "PHASE_CHANGE" && (log[start - 1] as { phase: string }).phase === "start")) start--;
+    let phase = "start";
+    for (let i = start; i < log.length; i++) {
+      const e = log[i];
+      if (e.type === "PHASE_CHANGE") phase = e.phase;
+      else if (predicate === "controllerDrewByEffectThisTurn" && e.type === "DRAW_CARD" && e.from === "deck" && e.player === ctx.controller && phase !== "draw") return true;
+      else if (predicate === "noEnemyAttackedThisTurn" && e.type === "ATTACK_DECLARED" && e.attackingPlayer !== ctx.controller) return false;
+    }
+    return predicate === "noEnemyAttackedThisTurn";
+  }
+  // W13b — GD06-070 "If you have paid a total of ③ or more for your Units' effects this turn"
+  const paidForUnitEffects = predicate.match(/^controllerPaidForUnitEffectsThisTurnAtLeast:(\d+)$/);
+  if (paidForUnitEffects) {
+    const mark = ctx.state.players[ctx.controller].paidForUnitEffectsOnTurn;
+    return !!mark && mark.turn === ctx.state.turnNumber && mark.amount >= Number(paidForUnitEffects[1]);
+  }
+  // W13b — GD06-125 "while you have a rested (AEUG) Unit in play"
+  const controllerRestedUnitWithTrait = predicate.match(/^controllerRestedUnitWithTraitInPlay:(.+)$/);
+  if (controllerRestedUnitWithTrait) {
+    return ctx.state.players[ctx.controller].battleArea.some((u) => u.def.cardType === "UNIT" && u.rested && hasTrait(u, controllerRestedUnitWithTrait[1], ctx.state));
+  }
+  // W13a — GD06-129 "If you have any Shields in play" (escudos; a Base não conta)
+  const controllerShieldCountAtLeast = predicate.match(/^controllerShieldCountAtLeast:(\d+)$/);
+  if (controllerShieldCountAtLeast) return ctx.state.players[ctx.controller].shields.length >= Number(controllerShieldCountAtLeast[1]);
+  // W13a — GD06-008 "If a friendly (Earth Federation) Base is in play"
+  const controllerBaseWithTrait = predicate.match(/^controllerBaseWithTraitInPlay:(.+)$/);
+  if (controllerBaseWithTrait) {
+    return (ctx.state.players[ctx.controller].baseSection ?? []).some((b) => hasTrait(b, controllerBaseWithTrait[1], ctx.state));
+  }
+  // W13a — GD06-023 "If you increase a Link Unit's AP with this effect": o alvo escolhido é Link Unit
+  const chosenIsLinkUnit = predicate.match(/^chosenIsLinkUnit:(.+)$/);
+  if (chosenIsLinkUnit) {
+    const id = ctx.targets[chosenIsLinkUnit[1]]?.[0];
+    return !!id && isPairedLinkUnit(ctx.state, findCard(ctx.state, id));
+  }
+  // W13a — GD06-123 "you have a (Neo Zeon) Unit paired with a Pilot that is Lv.3 or lower in play"
+  const unitTraitPairedPilotLevelAtMost = predicate.match(/^controllerUnitWithTraitPairedPilotLevelAtMost:(.+):(\d+)$/);
+  if (unitTraitPairedPilotLevelAtMost) {
+    const side = ctx.state.players[ctx.controller].battleArea;
+    return side.some((u) => {
+      if (u.def.cardType !== "UNIT" || !u.pairedPilotId || !hasTrait(u, unitTraitPairedPilotLevelAtMost[1], ctx.state)) return false;
+      const pilot = side.find((p) => p.instanceId === u.pairedPilotId);
+      return !!pilot && (effectivePilotDef(pilot).level ?? 0) <= Number(unitTraitPairedPilotLevelAtMost[2]);
+    });
+  }
   // W6 — ST09-003 "If there are 5 or more purple cards in your trash" (qualquer tipo de carta)
   const trashColorCount = predicate.match(/^controllerTrashColorCountAtLeast:(.+):(\d+)$/);
   if (trashColorCount) {
@@ -890,6 +946,24 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
     if (!opposingId) return false;
     const opposing = findCard(ctx.state, opposingId);
     return opposing.owner === findCard(ctx.state, ctx.sourceInstanceId).owner && (opposing.def.level ?? 0) >= Number(battlingFriendlyLevelAtLeast[1]);
+  }
+  // W13a — GD06-112 "1 enemy Unit battling a friendly (AEUG) Unit"
+  const battlingFriendlyHasTrait = filter.match(/^battlingFriendlyHasTrait:(.+)$/);
+  if (battlingFriendlyHasTrait) {
+    const combat = ctx.state.combat;
+    if (!combat || combat.currentTarget === "player" || !ctx.sourceInstanceId) return false;
+    let opposingId: string | undefined;
+    if (combat.attackerId === candidate.instanceId) opposingId = combat.currentTarget.unitId;
+    else if (combat.currentTarget.unitId === candidate.instanceId) opposingId = combat.attackerId;
+    if (!opposingId) return false;
+    const opposing = findCard(ctx.state, opposingId);
+    return opposing.owner === findCard(ctx.state, ctx.sourceInstanceId).owner && hasTrait(opposing, battlingFriendlyHasTrait[1], ctx.state);
+  }
+  // W13a — GD06-092 "1 enemy Unit whose AP is equal to or less than this Unit" (num Piloto, a Unit pareada)
+  if (filter === "ap<=selfUnit") {
+    if (!ctx.sourceInstanceId) return false;
+    const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
+    return !!selfUnit && effectiveAp(candidate, ctx.state) <= effectiveAp(selfUnit, ctx.state);
   }
   const battlingFriendlyHasKeyword = filter.match(/^battlingFriendlyHasKeyword:(.+)$/);
   if (battlingFriendlyHasKeyword) {

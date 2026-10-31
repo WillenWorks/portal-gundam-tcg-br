@@ -6,14 +6,15 @@ import { similarSpecsClient, mechanicTokens, type SpecSignature } from "./simila
 
 const index = indexJson as SpecSignature[];
 
-const codesOf = (r: { results: Array<{ cardCode: string }> }) => r.results.map((x) => x.cardCode);
-
 describe("similarSpecsClient — casos canônicos (docs/44)", () => {
   it('"Choose 1 enemy Unit. Deal 2 damage to it." → Close Combat (ST03-013) e Battle of Aces (GD01-111) no topo', () => {
-    const r = similarSpecsClient("Choose 1 enemy Unit. Deal 2 damage to it.", index, 8);
-    expect(r.results.length).toBeLessThanOrEqual(8);
-    expect(codesOf(r)).toContain("ST03-013");
-    expect(codesOf(r)).toContain("GD01-111");
+    expect(similarSpecsClient("Choose 1 enemy Unit. Deal 2 damage to it.", index, 8).results.length).toBeLessThanOrEqual(8);
+    // W13a — o texto exato aparece em mais sets (GD06-113): confere o grupo empatado no topo inteiro
+    const r = similarSpecsClient("Choose 1 enemy Unit. Deal 2 damage to it.", index, 50);
+    const top = r.results[0].score;
+    const tied = r.results.filter((x) => x.score === top).map((x) => x.cardCode);
+    expect(tied).toContain("ST03-013");
+    expect(tied).toContain("GD01-111");
   });
 
   it('"Look at the top 3 cards of your deck..." → Char\'s Zaku Ⅱ (ST03-006) no topo (empatada com GD01-045 e GD02, mesmo texto de abertura)', () => {

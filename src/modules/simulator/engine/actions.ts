@@ -345,11 +345,22 @@ function applyPlayerActionInner(
         { predicateResolver, targetFilterResolver },
       );
       // W2a (C1) — "when one of your (other) Units attacks" (GD03-002): simultâneo ao 【Attack】
+      // W13a/W13b — "When this Unit is attacked" (GD06-001): a Unit escolhida como alvo, do lado do defensor (depois das do atacante)
+      const attackedTarget = next.combat && next.combat.currentTarget !== "player" ? next.combat.currentTarget.unitId : undefined;
+      const defender = otherPlayer(actingPlayer);
       const attackReactions: QueuedTrigger[] = [
         {
           owner: actingPlayer,
           trigger: "Reaction:attack",
           sources: reactionListeners(next, { event: "attack", subjectId: action.attackerId, owner: actingPlayer }, specs, targetFilterResolver),
+        },
+        {
+          owner: defender,
+          trigger: "Reaction:attacked",
+          sources:
+            attackedTarget && specsListenTo(specs, "attacked")
+              ? reactionListeners(next, { event: "attacked", subjectId: attackedTarget, owner: defender }, specs, targetFilterResolver)
+              : [],
         },
       ].filter((q) => q.sources.length > 0);
       if (next.pendingDecision[actingPlayer]) return attachQueuedTriggers(next, attackReactions); // pausou pra escolher (segue no resolveAbility)
@@ -365,7 +376,12 @@ function applyPlayerActionInner(
       if (actingPlayer !== combat.defendingPlayer) {
         throw new Error("Só quem está defendendo pode ativar <Blocker>");
       }
-      return activateBlocker(state, action.blockerId);
+      // W13b — "When this Unit activates <Blocker>" (GD06-097)
+      const blocked = activateBlocker(state, action.blockerId);
+      return dispatchReactions(blocked, [{ event: "blockerActivated", subjectId: action.blockerId, owner: actingPlayer }], specs, {
+        predicateResolver,
+        targetFilterResolver,
+      });
     }
 
     case "skipBlock": {
@@ -796,6 +812,9 @@ function applyPlayerActionInner(
         if (q.secondaryTarget?.count && r.activate && (secondaryIds.length !== q.secondaryTarget.count || new Set(secondaryIds).size !== secondaryIds.length)) {
           throw new Error(`Custo inválido pra ${r.specId} — escolha ${q.secondaryTarget.count} Units diferentes.`);
         }
+        if (q.secondaryTarget?.uniqueNames && r.activate && new Set(secondaryIds.map((id) => findCard(next, id).def.nameEn)).size !== secondaryIds.length) {
+          throw new Error(`Custo inválido pra ${r.specId} — as Units precisam ter nomes diferentes.`);
+        }
         if (q.secondaryTarget && secondaryIds.length > 0 && !secondaryIds.every((id) => q.secondaryTarget!.legalTargets.includes(id))) {
           throw new Error(`Alvo secundário inválido pra ${r.specId} — não está entre os alvos legais.`);
         }
@@ -876,7 +895,9 @@ function applyPlayerActionInner(
           next = applyEvent(next, { type: "MOVE_CARD", instanceId: srcId, toZone: "trash" });
           next = dispatchCommandActivated(next, srcId, specs, { predicateResolver, targetFilterResolver });
           // W7 — "After activating this card's 【Main】…" (a Command já está no trash)
-          if (flowTrigger === "Main") next = dispatchAfterMain(next, srcId, specs, { predicateResolver, targetFilterResolver });
+          if (flowTrigger === "Main" || flowTrigger === "Action") {
+            next = dispatchAfterMain(next, srcId, specs, { predicateResolver, targetFilterResolver }, flowTrigger);
+          }
         }
       }
       // W7 (C9) — a resolução abriu uma continuação ("If you do, choose …", alvo do modo): ela herda a origem e as

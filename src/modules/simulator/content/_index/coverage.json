@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "1103 specs",
+  "generatedFrom": "1256 specs",
   "sets": {
     "ST01": {
       "cards": [
@@ -5955,6 +5955,797 @@
         "impl": 12,
         "implStar": 0,
         "vanilla": 4,
+        "deferida": 0,
+        "faltando": 0
+      }
+    },
+    "GD06": {
+      "cards": [
+        {
+          "code": "GD06-001",
+          "name": "Gundam GP01Fb",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-002",
+          "name": "Infinite Justice Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-003",
+          "name": "GQuuuuuuX (Omega Psycommu Released)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-004",
+          "name": "Gundam GP01",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-005",
+          "name": "Akatsuki (Shiranui)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-006",
+          "name": "GQuuuuuuX (Omega Psycommu)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-007",
+          "name": "Kikeroga (MS Mode) (GQ)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-008",
+          "name": "Powered GM",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-009",
+          "name": "GM Custom",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-010",
+          "name": "GM Cannon Ⅱ",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-011",
+          "name": "Red Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-012",
+          "name": "Z'Gok",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-013",
+          "name": "Zaku Ⅱ F2 (EFSF)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-014",
+          "name": "GM Type C",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-015",
+          "name": "Waldfeld's Gaia Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-016",
+          "name": "Dom Trooper",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-017",
+          "name": "GQuuuuuuX",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-018",
+          "name": "Elpeo Ple's Qubeley Mk-Ⅱ",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-019",
+          "name": "Turn X",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-020",
+          "name": "Hamma-Hamma",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-021",
+          "name": "Turn X (Top)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-022",
+          "name": "Merrybell's Bandit",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-023",
+          "name": "Galluss J",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-024",
+          "name": "R-Jarja",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-025",
+          "name": "Re-GZ",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-026",
+          "name": "Stero's Mahiroo",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-027",
+          "name": "Mashymre's Zssa",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-028",
+          "name": "Gaza D",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-029",
+          "name": "Elpeo Ple's Qubeley Mk-Ⅱ",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-030",
+          "name": "Mahiroo",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-031",
+          "name": "Zssan",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-032",
+          "name": "Bellona",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-033",
+          "name": "ZZ Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-034",
+          "name": "Gundam Bael",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-035",
+          "name": "Zeta Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-036",
+          "name": "Gundam Vidar",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-037",
+          "name": "Reginlaze Julia",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-038",
+          "name": "Gundam Kimaris Vidar",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-039",
+          "name": "Neo Core Fighter",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-040",
+          "name": "Gundam Mk-Ⅱ",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-041",
+          "name": "Neo Lorrnoke's Windam (Jet Striker)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-042",
+          "name": "Destroy Gundam (MA Mode)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-043",
+          "name": "Julieta's Reginlaze",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-044",
+          "name": "Core Top",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-045",
+          "name": "Core Base",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-046",
+          "name": "Hyaku-Shiki",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-047",
+          "name": "Windam",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-048",
+          "name": "Helmwige Reincar",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-049",
+          "name": "Gundam GP02A",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-050",
+          "name": "Legend Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-051",
+          "name": "GFreD",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-052",
+          "name": "Val Walo",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-053",
+          "name": "Xavier's Gyan Hakuji-Packs (GQ)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-054",
+          "name": "GFreD",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-055",
+          "name": "Gundam GP02A",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-056",
+          "name": "Xamel",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-057",
+          "name": "Karius' Rick Dom Ⅱ",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-058",
+          "name": "Blast Impulse Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-059",
+          "name": "Dom Tropen",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-060",
+          "name": "Zaku Ⅱ F2",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-061",
+          "name": "Dra-C",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-062",
+          "name": "Gyan Hakuji-Packs (GQ)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-063",
+          "name": "GFreD",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-064",
+          "name": "Altron Gundam (EW)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-065",
+          "name": "SUMO Gold Type",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-066",
+          "name": "Shadow Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-067",
+          "name": "Gundam Sandrock Custom (EW)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-068",
+          "name": "Gundam Heavyarms Custom (EW)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-069",
+          "name": "SUMO Silver Type",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-070",
+          "name": "Eagail",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-071",
+          "name": "Shining Gundam (Meikyo Shisui)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-072",
+          "name": "Gundam Deathscythe Hell (EW)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-073",
+          "name": "Wing Gundam Zero (EW)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-074",
+          "name": "Flat",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-075",
+          "name": "Serpent",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-076",
+          "name": "WaDom",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-077",
+          "name": "Cannon Illfuto",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-078",
+          "name": "WaD",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-079",
+          "name": "Muttowooo",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-080",
+          "name": "Kou Uraki",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-081",
+          "name": "Amate Yuzuriha (Machu)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-082",
+          "name": "Athrun Zala",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-083",
+          "name": "Challia Bull (GQ)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-084",
+          "name": "Elpeo Ple",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-085",
+          "name": "Gym Ghingnham",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-086",
+          "name": "Mashymre Cello",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-087",
+          "name": "Merrybell Gadget",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-088",
+          "name": "Judau Ashta",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-089",
+          "name": "McGillis Fareed",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-090",
+          "name": "Vidar",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-091",
+          "name": "Roux Louka",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-092",
+          "name": "Neo Lorrnoke",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-093",
+          "name": "Anavel Gato",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-094",
+          "name": "Nyaan",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-095",
+          "name": "Kelley Layzner",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-096",
+          "name": "Xavier Olivette",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-097",
+          "name": "Harry Ord",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-098",
+          "name": "Duo Maxwell",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-099",
+          "name": "Chang Wufei",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-100",
+          "name": "Corin Nander",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-101",
+          "name": "The Gundam Says",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-102",
+          "name": "A Miracle",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-103",
+          "name": "Restore the Front Line",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-104",
+          "name": "Steady Support",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-105",
+          "name": "Grace Under Pressure",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-106",
+          "name": "Presence Detected",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-107",
+          "name": "Wheel Spoke Formation",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-108",
+          "name": "On Edge",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-109",
+          "name": "God of War Ghingnham",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-110",
+          "name": "Familial Love",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-111",
+          "name": "Steely Loyalty",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-112",
+          "name": "Rivalry with Roux",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-113",
+          "name": "Unsanctioned Ordnance",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-114",
+          "name": "Alphaciders",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-115",
+          "name": "Teaching New Techniques",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-116",
+          "name": "Afterglow of Zeon",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-117",
+          "name": "Veterans Joining Forces",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-118",
+          "name": "Infinite Variations",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-119",
+          "name": "Sturm und Drang",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-120",
+          "name": "Hoping for Peace",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-121",
+          "name": "Crybaby Poe",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-122",
+          "name": "Albion",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-123",
+          "name": "Endra",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-124",
+          "name": "Aspite",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-125",
+          "name": "Argama",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-126",
+          "name": "Skipjack-class Warship",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-127",
+          "name": "Yomagn'tho",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-128",
+          "name": "Gwaden",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-129",
+          "name": "5th Luna",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD06-130",
+          "name": "Soleil",
+          "status": "implementada",
+          "deferredClauses": []
+        }
+      ],
+      "counts": {
+        "impl": 112,
+        "implStar": 0,
+        "vanilla": 18,
         "deferida": 0,
         "faltando": 0
       }

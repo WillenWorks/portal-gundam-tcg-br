@@ -35,6 +35,14 @@ describe("cardStatus — lógica de playability", () => {
     expect(getAllCardStatuses().summary.revisao).toBe(0);
   });
 
+  it("W13b — GD06 fechado: as 130 cartas aptas (GD06-001 e GD06-039 incluídas)", () => {
+    expect(getCardStatus("GD06-001").status).toBe("apta");
+    expect(getCardStatus("GD06-039").status).toBe("apta");
+    const gd06 = getAllCardStatuses().sets.GD06;
+    expect(gd06.aptas).toBe(130);
+    expect(gd06.revisao).toBe(0);
+  });
+
   it("uma carta de EB01 implementada é apta (EB01-001)", () => {
     const eb01Playable = getCardStatus("EB01-001");
     expect(eb01Playable.status).toBe("apta");
@@ -79,10 +87,10 @@ describe("cardStatus — lógica de playability", () => {
     const response = getAllCardStatuses();
     const sets = response.sets;
 
-    // Sets fechados (ST01..ST10, GD01..GD05, EB01 desde a W11) têm 100% aptas
+    // Sets fechados (ST01..ST10, GD01..GD05, EB01 desde a W11, GD06 desde a W13b) têm 100% aptas
     const closedSets = [
       "ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "ST09", "ST10",
-      "GD01", "GD02", "GD03", "GD04", "GD05", "EB01",
+      "GD01", "GD02", "GD03", "GD04", "GD05", "EB01", "GD06",
     ];
 
     for (const set of closedSets) {

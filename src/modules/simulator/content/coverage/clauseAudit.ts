@@ -86,7 +86,9 @@ export const STRUCTURED_FIELDS = [
   "onAnyPairing",
   "nameAliases",
   "costModifierInTrash",
+  "trashModifier",
   "zeroCostWhenPairedWithUnitNameContains",
+  "pairingCostReduction",
   "attackOnDeployTurnVsRestedUnit",
   "restInsteadOfUnitCost",
   "restInsteadOfBase",
@@ -95,6 +97,8 @@ export const STRUCTURED_FIELDS = [
   "cannotBeAttackTarget",
   "shieldAreaEffectDamageReduction",
   "lowestLevelEnemyRestedStayRested",
+  "damageBoost",
+  "preventsEnemySelfSetActive",
 ] as const satisfies ReadonlyArray<keyof CardDef>;
 
 const TIMING_TRIGGERS = new Set([
