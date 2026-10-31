@@ -78,6 +78,7 @@ export const TOKEN_AD_BALLOON: CardDef = {
   isToken: true,
   cannotBeSetActive: true,
   cannotBePaired: true,
+  structuredSourceText: { cannotBePaired: "This Unit can't be set as active or paired with a Pilot." },
 };
 
 // T-016 — GD03-117 Orga's Order
