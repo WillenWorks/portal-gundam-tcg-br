@@ -53,6 +53,11 @@
     "turn.mine": { "maxMs": 2000, "sources": ["Extras/Turn - Mine.wav"] },
     "turn.opponent": { "maxMs": 1300, "sources": ["Extras/Turn - Opponent.wav"] },
     "game.win": { "maxMs": 3000, "sources": ["Extras/Game - Win.wav"] },
-    "game.lose": { "maxMs": 2400, "sources": ["Extras/Game - Lose.wav"] }
+    "game.lose": { "maxMs": 2400, "sources": ["Extras/Game - Lose.wav"] },
+    "phase.banner": { "maxMs": 700, "sources": ["Extras/Phase - Banner.wav"] },
+    "phase.action": { "maxMs": 1000, "sources": ["Extras/Phase - Action.wav"] },
+    "coin.flip": { "maxMs": 400, "sources": ["Extras/Coin - Flip.wav"] },
+    "coin.land": { "maxMs": 1200, "sources": ["Extras/Coin - Land.wav"] },
+    "shields.set": { "maxMs": 1000, "sources": ["Extras/Shields - Set.wav"] }
   }
 }

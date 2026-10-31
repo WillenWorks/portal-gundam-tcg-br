@@ -25,6 +25,12 @@ export function deploySound(level: number | null | undefined): SfxId {
   return isHeavy(level) ? "deploy.high" : "deploy.low";
 }
 
+/** banner de fase: a virada de turno não soa aqui (o som do turno já toca junto, no começo do turno) */
+export function bannerSound(phase: string): SfxId | null {
+  if (phase === "SEU TURNO" || phase === "TURNO DO OPONENTE") return null;
+  return phase === "FASE DE AÇÕES" ? "phase.action" : "phase.banner";
+}
+
 export function commandSound(trigger: "Main" | "Action" | undefined): SfxId {
   return trigger === "Action" ? "command.action" : "command.main";
 }

@@ -110,4 +110,19 @@ export const SFX_ASSETS = {
   "game.lose": [
     { src: "sfx/game-lose-1.m4a", durationMs: 2304, impactMs: 10 },
   ],
+  "phase.banner": [
+    { src: "sfx/phase-banner-1.m4a", durationMs: 700, impactMs: 220 },
+  ],
+  "phase.action": [
+    { src: "sfx/phase-action-1.m4a", durationMs: 573, impactMs: 10 },
+  ],
+  "coin.flip": [
+    { src: "sfx/coin-flip-1.m4a", durationMs: 249, impactMs: 0 },
+  ],
+  "coin.land": [
+    { src: "sfx/coin-land-1.m4a", durationMs: 1200, impactMs: 70 },
+  ],
+  "shields.set": [
+    { src: "sfx/shields-set-1.m4a", durationMs: 1000, impactMs: 360 },
+  ],
 } as const satisfies Record<string, readonly SfxAsset[]>;

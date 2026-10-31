@@ -12,11 +12,11 @@
  * (`pointer-events-none`) com cartas reais e card-backs animados por CSS. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { getScaledDuration } from "./animationSettings";
+import { effectiveAnimSpeed, getScaledDuration } from "./animationSettings";
 import { SCENE_MS } from "../scene/sceneTiming";
 import { cardBackUrl, isGenericArtCard, type ArtLookup } from "./cardArt";
 import { CardFace } from "./CardFace";
-import { sfx } from "../audio/soundEffects";
+import { sampleSfx } from "../audio/sampleEngine";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 export type DeckDealMode = "shuffle" | "deal-hand" | "mulligan" | "deal-shields" | "single-draw";
@@ -223,45 +223,49 @@ export function DeckDealAnimation({
       return () => clearTimeout(t);
     }
     const timers: ReturnType<typeof setTimeout>[] = [];
+    // os sons saem com a animação: desmontou ou trocou de modo, o que ainda soa acaba num fade
+    const scope = sampleSfx.scope();
+    const speed = effectiveAnimSpeed();
+    const card = () => scope.play("card.draw", { speed });
 
     if (mode === "shuffle") {
       // Riffle rítmico de cartas durante o embaralhamento
       [100, 320, 560, 800, 1040].forEach((ms) => {
-        timers.push(setTimeout(() => sfx.playCardDraw(), getScaledDuration(ms)));
+        timers.push(setTimeout(card, getScaledDuration(ms)));
       });
       timers.push(setTimeout(() => onDoneRef.current(), shuffleMs));
     } else if (mode === "deal-hand") {
       // Som individual de saque para cada uma das 5 cartas
       for (let i = 0; i < 5; i++) {
-        timers.push(setTimeout(() => sfx.playCardDraw(), i * dealStagger));
+        timers.push(setTimeout(card, i * dealStagger));
       }
       // Última carta aterrissa e vira em 4 * 120 + 560 = 1040ms.
       // Sfx suave de confirmação de mão pronta:
-      timers.push(setTimeout(() => sfx.playCardDraw(), 4 * dealStagger + flightMs));
+      timers.push(setTimeout(card, 4 * dealStagger + flightMs));
       // Hold para o jogador ver as cartas compradas antes de passar o controle à mão:
       timers.push(setTimeout(() => onDoneRef.current(), 4 * dealStagger + flightMs + handRevealHold));
     } else if (mode === "deal-shields") {
       // Som individual de saída para cada um dos 6 escudos, no stagger mais
       // lento (docs/53) pra cada um ficar visivelmente audível ao sair da pilha.
       for (let i = 0; i < 6; i++) {
-        timers.push(setTimeout(() => sfx.playCardDraw(), i * shieldStagger));
+        timers.push(setTimeout(card, i * shieldStagger));
       }
       // O 6º escudo (índice 5) pousa e trava — impacto de escudo!
-      timers.push(setTimeout(() => sfx.playShieldBlock(), 5 * shieldStagger + flightMs));
+      timers.push(setTimeout(() => scope.play("shields.set", { speed }), 5 * shieldStagger + flightMs));
       // Hold com os 6 escudos empilhados e visíveis antes de liberar pro ShieldRail real:
       timers.push(setTimeout(() => onDoneRef.current(), 6 * shieldStagger + flightMs + shieldStackHold));
     } else if (mode === "single-draw") {
-      sfx.playCardDraw();
+      card();
       timers.push(setTimeout(() => onDoneRef.current(), singleDrawMs));
     } else {
       // Mulligan: return (460ms) → shuffle (1300ms) → deal (1790ms) — a 1x; escala com a velocidade.
-      sfx.playCardDraw();
+      card();
       timers.push(
         setTimeout(() => {
           setPhase("shuffle");
-          sfx.playNewtypeFlash();
+          scope.play("ability.announce", { speed });
           [200, 480, 760, 1020].forEach((ms) => {
-            timers.push(setTimeout(() => sfx.playCardDraw(), getScaledDuration(ms)));
+            timers.push(setTimeout(card, getScaledDuration(ms)));
           });
         }, returnMs),
       );
@@ -269,14 +273,17 @@ export function DeckDealAnimation({
         setTimeout(() => {
           setPhase("deal");
           for (let i = 0; i < 5; i++) {
-            timers.push(setTimeout(() => sfx.playCardDraw(), i * dealStagger));
+            timers.push(setTimeout(card, i * dealStagger));
           }
-          timers.push(setTimeout(() => sfx.playCardDraw(), 4 * dealStagger + flightMs));
+          timers.push(setTimeout(card, 4 * dealStagger + flightMs));
         }, returnMs + shuffleMs),
       );
       timers.push(setTimeout(() => onDoneRef.current(), returnMs + shuffleMs + 4 * dealStagger + flightMs + handRevealHold));
     }
-    return () => timers.forEach(clearTimeout);
+    return () => {
+      timers.forEach(clearTimeout);
+      scope.end();
+    };
   }, [mode, reduced, base, singleDrawMs, dealStagger, shieldStagger, flightMs, handRevealHold, shieldStackHold, returnMs, shuffleMs]);
 
   const pts = targets(mode, base, w);
