@@ -592,6 +592,36 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
     return !!selfUnit && hasTrait(selfUnit, selfHasTrait[1], ctx.state);
   }
+  // W13a — GD06-092 "If this is a (Phantom Pain)/(Orb) Unit" (OR, vírgula; resolve pra Unit pareada num Piloto)
+  const selfHasAnyTrait = predicate.match(/^selfHasAnyTrait:(.+)$/);
+  if (selfHasAnyTrait) {
+    const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
+    return !!selfUnit && selfHasAnyTrait[1].split(",").some((t) => hasTrait(selfUnit, t, ctx.state));
+  }
+  // W13a — GD06-129 "If you have any Shields in play" (escudos; a Base não conta)
+  const controllerShieldCountAtLeast = predicate.match(/^controllerShieldCountAtLeast:(\d+)$/);
+  if (controllerShieldCountAtLeast) return ctx.state.players[ctx.controller].shields.length >= Number(controllerShieldCountAtLeast[1]);
+  // W13a — GD06-008 "If a friendly (Earth Federation) Base is in play"
+  const controllerBaseWithTrait = predicate.match(/^controllerBaseWithTraitInPlay:(.+)$/);
+  if (controllerBaseWithTrait) {
+    return (ctx.state.players[ctx.controller].baseSection ?? []).some((b) => hasTrait(b, controllerBaseWithTrait[1], ctx.state));
+  }
+  // W13a — GD06-023 "If you increase a Link Unit's AP with this effect": o alvo escolhido é Link Unit
+  const chosenIsLinkUnit = predicate.match(/^chosenIsLinkUnit:(.+)$/);
+  if (chosenIsLinkUnit) {
+    const id = ctx.targets[chosenIsLinkUnit[1]]?.[0];
+    return !!id && isPairedLinkUnit(ctx.state, findCard(ctx.state, id));
+  }
+  // W13a — GD06-123 "you have a (Neo Zeon) Unit paired with a Pilot that is Lv.3 or lower in play"
+  const unitTraitPairedPilotLevelAtMost = predicate.match(/^controllerUnitWithTraitPairedPilotLevelAtMost:(.+):(\d+)$/);
+  if (unitTraitPairedPilotLevelAtMost) {
+    const side = ctx.state.players[ctx.controller].battleArea;
+    return side.some((u) => {
+      if (u.def.cardType !== "UNIT" || !u.pairedPilotId || !hasTrait(u, unitTraitPairedPilotLevelAtMost[1], ctx.state)) return false;
+      const pilot = side.find((p) => p.instanceId === u.pairedPilotId);
+      return !!pilot && (effectivePilotDef(pilot).level ?? 0) <= Number(unitTraitPairedPilotLevelAtMost[2]);
+    });
+  }
   // W6 — ST09-003 "If there are 5 or more purple cards in your trash" (qualquer tipo de carta)
   const trashColorCount = predicate.match(/^controllerTrashColorCountAtLeast:(.+):(\d+)$/);
   if (trashColorCount) {
@@ -890,6 +920,24 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
     if (!opposingId) return false;
     const opposing = findCard(ctx.state, opposingId);
     return opposing.owner === findCard(ctx.state, ctx.sourceInstanceId).owner && (opposing.def.level ?? 0) >= Number(battlingFriendlyLevelAtLeast[1]);
+  }
+  // W13a — GD06-112 "1 enemy Unit battling a friendly (AEUG) Unit"
+  const battlingFriendlyHasTrait = filter.match(/^battlingFriendlyHasTrait:(.+)$/);
+  if (battlingFriendlyHasTrait) {
+    const combat = ctx.state.combat;
+    if (!combat || combat.currentTarget === "player" || !ctx.sourceInstanceId) return false;
+    let opposingId: string | undefined;
+    if (combat.attackerId === candidate.instanceId) opposingId = combat.currentTarget.unitId;
+    else if (combat.currentTarget.unitId === candidate.instanceId) opposingId = combat.attackerId;
+    if (!opposingId) return false;
+    const opposing = findCard(ctx.state, opposingId);
+    return opposing.owner === findCard(ctx.state, ctx.sourceInstanceId).owner && hasTrait(opposing, battlingFriendlyHasTrait[1], ctx.state);
+  }
+  // W13a — GD06-092 "1 enemy Unit whose AP is equal to or less than this Unit" (num Piloto, a Unit pareada)
+  if (filter === "ap<=selfUnit") {
+    if (!ctx.sourceInstanceId) return false;
+    const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
+    return !!selfUnit && effectiveAp(candidate, ctx.state) <= effectiveAp(selfUnit, ctx.state);
   }
   const battlingFriendlyHasKeyword = filter.match(/^battlingFriendlyHasKeyword:(.+)$/);
   if (battlingFriendlyHasKeyword) {

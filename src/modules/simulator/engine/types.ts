@@ -206,7 +206,8 @@ export interface CardDef {
     condition: StaticEffectCondition;
     boardCondition?: StaticBoardCondition;
     /** W8 — "pairedUnit": texto de Piloto, "this rested Unit" = a Unit pareada (GD05-086) */
-    scope: "self" | "friendlyUnitsWithTrait" | "pairedUnit";
+    /** W13a — "friendlyUnitTokens": GD06-019 "one of your rested Unit tokens" */
+    scope: "self" | "friendlyUnitsWithTrait" | "pairedUnit" | "friendlyUnitTokens";
     trait?: string;
     /** W8 — GD05-086 "Enemy Units other than Link Units": Link Unit atacante não é obrigada */
     exceptLinkAttackers?: boolean;
@@ -480,7 +481,11 @@ export type StaticBoardCondition =
   /** W8 — GD05-067 "While a rested enemy Unit is in play" */
   | { kind: "enemyRestedUnitInPlay" }
   /** W4 — GD04-039 "If there are 8 or more (Neo Zeon) cards in your trash" */
-  | { kind: "trashTraitCountAtLeast"; trait: string; n: number }
+  | { kind: "trashTraitCountAtLeast"; trait: string; n: number; /** W13a — GD06-052/060 "(Zeon) Unit cards" */ cardType?: CardType }
+  /** W13a — GD06-064 "While an enemy Unit that is Lv.5 or higher is in play" */
+  | { kind: "enemyUnitLevelAtLeast"; n: number }
+  /** W13a — GD06-030 "While you have 3 or more other (Ghingnham Fleet)/(Long-Range Weapon) Units in play" (exclui a fonte) */
+  | { kind: "friendlyOtherUnitWithAnyTraitCountAtLeast"; traits: string[]; n: number }
   /** W2c — GD03-037 "while this Unit is battling an enemy Unit with a 【Destroyed】 effect" (`triggerKeywords` da inimiga). */
   | { kind: "battlingEnemyHasTrigger"; trigger: string }
   /** GD03-033 — 【During Pair･(ZAFT) Pilot】: trait do Piloto pareado com a fonte. */
@@ -559,7 +564,9 @@ export interface StaticAbility {
     /** W8 — GD05-006 "as the number of (Calamity War) Unit tokens you have in play" */
     | { kind: "friendlyTokensWithTrait"; trait: string }
     /** W8 — GD05-051 "by an amount equal to the amount of damage it has received" (a própria fonte) */
-    | { kind: "selfDamage" };
+    | { kind: "selfDamage" }
+    /** W13a — GD06-003 "by an amount equal to the number of cards in your hand" */
+    | { kind: "controllerHandCount" };
   /** W8 — valor da keyword concedida pela contagem de `amountFrom` (GD05-006 <Repair> = nº de tokens) */
   keywordValueFromAmount?: boolean;
 }
@@ -1060,7 +1067,10 @@ export function isBoardConditionMet(
     return state.players[otherPlayer(owner)].battleArea.some((c) => c.def.cardType === "UNIT" && c.rested);
   }
   if (cond.kind === "trashTraitCountAtLeast") {
-    return state.players[owner].trash.filter((c) => hasTrait(c, cond.trait, state)).length >= cond.n;
+    return state.players[owner].trash.filter((c) => (!cond.cardType || c.def.cardType === cond.cardType) && hasTrait(c, cond.trait, state)).length >= cond.n;
+  }
+  if (cond.kind === "enemyUnitLevelAtLeast") {
+    return state.players[otherPlayer(owner)].battleArea.some((c) => c.def.cardType === "UNIT" && (c.def.level ?? 0) >= cond.n);
   }
   if (cond.kind === "battlingEnemyHasTrigger") {
     const combat = state.combat;
@@ -1134,6 +1144,9 @@ export function isBoardConditionMet(
       }).length >= cond.n
     );
   }
+  if (cond.kind === "friendlyOtherUnitWithAnyTraitCountAtLeast") {
+    return otherUnits.filter((c) => cond.traits.some((t) => hasTrait(c, t, state))).length >= cond.n;
+  }
   if (cond.kind === "friendlyOtherUnitWithKeywordCountAtLeast") {
     return otherUnits.filter((c) => hasKeyword(c, cond.keyword, state)).length >= cond.n;
   }
@@ -1168,6 +1181,7 @@ function matchesStaticScope(source: CardInstance, target: CardInstance, scope: S
 
 function staticAmountCount(state: GameState, owner: PlayerId, from: NonNullable<StaticAbility["amountFrom"]>, source?: CardInstance): number {
   if (from.kind === "selfDamage") return source?.damage ?? 0;
+  if (from.kind === "controllerHandCount") return state.players[owner].hand.length;
   if (from.kind === "friendlyTokensWithTrait") {
     return state.players[owner].battleArea.filter((c) => c.def.cardType === "UNIT" && c.def.isToken && hasTrait(c, from.trait, state)).length;
   }
@@ -1737,7 +1751,7 @@ export interface CombatState {
    * precisar de mais nenhuma limpeza. Só protege `defendingPlayer` (o único
    * jogador cujos shields podem receber dano nesta batalha).
    */
-  shieldProtection?: { maxAttackerLevel: number } | null;
+  shieldProtection?: { maxAttackerLevel?: number; /** W13a — GD06-106 "enemy Units with 6 or less AP" */ maxAttackerAp?: number } | null;
   /**
    * ST03-014 The Blue Giant 【Action】 — "Choose 1 friendly Unit. It can't receive
    * battle damage from enemy Units with 2 or less AP during this battle." Mesma
@@ -1923,7 +1937,7 @@ export type GameEvent =
    */
   | { type: "RETURN_TRASH_TO_DECK_SHUFFLE"; player: PlayerId; instanceIds: string[] }
   /** ST02-013 Peaceful Timbre — ver `CombatState.shieldProtection`. Não-op se não houver combate em andamento. */
-  | { type: "SET_SHIELD_PROTECTION"; maxAttackerLevel: number }
+  | { type: "SET_SHIELD_PROTECTION"; maxAttackerLevel?: number; maxAttackerAp?: number }
   /** ST03-014 The Blue Giant — ver `CombatState.unitDamageProtection`. Não-op fora de combate. */
   | { type: "SET_UNIT_DAMAGE_PROTECTION"; instanceId: string; maxAttackerAp?: number; maxAttackerLevel?: number; unconditional?: boolean }
   /** ST04-011 Athrun Zala — ver `CardInstance.attackTargetRelaxUntilTurn`. */

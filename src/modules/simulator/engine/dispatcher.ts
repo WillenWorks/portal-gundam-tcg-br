@@ -303,8 +303,9 @@ export function dispatchTrigger(
       if (call.op === "activateMainOf") {
         for (const id of resolveCallTargetIds(call.card, ctx)) {
           const card = findCard(next, id);
-          if (card.def.cardType !== "COMMAND" || findTriggerSpecs(allSpecs, card.def.code, "Main").length === 0) continue;
-          followUps.push({ trigger: "Main", source: { code: card.def.code, instanceId: id } });
+          const pairedTrigger = call.trigger ?? "Main";
+          if (card.def.cardType !== "COMMAND" || findTriggerSpecs(allSpecs, card.def.code, pairedTrigger).length === 0) continue;
+          followUps.push({ trigger: pairedTrigger, source: { code: card.def.code, instanceId: id } });
         }
       }
     }

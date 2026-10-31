@@ -28,11 +28,20 @@ describe("cardStatus — lógica de playability", () => {
     expect(gd01.motivo).toBeUndefined();
   });
 
-  it("W11 — a última carta de EB01 que faltava é apta (EB01-003); nenhuma carta do catálogo fica em revisão", () => {
+  it("W11 — a última carta de EB01 que faltava é apta (EB01-003); fora do GD06, nenhuma carta do catálogo fica em revisão", () => {
     const eb01 = getCardStatus("EB01-003");
     expect(eb01.status).toBe("apta");
     expect(eb01.set).toBe("EB01");
-    expect(getAllCardStatuses().summary.revisao).toBe(0);
+    const all = getAllCardStatuses();
+    expect(all.summary.revisao).toBe(all.sets.GD06.revisao);
+  });
+
+  it("W13a — GD06 no simulador: 109 aptas, 21 em revisão até a W13b (GD06-002 apta, GD06-001 em revisão)", () => {
+    expect(getCardStatus("GD06-002").status).toBe("apta");
+    expect(getCardStatus("GD06-001").status).toBe("revisao");
+    const gd06 = getAllCardStatuses().sets.GD06;
+    expect(gd06.aptas).toBe(109);
+    expect(gd06.revisao).toBe(21);
   });
 
   it("uma carta de EB01 implementada é apta (EB01-001)", () => {

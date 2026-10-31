@@ -199,10 +199,14 @@ const COMMAND_NAO_OFERECIDAS: string[] = [
   "GD05-119",
   // "Choose 1 … (Link Unit, token, damaged enemy, Pilot inimigo, pareada com (Newtype)/(X-Rounder))" sem alvo
   "GD01-101", "GD01-111", "GD02-105", "GD03-102", "GD03-110", "GD03-115", "GD04-119",
+  // W13a — "enemy Unit battling a friendly (AEUG) Unit" / "damaged enemy Unit" sem alvo
+  "GD06-112", "GD06-113",
 ];
 const COMMAND_SEM_RASTRO: string[] = [
   // "If a (Teiwaz)/(Gjallarhorn) Link Unit / 2 (UN) / (G Generation) Unit is in play"
   "GD02-113", "GD02-119", "GD04-118", "ST10-015",
+  // W13a — "If there are 4 or more (Gjallarhorn) cards in your trash"
+  "GD06-111",
   // efeito sem material: nenhuma Unit pareada
   "GD03-112",
   // "recovers 2 HP" na 1ª Unit (Academy) escolhida, sem dano

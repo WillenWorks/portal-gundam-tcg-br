@@ -83,7 +83,14 @@ export type TargetGroup =
       maxLevelOf?: string;
     }
   /** GD01-102 The Path to Victory or Defeat / ST07-009 Setsuna — "All friendly Units [with trait] ..." */
-  | { kind: "allFriendlyUnits"; maxLevel?: number; trait?: string }
+  | {
+      kind: "allFriendlyUnits";
+      maxLevel?: number;
+      trait?: string;
+      /** W13a — GD06-065 "all your (Dianna Counter)/(Militia) Units with <Blocker>" */
+      anyTraits?: string[];
+      hasKeyword?: string;
+    }
   /**
    * GD01-024 Wing Gundam Zero ("Deal 3 damage to all Units that are Lv.5 or
    * lower"), GD01-027 Big Zam / GD01-108 Strategic Arms ("all Units with
@@ -157,7 +164,9 @@ export type AmountFrom =
   /** W5 — GD04-036 "equal to the number of Units rested with this effect": quantos foram escolhidos em `name` */
   | { kind: "namedCount"; name: string }
   /** W12 — ST14-011 "by an amount equal to the number of rested enemy Units" */
-  | { kind: "enemyRestedUnitCount" };
+  | { kind: "enemyRestedUnitCount" }
+  /** W13a — GD06-130 "by an amount equal to the number of friendly (Dianna Counter)/(Militia) Units" */
+  | { kind: "friendlyUnitWithAnyTraitCount"; traits: string[] };
 
 function resolveAmount(call: { amount: number; amountFrom?: AmountFrom }, ctx: EffectContext): number {
   const from = call.amountFrom;
@@ -174,6 +183,12 @@ function resolveAmount(call: { amount: number; amountFrom?: AmountFrom }, ctx: E
     return call.amount * ctx.state.players[otherPlayer(ctx.controller)].battleArea.filter((c) => c.def.cardType === "UNIT" && c.rested).length;
   }
   if (from.kind === "namedCount") return call.amount * (ctx.targets[from.name]?.length ?? 0);
+  if (from.kind === "friendlyUnitWithAnyTraitCount") {
+    return (
+      call.amount *
+      ctx.state.players[ctx.controller].battleArea.filter((c) => c.def.cardType === "UNIT" && from.traits.some((t) => hasTrait(c, t, ctx.state))).length
+    );
+  }
   if (from.kind === "topOfDeckTraitCount") {
     return call.amount * ctx.state.players[ctx.controller].deck.slice(0, from.n).filter((c) => hasTrait(c, from.trait, ctx.state)).length;
   }
@@ -192,7 +207,9 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
         (u) =>
           u.def.cardType === "UNIT" &&
           (group.maxLevel === undefined || (u.def.level ?? 0) <= group.maxLevel) &&
-          (!group.trait || hasTrait(u, group.trait, ctx.state)),
+          (!group.trait || hasTrait(u, group.trait, ctx.state)) &&
+          (!group.anyTraits || group.anyTraits.some((t) => hasTrait(u, t, ctx.state))) &&
+          (!group.hasKeyword || hasKeyword(u, group.hasKeyword, ctx.state)),
       )
       .map((u) => u.instanceId);
   }
@@ -373,7 +390,7 @@ export type PrimitiveCall =
    * escolha vem em `ctx.targets[key]` (0 ou 1 valor de `options[].value`),
    * resolvida pela camada de decisão (`enumChoice`). Sem escolha → `options[0]`
    * (default defensivo — a camada de decisão sempre força a escolha). */
-  | { op: "spawnTokenChoice"; player: PlayerRef; zone: Zone; key: string; options: { value: string; label: string; def: CardDef }[] }
+  | { op: "spawnTokenChoice"; player: PlayerRef; zone: Zone; key: string; options: { value: string; label: string; def: CardDef }[]; /** W13a — GD06-109 "Deploy 1 rested …" */ rested?: boolean }
   /**
    * W7 (C9) — "choose 1 of the following effects and activate it: ■… ■…" (GD05-102/106). A escolha é ENUM
    * (`enumChoice`); o modo escolhido roda depois como gatilho próprio `Mode:<value>` da mesma carta
@@ -415,7 +432,7 @@ export type PrimitiveCall =
    * (GD05-097, a Command descartada): roda o 【Main】 da carta (`card`) como continuação, sem pagar custo e sem
    * movê-la; conta como "ativou o 【Main】 de uma Command" (rulings Q376/Q397).
    */
-  | { op: "activateMainOf"; card: TargetRef }
+  | { op: "activateMainOf"; card: TargetRef; /** W13a — GD06-066 "Activate 【Action】 on the card paired with this Unit" (padrão: Main) */ trigger?: "Main" | "Action" }
   /** W8 — GD05-017 "Begin a battle between this Unit and it and only perform the damage step" (CR 5-22-3) */
   | { op: "beginDamageOnlyBattle"; target: TargetRef; /** W12 — ST12-013: a Unit amiga escolhida (padrão: a fonte) */ attacker?: TargetRef }
   /** W8 — GD05-089 "you may deploy it as an (AP3･HP3) Unit instead. (Don't treat it as a Pilot.)" */
@@ -443,7 +460,7 @@ export type PrimitiveCall =
    */
   | { op: "addShieldToHand"; player: PlayerRef; count: number }
   /** ST02-013 Peaceful Timbre — impede que shields recebam dano de Units inimigas até o level dado, durante esta batalha (docs/18, lacuna #7). Não-op fora de combate. */
-  | { op: "preventShieldDamage"; maxAttackerLevel: number }
+  | { op: "preventShieldDamage"; maxAttackerLevel?: number; /** W13a — GD06-106 "enemy Units with 6 or less AP" */ maxAttackerAp?: number }
   /**
    * ST03-014 The Blue Giant 【Action】 — "Choose 1 friendly Unit. It can't receive
    * battle damage from enemy Units with 2 or less AP during this battle." Instala
@@ -1150,10 +1167,10 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       const player = resolvePlayerRef(call.player, ctx.controller);
       const chosen = ctx.targets[call.key]?.[0];
       const match = call.options.find((o) => o.value === chosen) ?? call.options[0];
-      return [{ type: "SPAWN_TOKEN", player, def: match.def, zone: call.zone }];
+      return [{ type: "SPAWN_TOKEN", player, def: match.def, zone: call.zone, rested: call.rested }];
     }
     case "preventShieldDamage": {
-      return [{ type: "SET_SHIELD_PROTECTION", maxAttackerLevel: call.maxAttackerLevel }];
+      return [{ type: "SET_SHIELD_PROTECTION", maxAttackerLevel: call.maxAttackerLevel, maxAttackerAp: call.maxAttackerAp }];
     }
     case "preventUnitBattleDamage": {
       return resolveTargetIds(call.target, ctx).map(
@@ -2031,6 +2048,7 @@ const DISPATCHED_TRIGGERS = new Set([
   "When Linked",
   "AnyPairing",
   "AfterMain",
+  "AfterAction",
 ]);
 
 /**

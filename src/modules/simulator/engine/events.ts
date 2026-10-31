@@ -632,7 +632,7 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
     }
     case "SET_SHIELD_PROTECTION": {
       if (state.combat) {
-        state.combat.shieldProtection = { maxAttackerLevel: event.maxAttackerLevel };
+        state.combat.shieldProtection = { maxAttackerLevel: event.maxAttackerLevel, maxAttackerAp: event.maxAttackerAp };
       }
       return state;
     }

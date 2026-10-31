@@ -11,8 +11,6 @@ const signatures = JSON.parse(
   ),
 );
 
-const codesOf = (r) => r.results.map((x) => x.cardCode);
-
 describe("mechanicTokens", () => {
   it("normaliza números pra * e isola n-gramas de mecânica", () => {
     const tokens = mechanicTokens("Choose 1 enemy Unit. Deal 2 damage to it.");
@@ -24,10 +22,13 @@ describe("mechanicTokens", () => {
 
 describe("rankSimilarSpecs", () => {
   it("\"Choose 1 enemy Unit. Deal 2 damage to it.\" -> Close Combat e Battle of Aces no topo", () => {
-    const r = rankSimilarSpecs(signatures, "Choose 1 enemy Unit. Deal 2 damage to it.", 8);
-    expect(r.results.length).toBeLessThanOrEqual(8);
-    expect(codesOf(r)).toContain("ST03-013"); // Close Combat
-    expect(codesOf(r)).toContain("GD01-111"); // Battle of Aces
+    expect(rankSimilarSpecs(signatures, "Choose 1 enemy Unit. Deal 2 damage to it.", 8).results.length).toBeLessThanOrEqual(8);
+    // W13a — o texto exato aparece em mais sets (GD06-113): confere o grupo empatado no topo inteiro, não um corte fixo
+    const r = rankSimilarSpecs(signatures, "Choose 1 enemy Unit. Deal 2 damage to it.", 50);
+    const top = r.results[0].score;
+    const tied = r.results.filter((x) => x.score === top).map((x) => x.cardCode);
+    expect(tied).toContain("ST03-013"); // Close Combat
+    expect(tied).toContain("GD01-111"); // Battle of Aces
   });
 
   it("\"Look at the top 3 cards of your deck...\" -> Char's Zaku II (ST03-006) no topo (empatada com GD01-045 e GD02, mesmo texto de abertura)", () => {

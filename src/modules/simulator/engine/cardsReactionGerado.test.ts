@@ -226,6 +226,8 @@ const SEM_RASTRO_NO_TABULEIRO: string[] = [
   "GD04-042", "GD05-070",
   // "this Unit recovers 2 HP" sem dano
   "GD05-085",
+  // W13a — "(Special Move) Command" que o tabuleiro não joga
+  "GD06-071",
 ];
 
 describe(`Reaction gerado — ${CARDS.length} cartas com evento provocável pelo jogador`, () => {

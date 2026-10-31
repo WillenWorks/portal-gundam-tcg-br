@@ -1295,15 +1295,18 @@ export function dispatchAfterMain(
   commandId: string,
   specs: EffectSpec[],
   opts: { predicateResolver?: PredicateResolver; targetFilterResolver?: TargetFilterResolver } = {},
+  /** W13a — GD06-119 "After activating this card's 【Action】…" (gatilho `AfterAction`) */
+  played: "Main" | "Action" = "Main",
 ): GameState {
   if (state.gameOver) return state;
   const card = findCard(state, commandId);
-  if (card.zone !== "trash" || findTriggerSpecs(specs, card.def.code, "AfterMain").length === 0) return state;
+  const trigger = `After${played}`;
+  if (card.zone !== "trash" || findTriggerSpecs(specs, card.def.code, trigger).length === 0) return state;
   const sources = [{ code: card.def.code, instanceId: commandId }];
   if (state.pendingDecision.A || state.pendingDecision.B) {
-    return attachQueuedTriggers(state, [{ owner: card.owner, trigger: "AfterMain", sources }]);
+    return attachQueuedTriggers(state, [{ owner: card.owner, trigger, sources }]);
   }
-  return deferOrDispatchAbilities(state, card.owner, "AfterMain", sources, specs, opts);
+  return deferOrDispatchAbilities(state, card.owner, trigger, sources, specs, opts);
 }
 
 /**
