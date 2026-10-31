@@ -2,7 +2,7 @@
 "source": "https://github.com/yzRobo/gcg-api (scrape semanal do site oficial gundam-gcg.com)",
 "generatedAt": "2026-08-03",
 "datasetVersion": "10-f122ee54b75f9d43e62034782c2c0cd86bedc8bd",
-"cardCount": 1138,
+"cardCount": 1276,
 "cards": [
 {
 "code": "GD01-001",
@@ -16756,6 +16756,2080 @@
 "linkRefs": [],
 "effect": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Once per Turn】During your turn, when a friendly Unit links, choose 1 enemy Unit that is Lv.5 or lower. It gets AP-1 during this turn.",
 "detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=ST14-016"
+},
+{
+"code": "GD06-001",
+"name": "Gundam GP01Fb",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Earth Federation",
+"Albion Squad"
+],
+"link": "[Kou Uraki]",
+"linkRefs": [
+"Kou Uraki"
+],
+"effect": "【Once per Turn】When this Unit is attacked, draw 1.\n【During Pair】This Unit gains<High-Maneuver>.\n\n(This Unit can't be blocked.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-001"
+},
+{
+"code": "GD06-002",
+"name": "Infinite Justice Gundam",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam SEED DESTINY",
+"traits": [
+"Orb"
+],
+"link": "[Athrun Zala]",
+"linkRefs": [
+"Athrun Zala"
+],
+"effect": "【Once per Turn】During your turn, when this Unit destroys an enemy card with battle damage, choose 1 of your (Orb) Units. It recovers 3 HP.\n【Deploy】You may choose 3 Unit cards from your trash. Exile them from the game. If you do, choose 1 active enemy Unit. Return it to its owner's hand.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-002"
+},
+{
+"code": "GD06-003",
+"name": "GQuuuuuuX (Omega Psycommu Released)",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [
+"Alphacide"
+],
+"link": "[Amate Yuzuriha (Machu)]",
+"linkRefs": [
+"Amate Yuzuriha (Machu)"
+],
+"effect": "Increase this Unit's AP by an amount equal to the number of cards in your hand.\n【Attack】If another friendly (Alphacide) Unit is in play and you have 5 or less cards in your hand, draw 1.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-003"
+},
+{
+"code": "GD06-004",
+"name": "Gundam GP01",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Earth Federation",
+"Albion Squad"
+],
+"link": "[Kou Uraki]",
+"linkRefs": [
+"Kou Uraki"
+],
+"effect": "【During Link】【Destroyed】If it is your turn, return this Unit's paired Pilot to its owner's hand. Then, discard 1.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-004"
+},
+{
+"code": "GD06-005",
+"name": "Akatsuki (Shiranui)",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam SEED DESTINY",
+"traits": [
+"Orb"
+],
+"link": "(Orb) Trait / [Mu La Flaga]",
+"linkRefs": [
+"Mu La Flaga"
+],
+"effect": "【Attack】You may choose 1 damaged enemy Unit that is Lv.5 or lower. Return it to its owner's hand.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-005"
+},
+{
+"code": "GD06-006",
+"name": "GQuuuuuuX (Omega Psycommu)",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [
+"Alphacide"
+],
+"link": "[Amate Yuzuriha (Machu)] / [Nyaan]",
+"linkRefs": [
+"Amate Yuzuriha (Machu)",
+"Nyaan"
+],
+"effect": "【Deploy】If another friendly (Alphacide) Unit is in play, you may choose 1 enemy Unit with 3 or less HP. Return it to its owner's hand.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-006"
+},
+{
+"code": "GD06-007",
+"name": "Kikeroga (MS Mode) (GQ)",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [
+"Zeon"
+],
+"link": "[Challia Bull]",
+"linkRefs": [
+"Challia Bull"
+],
+"effect": "<Repair 2> (At the end of your turn, this Unit recovers the specified number of HP.)\n【Deploy】Choose 1 rested enemy Unit. Deal 2 damage to it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-007"
+},
+{
+"code": "GD06-008",
+"name": "Powered GM",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Earth Federation"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Attack】If a friendly (Earth Federation) Base is in play, this Unit gets AP+2 during this turn.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-008"
+},
+{
+"code": "GD06-009",
+"name": "GM Custom",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Earth Federation",
+"Albion Squad"
+],
+"link": "(Albion Squad) Trait",
+"linkRefs": [],
+"effect": "【Deploy】You may choose 1 enemy Unit with 1 HP. Return it to its owner's hand.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-009"
+},
+{
+"code": "GD06-010",
+"name": "GM Cannon Ⅱ",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Earth Federation",
+"Albion Squad"
+],
+"link": "(Albion Squad) Trait",
+"linkRefs": [],
+"effect": "【When Linked】Draw 1.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-010"
+},
+{
+"code": "GD06-011",
+"name": "Red Gundam",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [],
+"link": "(Newtype) Trait",
+"linkRefs": [],
+"effect": "【When Linked】All your Units gain<Repair 1> during this turn.\n\n(At the end of your turn, this Unit recovers the specified number of HP.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-011"
+},
+{
+"code": "GD06-012",
+"name": "Z'Gok",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam",
+"traits": [
+"Zeon",
+"Marine"
+],
+"link": "(Zeon) Trait",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-012"
+},
+{
+"code": "GD06-013",
+"name": "Zaku Ⅱ F2 (EFSF)",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Earth Federation"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-013"
+},
+{
+"code": "GD06-014",
+"name": "GM Type C",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Earth Federation"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "While 3 or more enemy Units are in play, this Unit gains<Blocker>.\n\n(Rest this Unit to change the attack target to it.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-014"
+},
+{
+"code": "GD06-015",
+"name": "Waldfeld's Gaia Gundam",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam SEED DESTINY",
+"traits": [
+"Orb"
+],
+"link": "[Andrew Waldfeld]",
+"linkRefs": [
+"Andrew Waldfeld"
+],
+"effect": "【During Pair･(Orb) Pilot】This Unit gains<Blocker>.\n\n(Rest this Unit to change the attack target to it.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-015"
+},
+{
+"code": "GD06-016",
+"name": "Dom Trooper",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam SEED DESTINY",
+"traits": [
+"Orb"
+],
+"link": "(Orb) Trait",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-016"
+},
+{
+"code": "GD06-017",
+"name": "GQuuuuuuX",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [
+"Alphacide"
+],
+"link": "[Amate Yuzuriha (Machu)]",
+"linkRefs": [
+"Amate Yuzuriha (Machu)"
+],
+"effect": "While another friendly (Alphacide) Unit is in play, this Unit gains<Blocker>.\n\n(Rest this Unit to change the attack target to it.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-017"
+},
+{
+"code": "GD06-018",
+"name": "Elpeo Ple's Qubeley Mk-Ⅱ",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [
+"Neo Zeon"
+],
+"link": "[Elpeo Ple]",
+"linkRefs": [
+"Elpeo Ple"
+],
+"effect": "<Breach 1> (During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)\n【During Pair】【Activate･Action】【Once per Turn】Choose 1 of your (Neo Zeon)/(Long-Range Weapon) Units or 1 of your (Neo Zeon) Bases. During this battle, battle damage this Unit would receive is dealt to that Unit/Base instead.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-018"
+},
+{
+"code": "GD06-019",
+"name": "Turn X",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Ghingnham Fleet"
+],
+"link": "[Gym Ghingnham]",
+"linkRefs": [
+"Gym Ghingnham"
+],
+"effect": "Enemy Units choose one of your rested Unit tokens as their attack target if possible when attacking.\n【Attack】If you have no (Ghingnham Fleet) Unit tokens in play, deploy 1 rested [Turn X (Arms)]((Ghingnham Fleet) (Long-Range Weapon)･AP2･HP3) Unit token and 1 rested [Turn X (Legs)]((Ghingnham Fleet) (Long-Range Weapon)･AP3･HP2) Unit token.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-019"
+},
+{
+"code": "GD06-020",
+"name": "Hamma-Hamma",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [
+"Neo Zeon"
+],
+"link": "[Mashymre Cello]",
+"linkRefs": [
+"Mashymre Cello"
+],
+"effect": "During your turn, when one of your (Neo Zeon) Units destroys an enemy card with damage, this Unit recovers 1 HP.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-020"
+},
+{
+"code": "GD06-021",
+"name": "Turn X (Top)",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Ghingnham Fleet"
+],
+"link": "[Gym Ghingnham]",
+"linkRefs": [
+"Gym Ghingnham"
+],
+"effect": "【Deploy】Choose 1 of your Unit tokens. Deploy 1 rested Unit token of the same kind.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-021"
+},
+{
+"code": "GD06-022",
+"name": "Merrybell's Bandit",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Ghingnham Fleet"
+],
+"link": "(Moonrace) Trait",
+"linkRefs": [],
+"effect": "【When Linked】Choose 1 enemy Unit with 3 or less AP. Begin a battle between this Unit and it and only perform the damage step.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-022"
+},
+{
+"code": "GD06-023",
+"name": "Galluss J",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [
+"Neo Zeon"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Deploy】Rest this Unit. Then, choose 1 of your (Neo Zeon) Units that is Lv.3 or higher. It gets AP+1 during this turn. If you increase a Link Unit's AP with this effect, set this Unit as active.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-023"
+},
+{
+"code": "GD06-024",
+"name": "R-Jarja",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [
+"Neo Zeon"
+],
+"link": "[Chara Soon]",
+"linkRefs": [
+"Chara Soon"
+],
+"effect": "【Destroyed】Choose 1 enemy Unit with<Blocker> and 3 or less AP. Destroy it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-024"
+},
+{
+"code": "GD06-025",
+"name": "Re-GZ",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam: Char's Counterattack",
+"traits": [
+"Earth Federation",
+"Londo Bell"
+],
+"link": "(Londo Bell) Trait",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-025"
+},
+{
+"code": "GD06-026",
+"name": "Stero's Mahiroo",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Ghingnham Fleet"
+],
+"link": "(Moonrace) Trait",
+"linkRefs": [],
+"effect": "【Attack】If you have 3 or more other (Ghingnham Fleet)/(Long-Range Weapon) Units in play, choose 1 of your Units. It gets AP+1 and<Repair 2> during this turn.\n\n(At the end of your turn, this Unit recovers the specified number of HP.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-026"
+},
+{
+"code": "GD06-027",
+"name": "Mashymre's Zssa",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [
+"Neo Zeon"
+],
+"link": "[Mashymre Cello]",
+"linkRefs": [
+"Mashymre Cello"
+],
+"effect": "【Deploy】Choose 1 of your (Neo Zeon) Units. During this turn, it may choose an active enemy Unit with 4 or less AP as its attack target.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-027"
+},
+{
+"code": "GD06-028",
+"name": "Gaza D",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [
+"Neo Zeon"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-028"
+},
+{
+"code": "GD06-029",
+"name": "Elpeo Ple's Qubeley Mk-Ⅱ",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [
+"Neo Zeon"
+],
+"link": "[Elpeo Ple]",
+"linkRefs": [
+"Elpeo Ple"
+],
+"effect": "<Breach 3> (During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-029"
+},
+{
+"code": "GD06-030",
+"name": "Mahiroo",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Ghingnham Fleet"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "While you have 3 or more other (Ghingnham Fleet)/(Long-Range Weapon) Units in play, this Unit gets AP+2.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-030"
+},
+{
+"code": "GD06-031",
+"name": "Zssan",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Ghingnham Fleet"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-031"
+},
+{
+"code": "GD06-032",
+"name": "Bellona",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Ghingnham Fleet"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Destroyed】Look at the top 2 cards of your deck. You may reveal 1 (Ghingnham Fleet)/(Dianna Counter) Unit card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-032"
+},
+{
+"code": "GD06-033",
+"name": "ZZ Gundam",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [
+"AEUG",
+"Gundam Team"
+],
+"link": "[Judau Ashta]",
+"linkRefs": [
+"Judau Ashta"
+],
+"effect": "When your (AEUG) cards deal damage to enemy Units, increase the damage dealt by 1.\n【Deploy】Deal 2 damage to all enemy Units.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-033"
+},
+{
+"code": "GD06-034",
+"name": "Gundam Bael",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam IRON-BLOODED ORPHANS",
+"traits": [
+"Gjallarhorn",
+"Gundam Frame"
+],
+"link": "[McGillis Fareed]",
+"linkRefs": [
+"McGillis Fareed"
+],
+"effect": "<High-Maneuver> (This Unit can't be blocked.)\n【Deploy】If there are 4 or more (Gjallarhorn) cards in your trash, look at the top 4 cards of your deck. You may deploy 1 (Gjallarhorn)/(Tekkadan) Unit card that is Lv.6 or lower among them. Return the remaining cards randomly to the bottom of your deck.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-034"
+},
+{
+"code": "GD06-035",
+"name": "Zeta Gundam",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [
+"AEUG",
+"Gundam Team"
+],
+"link": "(AEUG) Trait",
+"linkRefs": [],
+"effect": "【Once per Turn】During your turn, when this Unit destroys an enemy Unit with battle damage, choose 1 enemy Unit with 3 or less AP. Deal 2 damage to it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-035"
+},
+{
+"code": "GD06-036",
+"name": "Gundam Vidar",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam IRON-BLOODED ORPHANS",
+"traits": [
+"Gjallarhorn",
+"Gundam Frame"
+],
+"link": "[Gaelio Bauduin]",
+"linkRefs": [
+"Gaelio Bauduin"
+],
+"effect": "【When Linked】Choose 1 enemy Unit. Deal 1 damage to it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-036"
+},
+{
+"code": "GD06-037",
+"name": "Reginlaze Julia",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam IRON-BLOODED ORPHANS",
+"traits": [
+"Gjallarhorn"
+],
+"link": "[Julieta Juris]",
+"linkRefs": [
+"Julieta Juris"
+],
+"effect": "During your turn, while this Unit is battling a damaged enemy Unit, it gains<First Strike>.\n\n(While this Unit is attacking, it deals damage before the enemy Unit.)\n【During Pair】Enemy Units can't be set as active by enemy effects.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-037"
+},
+{
+"code": "GD06-038",
+"name": "Gundam Kimaris Vidar",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam IRON-BLOODED ORPHANS",
+"traits": [
+"Gjallarhorn",
+"Gundam Frame"
+],
+"link": "[Gaelio Bauduin]",
+"linkRefs": [
+"Gaelio Bauduin"
+],
+"effect": "<Breach 3> (During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)\n【When Paired】Choose 1 enemy Unit with the highest Lv. Deal 3 damage to it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-038"
+},
+{
+"code": "GD06-039",
+"name": "Neo Core Fighter",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [
+"AEUG",
+"Gundam Team"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Activate･Main】Destroy 2 of your (Gundam Team) Units with unique card names that are Lv.3 and this Unit：Deploy 1 (Gundam Team) Unit card that is Lv.8 or higher from your hand.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-039"
+},
+{
+"code": "GD06-040",
+"name": "Gundam Mk-Ⅱ",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [
+"AEUG",
+"Gundam Team"
+],
+"link": "(AEUG) Trait",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-040"
+},
+{
+"code": "GD06-041",
+"name": "Neo Lorrnoke's Windam (Jet Striker)",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam SEED DESTINY",
+"traits": [
+"Earth Alliance",
+"Phantom Pain"
+],
+"link": "[Neo Lorrnoke]",
+"linkRefs": [
+"Neo Lorrnoke"
+],
+"effect": "【Deploy】Choose 1 enemy Unit with 5 or less AP. Deal 1 damage to it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-041"
+},
+{
+"code": "GD06-042",
+"name": "Destroy Gundam (MA Mode)",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam SEED DESTINY",
+"traits": [
+"Earth Alliance",
+"Phantom Pain"
+],
+"link": "(Biological CPU) Trait",
+"linkRefs": [],
+"effect": "【Deploy】Look at the top 4 cards of your deck. You may pair 1 (Biological CPU) Pilot card among them with this Unit. Return the remaining cards randomly to the bottom of your deck.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-042"
+},
+{
+"code": "GD06-043",
+"name": "Julieta's Reginlaze",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam IRON-BLOODED ORPHANS",
+"traits": [
+"Gjallarhorn"
+],
+"link": "(Gjallarhorn) Trait",
+"linkRefs": [],
+"effect": "【During Link】During your turn, all other (Gjallarhorn) Units get AP+1.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-043"
+},
+{
+"code": "GD06-044",
+"name": "Core Top",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [
+"AEUG",
+"Gundam Team"
+],
+"link": "(Gundam Team) Trait",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-044"
+},
+{
+"code": "GD06-045",
+"name": "Core Base",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [
+"AEUG",
+"Gundam Team"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Destroyed】Choose 1 enemy Unit that is Lv.5 or lower. Deal 1 damage to it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-045"
+},
+{
+"code": "GD06-046",
+"name": "Hyaku-Shiki",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [
+"AEUG",
+"Gundam Team"
+],
+"link": "(Gundam Team) Trait",
+"linkRefs": [],
+"effect": "【Attack】Choose 1 of your other (Gundam Team) Units. It gets AP+2 during this turn.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-046"
+},
+{
+"code": "GD06-047",
+"name": "Windam",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam SEED DESTINY",
+"traits": [
+"Earth Alliance",
+"Phantom Pain"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-047"
+},
+{
+"code": "GD06-048",
+"name": "Helmwige Reincar",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam IRON-BLOODED ORPHANS",
+"traits": [
+"Gjallarhorn"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Deploy】Choose 1 enemy Unit that is Lv.2 or lower. Deal 1 damage to it. If there are 4 or more (Gjallarhorn) cards in your trash, choose 1 enemy Unit instead.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-048"
+},
+{
+"code": "GD06-049",
+"name": "Gundam GP02A",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Zeon",
+"Delaz Fleet"
+],
+"link": "[Anavel Gato]",
+"linkRefs": [
+"Anavel Gato"
+],
+"effect": "【When Paired】If there are 10 or more (Zeon) Unit cards in your trash, destroy every enemy player's Base.\n【Destroyed】Look at the top 3 cards of your deck. You may reveal 1 (Delaz Fleet) Unit card among them and add it to your hand. Place the remaining cards into your trash.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-049"
+},
+{
+"code": "GD06-050",
+"name": "Legend Gundam",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam SEED DESTINY",
+"traits": [
+"ZAFT",
+"Minerva Squad"
+],
+"link": "[Rey Za Burrel]",
+"linkRefs": [
+"Rey Za Burrel"
+],
+"effect": "While you have a (ZAFT) Link Unit in play, this card in your trash gets Lv. -3 and cost -3.\n【Deploy】Choose 1 enemy Unit that is Lv.3 or lower. Destroy it. If you deploy this Unit from your trash, choose 1 to 2 enemy Units that are Lv.3 or lower instead.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-050"
+},
+{
+"code": "GD06-051",
+"name": "GFreD",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [
+"Zeon",
+"Alphacide"
+],
+"link": "[Nyaan]",
+"linkRefs": [
+"Nyaan"
+],
+"effect": "【Activate･Main】【Once per Turn】②, rest this Unit：Choose 1 (Alphacide) Unit card that is Lv.5 or lower from your trash. Deploy it.\n【Deploy】If another friendly (Alphacide) Unit is in play, this Unit gains the following effect during this turn:\n\n■At the end of the turn, choose 2 of your Resources. Set them as active.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-051"
+},
+{
+"code": "GD06-052",
+"name": "Val Walo",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Zeon",
+"Civilian"
+],
+"link": "[Kelley Layzner]",
+"linkRefs": [
+"Kelley Layzner"
+],
+"effect": "While there are 5 or more (Zeon) Unit cards in your trash, this Unit gains<High-Maneuver>.\n\n(This Unit can't be blocked.)\n【Deploy】Place the top card of your deck into your trash. If you place a (Zeon) card with this effect, choose 1 enemy Unit with 4 or less AP. Rest it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-052"
+},
+{
+"code": "GD06-053",
+"name": "Xavier's Gyan Hakuji-Packs (GQ)",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [
+"Zeon"
+],
+"link": "[Xavier Olivette]",
+"linkRefs": [
+"Xavier Olivette"
+],
+"effect": "<Blocker> (Rest this Unit to change the attack target to it.)\n【Destroyed】Choose 1 of your Resources. Set it as active.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-053"
+},
+{
+"code": "GD06-054",
+"name": "GFreD",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [
+"Zeon",
+"Alphacide"
+],
+"link": "[Nyaan]",
+"linkRefs": [
+"Nyaan"
+],
+"effect": "<Suppression> (Damage to Shields by an attack is dealt to the first 2 cards simultaneously.)\n【Deploy】You may choose 1 of your Units and 1 enemy Unit. Deal 1 damage to them.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-054"
+},
+{
+"code": "GD06-055",
+"name": "Gundam GP02A",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Zeon",
+"Delaz Fleet"
+],
+"link": "[Anavel Gato]",
+"linkRefs": [
+"Anavel Gato"
+],
+"effect": "【During Pair】【Attack】You may deal 1 damage to this Unit. If you do, this Unit gains<Breach 2> during this battle.\n\n(During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-055"
+},
+{
+"code": "GD06-056",
+"name": "Xamel",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Zeon",
+"Delaz Fleet"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Attack】You may pay ②. If you do, choose 1 enemy Unit that is Lv.2 or lower. Destroy it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-056"
+},
+{
+"code": "GD06-057",
+"name": "Karius' Rick Dom Ⅱ",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Zeon",
+"Delaz Fleet"
+],
+"link": "[Karius]",
+"linkRefs": [
+"Karius"
+],
+"effect": "While you have another (Delaz Fleet) Unit in play, this Unit gains<Blocker>.\n\n(Rest this Unit to change the attack target to it.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-057"
+},
+{
+"code": "GD06-058",
+"name": "Blast Impulse Gundam",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam SEED DESTINY",
+"traits": [
+"ZAFT",
+"Minerva Squad"
+],
+"link": "[Lunamaria Hawke]",
+"linkRefs": [
+"Lunamaria Hawke"
+],
+"effect": "On the turn this Unit is deployed, it may choose a rested enemy Unit as its attack target and attack it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-058"
+},
+{
+"code": "GD06-059",
+"name": "Dom Tropen",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Zeon",
+"Delaz Fleet"
+],
+"link": "(Delaz Fleet) Trait",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-059"
+},
+{
+"code": "GD06-060",
+"name": "Zaku Ⅱ F2",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Zeon",
+"Delaz Fleet"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "While there are 4 or more (Zeon) Unit cards in your trash, this Unit gets AP+1.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-060"
+},
+{
+"code": "GD06-061",
+"name": "Dra-C",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Zeon",
+"Delaz Fleet"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Activate･Main】<Support 1> (Rest this Unit. 1 other friendly Unit gets AP+(specified amount) during this turn.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-061"
+},
+{
+"code": "GD06-062",
+"name": "Gyan Hakuji-Packs (GQ)",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [
+"Zeon"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-062"
+},
+{
+"code": "GD06-063",
+"name": "GFreD",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [
+"Zeon",
+"Alphacide"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-063"
+},
+{
+"code": "GD06-064",
+"name": "Altron Gundam (EW)",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam Wing: Endless Waltz",
+"traits": [
+"G Team",
+"Mariemaia Army"
+],
+"link": "[Chang Wufei]",
+"linkRefs": [
+"Chang Wufei"
+],
+"effect": "<Blocker> (Rest this Unit to change the attack target to it.)\nWhile an enemy Unit that is Lv.5 or higher is in play, this Unit gets AP+3.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-064"
+},
+{
+"code": "GD06-065",
+"name": "SUMO Gold Type",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Dianna Counter"
+],
+"link": "[Harry Ord]",
+"linkRefs": [
+"Harry Ord"
+],
+"effect": "<Blocker> (Rest this Unit to change the attack target to it.)\n【Activate･Main】【Once per Turn】④：Set all your (Dianna Counter)/(Militia) Units with<Blocker> as active. They can't attack during this turn.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-065"
+},
+{
+"code": "GD06-066",
+"name": "Shadow Gundam",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Fighter G Gundam",
+"traits": [
+"MF"
+],
+"link": "(Gundam Fighter) Trait",
+"linkRefs": [],
+"effect": "<Blocker> (Rest this Unit to change the attack target to it.)\n【During Link】【Attack】Activate 【Action】 on the card paired with this Unit.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-066"
+},
+{
+"code": "GD06-067",
+"name": "Gundam Sandrock Custom (EW)",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam Wing: Endless Waltz",
+"traits": [
+"G Team"
+],
+"link": "[Quatre Raberba Winner]",
+"linkRefs": [
+"Quatre Raberba Winner"
+],
+"effect": "<Blocker> (Rest this Unit to change the attack target to it.)\n【When Paired･Lv.4 or Higher Pilot】Choose 1 rested enemy Unit with 3 or less HP. It won't be set as active during the start phase of your opponent's next turn.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-067"
+},
+{
+"code": "GD06-068",
+"name": "Gundam Heavyarms Custom (EW)",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam Wing: Endless Waltz",
+"traits": [
+"G Team"
+],
+"link": "[Trowa Barton]",
+"linkRefs": [
+"Trowa Barton"
+],
+"effect": "【Deploy】Choose 1 enemy Unit that is Lv.3 or lower. Rest it. If you have another (G Team)/(Preventer) Unit in play, that enemy Unit gets AP-2 during this turn.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-068"
+},
+{
+"code": "GD06-069",
+"name": "SUMO Silver Type",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Dianna Counter"
+],
+"link": "(Moonrace) Trait",
+"linkRefs": [],
+"effect": "<Blocker> (Rest this Unit to change the attack target to it.)\n【Activate･Action】【Once per Turn】①：Choose 1 of your damaged (Dianna Counter) Units. It recovers 1 HP.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-069"
+},
+{
+"code": "GD06-070",
+"name": "Eagail",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Dianna Counter"
+],
+"link": "[Corin Nander]",
+"linkRefs": [
+"Corin Nander"
+],
+"effect": "【Deploy】Deploy 1 [Gozzo]((Dianna Counter)･AP0･HP3･<Blocker>) Unit token.\n【Attack】If you have paid a total of ③ or more for your Units' effects this turn, choose 1 enemy Unit. It gets AP-5 during this battle.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-070"
+},
+{
+"code": "GD06-071",
+"name": "Shining Gundam (Meikyo Shisui)",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Fighter G Gundam",
+"traits": [
+"MF",
+"Shuffle Alliance"
+],
+"link": "[Domon Kasshu]",
+"linkRefs": [
+"Domon Kasshu"
+],
+"effect": "【Once per Turn】During your turn, when you activate a (Special Move) Command's 【Main】/【Action】, choose 1 enemy Unit. It gets AP-2 during this turn. If you do, this Unit gets AP+2.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-071"
+},
+{
+"code": "GD06-072",
+"name": "Gundam Deathscythe Hell (EW)",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam Wing: Endless Waltz",
+"traits": [
+"G Team"
+],
+"link": "[Duo Maxwell]",
+"linkRefs": [
+"Duo Maxwell"
+],
+"effect": "【During Pair】【Destroyed】If you have another (G Team)/(Preventer) Unit in play, you may choose 1 Command card that is Lv.5 or lower from your trash. Add it to your hand.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-072"
+},
+{
+"code": "GD06-073",
+"name": "Wing Gundam Zero (EW)",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam Wing: Endless Waltz",
+"traits": [
+"G Team"
+],
+"link": "[Heero Yuy]",
+"linkRefs": [
+"Heero Yuy"
+],
+"effect": "【During Pair】【Once per Turn】When this Unit destroys an enemy shield area card with battle damage, choose 1 enemy Unit that is Lv.3 or lower. Rest it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-073"
+},
+{
+"code": "GD06-074",
+"name": "Flat",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Dianna Counter"
+],
+"link": "(Moonrace) Trait",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-074"
+},
+{
+"code": "GD06-075",
+"name": "Serpent",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam Wing: Endless Waltz",
+"traits": [
+"Mariemaia Army"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-075"
+},
+{
+"code": "GD06-076",
+"name": "WaDom",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Dianna Counter"
+],
+"link": "(Moonrace) Trait",
+"linkRefs": [],
+"effect": "【Deploy】Choose 1 enemy Unit with 4 or less HP. Rest it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-076"
+},
+{
+"code": "GD06-077",
+"name": "Cannon Illfuto",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Dianna Counter"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "<Blocker> (Rest this Unit to change the attack target to it.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-077"
+},
+{
+"code": "GD06-078",
+"name": "WaD",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Dianna Counter"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Activate･Main】③, rest this Unit：If you have another (Dianna Counter) Unit in play, choose 1 enemy Unit that is Lv.4 or lower. Rest it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-078"
+},
+{
+"code": "GD06-079",
+"name": "Muttowooo",
+"cardType": "UNIT",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Dianna Counter"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-079"
+},
+{
+"code": "GD06-080",
+"name": "Kou Uraki",
+"cardType": "PILOT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Earth Federation",
+"Albion Squad"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【Activate･Action】【Once per Turn】If you have drawn with an effect during this turn, choose 1 of your Units. It recovers 2 HP.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-080"
+},
+{
+"code": "GD06-081",
+"name": "Amate Yuzuriha (Machu)",
+"cardType": "PILOT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [
+"Alphacide",
+"Newtype"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\nWhile this Unit is (Alphacide), it gains<Repair 2>.\n\n(At the end of your turn, this Unit recovers the specified number of HP.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-081"
+},
+{
+"code": "GD06-082",
+"name": "Athrun Zala",
+"cardType": "PILOT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam SEED DESTINY",
+"traits": [
+"Orb",
+"Coordinator"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【When Paired】Choose 1 rested enemy Unit. Deal 1 damage to it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-082"
+},
+{
+"code": "GD06-083",
+"name": "Challia Bull (GQ)",
+"cardType": "PILOT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [
+"Zeon",
+"Newtype"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【During Link】While this Unit has<Repair>, it gains<High-Maneuver>.\n\n(This Unit can't be blocked.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-083"
+},
+{
+"code": "GD06-084",
+"name": "Elpeo Ple",
+"cardType": "PILOT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [
+"Neo Zeon",
+"Newtype"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【When Paired】During this turn, this Unit gains the same number of<Breach 1> as the number of (Neo Zeon)/(Long-Range Weapon) Units you have in play.\n\n(During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-084"
+},
+{
+"code": "GD06-085",
+"name": "Gym Ghingnham",
+"cardType": "PILOT",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Ghingnham Fleet",
+"Moonrace"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【During Link】All your (Ghingnham Fleet) Units get AP+1 during your opponent's turn.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-085"
+},
+{
+"code": "GD06-086",
+"name": "Mashymre Cello",
+"cardType": "PILOT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [
+"Neo Zeon"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "When playing this card from your hand and pairing it with a Unit with the [Mashymre Cello] link condition, it gets cost -1.\n\n【Burst】Add this card to your hand.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-086"
+},
+{
+"code": "GD06-087",
+"name": "Merrybell Gadget",
+"cardType": "PILOT",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Ghingnham Fleet",
+"Moonrace"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【Attack】Choose 1 of your (Ghingnham Fleet) Units. During this turn, it may choose an active enemy Unit that is Lv.4 or lower as its attack target.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-087"
+},
+{
+"code": "GD06-088",
+"name": "Judau Ashta",
+"cardType": "PILOT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [
+"AEUG",
+"Gundam Team",
+"Newtype"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【During Link】【Destroyed】Choose 1 (Gundam Team) Unit card that is Lv.2 or lower from your trash. Add it to your hand.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-088"
+},
+{
+"code": "GD06-089",
+"name": "McGillis Fareed",
+"cardType": "PILOT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam IRON-BLOODED ORPHANS",
+"traits": [
+"Gjallarhorn",
+"Alaya-Vijnana"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【During Link】When this Unit destroys an enemy shield area card with battle damage, choose 1 of your (Gjallarhorn) Units. During this turn, it may choose an active enemy Unit that is Lv.5 or lower as its attack target.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-089"
+},
+{
+"code": "GD06-090",
+"name": "Vidar",
+"cardType": "PILOT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam IRON-BLOODED ORPHANS",
+"traits": [
+"Gjallarhorn",
+"Alaya-Vijnana"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "This card's name is also treated as [Gaelio Bauduin].\n\n【Burst】Add this card to your hand.\n【Attack】If you have 2 or more (Gjallarhorn) Units in play, choose 1 enemy Unit with 5 or less AP. Deal 1 damage to it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-090"
+},
+{
+"code": "GD06-091",
+"name": "Roux Louka",
+"cardType": "PILOT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [
+"AEUG",
+"Gundam Team",
+"Newtype"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\nWhile this Unit is (AEUG), it gains<Breach 1>.\n\n(During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-091"
+},
+{
+"code": "GD06-092",
+"name": "Neo Lorrnoke",
+"cardType": "PILOT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam SEED DESTINY",
+"traits": [
+"Earth Alliance",
+"Phantom Pain",
+"Orb"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "This card's name is also treated as [Mu La Flaga].\n\n【Burst】Add this card to your hand.\n【When Paired】If this is a (Phantom Pain)/(Orb) Unit, choose 1 enemy Unit whose AP is equal to or less than this Unit. Deal 1 damage to it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-092"
+},
+{
+"code": "GD06-093",
+"name": "Anavel Gato",
+"cardType": "PILOT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Zeon",
+"Delaz Fleet"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【Attack】During this battle, when this Unit receives battle damage from an enemy Unit whose Lv. is equal to or lower than it, reduce it by 2.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-093"
+},
+{
+"code": "GD06-094",
+"name": "Nyaan",
+"cardType": "PILOT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [
+"Zeon",
+"Alphacide",
+"Newtype"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【When Paired】Choose 1 friendly Unit. It gains the following effect during this turn:\n\n■When this Unit deals battle damage to an enemy Unit that is Lv.4 or lower, destroy that enemy Unit.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-094"
+},
+{
+"code": "GD06-095",
+"name": "Kelley Layzner",
+"cardType": "PILOT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Zeon",
+"Civilian"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【Attack】You may deal 1 damage to this Unit. If you do, choose 1 of your (Zeon) Units. It gets AP+2 during this turn.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-095"
+},
+{
+"code": "GD06-096",
+"name": "Xavier Olivette",
+"cardType": "PILOT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [
+"Zeon",
+"Newtype"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【During Link】【Attack】Place the top card of your deck into your trash. If you place a (Zeon)/(Alphacide) card with this effect, all enemy Units get AP-1 during this battle.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-096"
+},
+{
+"code": "GD06-097",
+"name": "Harry Ord",
+"cardType": "PILOT",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Dianna Counter",
+"Moonrace"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【Once per Turn】When this Unit activates<Blocker>, set it as active.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-097"
+},
+{
+"code": "GD06-098",
+"name": "Duo Maxwell",
+"cardType": "PILOT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam Wing: Endless Waltz",
+"traits": [
+"G Team",
+"Operation Meteor"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【During Link】While this Unit is rested, friendly Bases can't receive damage from enemy Units whose Lv. are equal to or lower than this Unit.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-098"
+},
+{
+"code": "GD06-099",
+"name": "Chang Wufei",
+"cardType": "PILOT",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam Wing: Endless Waltz",
+"traits": [
+"G Team",
+"Operation Meteor",
+"Mariemaia Army"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【Attack】Choose 1 enemy Unit that is Lv.5 or higher. It gets AP-3 during this battle.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-099"
+},
+{
+"code": "GD06-100",
+"name": "Corin Nander",
+"cardType": "PILOT",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Dianna Counter",
+"Moonrace"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "When playing this card from your hand and pairing it with a (Dianna Counter) Unit that is Lv.5 or higher, it gets cost -1.\n\n【Burst】Add this card to your hand.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-100"
+},
+{
+"code": "GD06-101",
+"name": "The Gundam Says",
+"cardType": "COMMAND",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [
+"Alphacide"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Choose 1 enemy Unit with 5 or less HP. Return it to its owner's hand.\n【Main】/【Action】Choose 1 enemy Unit with 5 or less HP. Return it to its owner's hand. Then, if a friendly (Alphacide) Link Unit is in play, draw 1.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-101"
+},
+{
+"code": "GD06-102",
+"name": "A Miracle",
+"cardType": "COMMAND",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam SEED DESTINY",
+"traits": [],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【Action】If it is your opponent's turn and no enemy Units have attacked this turn, draw 2.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-102"
+},
+{
+"code": "GD06-103",
+"name": "Restore the Front Line",
+"cardType": "COMMAND",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Earth Federation",
+"Albion Squad"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Main】Choose 1 rested enemy Unit. Deal 1 damage to it.\n【Pilot】[South Burning]",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-103"
+},
+{
+"code": "GD06-104",
+"name": "Steady Support",
+"cardType": "COMMAND",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Earth Federation",
+"Albion Squad"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Main】/【Action】Choose 1 enemy Unit with 3 or less HP. Return it to its owner's hand.\n【Pilot】[Chuck Keith]",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-104"
+},
+{
+"code": "GD06-105",
+"name": "Grace Under Pressure",
+"cardType": "COMMAND",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam the Witch from Mercury",
+"traits": [],
+"link": "-",
+"linkRefs": [],
+"effect": "【Main】Deploy 1 [Gundam Calibarn]((Academy)･AP5･HP3･<High-Maneuver>) Unit token or 1 [Gundam Aerial Rebuild]((Quiet Zero)･AP3･HP5･<Breach 3>) Unit token.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-105"
+},
+{
+"code": "GD06-106",
+"name": "Presence Detected",
+"cardType": "COMMAND",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [],
+"link": "-",
+"linkRefs": [],
+"effect": "【Action】During this battle, your shield area cards can't receive damage from enemy Units with 6 or less AP.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-106"
+},
+{
+"code": "GD06-107",
+"name": "Wheel Spoke Formation",
+"cardType": "COMMAND",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Ghingnham Fleet",
+"Moonrace"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Main】If you have a (Ghingnham Fleet) Unit in play, choose 1 enemy Unit with<Blocker> and 3 or less AP. Destroy it.\n【Pilot】[Sweatson Stero]",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-107"
+},
+{
+"code": "GD06-108",
+"name": "On Edge",
+"cardType": "COMMAND",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [
+"Neo Zeon"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Main】All friendly (Neo Zeon) Units that are Lv.4 or lower get AP+2 during this turn.\n【Pilot】[Chara Soon]",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-108"
+},
+{
+"code": "GD06-109",
+"name": "God of War Ghingnham",
+"cardType": "COMMAND",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Ghingnham Fleet"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Main】Deploy 1 rested [Turn X (Arms)]((Ghingnham Fleet) (Long-Range Weapon)･AP2･HP3) Unit token or 1 rested [Turn X (Legs)]((Ghingnham Fleet) (Long-Range Weapon)･AP3･HP2) Unit token.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-109"
+},
+{
+"code": "GD06-110",
+"name": "Familial Love",
+"cardType": "COMMAND",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【Action】Choose 1 of your Units. It gets AP+2 during this battle. Then, if you have 3 or less cards in your hand, draw 1.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-110"
+},
+{
+"code": "GD06-111",
+"name": "Steely Loyalty",
+"cardType": "COMMAND",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam IRON-BLOODED ORPHANS",
+"traits": [
+"Gjallarhorn"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Action】If there are 4 or more (Gjallarhorn) cards in your trash, choose 1 enemy Unit. Deal 2 damage to it.\n【Pilot】[Julieta Juris]",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-111"
+},
+{
+"code": "GD06-112",
+"name": "Rivalry with Roux",
+"cardType": "COMMAND",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [
+"AEUG",
+"Gundam Team",
+"Newtype"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Action】Choose 1 enemy Unit battling a friendly (AEUG) Unit. Deal 2 damage to it.\n【Pilot】[Elle Vianno]",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-112"
+},
+{
+"code": "GD06-113",
+"name": "Unsanctioned Ordnance",
+"cardType": "COMMAND",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam IRON-BLOODED ORPHANS",
+"traits": [],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Choose 1 enemy Unit. Deal 2 damage to it.\n【Main】/【Action】Choose 1 damaged enemy Unit. Deal 5 damage to it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-113"
+},
+{
+"code": "GD06-114",
+"name": "Alphaciders",
+"cardType": "COMMAND",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [
+"Alphacide"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Action】When playing this card, choose 1 of the following effects and activate it:\n\n■Choose 1 friendly (Alphacide) Unit. During this battle, when it receives enemy battle damage, reduce it by 3.\n\n■Choose 1 enemy Unit that is Lv.2 or lower. Destroy it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-114"
+},
+{
+"code": "GD06-115",
+"name": "Teaching New Techniques",
+"cardType": "COMMAND",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam: Char's Counterattack",
+"traits": [],
+"link": "-",
+"linkRefs": [],
+"effect": "【Main】Choose 1 enemy Unit that is Lv.4 or lower. Destroy it. Then, deploy 1 [Sazabi]((Neo Zeon)･AP4･HP4) Unit token. The destroyed Unit's owner deploys 1 [Nu Gundam]((Londo Bell)･AP3･HP3･<First Strike>) Unit token.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-115"
+},
+{
+"code": "GD06-116",
+"name": "Afterglow of Zeon",
+"cardType": "COMMAND",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Zeon",
+"Delaz Fleet"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Add this card to your hand.\n【Main】Choose 1 purple (Zeon) Unit card that is Lv.5 or lower from your trash. Deploy it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-116"
+},
+{
+"code": "GD06-117",
+"name": "Veterans Joining Forces",
+"cardType": "COMMAND",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Zeon",
+"Delaz Fleet"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Action】Choose 1 rested friendly (Delaz Fleet) Unit. Change a battling enemy Unit's attack target to it.\n【Pilot】[Karius]",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-117"
+},
+{
+"code": "GD06-118",
+"name": "Infinite Variations",
+"cardType": "COMMAND",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [],
+"link": "-",
+"linkRefs": [],
+"effect": "【Main】/【Action】Choose a number of enemy Units up to the number of white Units with<Blocker> you have in play. They get AP-2 during this turn.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-118"
+},
+{
+"code": "GD06-119",
+"name": "Sturm und Drang",
+"cardType": "COMMAND",
+"setCode": "GD06",
+"sourceTitle": "Mobile Fighter G Gundam",
+"traits": [
+"Gundam Fighter",
+"Special Move",
+"DG Cells"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Action】Choose 1 enemy Unit with 3 or less HP. Rest it. After activating this card's 【Action】, you may pair this card from your trash with one of your (MF) Units.\n【Pilot】[Schwarz Bruder]",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-119"
+},
+{
+"code": "GD06-120",
+"name": "Hoping for Peace",
+"cardType": "COMMAND",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam Wing: Endless Waltz",
+"traits": [],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Choose 1 enemy Unit with 5 or less HP. Rest it.\n【Main】/【Action】Choose 1 enemy Unit. Rest it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-120"
+},
+{
+"code": "GD06-121",
+"name": "Crybaby Poe",
+"cardType": "COMMAND",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Dianna Counter",
+"Moonrace"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Action】Choose 1 enemy Unit. It gets AP-2 during this battle. If it has<High-Maneuver>, AP-6 instead.\n【Pilot】[Poe Aijee]",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-121"
+},
+{
+"code": "GD06-122",
+"name": "Albion",
+"cardType": "BASE",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Earth Federation",
+"Albion Squad",
+"Warship"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, choose 1 enemy Unit that is Lv.2 or lower. Return it to its owner's hand.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-122"
+},
+{
+"code": "GD06-123",
+"name": "Endra",
+"cardType": "BASE",
+"setCode": "GD06",
+"sourceTitle": "Mobile Fighter G Gundam",
+"traits": [
+"Neo Zeon",
+"Warship"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, if it is your turn and you have a (Neo Zeon) Unit paired with a Pilot that is Lv.3 or lower in play, choose 1 enemy Unit with<Blocker> and 3 or less AP. Destroy it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-123"
+},
+{
+"code": "GD06-124",
+"name": "Aspite",
+"cardType": "BASE",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Ghingnham Fleet",
+"Warship"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Activate･Main】Rest this Base：If you have 3 or more (Ghingnham Fleet)/(Long-Range Weapon) Units in play, all your (Ghingnham Fleet) Units get AP+1 during this turn.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-124"
+},
+{
+"code": "GD06-125",
+"name": "Argama",
+"cardType": "BASE",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam ZZ",
+"traits": [
+"AEUG",
+"Warship"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Once per Turn】When this Base receives battle damage while you have a rested (AEUG) Unit in play, choose 1 enemy Unit. Deal 1 damage to it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-125"
+},
+{
+"code": "GD06-126",
+"name": "Skipjack-class Warship",
+"cardType": "BASE",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam IRON-BLOODED ORPHANS",
+"traits": [
+"Gjallarhorn",
+"Warship"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, if a friendly (Gjallarhorn) Unit is in play, choose 1 damaged enemy Unit. Deal 1 damage to it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-126"
+},
+{
+"code": "GD06-127",
+"name": "Yomagn'tho",
+"cardType": "BASE",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam GQuuuuuuX",
+"traits": [
+"Zeon",
+"Stronghold"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, if it is your turn, place the top 2 cards of your deck into your trash. If you place an (Alphacide) card with this effect, choose 1 enemy Unit with 2 or less AP. Destroy it.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-127"
+},
+{
+"code": "GD06-128",
+"name": "Gwaden",
+"cardType": "BASE",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam 0083",
+"traits": [
+"Zeon",
+"Delaz Fleet",
+"Warship"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Activate･Main】Rest this Base：Choose 1 friendly (Zeon) Unit. During this turn, when it receives enemy battle damage, reduce it by 1.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-128"
+},
+{
+"code": "GD06-129",
+"name": "5th Luna",
+"cardType": "BASE",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam: Char's Counterattack",
+"traits": [
+"Stronghold"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Destroyed】If you have any Shields in play, deploy 1 [Axis]((Neo Zeon)･AP0･HP5) Base token.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-129"
+},
+{
+"code": "GD06-130",
+"name": "Soleil",
+"cardType": "BASE",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Dianna Counter",
+"Warship"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, choose 1 enemy Unit with no paired Pilot. Reduce its AP by an amount equal to the number of friendly (Dianna Counter)/(Militia) Units during this turn.",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=GD06-130"
+},
+{
+"code": "T-030",
+"name": "Gozzo",
+"cardType": "UNIT TOKEN",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Dianna Counter"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "<Blocker> (Rest this Unit to change the attack target to it.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=T-030"
+},
+{
+"code": "T-031",
+"name": "Turn X (Arms)",
+"cardType": "UNIT TOKEN",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Ghingnham Fleet",
+"Long-Range Weapon"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=T-031"
+},
+{
+"code": "T-032",
+"name": "Turn X (Legs)",
+"cardType": "UNIT TOKEN",
+"setCode": "GD06",
+"sourceTitle": "∀ Gundam",
+"traits": [
+"Ghingnham Fleet",
+"Long-Range Weapon"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=T-032"
+},
+{
+"code": "T-033",
+"name": "Sazabi",
+"cardType": "UNIT TOKEN",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam: Char's Counterattack",
+"traits": [
+"Neo Zeon"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=T-033"
+},
+{
+"code": "T-034",
+"name": "Nu Gundam",
+"cardType": "UNIT TOKEN",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam: Char's Counterattack",
+"traits": [
+"Londo Bell"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "<First Strike> (While this Unit is attacking, it deals damage before the enemy Unit.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=T-034"
+},
+{
+"code": "T-035",
+"name": "Gundam Calibarn",
+"cardType": "UNIT TOKEN",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam the Witch from Mercury",
+"traits": [
+"Academy"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "<High-Maneuver> (This Unit can't be blocked.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=T-035"
+},
+{
+"code": "T-036",
+"name": "Gundam Aerial Rebuild",
+"cardType": "UNIT TOKEN",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam the Witch from Mercury",
+"traits": [
+"Quiet Zero"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "<Breach 3> (During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=T-036"
+},
+{
+"code": "T-037",
+"name": "Axis",
+"cardType": "BASE",
+"setCode": "GD06",
+"sourceTitle": "Mobile Suit Gundam: Char's Counterattack",
+"traits": [
+"Neo Zeon"
+],
+"link": "-",
+"linkRefs": [],
+"effect": "-",
+"detailUrl": "https://www.gundam-gcg.com/en/cards/detail.php?detailSearch=T-037"
 }
 ]
 }
