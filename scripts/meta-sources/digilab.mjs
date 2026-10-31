@@ -19,7 +19,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { SEASONS } from "../../prisma/import-tournaments.mjs";
+import { SEASONS, seasonForDate } from "../../src/lib/seasons.ts";
 import { digilabTier } from "./digilab-br.mjs";
 
 export const API = "https://gundam.digilab.cards/api";
@@ -33,13 +33,10 @@ const DAY_MS = 86_400_000;
 /** Formatos que não são torneio de construído de temporada (Edition Beta, pré-lançamento do GD01) */
 const SKIP_FORMATS = new Set(["GD01_b"]);
 
-/** Temporada do Veda: o próprio formato se for uma temporada (GD01…GD05); senão (EB01…) a temporada vigente na data */
+/** Temporada do Veda: o próprio formato se for uma temporada (GD01, GD02…); senão (EB01…) a temporada vigente na data */
 export function seasonFor(format, date) {
   if (SEASONS.some((s) => s.code === format)) return format;
-  if (!date) return null;
-  let season = null;
-  for (const s of SEASONS) if (date >= s.startDate) season = s.code;
-  return season;
+  return seasonForDate(date);
 }
 
 /** "store_championship" → "Store Championship" */

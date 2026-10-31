@@ -14,6 +14,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { SEASON_SLICES } from "../src/lib/seasons.ts";
 
 register();
 
@@ -54,8 +55,7 @@ for (const f of [...byFormat.keys()].sort()) {
 }
 
 // Recortes de temporada dentro de um formato da Egman: um starter novo não muda o formato lá, mas muda o meta.
-// GD05.5 = listas do GD05 a partir do lançamento do ST11–ST14 (25/09/2026).
-const SEASON_SLICES = [{ id: "GD05.5", format: "GD05", since: "2026-09-25" }];
+// Recortes de formato (ex.: GD05.5 = listas do GD05 a partir do ST11–ST14) vêm de src/lib/seasons.ts
 for (const slice of SEASON_SLICES) {
   const lists = (byFormat.get(slice.format) ?? [])
     .filter((l) => (l.date ?? "") >= slice.since)

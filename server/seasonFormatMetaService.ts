@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { META_CORES } from "../src/modules/simulator/fixtures/metaCores.ts";
 import { normalizeDeckColors } from "../src/lib/gundam-catalog.ts";
+import { DEFAULT_ANALYSIS_SEASON, SEASON_CODES, normalizeSeasonCode, seasonAlias } from "../src/lib/seasons.ts";
 import type { MetagameProvenance } from "./metagameTrendsService.ts";
 
 export interface FormatCardDetail {
@@ -273,19 +274,15 @@ function aggregateFormatData(formatKeys: string[]): {
 }
 
 /**
- * Lista todos os formatos disponíveis em metaCores, ordenando a Temporada Atual (GD05)
- * no topo, seguida pelos formatos em ordem decrescente e pela opção de histórico geral (ALL).
- * GD05.5 foi unificado dentro de GD05 para evitar duplicidade de filtro.
+ * Lista todos os formatos disponíveis em metaCores, do mais novo ao mais antigo, seguidos pela opção de histórico
+ * geral (ALL). Recortes (GD05.5) contam dentro do próprio formato para não duplicar filtro (`src/lib/seasons.ts`).
  */
-const CURRENT_SEASON_KEYS = ["GD05"];
-const ALL_SEASON_KEYS = ["GD01", "GD02", "GD03", "GD04", "GD05"];
 
 export function getAvailableFormats(): FormatOverviewItem[] {
   const result: FormatOverviewItem[] = [];
 
-  // 1. Formatos individuais em ordem decrescente (Temporada Atual GD05 no topo, sem GD05.5 separado)
-  const orderedKeys = ["GD05", "GD04", "GD03", "GD02", "GD01"];
-  for (const formatKey of orderedKeys) {
+  // 1. Formatos individuais do mais novo ao mais antigo (formato sem listas ainda fica de fora)
+  for (const formatKey of [...SEASON_CODES].reverse()) {
     const formatData = META_CORES.formats[formatKey as keyof typeof META_CORES.formats];
     if (!formatData) continue;
     const archetypes = formatData.archetypes || [];
@@ -303,7 +300,7 @@ export function getAvailableFormats(): FormatOverviewItem[] {
   }
 
   // 2. Histórico Geral (Todas as Temporadas)
-  const allSeasons = aggregateFormatData(ALL_SEASON_KEYS);
+  const allSeasons = aggregateFormatData([...SEASON_CODES]);
   result.push({
     format: "ALL",
     totalLists: allSeasons.lists,
@@ -334,24 +331,18 @@ export async function getFormatMetaBreakdown(
   let formatData: { lists: number; events: number; archetypes: any[] } | undefined;
   let tournamentLabel = `Torneios Competitivos Formato ${format} (Egman Events + DigiLab)`;
 
-  if (
-    normalizedKey === "GD05" ||
-    normalizedKey === "GD05.5" ||
-    normalizedKey === "GD05_COMBINED" ||
-    normalizedKey === "CURRENT" ||
-    normalizedKey === "GD05/GD05.5" ||
-    normalizedKey === "GD05_GD05.5" ||
-    normalizedKey === "GD05+GD05.5"
-  ) {
-    formatKey = "GD05";
-    formatData = aggregateFormatData(CURRENT_SEASON_KEYS);
-    tournamentLabel = "Torneios Competitivos Temporada Atual GD05 (Egman Events + DigiLab)";
+  const seasonKey = normalizedKey === "CURRENT" ? DEFAULT_ANALYSIS_SEASON : normalizeSeasonCode(normalizedKey);
+  if (seasonKey === DEFAULT_ANALYSIS_SEASON) {
+    // "current", o código e os apelidos do formato padrão (GD05.5, GD05_COMBINED…) somam o formato inteiro
+    formatKey = seasonKey;
+    formatData = aggregateFormatData([seasonKey]);
+    tournamentLabel = `Torneios Competitivos Temporada ${seasonKey} (Egman Events + DigiLab)`;
   } else if (normalizedKey === "ALL" || normalizedKey === "TODAS") {
     formatKey = "ALL";
-    formatData = aggregateFormatData(ALL_SEASON_KEYS);
+    formatData = aggregateFormatData([...SEASON_CODES]);
     tournamentLabel = "Torneios Competitivos de Todas as Temporadas (Egman Events + DigiLab)";
   } else {
-    formatKey = format.toUpperCase();
+    formatKey = seasonKey ?? format.toUpperCase();
     formatData = META_CORES.formats[formatKey as keyof typeof META_CORES.formats];
   }
 
@@ -490,7 +481,7 @@ export function getFormatsEvolution(): ArchetypeEvolution[] {
   const evolutionMap = new Map<string, { name: string; colors: string[]; points: ArchetypeEvolutionPoint[] }>();
 
   for (const [formatKey, formatData] of Object.entries(META_CORES.formats)) {
-    if (formatKey === "GD05.5") continue;
+    if (seasonAlias(formatKey)) continue;
     for (const arch of formatData.archetypes || []) {
       // Agrupa por nome de arquétipo normalizado
       const key = arch.name.toLowerCase().trim();

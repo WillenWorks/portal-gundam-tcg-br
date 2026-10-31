@@ -28,10 +28,11 @@ import { VedaEmptyView, VedaErrorView, VedaLoadingView } from "@/components/veda
 import { vedaApi, type VedaTournamentQueryParams } from "@/lib/veda/api";
 import type { Paginated, VedaFilters, VedaTournamentCard, VedaTournamentDetail } from "@/lib/veda/types";
 import { TOURNAMENT_TIER_OPTIONS } from "@/lib/gundam-catalog";
+import { DEFAULT_ANALYSIS_SEASON } from "@/lib/seasons";
 
 const PAGE_SIZE = 24;
 const DEFAULT_BATCH_SIZE = 12;
-const DEFAULT_SEASON = "GD05";
+const DEFAULT_SEASON = DEFAULT_ANALYSIS_SEASON;
 
 function formatDatePtBr(raw?: string | null): string {
   if (!raw) return "Data a definir";
@@ -455,7 +456,7 @@ export default function VedaTournamentsPage() {
                     </option>
                   ))
                 ) : (
-                  <option value={DEFAULT_SEASON}>Temporada GD05 (Atual)</option>
+                  <option value={DEFAULT_SEASON}>Temporada {DEFAULT_SEASON}</option>
                 )}
               </select>
             </div>
