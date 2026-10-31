@@ -16,6 +16,7 @@ export const TOKEN_PARTS: CardDef = {
   traits: ["League Militaire"],
   isToken: true,
   attackTargetRules: { cannotTargetPlayer: true },
+  structuredSourceText: { attackTargetRules: "This Unit can't choose the enemy player as its attack target." },
 };
 
 // T-022 — GD04-017 "[Wire-Guided Arm]((Zeon)･AP2･HP1･This Unit can't be paired with a Pilot)"
@@ -29,6 +30,7 @@ export const TOKEN_WIRE_GUIDED_ARM: CardDef = {
   traits: ["Zeon"],
   isToken: true,
   cannotBePaired: true,
+  structuredSourceText: { cannotBePaired: "This Unit can't be paired with a Pilot." },
 };
 
 // T-023 — GD04-017 "[Zeong (Head)]((Zeon)･AP3･HP1)"

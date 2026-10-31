@@ -14,4 +14,5 @@ export const TOKEN_BIT_FUNNEL: CardDef = {
   isToken: true,
   cannotBePaired: true,
   cannotAttack: true,
+  structuredSourceText: { cannotBePaired: "This Unit can't be paired with a Pilot or attack." },
 };

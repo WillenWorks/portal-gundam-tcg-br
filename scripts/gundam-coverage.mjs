@@ -100,6 +100,17 @@ for (const defs of [
 ]) {
   for (const def of Object.values(defs)) DEF_BY_CODE.set(def.code, def);
 }
+// Tokens (T-…): não ficam nos *_CARD_DEFS — são os CardDefs que os specs criam (spawnToken, spawnTokenChoice, …).
+// Sem isto o relatório `--all` marcava como "faltando" os tokens com texto próprio (T-014/T-021/T-022/T-029).
+(function collectTokenDefs(value) {
+  if (Array.isArray(value)) return value.forEach(collectTokenDefs);
+  if (!value || typeof value !== "object") return;
+  if (value.isToken && typeof value.code === "string" && value.code.startsWith("T-") && !DEF_BY_CODE.has(value.code)) {
+    DEF_BY_CODE.set(value.code, value);
+    return;
+  }
+  for (const v of Object.values(value)) collectTokenDefs(v);
+})(ALL_EFFECT_SPECS);
 const SPECS_BY_CODE = new Map();
 for (const spec of ALL_EFFECT_SPECS) {
   if (!SPECS_BY_CODE.has(spec.cardCode)) SPECS_BY_CODE.set(spec.cardCode, []);
