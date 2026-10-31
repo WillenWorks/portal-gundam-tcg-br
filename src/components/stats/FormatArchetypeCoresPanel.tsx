@@ -25,6 +25,7 @@ import {
 } from "@/lib/api";
 import { COLOR_OPTIONS, GAME_COLOR_HEX, GAME_COLOR_LABEL_PT, normalizeDeckColors, resolveGameColorHex, resolveGameColorLabelPt } from "@/lib/gundam-catalog";
 import { DataSourceNote } from "@/components/stats/DataSourceNote";
+import { DEFAULT_ANALYSIS_SEASON, LATEST_SEASON, SEASON_CODES, normalizeSeasonCode } from "@/lib/seasons";
 import gundamCardBack from "@/assets/gundam-card-back.png";
 
 const FALLBACK_COLOR = "#94a3b8";
@@ -41,7 +42,7 @@ export function FormatArchetypeCoresPanel({
   hideHeader = false,
 }: FormatArchetypeCoresPanelProps = {}) {
   const [formats, setFormats] = useState<FormatOverviewItem[]>([]);
-  const [internalFormat, setInternalFormat] = useState<string>("GD05_COMBINED");
+  const [internalFormat, setInternalFormat] = useState<string>(DEFAULT_ANALYSIS_SEASON);
   const selectedFormat = controlledFormat || internalFormat;
 
   const [formatMeta, setFormatMeta] = useState<FormatMetaResponse | null>(null);
@@ -105,7 +106,7 @@ export function FormatArchetypeCoresPanel({
                   Formato & Temporada · Inteligência de Núcleos
                 </p>
                 <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary text-[10px] font-mono uppercase">
-                  GD01 a GD05
+                  {SEASON_CODES[0]} a {LATEST_SEASON}
                 </Badge>
               </div>
               <h2 className="mt-2 font-heading text-3xl sm:text-4xl uppercase tracking-wider dark:text-white light:text-slate-900">
@@ -141,24 +142,14 @@ export function FormatArchetypeCoresPanel({
           </div>
         )}
 
-        {/* Barra de Abas dos Formatos (GD01..GD05) */}
+        {/* Barra de Abas dos Formatos (src/lib/seasons.ts) */}
         {viewMode === "archetypes" && (
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-b dark:border-white/10 light:border-slate-300 pb-4">
             <div className="flex flex-wrap items-center gap-2">
               {formats.map((f) => {
                 const isSelected = f.format === selectedFormat;
-                const formatLabel =
-                  f.format === "GD05_COMBINED"
-                    ? "GD05 / GD05.5"
-                    : f.format === "ALL"
-                    ? "Todas as Seasons"
-                    : f.format;
-                const badgeLabel =
-                  f.format === "GD05_COMBINED"
-                    ? "Atual"
-                    : f.format === "ALL"
-                    ? "Histórico"
-                    : `${f.totalLists} listas`;
+                const formatLabel = f.format === "ALL" ? "Todas as Seasons" : f.format;
+                const badgeLabel = f.format === "ALL" ? "Histórico" : `${f.totalLists} listas`;
 
                 return (
                   <button
@@ -175,7 +166,7 @@ export function FormatArchetypeCoresPanel({
                       <span className="text-sm font-heading tracking-wider uppercase">{formatLabel}</span>
                       <span
                         className={`rounded-none px-1.5 py-0.5 text-[10px] ${
-                          f.format === "GD05_COMBINED"
+                          f.format === LATEST_SEASON
                             ? "bg-primary/20 text-primary font-bold border border-primary/30"
                             : "dark:bg-white/10 dark:text-slate-300 light:bg-slate-200 light:text-slate-700"
                         }`}
@@ -222,7 +213,7 @@ export function FormatArchetypeCoresPanel({
         {viewMode === "archetypes" && formatMeta?.provenance && (
           <DataSourceNote
             provenance={formatMeta.provenance}
-            labelPrefix={`Formato ${formatMeta.format === "GD05_COMBINED" || formatMeta.format === "GD05" ? "GD05" : formatMeta.format} consolidado a partir de`}
+            labelPrefix={`Formato ${normalizeSeasonCode(formatMeta.format) ?? formatMeta.format} consolidado a partir de`}
             weightNote="Regionais e torneios de grande porte possuem ponderação superior no cálculo de conversão e vitórias."
             className="mt-4"
           />
@@ -233,7 +224,7 @@ export function FormatArchetypeCoresPanel({
           <div className="mt-6 space-y-4">
             {loading ? (
               <p className="py-8 text-center text-xs font-mono dark:text-slate-400 light:text-slate-600 animate-pulse">
-                CARREGANDO ESTATÍSTICAS E NÚCLEOS DO FORMATO {selectedFormat === "GD05_COMBINED" ? "GD05 / GD05.5" : selectedFormat}...
+                CARREGANDO ESTATÍSTICAS E NÚCLEOS DO FORMATO {normalizeSeasonCode(selectedFormat) ?? selectedFormat}...
               </p>
             ) : !formatMeta?.archetypes.length ? (
               <p className="py-8 text-center text-xs font-mono dark:text-slate-500 light:text-slate-500">
@@ -409,7 +400,7 @@ export function FormatArchetypeCoresPanel({
             <div className="rounded-none border dark:border-white/10 dark:bg-slate-950/60 light:border-slate-300 light:bg-slate-50 p-4">
               <p className="text-xs uppercase tracking-[0.2em] font-mono text-primary flex items-center gap-1.5">
                 <TrendingUp className="size-4 text-accent" />
-                Trajetória de Relevância por Formato (GD01 a GD05)
+                Trajetória de Relevância por Formato ({SEASON_CODES[0]} a {LATEST_SEASON})
               </p>
               <h3 className="mt-1 font-heading text-2xl uppercase dark:text-white light:text-slate-900">
                 Como os Arquétipos Evoluíram ao Longo das Coleções

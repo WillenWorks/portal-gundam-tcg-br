@@ -96,9 +96,11 @@ describe("torneios (Veda)", () => {
 
   it("temporadas encadeadas, só a última é a atual", () => {
     const rows = seasonRows();
-    expect(rows.map((r) => r.code)).toEqual(["GD01", "GD02", "GD03", "GD04", "GD05"]);
+    expect(rows.map((r) => r.code)).toEqual(["GD01", "GD02", "GD03", "GD04", "GD05", "GD06"]);
     expect(rows[0].endDate?.toISOString().slice(0, 10)).toBe("2025-10-23");
-    expect(rows.filter((r) => r.isCurrent).map((r) => r.code)).toEqual(["GD05"]);
+    // abrir o GD06 fecha o GD05 na véspera do lançamento
+    expect(rows.find((r) => r.code === "GD05").endDate?.toISOString().slice(0, 10)).toBe("2026-10-29");
+    expect(rows.filter((r) => r.isCurrent).map((r) => r.code)).toEqual(["GD06"]);
   });
 
   it("lista vira itens com a impressão principal e aponta códigos fora do catálogo", () => {

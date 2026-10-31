@@ -1,0 +1,12 @@
+{
+  "seasons": [
+    { "code": "GD01", "name": "GD01 — Newtype Rising", "startDate": "2025-07-25" },
+    { "code": "GD02", "name": "GD02 — Dual Impact", "startDate": "2025-10-24" },
+    { "code": "GD03", "name": "GD03 — Steel Requiem", "startDate": "2026-01-30" },
+    { "code": "GD04", "name": "GD04 — Phantom Aria", "startDate": "2026-04-24" },
+    { "code": "GD05", "name": "GD05 — Freedom Ascension", "startDate": "2026-07-24" },
+    { "code": "GD06", "name": "GD06 — Stardust Trails", "startDate": "2026-10-30" }
+  ],
+  "defaultAnalysisSeason": "GD05",
+  "slices": [{ "id": "GD05.5", "format": "GD05", "since": "2026-09-25" }]
+}

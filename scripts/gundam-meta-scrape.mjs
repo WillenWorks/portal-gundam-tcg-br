@@ -5,10 +5,10 @@
  * tabela do DOM — sem API interna. A saída tem nome de jogador: nunca vai para o git (local: `docs/bot/`;
  * no Actions: artefato do workflow dados-site.yml, que alimenta os resultados do Veda System no site).
  *
- *   pnpm gundam:meta:scrape                          # GD01..GD05, usa o cache
+ *   pnpm gundam:meta:scrape                          # todas as temporadas (src/lib/seasons.ts), usa o cache
  *   pnpm gundam:meta:scrape -- --formats=GD05 --refresh
  *
- * Opções: --formats (GD01,GD02,GD03,GD04,GD05) · --refresh (ignora o cache) ·
+ * Opções: --formats (padrão: todas as temporadas) · --refresh (ignora o cache) ·
  * --cache (docs/bot/.cache/egman) · --out (docs/bot/meta-raw-<data>.json).
  * Navegador: `pnpm exec playwright install chromium` se ainda não houver um.
  */
@@ -16,6 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { canonicalList, parseDeckbuilderRow } from "./lib/egmanDeckbuilder.mjs";
+import { LATEST_SEASON, SEASON_CODES } from "../src/lib/seasons.ts";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const args = Object.fromEntries(
@@ -24,7 +25,7 @@ const args = Object.fromEntries(
     return [k, v ?? "true"];
   }),
 );
-const formats = String(args.formats ?? "GD01,GD02,GD03,GD04,GD05").split(",").map((f) => f.trim().toUpperCase());
+const formats = String(args.formats ?? SEASON_CODES.join(",")).split(",").map((f) => f.trim().toUpperCase());
 const date = new Date().toISOString().slice(0, 10);
 const cacheDir = path.resolve(ROOT, String(args.cache ?? "docs/bot/.cache/egman"));
 const outFile = path.resolve(ROOT, String(args.out ?? `docs/bot/meta-raw-${date}.json`));
@@ -64,7 +65,9 @@ try {
     const page = await browser.newPage({ userAgent: "Mozilla/5.0 (portal-gundam-tcg-br; coleta de meta)" });
     const rows = await renderRows(page, format);
     await page.close();
-    if (rows.length === 0) throw new Error(`${format}: nenhuma linha com deck — o site mudou ou não carregou`);
+    // a temporada recém-lançada começa sem torneio; vazio em formato antigo é o site que mudou ou não carregou
+    if (rows.length === 0 && format !== LATEST_SEASON) throw new Error(`${format}: nenhuma linha com deck — o site mudou ou não carregou`);
+    if (rows.length === 0) console.warn(`[meta-scrape] ${format}: ainda sem torneios (temporada nova)`);
     fs.writeFileSync(cacheFile, `${JSON.stringify({ fetchedAt: new Date().toISOString(), rows })}\n`);
     rowsByFormat[format] = rows;
     console.log(`[meta-scrape] ${format}: ${rows.length} linhas`);

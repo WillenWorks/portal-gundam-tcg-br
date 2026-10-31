@@ -57,7 +57,7 @@ jobs:
         if: env.TAREFA == 'torneios' || env.TAREFA == 'tudo'
         run: |
           corepack pnpm exec playwright install --with-deps chromium
-          node scripts/gundam-meta-scrape.mjs --formats=GD01,GD02,GD03,GD04,GD05 --refresh --cache=.cache/egman --out=payload/meta-raw.json
+          node scripts/gundam-meta-scrape.mjs --refresh --cache=.cache/egman --out=payload/meta-raw.json
           node scripts/meta-sources/egman.mjs --in=payload/meta-raw.json --out=payload/events-egman.json
       - name: Respostas da API da DigiLab (guardadas entre execuções)
         if: env.TAREFA == 'digilab' || env.TAREFA == 'torneios' || env.TAREFA == 'tudo'

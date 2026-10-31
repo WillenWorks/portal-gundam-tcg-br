@@ -4,11 +4,13 @@ import {
   getFormatMetaBreakdown,
 } from "./seasonFormatMetaService.ts";
 import { META_CORES } from "../src/modules/simulator/fixtures/metaCores.ts";
+import { SEASON_CODES } from "../src/lib/seasons.ts";
 
 // metaCores.ts é regenerado a cada coleta (PR auto/zero-system-meta): os números vêm do próprio arquivo, não fixos
 const F = META_CORES.formats;
 const sum = (keys: string[], field: "lists" | "events") => keys.reduce((n, k) => n + F[k as keyof typeof F][field], 0);
-const SEASONS = ["GD01", "GD02", "GD03", "GD04", "GD05"];
+// formato recém-lançado ainda sem listas (ex.: GD06 no dia do lançamento) não entra na soma
+const SEASONS = SEASON_CODES.filter((code) => code in F);
 
 const mockPrisma: any = {
   card: {
@@ -107,7 +109,9 @@ describe("seasonFormatMetaService", () => {
     expect(res!.totalLists).toBe(F.GD05.lists);
     expect(res!.totalEvents).toBe(F.GD05.events);
     expect(res!.provenance.totalDecks).toBe(F.GD05.lists);
-    expect(res!.provenance.tournaments[0].name).toContain("Temporada Atual GD05");
+    expect(res!.provenance.tournaments[0].name).toContain("Temporada GD05");
+    // "current" abre a temporada padrão de análise (GD05 até o GD06 juntar listas), não a mais recente
+    expect((await getFormatMetaBreakdown(mockPrisma, "current"))!.format).toBe("GD05");
     expect(getAvailableFormats()[0].totalLists).toBe(F.GD05.lists);
 
     // aliases legados como GD05.5 ou GD05_COMBINED também resolvem para GD05
