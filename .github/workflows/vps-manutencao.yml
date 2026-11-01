@@ -23,6 +23,8 @@ name: Manutenção da VPS
 #   backup-externo-testar      baixa o backup mais recente do Drive, descriptografa e confere
 #   social-conferir   só leitura: variáveis do agente do Instagram (sim/não), navegador do Playwright, espaço
 #   social-navegador  instala o Chromium do Playwright (arte dos posts) e testa se abre
+#   artigo-rascunho   grava content/articles/<artigo>.md (e a capa) como RASCUNHO do /admin/articles, a partir do
+#                     branch escolhido no "Run workflow" (scripts/article-draft.mjs; artigo publicado nunca é alterado)
 #   pg17-remover      depois do upgrade: confere 18 online + sites, faz backup e cópia do cluster 17, remove o 17 e
 #                     os pacotes do PostgreSQL 17 (só eles, sem autoremove)
 
@@ -32,8 +34,12 @@ on:
       tarefa:
         description: "O que fazer"
         type: choice
-        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, postgres-18, fail2ban-instalar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar, bug-reports, social-conferir, social-navegador, pg17-remover]
+        options: [artigo-rascunho, diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, postgres-18, fail2ban-instalar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar, bug-reports, social-conferir, social-navegador, pg17-remover]
         default: diagnostico
+      artigo:
+        description: "artigo-rascunho: nome do arquivo em content/articles, sem .md"
+        type: string
+        default: ""
 
 # nunca junto com um deploy ou outra manutenção
 concurrency:
@@ -62,10 +68,35 @@ jobs:
           target: /root/nginx-novo
           strip_components: 2
           overwrite: true
+      - uses: actions/checkout@v7
+        if: inputs.tarefa == 'artigo-rascunho'
+      - name: Confere o artigo
+        if: inputs.tarefa == 'artigo-rascunho'
+        env:
+          ARTIGO: ${{ inputs.artigo }}
+        run: |
+          [[ "$ARTIGO" =~ ^[a-z0-9][a-z0-9-]*$ ]] || { echo "nome de artigo inválido: '$ARTIGO'"; exit 1; }
+          test -f "content/articles/$ARTIGO.md" || { echo "não existe content/articles/$ARTIGO.md neste branch"; exit 1; }
+          mkdir -p artigo-envio && cp scripts/article-draft.mjs content/articles/"$ARTIGO".* artigo-envio/
+          ls -la artigo-envio
+      - name: Envia o artigo
+        if: inputs.tarefa == 'artigo-rascunho'
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          source: artigo-envio/*
+          target: /root/artigo-novo
+          strip_components: 1
+          overwrite: true
+          rm: true
       - name: ${{ inputs.tarefa }}
         uses: appleboy/ssh-action@v1.2.5
         env:
           TAREFA: ${{ inputs.tarefa }}
+          ARTIGO: ${{ inputs.artigo }}
           # os segredos do backup externo só chegam à VPS na tarefa que os grava
           # nome diferente do segredo: o rclone trataria RCLONE_DRIVE_* do ambiente como opção do backend
           BACKUP_DRIVE_TOKEN: ${{ inputs.tarefa == 'backup-externo-configurar' && secrets.RCLONE_DRIVE_TOKEN || '' }}
@@ -75,7 +106,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
-          envs: TAREFA,BACKUP_DRIVE_TOKEN,BACKUP_PASSPHRASE
+          envs: TAREFA,ARTIGO,BACKUP_DRIVE_TOKEN,BACKUP_PASSPHRASE
           command_timeout: 35m
           # sem script_stop: ele quebra funções e `case` multilinha (o script já usa `set -e`)
           script: |
@@ -541,7 +572,15 @@ jobs:
               saude
             }
 
+            artigo_rascunho() {
+              secao "artigo $ARTIGO → rascunho"
+              # o script vem do branch disparado; @prisma/client, dotenv e o .env vêm do app
+              cd "$APP" && node /root/artigo-novo/article-draft.mjs "/root/artigo-novo/$ARTIGO.md"
+              rm -rf /root/artigo-novo
+            }
+
             case "$TAREFA" in
+              artigo-rascunho) artigo_rascunho ;;
               bug-reports) bug_reports ;;
               social-conferir) social_conferir ;;
               pg17-remover) pg17_remover ;;
