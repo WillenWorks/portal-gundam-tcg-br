@@ -1,18 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link } from "wouter";
 import {
   Activity,
   ArrowRight,
-  ChevronLeft,
-  ChevronRight,
   Radio,
 } from "lucide-react";
 
 import { AdSlot } from "@/components/ads/AdSlot";
-import { Button } from "@/components/ui/button";
 import { AppTopNav } from "@/components/layout/AppTopNav";
 import { AppFooter } from "@/components/layout/shared/AppFooter";
 import { LatestCardsCarousel } from "@/components/home/LatestCardsCarousel";
+import { HomeArticlesCarousel } from "@/components/home/HomeArticlesCarousel";
 import { HomeDirectivesSection } from "@/components/home/HomeDirectivesSection";
 import { PopularMainCardsSection } from "@/components/home/PopularMainCardsSection";
 import { RecentPopularDecksCarousel } from "@/components/home/RecentPopularDecksCarousel";
@@ -33,118 +31,15 @@ import ozHangarOff from "@/assets/home/oz_hangar_off.webp";
 import ozHangarOn from "@/assets/home/oz_hangar_on.webp";
 import exiaVedaOff from "@/assets/home/exia_veda_off.webp";
 import exiaVedaOn from "@/assets/home/exia_veda_on.webp";
-import newsStartersClash from "@/assets/home/news_starters_clash.webp";
-import newsVedaTerminal from "@/assets/home/news_veda_terminal.webp";
 
 interface HomeProps {
   targetSection?: string;
 }
 
-const CAROUSEL_SLIDES = [
-  {
-    id: 1,
-    category: "GUIA",
-    categoryEn: "GUIDE",
-    date: "09 Set 2026",
-    dateEn: "Sep 09, 2026",
-    title: "STARTERS ST01 A ST04: GUIA PARA COMEÇAR",
-    titleEn: "STARTERS ST01 TO ST04: A GUIDE TO GET STARTED",
-    summary:
-      "Entenda o estilo de cada um dos quatro starters: a agressividade de Zeon, a flexibilidade da Federação, o controle de SEED e a tecnologia de The Witch from Mercury.",
-    summaryEn:
-      "Learn the style of each of the four starters: Zeon's aggression, the Federation's flexibility, SEED's control and The Witch from Mercury's technology.",
-    image: newsStartersClash,
-    link: "/sets",
-    actionLabel: "Ver coleções",
-    actionLabelEn: "See sets",
-  },
-  {
-    id: 2,
-    category: "ESTATÍSTICAS",
-    categoryEn: "STATS",
-    date: "08 Set 2026",
-    dateEn: "Sep 08, 2026",
-    title: "META DA TEMPORADA: DECKS E CARTAS QUE MAIS VENCEM",
-    titleEn: "SEASON META: THE DECKS AND CARDS THAT WIN THE MOST",
-    summary:
-      "Taxas de vitória, cartas mais usadas em campeonatos e os arquétipos que dominam a temporada, a partir dos torneios registrados.",
-    summaryEn:
-      "Win rates, the most played cards in tournaments and the archetypes that dominate the season, based on recorded tournaments.",
-    image: newsVedaTerminal,
-    link: "/stats",
-    actionLabel: "Ver estatísticas",
-    actionLabelEn: "See stats",
-  },
-  {
-    id: 3,
-    category: "SIMULADOR",
-    categoryEn: "SIMULATOR",
-    date: "06 Set 2026",
-    dateEn: "Sep 06, 2026",
-    title: "SIMULADOR: PARTIDAS ONLINE E TREINO CONTRA O BOT",
-    titleEn: "SIMULATOR: ONLINE MATCHES AND PRACTICE AGAINST THE BOT",
-    summary:
-      "Jogue com as regras oficiais contra outras pessoas online ou treine sozinho contra o bot. Entrar na conta é opcional.",
-    summaryEn:
-      "Play with the official rules against other people online or practice on your own against the bot.",
-    image: newsStartersClash,
-    link: "/simulador",
-    actionLabel: "Abrir o simulador",
-    actionLabelEn: "Open the simulator",
-  },
-  {
-    id: 4,
-    category: "DECKBUILDER",
-    categoryEn: "DECKBUILDER",
-    date: "04 Set 2026",
-    dateEn: "Sep 04, 2026",
-    title: "MONTE SEU DECK: CURVA DE CUSTO E RECURSOS",
-    titleEn: "BUILD YOUR DECK: COST CURVE AND RESOURCES",
-    summary:
-      "Aprenda a equilibrar Unidades, Pilotos e Comandos para ter um deck consistente do primeiro ao último turno.",
-    summaryEn:
-      "Learn to balance Units, Pilots and Commands for a deck that stays consistent from the first turn to the last.",
-    image: newsVedaTerminal,
-    link: "/deckbuilder",
-    actionLabel: "Montar um deck",
-    actionLabelEn: "Build a deck",
-  },
-];
-
 export default function Home({ targetSection }: HomeProps) {
   const { faction } = useFaction();
   const isZeon = faction === "zeon";
-  const { tr, isEn } = useSiteLanguage();
-
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
-
-  useEffect(() => {
-    if (isPaused) return;
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % CAROUSEL_SLIDES.length);
-    }, 6000);
-    return () => clearInterval(timer);
-  }, [isPaused]);
-
-  const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + CAROUSEL_SLIDES.length) % CAROUSEL_SLIDES.length);
-  };
-
-  const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % CAROUSEL_SLIDES.length);
-  };
-
-  // no celular as setas ficam escondidas (cobriam o título); troca de slide deslizando o dedo
-  const [touchStartX, setTouchStartX] = useState<number | null>(null);
-  const onTouchStart = (event: React.TouchEvent) => setTouchStartX(event.touches[0]?.clientX ?? null);
-  const onTouchEnd = (event: React.TouchEvent) => {
-    if (touchStartX === null) return;
-    const dx = (event.changedTouches[0]?.clientX ?? touchStartX) - touchStartX;
-    if (dx > 40) prevSlide();
-    else if (dx < -40) nextSlide();
-    setTouchStartX(null);
-  };
+  const { tr } = useSiteLanguage();
 
   useEffect(() => {
     if (targetSection) {
@@ -185,114 +80,8 @@ export default function Home({ targetSection }: HomeProps) {
         <section className="relative isolate overflow-hidden border-b border-white/10 py-6 sm:py-8 lg:py-10">
           <div className="container-ultrawide">
             <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_0.95fr] xl:grid-cols-[1.45fr_0.95fr] gap-6 lg:gap-8 items-stretch">
-              {/* LADO ESQUERDO: CARROSSEL DE NOTÍCIAS COM MAIOR VISIBILIDADE */}
-              <div
-                className="relative flex flex-col justify-end overflow-hidden rounded-2xl border border-white/15 bg-slate-950 shadow-2xl min-h-[440px] sm:min-h-[480px] lg:min-h-[520px] group"
-                onMouseEnter={() => setIsPaused(true)}
-                onTouchStart={onTouchStart}
-                onTouchEnd={onTouchEnd}
-                onMouseLeave={() => setIsPaused(false)}
-              >
-                {/* Slides com transição suave */}
-                {CAROUSEL_SLIDES.map((slide, idx) => {
-                  const isActive = idx === currentSlide;
-                  return (
-                    <div
-                      key={slide.id}
-                      className={cn(
-                        "absolute inset-0 transition-opacity duration-700 ease-in-out",
-                        isActive ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
-                      )}
-                    >
-                      {/* Imagem de Fundo da Notícia */}
-                      <img
-                        loading={idx === 0 ? "eager" : "lazy"}
-                        fetchPriority={idx === 0 ? "high" : "low"}
-                        decoding={idx === 0 ? "sync" : "async"}
-                        src={slide.image}
-                        alt={isEn ? slide.titleEn : slide.title}
-                        className="size-full object-cover object-center transform transition-transform duration-1000 group-hover:scale-105"
-                      />
-                      {/* Overlay Escuro com Gradiente para Leitura Perfeita */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/75 to-transparent" />
-                      <div className="absolute inset-0 bg-gradient-to-r from-slate-950/70 via-transparent to-slate-950/30" />
-
-                      {/* Elementos dentro da Capa da Notícia */}
-                      <div className="absolute inset-0 flex flex-col justify-between p-6 sm:p-8 lg:p-10 z-20">
-                        {/* Topo do Card da Notícia: Tag de Categoria e Data */}
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div className="flex items-center gap-2.5">
-                            <span className="rounded-xs border border-primary/50 bg-primary/20 backdrop-blur-md px-3 py-1 text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-primary">
-                              {isEn ? slide.categoryEn : slide.category}
-                            </span>
-                            <span className="text-[11px] text-slate-300 font-mono tracking-wider">
-                              {isEn ? slide.dateEn : slide.date}
-                            </span>
-                          </div>
-                          <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-black/40 border border-white/10 px-3 py-0.5 text-[10px] text-slate-300 backdrop-blur-md">
-                            <span className="size-1.5 rounded-full bg-primary animate-pulse" />
-                            {tr("Destaque", "Featured")}
-                          </span>
-                        </div>
-
-                        {/* Base do Card: Título integrado na Capa, Resumo e Botão de Ação */}
-                        <div className="space-y-3 sm:space-y-4 max-w-3xl">
-                          <h2 className="font-heading text-2xl sm:text-3xl md:text-4xl uppercase text-white leading-tight drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">
-                            {isEn ? slide.titleEn : slide.title}
-                          </h2>
-                          <p className="text-slate-300 text-xs sm:text-sm md:text-base leading-relaxed line-clamp-2 sm:line-clamp-3 drop-shadow-[0_1px_6px_rgba(0,0,0,0.8)]">
-                            {isEn ? slide.summaryEn : slide.summary}
-                          </p>
-                          <div className="pt-2 flex items-center gap-4">
-                            <Button asChild className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground text-xs uppercase tracking-[0.16em] font-semibold px-6 h-10 shadow-lg shadow-primary/20">
-                              <Link href={slide.link}>
-                                {isEn ? slide.actionLabelEn : slide.actionLabel}
-                                <ArrowRight className="ml-2 size-3.5" />
-                              </Link>
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {/* Controles do Carrossel: Setas de Navegação */}
-                <button
-                  type="button"
-                  onClick={prevSlide}
-                  aria-label={tr("Slide anterior", "Previous slide")}
-                  className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 z-30 hidden sm:flex size-9 sm:size-10 items-center justify-center rounded-full border border-white/20 bg-slate-950/60 text-white backdrop-blur-md transition-all hover:bg-slate-900/90 hover:scale-110 active:scale-95"
-                >
-                  <ChevronLeft className="size-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={nextSlide}
-                  aria-label={tr("Próximo slide", "Next slide")}
-                  className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 z-30 hidden sm:flex size-9 sm:size-10 items-center justify-center rounded-full border border-white/20 bg-slate-950/60 text-white backdrop-blur-md transition-all hover:bg-slate-900/90 hover:scale-110 active:scale-95"
-                >
-                  <ChevronRight className="size-5" />
-                </button>
-
-                {/* Indicadores de Slide (Barras/Dots) */}
-                <div className="absolute bottom-3 sm:bottom-4 right-6 sm:right-8 z-30 flex items-center gap-2">
-                  {CAROUSEL_SLIDES.map((_, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setCurrentSlide(idx)}
-                      aria-label={tr(`Ir para o slide ${idx + 1}`, `Go to slide ${idx + 1}`)}
-                      className={cn(
-                        "h-1.5 rounded-full transition-all duration-300",
-                        idx === currentSlide
-                          ? "w-7 sm:w-8 bg-primary"
-                          : "w-2 sm:w-2.5 bg-white/30 hover:bg-white/60"
-                      )}
-                    />
-                  ))}
-                </div>
-              </div>
+              {/* LADO ESQUERDO: ARTIGOS PUBLICADOS EM DESTAQUE */}
+              <HomeArticlesCarousel />
 
               {/* LADO DIREITO: PAINEL DE ACESSO OPERACIONAL (SIMULADOR, DECKBUILDER, VEDA) */}
               <div className="flex flex-col justify-between rounded-2xl border border-white/10 bg-slate-950/85 p-5 sm:p-6 shadow-2xl backdrop-blur-xl light:border-slate-300 light:bg-white light:shadow-md">

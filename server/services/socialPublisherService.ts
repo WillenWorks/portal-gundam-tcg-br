@@ -36,6 +36,7 @@ import {
   deckKeyCardsHtml,
   deckListHtml,
   escapeHtml,
+  articleStoryBadge,
   renderArticleStory,
   renderCardRevealReel,
   renderCardStory,
@@ -1549,7 +1550,7 @@ export async function createSocialPostDraft(prisma: PrismaClient, input: Generat
       };
     } else if (draft.storyArticle) {
       const storyVideoUrl = await renderDraftArticleStory(`${draft.fileStem}-story`, draft.storyArticle);
-      const storyTitle = `NOVO ${draft.storyArticle.kind.toUpperCase()} NO SITE`;
+      const storyTitle = articleStoryBadge(draft.storyArticle.kind);
       extraMeta = {
         storyVideoUrl,
         storyEnabled: Boolean(storyVideoUrl),
@@ -1596,7 +1597,6 @@ export async function updatePostStorySettings(
 ) {
   const existing = await prisma.socialMediaPost.findUnique({ where: { id } });
   if (!existing) throw new SocialActionError("Post não encontrado.", 404);
-  if (!SOCIAL_EDITABLE.has(existing.status)) throw new SocialActionError("Post já publicado (ou publicando) não pode ser editado.", 409);
 
   let rawMeta: Record<string, unknown>;
   try {
@@ -1604,6 +1604,13 @@ export async function updatePostStorySettings(
   } catch {
     rawMeta = {};
   }
+
+  // artigo já publicado: só refaz o vídeo, para publicar à mão no app com o sticker de link (não mexe no Instagram)
+  const rerenderPublishedArticle = Boolean(opts.regenerate && existing.status === SocialPostStatus.PUBLISHED && rawMeta.storyArticle);
+  if (!SOCIAL_EDITABLE.has(existing.status) && !rerenderPublishedArticle) {
+    throw new SocialActionError("Post já publicado (ou publicando) não pode ser editado.", 409);
+  }
+  if (rerenderPublishedArticle) opts = { regenerate: true };
 
   const currentStory = readPostStoryMeta(existing);
   const nextTitle =

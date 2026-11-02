@@ -41,7 +41,7 @@ import {
   draftArticlePost,
   queueArticleSocialDraft,
 } from "./socialPublisherService";
-import { buildCardRevealReelHtml, buildCardStoryHtml } from "./socialSlides";
+import { articleStoryBadge, buildArticleStoryHtml, buildCardRevealReelHtml, buildCardStoryHtml, inlineImageAsDataUrl } from "./socialSlides";
 
 const cardRow = {
   code: "ST01-001",
@@ -739,5 +739,41 @@ describe("socialPublisherService", () => {
       expect(create.mock.calls[0][1]).toMatchObject({ type: "ARTICLE", articleId: "a1", slotKey: "artigo-a1" });
       expect(prisma.socialMediaPost.findUnique.mock.calls[0][0]).toEqual({ where: { slotKey: "artigo-a1" }, select: { id: true } });
     });
+  });
+});
+
+describe("Story de artigo: capa e chamada", () => {
+  const cover = "https://anaheimhub.com/uploads/media/capa.jpg";
+  const respond = (body: string, type: string, status = 200) => vi.fn(async () => new Response(body, { status, headers: { "content-type": type } })) as unknown as typeof fetch;
+
+  it("embute a capa como data URI (o canvas não carrega /uploads, que não manda CORS)", async () => {
+    const fetchFn = respond("jpeg", "image/jpeg");
+    const inlined = await inlineImageAsDataUrl(cover, fetchFn);
+    expect(fetchFn).toHaveBeenCalledWith(cover, expect.anything());
+    expect(inlined).toBe(`data:image/jpeg;base64,${Buffer.from("jpeg").toString("base64")}`);
+    expect(buildArticleStoryHtml({ title: "T", kind: "Notícia", articleUrl: "anaheimhub.com/articles/t", coverUrl: inlined })).toContain(inlined);
+  });
+
+  it("sem conseguir a imagem, o Story sai sem capa em vez de quebrar", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    expect(await inlineImageAsDataUrl(cover, respond("x", "image/jpeg", 404))).toBe("");
+    expect(await inlineImageAsDataUrl(cover, respond("<html>", "text/html"))).toBe("");
+    expect(await inlineImageAsDataUrl("http://inseguro/capa.jpg", respond("x", "image/jpeg"))).toBe("");
+    expect(await inlineImageAsDataUrl(null, respond("x", "image/jpeg"))).toBe("");
+    warn.mockRestore();
+  });
+
+  it("o selo concorda com o tipo do artigo", () => {
+    expect(articleStoryBadge("Notícia")).toBe("NOVA NOTÍCIA NO SITE");
+    expect(articleStoryBadge("Análise")).toBe("NOVA ANÁLISE NO SITE");
+    expect(articleStoryBadge("Guia")).toBe("NOVO GUIA NO SITE");
+    expect(articleStoryBadge(null)).toBe("NOVO ARTIGO NO SITE");
+  });
+
+  it("não aceita data URI que não seja de imagem, e a chamada aponta para o link na bio", () => {
+    const html = buildArticleStoryHtml({ title: "T", kind: "Notícia", articleUrl: "anaheimhub.com/articles/t", coverUrl: "data:text/html;base64,AAAA" });
+    expect(html).not.toContain("data:text/html");
+    expect(html).toContain("LINK NA BIO");
+    expect(html).not.toContain("LER ARTIGO NO SITE");
   });
 });
