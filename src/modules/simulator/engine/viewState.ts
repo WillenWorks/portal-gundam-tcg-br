@@ -216,7 +216,16 @@ export const MAX_EVENTS_SINCE = 400;
 export function eventsSinceFor(state: GameState, from: number | undefined, viewer: PlayerId): GameState["eventLog"] | undefined {
   if (from === undefined || from > state.eventLog.length) return undefined;
   if (state.eventLog.length - from > MAX_EVENTS_SINCE) return undefined;
-  return redactEventLog(state, state.eventLog.slice(from), viewer);
+  return revealPlayedCommands(state, redactEventLog(state, state.eventLog.slice(from), viewer), viewer);
+}
+
+/** a Command jogada pelo oponente que ainda está na mão dele (pausou para uma escolha) vai identificada no evento */
+function revealPlayedCommands(state: GameState, events: GameState["eventLog"], viewer: PlayerId): GameState["eventLog"] {
+  return events.map((event) => {
+    if (event.type !== "CARD_PLAYED" || event.as !== "command" || event.player === viewer) return event;
+    const card = state.players[event.player].hand.find((c) => c.instanceId === event.instanceId);
+    return card ? { ...event, def: card.def } : event;
+  });
 }
 
 export interface ViewGameState {

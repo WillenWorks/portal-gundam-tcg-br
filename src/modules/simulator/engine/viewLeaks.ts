@@ -52,7 +52,9 @@ export function findViewLeaks(state: GameState, viewer: PlayerId, payload: unkno
 
     const id = typeof obj.instanceId === "string" ? obj.instanceId : typeof obj.cardInstanceId === "string" ? obj.cardInstanceId : undefined;
     // o 【Burst】 é revelado aos dois jogadores quando a shield quebra — a carta pode depois ir para a mão
-    const identified = "def" in obj || ("cardDef" in obj && obj.kind !== "burst");
+    // a Command jogada é pública, mesmo pausada na mão à espera de uma escolha (`eventsSinceFor`)
+    const playedCommand = obj.type === "CARD_PLAYED" && obj.as === "command";
+    const identified = ("def" in obj && !playedCommand) || ("cardDef" in obj && obj.kind !== "burst");
     if (id && identified && hidden.has(id)) {
       const allowed = inOwnDecision && SHOWN_TO_DECIDER.test(path) && ownerOf(state, id) === viewer;
       if (!allowed) leaks.push({ path, instanceId: id });
