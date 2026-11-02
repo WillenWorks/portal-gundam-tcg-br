@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { LONG_BATCH_BEATS, LONG_BATCH_TEMPO, hasOwnDeploy, planChoreography, tempoFor, triggerLabel, type Beat, type PendingAttack } from "./choreography";
-import type { GameEvent, GameState, Phase, PlayerId } from "../engine/types";
+import { LONG_BATCH_BEATS, LONG_BATCH_TEMPO, hasOwnDeploy, planChoreography, playedCardDef, resolvingCommandIn, tempoFor, triggerLabel, type Beat, type PendingAttack } from "./choreography";
+import type { CardDef, GameEvent, GameState, Phase, PlayerId } from "../engine/types";
 import { PLAYER_IDS } from "../engine/types";
 import { createGame } from "../engine/setup";
+import { advanceToMainPhase } from "../engine/phases";
 import { applyPlayerAction } from "../engine/actions";
 import { actionOwner, enumerateLegalActions } from "../engine/legalActions";
-import { eventsSinceFor } from "../engine/viewState";
+import { eventsSinceFor, viewStateFor } from "../engine/viewState";
+import { findViewLeaks } from "../engine/viewLeaks";
 import { createRng } from "../engine/rng";
 import { DECK_BUILDERS, GOLDEN_PAIRS } from "../engine/__golden__/harness";
-import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
+import { ALL_EFFECT_SPECS, GD05_CARD_DEFS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
 
 const opts = { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver };
 const plan = (events: GameEvent[], viewerSeat: PlayerId = "A", phase: Phase = "main", pendingAttack: PendingAttack | null = null, resourceIds?: Set<string>) =>
@@ -231,4 +233,66 @@ describe("planChoreography em partidas reais, com lotes de várias jogadas (como
     expect(erros).toEqual([]);
     expect(anuncios).toBeGreaterThan(0);
   }, 120_000);
+});
+
+describe("Command que pausa para uma escolha (a jogada e o efeito chegam em lotes diferentes)", () => {
+  const command = (instanceId: string, player: PlayerId): GameEvent => ({ type: "CARD_PLAYED", player, instanceId, as: "command", trigger: "Main" });
+  const def = { code: "GD05-111" } as CardDef;
+
+  it("o lote da jogada anuncia a Command, sem o efeito", () => {
+    const { beats } = plan([{ ...command("b1", "B"), def } as GameEvent, { type: "REST_CARD", instanceId: "r1" }], "A", "main", null, new Set(["r1"]));
+    expect(beats).toEqual([{ kind: "play", player: "B", instanceId: "b1", as: "command", paid: ["r1"], trigger: "Main" }]);
+    expect(playedCardDef([{ ...command("b1", "B"), def } as GameEvent], "b1")).toBe(def);
+    expect(playedCardDef([command("b1", "B")], "b1")).toBeNull();
+  });
+
+  it("no lote seguinte o efeito é dela, e ela só chega à lixeira (já foi usada na tela)", () => {
+    const { beats } = planChoreography({
+      events: [
+        { type: "MOVE_CARD", instanceId: "descartada", toZone: "trash" },
+        { type: "DRAW_CARD", player: "B", from: "deck", instanceId: null },
+        { type: "MOVE_CARD", instanceId: "b1", toZone: "trash" },
+      ],
+      viewerSeat: "A",
+      pendingAttack: null,
+      phase: "main",
+      resolvingCommand: { instanceId: "b1", player: "B" },
+    });
+    expect(kinds(beats)).toEqual(["departure", "draw"]);
+    expect(beats[0]).toMatchObject({ ids: ["descartada"] });
+  });
+
+  it("no Action Step, o efeito não espera o golpe do combate", () => {
+    const { beats } = planChoreography({
+      events: [{ type: "DAMAGE_UNIT", instanceId: "u1", amount: 1 }],
+      viewerSeat: "A",
+      pendingAttack: { attackerId: "x", target: "player", defendingPlayer: "A" },
+      phase: "main",
+      resolvingCommand: { instanceId: "b1", player: "B" },
+    });
+    expect(beats).toEqual([{ kind: "effects", events: [{ type: "DAMAGE_UNIT", instanceId: "u1", amount: 1 }], source: { instanceId: "b1", player: "B" } }]);
+  });
+
+  it("GD05-111 de verdade: anuncia para o oponente sem revelar a mão", () => {
+    const pair = GOLDEN_PAIRS[0];
+    let state: GameState = advanceToMainPhase(createGame(DECK_BUILDERS[pair.a](), DECK_BUILDERS[pair.b](), { seed: pair.seed, firstPlayer: "A" }));
+    const card = state.players.A.hand[0];
+    const airframe = Object.values(GD05_CARD_DEFS).find((d) => d.code === "GD05-111");
+    if (!airframe) throw new Error("GD05-111 fora do catálogo");
+    state = { ...state, players: { ...state.players, A: { ...state.players.A, hand: state.players.A.hand.map((c) => (c === card ? { ...c, def: airframe } : c)) } } };
+    const from = state.eventLog.length;
+    const played = applyPlayerAction(state, "A", { kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Main" }, ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver);
+
+    // a carta segue na mão, oculta para o oponente…
+    expect(played.players.A.hand.some((c) => c.instanceId === card.instanceId)).toBe(true);
+    expect(viewStateFor(played, "B").players.A.hand.find((c) => c.instanceId === card.instanceId)).toMatchObject({ hidden: true });
+    // …mas a transmissão a identifica só no evento da jogada, e o log do motor não muda
+    const forOpponent = eventsSinceFor(played, from, "B") ?? [];
+    expect(playedCardDef(forOpponent, card.instanceId)?.code).toBe("GD05-111");
+    expect(playedCardDef(eventsSinceFor(played, from, "A") ?? [], card.instanceId)).toBeNull();
+    expect(playedCardDef(played.eventLog, card.instanceId)).toBeNull();
+    expect(findViewLeaks(played, "B", { eventsSince: forOpponent })).toEqual([]);
+    expect(resolvingCommandIn(viewStateFor(played, "B"))).toEqual({ instanceId: card.instanceId, player: "A" });
+    expect(kinds(planChoreography({ events: forOpponent, viewerSeat: "B", pendingAttack: null, phase: "main" }).beats)).toContain("play");
+  });
 });

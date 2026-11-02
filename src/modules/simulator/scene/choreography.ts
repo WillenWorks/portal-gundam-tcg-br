@@ -5,7 +5,8 @@
  *
  * O caminho antigo (`planAnimations` + todos os cues de uma vez) continua em `ui/timelinePlayback.ts` e é o que roda com
  * o ritmo "rápido" (`getResolutionPacing() === "classic"`), que serve também de reversão sem deploy. */
-import type { AttackTarget, GameEvent, Phase, PlayerId } from "../engine/types";
+import type { AttackTarget, CardDef, GameEvent, GameState, Phase, PlayerId } from "../engine/types";
+import { PLAYER_IDS } from "../engine/types";
 import { LASTING_EFFECT_EVENTS } from "./effectLedger";
 
 /** combate aberto numa visão anterior cujo golpe ainda não tocou */
@@ -13,6 +14,12 @@ export interface PendingAttack {
   attackerId: string;
   target: AttackTarget;
   defendingPlayer: PlayerId;
+}
+
+/** a carta da habilidade / Command que causou um efeito */
+export interface EffectSource {
+  instanceId: string;
+  player: PlayerId;
 }
 
 export type Beat =
@@ -35,7 +42,7 @@ export type Beat =
    * o que um efeito fez, mostrado junto (os cues do `EffectResolutionOverlay`); `source` = a carta da habilidade /
    * Command que o causou (spec simulador-efeitos-na-mesa: a linha neon vai dela até cada alvo)
    */
-  | { kind: "effects"; events: GameEvent[]; source?: { instanceId: string; player: PlayerId }; combat?: AttackTarget }
+  | { kind: "effects"; events: GameEvent[]; source?: EffectSource; combat?: AttackTarget }
   /**
    * cartas indo para a lixeira/exílio (`ids`; `destroyed` = destruída: quebra e é arrastada) ou shields quebradas
    * (`shieldsOf`/`count`: as do topo na visão anterior — P4: cada uma vai ao centro e vira para os dois verem)
@@ -87,9 +94,36 @@ export interface ChoreographyInput {
   phase: Phase;
   /** recursos em jogo (visão anterior): descansar/ativar recurso é pagamento, não efeito — não vira cue */
   resourceIds?: ReadonlySet<string>;
+  /** Command jogada em lote anterior, pausada para uma escolha (`resolvingCommandIn`): o que vier é dela */
+  resolvingCommand?: EffectSource | null;
 }
 
-export function planChoreography({ events, viewerSeat, pendingAttack, phase: startPhase, resourceIds }: ChoreographyInput): {
+/**
+ * A Command que está resolvendo no estado (ou visão): ela pausa para a escolha ainda na mão (CR 3-4-4), então a jogada
+ * e o que ela fez chegam em lotes diferentes — a jogada toca num, o efeito e a ida para a lixeira no outro.
+ */
+export function resolvingCommandIn(state: {
+  pendingDecision: GameState["pendingDecision"];
+  players: Record<PlayerId, { hand: ReadonlyArray<{ instanceId: string }> }>;
+}): EffectSource | null {
+  for (const player of PLAYER_IDS) {
+    const decision = state.pendingDecision[player];
+    if (decision?.kind !== "abilityResolution") continue;
+    const inHand = decision.queue.find((q) => state.players[player].hand.some((c) => c.instanceId === q.sourceInstanceId));
+    if (inHand) return { instanceId: inHand.sourceInstanceId, player };
+  }
+  return null;
+}
+
+/** a carta jogada neste lote, quando o evento a identifica (a Command do oponente ainda na mão dele) */
+export function playedCardDef(events: readonly GameEvent[], instanceId: string): CardDef | null {
+  for (const event of events) {
+    if (event.type === "CARD_PLAYED" && event.instanceId === instanceId && event.def) return event.def;
+  }
+  return null;
+}
+
+export function planChoreography({ events, viewerSeat, pendingAttack, phase: startPhase, resourceIds, resolvingCommand }: ChoreographyInput): {
   beats: Beat[];
   pendingAttack: PendingAttack | null;
 } {
@@ -100,13 +134,13 @@ export function planChoreography({ events, viewerSeat, pendingAttack, phase: sta
   let heldForStrike: Beat[] = [];
   let cues: GameEvent[] = [];
   /** uma habilidade anunciada está resolvendo: o que vier é dela (toca na hora, mesmo dentro de combate) */
-  let abilityOpen = false;
+  let abilityOpen = Boolean(resolvingCommand);
   /** a carta dessa habilidade (ou a Command em uso) */
-  let abilitySource: { instanceId: string; player: PlayerId } | null = null;
+  let abilitySource: EffectSource | null = resolvingCommand ?? null;
   /** tempo que ainda junta o custo pago (os REST_CARD de recurso logo depois da carta jogada / habilidade ativada) */
   let paying: Extract<Beat, { paid: string[] }> | null = null;
   /** a Command em uso: ela some no centro (no tempo `play`), a ida dela para a lixeira não vira saída */
-  let playedCommand: string | null = null;
+  let playedCommand: string | null = resolvingCommand?.instanceId ?? null;
 
   const holding = () => attack !== null && !abilityOpen;
   /** o que sai do combate leva o alvo do ataque (o som do dano de batalha e do <Breach> depende dele) */

@@ -3,7 +3,7 @@
  * decisão só começa a contar depois). A duração não depende de quem vê: a cena dura o tempo da visão mais longa
  * (a minha jogada eu não vejo de novo; o oponente vê), e as duas telas liberam a mesa no mesmo instante. */
 import { PLAYER_IDS, type GameEvent, type Phase } from "../engine/types";
-import { planChoreography, tempoFor, type Beat, type PendingAttack } from "./choreography";
+import { planChoreography, tempoFor, type Beat, type EffectSource, type PendingAttack } from "./choreography";
 
 /** ritmo da cena. "classic" = o ritmo de antes do #228 (ninguém espera a tela) — também é a reversão */
 export type ScenePace = "cinematic" | "normal" | "classic";
@@ -227,6 +227,8 @@ export interface SceneInput {
   phase: Phase;
   /** recursos em jogo no começo do lote (pagar custo não é efeito) */
   resourceIds?: ReadonlySet<string>;
+  /** Command que pausou para uma escolha antes do lote (`resolvingCommandIn`) */
+  resolvingCommand?: EffectSource | null;
   /** o lote começa ainda na preparação (mulligan): a abertura tem coreografia própria */
   fromSetup: boolean;
   /** depois do lote alguém decide um 【Burst】: o escudo é revelado antes do modal */
@@ -254,6 +256,7 @@ export function sceneDurationMs(input: SceneInput): { durationMs: number; pendin
       pendingAttack: input.pendingAttack,
       phase: input.phase,
       resourceIds: input.resourceIds,
+      resolvingCommand: input.resolvingCommand,
     });
     pendingAttack = plan.pendingAttack;
     longest = Math.max(longest, beatsDurationMs(plan.beats, input.pace, input.levelOf));

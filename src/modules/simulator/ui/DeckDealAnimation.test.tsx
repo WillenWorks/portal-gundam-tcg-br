@@ -4,6 +4,7 @@ import "@testing-library/jest-dom/vitest";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { DeckDealAnimation } from "./DeckDealAnimation";
 import { sfx } from "../audio/soundEffects";
+import { saveSfxPack } from "../audio/sampleEngine";
 
 /** avança timers dentro de `act` pra o React flushar os setState. */
 function advance(ms: number) {
@@ -33,7 +34,11 @@ function mockMatchMedia(reduced: boolean) {
 describe("DeckDealAnimation", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    // o tempo dos sons é conferido pelo sintetizado: no pacote Gundam, os sons da distribuição estão fora da base
+    saveSfxPack("synth");
   });
+
+  afterEach(() => window.localStorage.clear());
 
   it("shuffle: aplica a classe de embaralhamento e chama onDone ao fim", () => {
     mockMatchMedia(false);

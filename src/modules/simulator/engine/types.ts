@@ -2041,7 +2041,18 @@ export type GameEvent =
    * Narração, sem efeito no estado (spec simulador-animacao-pelo-log): a carta foi jogada da mão. A tela anima a
    * partir dos eventos; sem isto "Command jogada" teria que ser deduzida de MOVE_CARD hand→trash.
    */
-  | { type: "CARD_PLAYED"; player: PlayerId; instanceId: string; as: "unit" | "base" | "pilot" | "command"; trigger?: "Main" | "Action" }
+  | {
+      type: "CARD_PLAYED";
+      player: PlayerId;
+      instanceId: string;
+      as: "unit" | "base" | "pilot" | "command";
+      trigger?: "Main" | "Action";
+      /**
+       * Só na transmissão (`eventsSinceFor`), nunca no log do motor: a Command que pausa para uma escolha segue na mão
+       * até resolver, oculta para o oponente, mas jogar a carta é público — a tela precisa dela para anunciar.
+       */
+      def?: CardDef;
+    }
   /** Narração, sem efeito no estado: habilidade ativada (【Activate･Main/Action】, <Support>, 【Burst】). */
   | { type: "ABILITY_ACTIVATED"; player: PlayerId; instanceId: string; trigger: string }
   /**

@@ -64,3 +64,52 @@ export function assetsOf(id: SfxId): readonly SfxAsset[] {
 }
 
 export const SFX_IDS = Object.keys(SFX_ASSETS) as SfxId[];
+
+/** o que toca no pacote "gundam" e é baixado ao abrir a partida */
+export const ACTIVE_SFX_IDS: readonly SfxId[] = [
+  "combat.start",
+  "attack.high",
+  "attack.low",
+  "base.damaged",
+  "base.destroyed",
+  "blocker.block",
+  "blocker.damaged",
+  "breach",
+  "command.action",
+  "command.main",
+  "deploy.high",
+  "deploy.low",
+  "highManeuver",
+  "link",
+  "pair",
+  "unrest",
+  "shield.destroyed",
+  "unit.activate",
+  "unit.destroyed",
+  "unit.repair",
+  // Fora da base escolhida pelo Willen (`sons/Extras`): desligados para avaliar o ritmo só com a base. Os arquivos
+  // continuam em `public/sfx`; para religar um som, é só descomentar a linha dele.
+  // "combat.lockon",
+  // "ability.burst",
+  // "ability.announce",
+  // "effect.damage",
+  // "effect.buff",
+  // "effect.debuff",
+  // "card.draw",
+  // "resource.place",
+  // "turn.mine",
+  // "turn.opponent",
+  // "game.win",
+  // "game.lose",
+  // "phase.banner",
+  // "phase.action",
+  // "coin.flip",
+  // "coin.land",
+  // "shields.set",
+];
+
+const ACTIVE_SFX = new Set<SfxId>(ACTIVE_SFX_IDS);
+
+export function isSfxActive(id: SfxId): boolean {
+  return ACTIVE_SFX.has(id);
+}
