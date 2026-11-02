@@ -4,6 +4,7 @@ import { Upload } from "lucide-react";
 import { ArticleImageFrame } from "@/components/articles/ArticleImageFrame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { safeImageSrc } from "@/lib/safeImageSrc";
 
 const MIN_HOME_RATIO = 1.5;
 
@@ -19,7 +20,8 @@ type HomeImageFieldProps = {
 export function HomeImageField({ value, coverImage, saving, onChange, onUpload }: HomeImageFieldProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [measured, setMeasured] = useState<{ src: string; ratio: number } | null>(null);
-  const shown = value.trim() || coverImage.trim();
+  const shown = safeImageSrc(value) || safeImageSrc(coverImage);
+  const isInvalid = Boolean(value.trim()) && !safeImageSrc(value);
   const isNarrow = measured?.src === shown && measured.ratio < MIN_HOME_RATIO;
 
   return (
@@ -36,6 +38,7 @@ export function HomeImageField({ value, coverImage, saving, onChange, onUpload }
       <p className="mt-1 text-xs text-slate-500">
         Use arte horizontal (16:9, a partir de 1600×900) sem selos gravados: os selos saem das hashtags. Sem imagem aqui, a home usa a capa.
       </p>
+      {isInvalid ? <p className="mt-1 text-xs text-red-400">Use um endereço http(s) ou um caminho do site, como /uploads/imagem.jpg.</p> : null}
       {shown ? (
         <div className="mt-2 max-w-sm">
           <ArticleImageFrame src={shown} className="h-40 border border-white/10" />

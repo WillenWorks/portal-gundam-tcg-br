@@ -13,6 +13,7 @@ import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, Taxono
 import { OAuth2Client } from "google-auth-library";
 import { PUBLIC_USER_SELECT } from "./publicUser.ts";
 import { normalizePostTags } from "../src/lib/postTags.ts";
+import { safeImageSrc } from "../src/lib/safeImageSrc.ts";
 import { sortNewestFirstByCode } from "./cardsNewestOrder.ts";
 import { resolvePublicAppUrl as resolvePublicAppUrlFrom } from "./publicAppUrl.ts";
 import { apiRateLimitOptions } from "./apiRateLimit.ts";
@@ -1839,7 +1840,7 @@ app.post("/api/posts", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDIT
       excerpt: payload.excerpt ? String(payload.excerpt) : null,
       contentMd: String(payload.contentMd ?? ""),
       coverImage: payload.coverImage ? String(payload.coverImage) : null,
-      homeImage: payload.homeImage ? String(payload.homeImage) : null,
+      homeImage: safeImageSrc(payload.homeImage) || null,
       tags: normalizePostTags(payload.tags),
       youtubeUrl: payload.youtubeUrl ? String(payload.youtubeUrl) : null,
       postType: (payload.postType as any) || "NEWS",
@@ -1878,7 +1879,7 @@ app.put("/api/posts/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.E
       excerpt: payload.excerpt ? String(payload.excerpt) : null,
       contentMd: String(payload.contentMd ?? ""),
       coverImage: payload.coverImage ? String(payload.coverImage) : null,
-      homeImage: payload.homeImage ? String(payload.homeImage) : null,
+      homeImage: safeImageSrc(payload.homeImage) || null,
       tags: payload.tags === undefined ? current.tags : normalizePostTags(payload.tags),
       youtubeUrl: payload.youtubeUrl ? String(payload.youtubeUrl) : null,
       postType: (payload.postType as any) || current.postType,
