@@ -1,3 +1,4 @@
+import { normalizePostTags } from "../../src/lib/postTags.ts";
 import type { PrismaClient, PostType } from "@prisma/client";
 import { GoogleGenAI } from "@google/genai";
 import Anthropic from "@anthropic-ai/sdk";
@@ -50,6 +51,7 @@ export type GeneratedArticle = {
   contentMd: string;
   postType: PostType;
   coverImage: string | null;
+  tags?: string[];
   suggestedCards: Array<{
     code: string;
     name: string;
@@ -405,6 +407,7 @@ export async function generateArticleWithAi(
     contentMd,
     postType,
     coverImage,
+    tags: normalizePostTags(parsed.tags),
     suggestedCards: cards.map((c) => ({
       code: c.code,
       name: c.namePt || c.nameEn,

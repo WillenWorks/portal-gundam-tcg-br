@@ -37,6 +37,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { CardMarkdown } from "@/components/articles/CardMarkdown";
+import { PostTagLinks } from "@/components/articles/PostTagLinks";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, type ApiPost, type ApiComment, type PostType } from "@/lib/api";
 import { usePageMeta } from "@/lib/pageMeta";
@@ -407,13 +408,14 @@ export default function ArticleDetailPage() {
           <>
             {/* Imagem de Capa */}
             {post.coverImage ? (
-              <div className="overflow-hidden border border-white/10 bg-slate-950/60 aspect-[21/9]">
+              <div className="overflow-hidden border border-white/10 bg-slate-950/60">
+                {/* sem proporção fixa: a capa aparece inteira, sem corte em cima e embaixo */}
                 <img
                   loading="lazy"
                   decoding="async"
                   src={post.coverImage}
                   alt={post.title}
-                  className="h-full w-full object-cover"
+                  className="mx-auto h-auto max-h-[80vh] w-full object-contain"
                 />
               </div>
             ) : null}
@@ -424,6 +426,7 @@ export default function ArticleDetailPage() {
                 <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">
                   {POST_TYPE_LABEL[post.postType]}
                 </Badge>
+                <PostTagLinks tags={post.tags} />
                 {publishedAt ? (
                   <Badge
                     variant="outline"
