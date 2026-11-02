@@ -2,6 +2,8 @@ import { useEffect, useState, type TouchEvent } from "react";
 import { Link } from "wouter";
 import { ArrowRight, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 
+import { ArticleImageFrame } from "@/components/articles/ArticleImageFrame";
+import { PostTagLinks } from "@/components/articles/PostTagLinks";
 import { Button } from "@/components/ui/button";
 import { api, type ApiPost, type PostType } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -19,7 +21,9 @@ const POST_TYPE_LABEL: Record<PostType, { pt: string; en: string }> = {
 };
 
 const FRAME = "relative overflow-hidden rounded-2xl border border-white/15 bg-slate-950 shadow-2xl light:border-slate-300";
-const ARROW = "absolute top-[28%] -translate-y-1/2 z-30 hidden sm:flex size-9 sm:size-10 items-center justify-center rounded-full border border-white/20 bg-slate-950/60 text-white backdrop-blur-md transition-all hover:bg-slate-900/90 hover:scale-110 active:scale-95";
+const ARROW = "hidden sm:flex size-8 items-center justify-center rounded-full border border-white/20 bg-slate-950/60 text-white transition-all hover:bg-slate-900/90 hover:scale-110 active:scale-95";
+// Altura limitada a partir de lg: a imagem aparece inteira sem o destaque ficar maior que o painel ao lado
+const IMAGE_SLOT = "aspect-video w-full shrink-0 border-b border-white/10 lg:aspect-auto lg:h-80 min-[1800px]:h-auto min-[1800px]:min-h-[480px] min-[1800px]:w-3/5 min-[1800px]:self-stretch min-[1800px]:border-b-0 min-[1800px]:border-r";
 
 /** Destaque da home: os últimos artigos publicados no Content Hub. */
 export function HomeArticlesCarousel() {
@@ -45,12 +49,12 @@ export function HomeArticlesCarousel() {
   }, [isPaused, count]);
 
   if (articles === null) {
-    return <div className={cn(FRAME, "min-h-[440px] sm:min-h-[480px] lg:min-h-[520px] animate-pulse")} aria-busy="true" data-testid="home-articles-loading" />;
+    return <div className={cn(FRAME, "min-h-[440px] lg:min-h-[500px] animate-pulse")} aria-busy="true" data-testid="home-articles-loading" />;
   }
 
   if (count === 0) {
     return (
-      <div className={cn(FRAME, "flex min-h-[440px] sm:min-h-[480px] lg:min-h-[520px] flex-col items-center justify-center p-8 text-center")}>
+      <div className={cn(FRAME, "flex min-h-[440px] lg:min-h-[500px] flex-col items-center justify-center p-8 text-center")}>
         <BookOpen className="mb-3 size-8 text-slate-500" />
         <p className="text-sm text-slate-300">{tr("Nenhum artigo publicado ainda.", "No articles published yet.")}</p>
         <p className="mt-1 text-xs text-slate-500">{tr("Guias, análises e notícias do Gundam Card Game aparecem aqui.", "Gundam Card Game guides, reviews and news will show up here.")}</p>
@@ -85,44 +89,36 @@ export function HomeArticlesCarousel() {
             key={article.id}
             aria-hidden={!isActive}
             className={cn(
-              "col-start-1 row-start-1 flex flex-col transition-opacity duration-700 ease-in-out",
+              "col-start-1 row-start-1 flex flex-col transition-opacity duration-700 ease-in-out min-[1800px]:flex-row",
               isActive ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none",
             )}
           >
-            {/* A capa vai inteira, sem texto por cima: as capas costumam ter título próprio na arte */}
-            <div className="aspect-video w-full shrink-0 overflow-hidden border-b border-white/10 bg-slate-900">
-              {article.coverImage ? (
-                <img
-                  loading={idx === 0 ? "eager" : "lazy"}
-                  fetchPriority={idx === 0 ? "high" : "low"}
-                  decoding={idx === 0 ? "sync" : "async"}
-                  src={article.coverImage}
-                  alt=""
-                  className="size-full object-cover object-center"
-                />
-              ) : (
-                <div className="flex size-full items-center justify-center bg-gradient-to-br from-slate-800 to-slate-950">
-                  <BookOpen className="size-10 text-slate-500" />
-                </div>
-              )}
-            </div>
+            {/* A imagem vai inteira, sem texto por cima: as capas costumam ter título próprio na arte */}
+            {article.homeImage || article.coverImage ? (
+              <ArticleImageFrame src={article.homeImage || article.coverImage || ""} priority={idx === 0} className={IMAGE_SLOT} />
+            ) : (
+              <div className={cn(IMAGE_SLOT, "flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-950")}>
+                <BookOpen className="size-10 text-slate-500" />
+              </div>
+            )}
 
-            <div className="flex flex-1 flex-col gap-3 p-5 sm:p-6">
+            <div className="flex min-w-0 flex-1 flex-col gap-3 p-5 sm:p-6">
               <div className="flex flex-wrap items-center gap-2.5">
                 <span className="rounded-xs border border-primary/50 bg-primary/20 px-3 py-1 text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-primary">
                   {tr(POST_TYPE_LABEL[article.postType])}
                 </span>
+                <PostTagLinks tags={article.tags} tabIndex={isActive ? undefined : -1} />
                 {article.publishedAt ? (
                   <span className="text-[11px] text-slate-300 font-mono tracking-wider">
                     {new Date(article.publishedAt).toLocaleDateString(isEn ? "en-US" : "pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
                   </span>
                 ) : null}
               </div>
-              <h2 className="font-heading text-xl sm:text-2xl lg:text-3xl uppercase text-white leading-tight">
+              <h2 className="font-heading text-xl sm:text-2xl uppercase text-white leading-tight line-clamp-3">
                 {article.title}
               </h2>
               {article.excerpt ? (
-                <p className="text-slate-300 text-xs sm:text-sm leading-relaxed line-clamp-2">
+                <p className="text-slate-300 text-xs sm:text-sm leading-relaxed line-clamp-2 min-[1800px]:line-clamp-6">
                   {article.excerpt}
                 </p>
               ) : null}
@@ -141,14 +137,10 @@ export function HomeArticlesCarousel() {
 
       {count > 1 ? (
         <>
-          <button type="button" onClick={prevSlide} aria-label={tr("Slide anterior", "Previous slide")} className={cn(ARROW, "left-3 sm:left-4")}>
-            <ChevronLeft className="size-5" />
-          </button>
-          <button type="button" onClick={nextSlide} aria-label={tr("Próximo slide", "Next slide")} className={cn(ARROW, "right-3 sm:right-4")}>
-            <ChevronRight className="size-5" />
-          </button>
-
-          <div className="absolute bottom-4 sm:bottom-6 right-5 sm:right-6 z-30 flex items-center gap-2">
+          <div className="absolute bottom-5 sm:bottom-6 right-5 sm:right-6 z-30 flex items-center gap-2">
+            <button type="button" onClick={prevSlide} aria-label={tr("Slide anterior", "Previous slide")} className={ARROW}>
+              <ChevronLeft className="size-4" />
+            </button>
             {articles.map((article, idx) => (
               <button
                 key={article.id}
@@ -161,6 +153,9 @@ export function HomeArticlesCarousel() {
                 )}
               />
             ))}
+            <button type="button" onClick={nextSlide} aria-label={tr("Próximo slide", "Next slide")} className={ARROW}>
+              <ChevronRight className="size-4" />
+            </button>
           </div>
         </>
       ) : null}

@@ -549,6 +549,8 @@ export type ApiPost = {
   excerpt?: string | null;
   contentMd: string;
   coverImage?: string | null;
+  homeImage?: string | null;
+  tags?: string[];
   galleryJson?: string[] | null;
   youtubeUrl?: string | null;
   postType: PostType;
@@ -669,6 +671,15 @@ export type RulingFilters = {
   relatedKeyword?: string;
   title?: string;
   sort?: string;
+};
+
+export type PostListSort = "recent" | "oldest" | "popular";
+
+export type PostListFilters = {
+  q?: string;
+  type?: PostType;
+  tag?: string;
+  sort?: PostListSort;
 };
 
 export type PaginationParams = {
@@ -1372,8 +1383,9 @@ export const api = {
   listAdminUsers: () => request<any[]>("/users/admin", undefined, { ttlMs: 5_000 }),
   updateAdminUser: (id: string, payload: any) => mutate<AuthUser>(`/users/admin/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/users/admin", "/auth/me", "/users/"]),
   listPosts: (status?: PostStatus) => request<ApiPost[]>(`/posts${status ? `?status=${encodeURIComponent(status)}` : ""}`, undefined, { ttlMs: 20_000 }),
-  listPostsPage: (status?: PostStatus, pagination: PaginationParams = {}) =>
-    request<PaginatedResponse<ApiPost>>(`/posts${toQuery({ status, page: String(pagination.page ?? 1), pageSize: String(pagination.pageSize ?? 12) })}`, undefined, { ttlMs: 20_000 }),
+  listPostsPage: (status?: PostStatus, pagination: PaginationParams = {}, filters: PostListFilters = {}) =>
+    request<PaginatedResponse<ApiPost>>(`/posts${toQuery({ status, ...filters, page: String(pagination.page ?? 1), pageSize: String(pagination.pageSize ?? 12) })}`, undefined, { ttlMs: 20_000 }),
+  listPostTags: () => request<{ tag: string; count: number }[]>("/posts/tags", undefined, { ttlMs: 60_000 }),
   getPostBySlug: (slug: string) => request<ApiPost>(`/posts/slug/${encodeURIComponent(slug)}`, undefined, { ttlMs: 20_000 }),
   createPost: (payload: Partial<ApiPost>) => mutate<ApiPost>("/posts", { method: "POST", body: JSON.stringify(payload) }, ["/posts"]),
   updatePost: (id: string, payload: Partial<ApiPost>) => mutate<ApiPost>(`/posts/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/posts"]),
@@ -1397,6 +1409,7 @@ export const api = {
         contentMd: string;
         postType: PostType;
         coverImage?: string | null;
+        tags?: string[];
         suggestedCards?: string[];
         generationMeta?: {
           provider: "gemini" | "claude" | "fallback";

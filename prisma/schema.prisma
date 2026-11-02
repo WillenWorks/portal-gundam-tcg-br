@@ -822,6 +822,10 @@ model Post {
   excerpt     String?    @db.Text
   contentMd   String     @db.Text
   coverImage  String?
+  /// Imagem do destaque da home: arte sem texto gravado. Sem ela, a home usa a capa.
+  homeImage   String?
+  /// Hashtags normalizadas (src/lib/postTags.ts): aparecem como selo e filtram /articles.
+  tags        String[]   @default([])
   galleryJson Json?
   youtubeUrl  String?
   postType    PostType
@@ -835,6 +839,8 @@ model Post {
   author   User          @relation(fields: [authorId], references: [id])
   comments PostComment[]
   likes    PostLike[]
+
+  @@index([tags], type: Gin)
 }
 
 /// Persistência da partida do Simulador (docs/23). O `matchStore` server-side

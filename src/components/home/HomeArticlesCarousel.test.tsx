@@ -41,6 +41,14 @@ describe("HomeArticlesCarousel", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
+  it("prefere a imagem da home à capa e mostra as hashtags como link para o filtro", async () => {
+    vi.spyOn(api, "listPostsPage").mockResolvedValue(page([article({ homeImage: "/uploads/home.webp", tags: ["simulador"] })]));
+    const { container } = render(<HomeArticlesCarousel />);
+
+    expect(await screen.findByRole("link", { name: "#simulador" })).toHaveAttribute("href", "/articles?tag=simulador");
+    expect(container.querySelector("img")).toHaveAttribute("src", "/uploads/home.webp");
+  });
+
   it("com mais de um artigo, mostra as setas e um indicador por artigo", async () => {
     vi.spyOn(api, "listPostsPage").mockResolvedValue(page([article(), article({ id: "a2", slug: "outro", title: "Outro" })]));
     render(<HomeArticlesCarousel />);
