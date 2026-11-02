@@ -5,6 +5,8 @@
  * - Zero arquivos externos de mídia pesados
  */
 
+import { getSfxPack } from "./sfxPack";
+
 class TacticalSoundEngine {
   private ctx: AudioContext | null = null;
   private enabled: boolean = true;
@@ -29,6 +31,11 @@ class TacticalSoundEngine {
       this.ctx.resume().catch(() => undefined);
     }
     return this.ctx;
+  }
+
+  /** só com o pacote "sintetizado": no pacote Gundam tocam apenas os arquivos da base (cliques de botão inclusive) */
+  private audible(): boolean {
+    return this.enabled && getSfxPack() === "synth";
   }
 
   /** o mesmo contexto serve o pacote de amostras (`sampleEngine`) — um só relógio e um só desbloqueio de áudio */
@@ -71,7 +78,7 @@ class TacticalSoundEngine {
 
   /** Clique tático de comando / botão */
   public playClick() {
-    if (!this.enabled) return;
+    if (!this.audible()) return;
     const ctx = this.getContext();
     if (!ctx) return;
     try {
@@ -93,7 +100,7 @@ class TacticalSoundEngine {
 
   /** Deploy de Mobile Suit no campo */
   public playDeploy() {
-    if (!this.enabled) return;
+    if (!this.audible()) return;
     const ctx = this.getContext();
     if (!ctx) return;
     try {
@@ -121,7 +128,7 @@ class TacticalSoundEngine {
 
   /** Disparo clássico de Beam Rifle / Mega Canhão */
   public playBeamRifle() {
-    if (!this.enabled) return;
+    if (!this.audible()) return;
     const ctx = this.getContext();
     if (!ctx) return;
     try {
@@ -156,7 +163,7 @@ class TacticalSoundEngine {
 
   /** Golpe / Corte de Sabre de Feixe (Beam Saber Slash) */
   public playBeamSaberSlash() {
-    if (!this.enabled) return;
+    if (!this.audible()) return;
     const ctx = this.getContext();
     if (!ctx) return;
     try {
@@ -197,7 +204,7 @@ class TacticalSoundEngine {
 
   /** Trava de mira / Mono-eye Zaku alert (Monoeye sound + lock-on) */
   public playMonoeyeLock() {
-    if (!this.enabled) return;
+    if (!this.audible()) return;
     const ctx = this.getContext();
     if (!ctx) return;
     try {
@@ -234,7 +241,7 @@ class TacticalSoundEngine {
 
   /** Impulso de propulsores / Vernier Thruster Boost */
   public playThrusterBoost() {
-    if (!this.enabled) return;
+    if (!this.audible()) return;
     const ctx = this.getContext();
     if (!ctx) return;
     try {
@@ -270,7 +277,7 @@ class TacticalSoundEngine {
 
   /** Explosão pesada (impacto em Base ou destruição de Mobile Suit) */
   public playExplosion() {
-    if (!this.enabled) return;
+    if (!this.audible()) return;
     const ctx = this.getContext();
     if (!ctx) return;
     try {
@@ -311,7 +318,7 @@ class TacticalSoundEngine {
 
   /** Impacto metálico de escudo / defesa de Blocker */
   public playShieldBlock() {
-    if (!this.enabled) return;
+    if (!this.audible()) return;
     const ctx = this.getContext();
     if (!ctx) return;
     try {
@@ -336,7 +343,7 @@ class TacticalSoundEngine {
 
   /** Alerta tático de Newtype / Percepção Newtype */
   public playNewtypeFlash() {
-    if (!this.enabled) return;
+    if (!this.audible()) return;
     const ctx = this.getContext();
     if (!ctx) return;
     try {
@@ -361,7 +368,7 @@ class TacticalSoundEngine {
 
   /** Destruição de escudo (Burst trigger) */
   public playShieldBurst() {
-    if (!this.enabled) return;
+    if (!this.audible()) return;
     const ctx = this.getContext();
     if (!ctx) return;
     try {
@@ -384,7 +391,7 @@ class TacticalSoundEngine {
 
   /** Compra de carta / deslize de ar (Card Draw / Swoosh) */
   public playCardDraw() {
-    if (!this.enabled) return;
+    if (!this.audible()) return;
     const ctx = this.getContext();
     if (!ctx) return;
     try {
@@ -415,7 +422,7 @@ class TacticalSoundEngine {
 
   /** Virar carta para descansada (Rest / Servo mecânico) */
   public playCardRest() {
-    if (!this.enabled) return;
+    if (!this.audible()) return;
     const ctx = this.getContext();
     if (!ctx) return;
     try {
@@ -441,7 +448,7 @@ class TacticalSoundEngine {
 
   /** Alerta militar de início de turno / troca de fase */
   public playTurnStartAlert() {
-    if (!this.enabled) return;
+    if (!this.audible()) return;
     const ctx = this.getContext();
     if (!ctx) return;
     try {
