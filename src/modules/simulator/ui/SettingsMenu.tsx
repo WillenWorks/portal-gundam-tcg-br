@@ -67,12 +67,12 @@ export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, bu
   const handleToggleSound = (enabled: boolean) => {
     setSoundEnabled(enabled);
     sfx.setEnabled(enabled);
-    if (enabled) sfx.playClick();
+    if (enabled) preview();
     else sampleSfx.stopAll();
   };
 
   // o som de amostra toca na hora para o jogador ouvir o volume / o pacote escolhido
-  const preview = () => sampleSfx.play("card.draw", { untilMs: 600 });
+  const preview = () => sampleSfx.play("deploy.low", { untilMs: 600 });
 
   const handleVolumeChange = (value: number) => {
     setVolume(value);

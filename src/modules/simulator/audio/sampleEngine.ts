@@ -5,39 +5,11 @@
  * O ponto de impacto de cada arquivo (medido na preparação) é alinhado ao instante da ação (`alignImpactAtMs`): se o
  * golpe acerta 260 ms depois do começo, o som começa antes o bastante para o estouro cair ali — ou já começa do meio,
  * se não houver tempo. Sem o arquivo carregado (ou com o pacote "sintetizado"), toca o som sintetizado de antes. */
-import { SFX, SFX_IDS, assetsOf, type SfxCategory, type SfxId } from "./sfxManifest";
+import { ACTIVE_SFX_IDS, SFX, assetsOf, isSfxActive, type SfxCategory, type SfxId } from "./sfxManifest";
+import { defaultSfxPack, getSfxPack, saveSfxPack, type SfxPack } from "./sfxPack";
 import { sfx } from "./soundEffects";
 
-export type SfxPack = "gundam" | "synth";
-
-const PACK_STORAGE_KEY = "portal_gundam_sim_sfx_pack";
-
-function isPack(value: unknown): value is SfxPack {
-  return value === "gundam" || value === "synth";
-}
-
-/** padrão do build: `VITE_SIM_SFX_PACK=synth` volta para os sons sintetizados sem mexer no código */
-export function defaultSfxPack(env: Record<string, unknown> = import.meta.env ?? {}): SfxPack {
-  return isPack(env.VITE_SIM_SFX_PACK) ? env.VITE_SIM_SFX_PACK : "gundam";
-}
-
-export function getSfxPack(): SfxPack {
-  try {
-    const saved = typeof window !== "undefined" ? window.localStorage.getItem(PACK_STORAGE_KEY) : null;
-    if (isPack(saved)) return saved;
-  } catch {
-    // armazenamento bloqueado (aba privada): fica o padrão do build
-  }
-  return defaultSfxPack();
-}
-
-export function saveSfxPack(pack: SfxPack) {
-  try {
-    if (typeof window !== "undefined") window.localStorage.setItem(PACK_STORAGE_KEY, pack);
-  } catch {
-    // sem armazenamento a escolha vale só até recarregar
-  }
-}
+export { defaultSfxPack, getSfxPack, saveSfxPack, type SfxPack };
 
 /** sorteio sem repetir o último (com 1 variante, sempre ela) */
 export class ShuffleBag {
@@ -128,7 +100,7 @@ export class SampleSfxEngine {
   }
 
   /** baixa e decodifica o pacote (uma vez); falha de um arquivo deixa só ele no sintetizado */
-  preload(ids: readonly SfxId[] = SFX_IDS): Promise<void> {
+  preload(ids: readonly SfxId[] = ACTIVE_SFX_IDS): Promise<void> {
     if (this.deps.pack() !== "gundam") return Promise.resolve();
     if (this.loading) return this.loading;
     const ctx = this.deps.context();
@@ -152,6 +124,7 @@ export class SampleSfxEngine {
 
   play(id: SfxId, options: SfxPlayOptions = {}): SfxHandle | null {
     if (!this.deps.enabled()) return null;
+    if (this.deps.pack() === "gundam" && !isSfxActive(id)) return null;
     const spec = SFX[id];
     const ctx = this.deps.context();
     const assets = assetsOf(id);

@@ -2,7 +2,9 @@ import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SFX_ASSETS } from "./sfxAssets.generated";
-import { SFX, SFX_IDS, type SfxId } from "./sfxManifest";
+import sources from "../../../../scripts/audio/sfx-sources.json";
+import { ACTIVE_SFX_IDS, SFX, SFX_IDS, isSfxActive, type SfxId } from "./sfxManifest";
+import { sfx } from "./soundEffects";
 import { SampleSfxEngine, ShuffleBag, VOICES_PER_CATEGORY, defaultSfxPack, planStart, playbackRateFor, type SfxPack } from "./sampleEngine";
 
 /** contexto de áudio de mentira: guarda o que foi agendado e deixa o relógio andar à mão */
@@ -67,6 +69,50 @@ function makeEngine(pack: SfxPack = "gundam") {
   });
   return { ctx, engine };
 }
+
+describe("só a base escolhida toca no pacote Gundam", () => {
+  const fromExtras = (id: string) => (sources.sounds as Record<string, { sources: string[] }>)[id].sources.some((s) => s.startsWith("Extras/"));
+
+  it("ativos = os sons que não vêm de sons/Extras", () => {
+    expect([...ACTIVE_SFX_IDS].sort()).toEqual(SFX_IDS.filter((id) => !fromExtras(id)).sort());
+  });
+
+  it("som de fora da base não toca nem cai no sintetizado; com o pacote sintetizado ele volta", async () => {
+    const synth = vi.spyOn(SFX["card.draw"], "synth").mockImplementation(() => undefined);
+    const { engine, ctx } = makeEngine();
+    await engine.preload();
+    expect(isSfxActive("card.draw")).toBe(false);
+    expect(engine.play("card.draw")).toBeNull();
+    expect(synth).not.toHaveBeenCalled();
+    expect(ctx.sources).toHaveLength(0);
+
+    makeEngine("synth").engine.play("card.draw");
+    expect(synth).toHaveBeenCalledTimes(1);
+    synth.mockRestore();
+  });
+
+  it("o preload não baixa os de fora da base", async () => {
+    const load = vi.fn(async (_src: string) => new ArrayBuffer(8));
+    const ctx = new FakeContext();
+    const engine = new SampleSfxEngine({ context: () => ctx as unknown as AudioContext, load, enabled: () => true, volume: () => 0.5, pack: () => "gundam" });
+    await engine.preload();
+    expect(load.mock.calls.map(([src]) => src)).not.toContain("sfx/card-draw-1.m4a");
+    expect(load).toHaveBeenCalledWith("sfx/deploy-low-1.m4a");
+  });
+
+  it("os sintetizados diretos (cliques) ficam mudos no pacote Gundam", () => {
+    const context = vi.spyOn(sfx as unknown as { getContext: () => null }, "getContext").mockReturnValue(null);
+    const getItem = vi.fn((): string | null => null);
+    vi.stubGlobal("window", { localStorage: { getItem } });
+    sfx.playClick();
+    expect(context).not.toHaveBeenCalled();
+    getItem.mockReturnValue("synth");
+    sfx.playClick();
+    expect(context).toHaveBeenCalled();
+    vi.unstubAllGlobals();
+    context.mockRestore();
+  });
+});
 
 describe("catálogo do pacote", () => {
   it("todo som do catálogo tem ficha (categoria, prioridade, sintetizado) e vice-versa", () => {

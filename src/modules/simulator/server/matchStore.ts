@@ -9,7 +9,7 @@ import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver
 import { buildBattleLog, type BattleLogEntry } from "../ui/battleLog";
 import type { HeuristicLevel } from "../engine/bot";
 import type { ZeroCounterSummary } from "../engine/bot/zeroCounter";
-import { hasOwnDeploy, type PendingAttack } from "../scene/choreography";
+import { hasOwnDeploy, resolvingCommandIn, type EffectSource, type PendingAttack } from "../scene/choreography";
 import { mulliganRedrawMs, openingIntroMs, scaleScene, sceneDurationMs, setupFinishMs, slowestPace, slowestSpeed, type ScenePace } from "../scene/sceneTiming";
 import { mulliganRedraws } from "../scene/openingScene";
 import {
@@ -190,6 +190,7 @@ interface SceneCursor {
   phase: Phase;
   resourceIds: string[];
   pendingAttack: PendingAttack | null;
+  resolvingCommand: EffectSource | null;
   fromSetup: boolean;
 }
 
@@ -1226,6 +1227,7 @@ function sceneCursorFor(state: GameState, pendingAttack: PendingAttack | null): 
     phase: state.phase,
     resourceIds: PLAYER_IDS.flatMap((p) => state.players[p].resourceArea.map((c) => c.instanceId)),
     pendingAttack: state.combat ? pendingAttack : null,
+    resolvingCommand: resolvingCommandIn(state),
     fromSetup: isSetupState(state),
   };
 }
@@ -1278,6 +1280,7 @@ function refreshScene(match: MatchRecord): void {
   const { durationMs, pendingAttack } = sceneDurationMs({
     events,
     pendingAttack: cursor.pendingAttack,
+    resolvingCommand: cursor.resolvingCommand,
     phase: cursor.phase,
     resourceIds: new Set(cursor.resourceIds),
     fromSetup: cursor.fromSetup,

@@ -137,7 +137,7 @@ import {
 import type { BurstTargetChoice } from "@/modules/simulator/ui/BurstModal";
 import { findAltDiscardCandidates, findEligibleSacrifices, playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
 import { effectiveAnimSpeed, getResolutionPacing, getSavedAnimSpeed, getScaledDuration, type ResolutionPacing } from "@/modules/simulator/ui/animationSettings";
-import { hasOwnDeploy, planChoreography, tempoFor, type Beat } from "@/modules/simulator/scene/choreography";
+import { hasOwnDeploy, planChoreography, playedCardDef, resolvingCommandIn, tempoFor, type Beat } from "@/modules/simulator/scene/choreography";
 import { SCENE_MS, destroyMs, drawMs, landsHeavy, shieldRevealMs } from "@/modules/simulator/scene/sceneTiming";
 import { drawnCard, placedResource, unrestedIds } from "@/modules/simulator/scene/turnStart";
 import { CardTravel, centerCardWidth, type TravelPoint } from "@/modules/simulator/ui/CardTravel";
@@ -1275,13 +1275,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           pendingAttack: pendingAttackRef.current,
           phase: cinematicFrom.phase,
           resourceIds,
+          resolvingCommand: resolvingCommandIn(cinematicFrom),
         });
         pendingAttackRef.current = pendingAttack;
         // o ritmo ("Normal") e a velocidade do menu já entram em `getScaledDuration`
         const tempo = tempoFor(beats);
         const hold = (baseMs: number) => new Promise<void>((resolve) => setTimeout(resolve, getScaledDuration(baseMs * tempo)));
         const opponentSeat: PlayerId = incoming.seat === "A" ? "B" : "A";
-        const defOf = (id: string) => cardDefInView(incoming.view, id) ?? cardDefInView(cinematicFrom, id);
+        const defOf = (id: string) => cardDefInView(incoming.view, id) ?? cardDefInView(cinematicFrom, id) ?? playedCardDef(events, id);
         const shieldsTaken: Record<PlayerId, number> = { A: 0, B: 0 };
         // a arte grande dos anúncios começa a baixar já, enquanto os tempos anteriores tocam
         for (const beat of beats) {
@@ -1541,7 +1542,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             launchDepartures(prevDepartureView, incoming, new Set(ids));
             continue;
           }
-          const cardDef = cardDefInView(incoming.view, item.instanceId);
+          const cardDef = cardDefInView(incoming.view, item.instanceId) ?? playedCardDef(incoming.eventsSince ?? [], item.instanceId);
           if (!cardDef) continue;
           const { origin, dest } = resolveCommandAnimationPoints(board, opponentSeat, fallbackCenter);
           await animateCommand({ cardDef, origin, dest });
