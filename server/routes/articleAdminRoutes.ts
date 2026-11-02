@@ -1,6 +1,7 @@
 import type { Express, Request, Response, RequestHandler } from "express";
 import { PrismaClient, PostStatus } from "@prisma/client";
 import { generateArticleWithAi, type ArticleAiGenerateInput } from "../services/articleAiService.ts";
+import { PUBLIC_USER_SELECT } from "../publicUser.ts";
 
 export function registerArticleAdminRoutes(
   app: Express,
@@ -50,7 +51,7 @@ export function registerArticleAdminRoutes(
     try {
       const existing = await prisma.post.findUnique({
         where: { id },
-        include: { author: true },
+        include: { author: { select: PUBLIC_USER_SELECT } },
       });
 
       if (!existing) {
@@ -63,7 +64,7 @@ export function registerArticleAdminRoutes(
           status: PostStatus.PUBLISHED,
           publishedAt: existing.publishedAt ?? new Date(),
         },
-        include: { author: true },
+        include: { author: { select: PUBLIC_USER_SELECT } },
       });
 
       let socialDraftCreated = false;
