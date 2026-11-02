@@ -92,11 +92,12 @@ type PostMetaInfo = {
   storyError: string | null;
   isSpoiler: boolean;
   cardUrl: string | null;
+  articleUrl: string | null;
 };
 
 function parsePostMeta(post: SocialMediaPost | null): PostMetaInfo {
   if (!post?.metadata) {
-    return { storyVideoUrl: null, storyEnabled: false, storyTitle: "CARTA DA SEMANA", storyPostId: null, storyError: null, isSpoiler: false, cardUrl: null };
+    return { storyVideoUrl: null, storyEnabled: false, storyTitle: "CARTA DA SEMANA", storyPostId: null, storyError: null, isSpoiler: false, cardUrl: null, articleUrl: null };
   }
   try {
     const parsed = JSON.parse(post.metadata) as Record<string, unknown>;
@@ -108,9 +109,11 @@ function parsePostMeta(post: SocialMediaPost | null): PostMetaInfo {
     const storyPostId = typeof parsed.storyPostId === "string" && parsed.storyPostId ? parsed.storyPostId : null;
     const storyError = typeof parsed.storyError === "string" && parsed.storyError ? parsed.storyError : null;
     const cardUrl = typeof parsed.cardUrl === "string" && parsed.cardUrl ? parsed.cardUrl : null;
-    return { storyVideoUrl, storyEnabled, storyTitle, storyPostId, storyError, isSpoiler, cardUrl };
+    const rawArticleUrl = (parsed.storyArticle as { articleUrl?: unknown } | undefined)?.articleUrl;
+    const articleUrl = typeof rawArticleUrl === "string" && rawArticleUrl ? rawArticleUrl : null;
+    return { storyVideoUrl, storyEnabled, storyTitle, storyPostId, storyError, isSpoiler, cardUrl, articleUrl };
   } catch {
-    return { storyVideoUrl: null, storyEnabled: false, storyTitle: "CARTA DA SEMANA", storyPostId: null, storyError: null, isSpoiler: false, cardUrl: null };
+    return { storyVideoUrl: null, storyEnabled: false, storyTitle: "CARTA DA SEMANA", storyPostId: null, storyError: null, isSpoiler: false, cardUrl: null, articleUrl: null };
   }
 }
 
@@ -420,12 +423,14 @@ export function AdminSocialTab() {
     try {
       setSavingId(post.id);
       const isCardFeed = post.type === "CARD_SPOTLIGHT" && !reelUrlOf(post);
+      const isArticle = post.type === "ARTICLE";
       const updated = await apiFetch<SocialMediaPost>(`/admin/social/posts/${post.id}`, {
         method: "PUT",
         body: JSON.stringify({
           title: editTitle,
           caption: editCaption,
           ...(isCardFeed ? { storyEnabled: editStoryEnabled, storyTitle: editStoryTitle } : {}),
+          ...(isArticle ? { storyEnabled: editStoryEnabled } : {}),
         }),
       });
       toast.success("Alterações salvas com sucesso!");
@@ -991,6 +996,77 @@ export function AdminSocialTab() {
                                   <img src={url} alt="" className="size-full object-cover" />
                                 </button>
                               ))}
+                            </div>
+                          )}
+
+                          {/* Story do artigo: sai sem link clicável pela API; o sticker só existe publicando à mão no app */}
+                          {selectedPost.type === "ARTICLE" && (
+                            <div className="mt-4 pt-3 border-t border-white/10 space-y-2.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs uppercase font-mono text-sky-300 flex items-center gap-1.5">
+                                  <Film className="size-3.5" /> Story do artigo (9:16)
+                                </span>
+                                {meta.storyVideoUrl && (
+                                  <a href={meta.storyVideoUrl} download className="text-[11px] font-mono text-slate-400 hover:text-white underline">
+                                    Baixar MP4
+                                  </a>
+                                )}
+                              </div>
+
+                              <p className="text-[11px] leading-relaxed text-amber-200">
+                                A API do Instagram não publica sticker de link. Para o story ter link clicável, desmarque abaixo, baixe o vídeo e publique pelo app com o sticker. Publicado por aqui, ele pede para ir ao link na bio.
+                              </p>
+
+                              <label className="flex items-center gap-2 text-xs text-slate-200 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={editStoryEnabled}
+                                  onChange={(e) => setEditStoryEnabled(e.target.checked)}
+                                  disabled={selectedPost.status === "PUBLISHED" || selectedPost.status === "PUBLISHING"}
+                                  className="accent-sky-400"
+                                />
+                                <span>Publicar Story (sem link clicável) junto ao aprovar o post</span>
+                              </label>
+
+                              <div className="flex flex-wrap gap-1.5">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={regeneratingStory || Boolean(actionLocks[`story-${selectedPost.id}`]) || selectedPost.status === "PUBLISHING"}
+                                  onClick={() => handleUpdateStory(selectedPost, true)}
+                                  className="h-8 px-2.5 rounded-none border-sky-500/40 text-sky-300 hover:bg-sky-500/10 text-[11px]"
+                                  title="Renderizar novamente o vídeo do Story, com a capa atual do artigo. Não publica nada no Instagram."
+                                >
+                                  <RefreshCw className={`size-3 mr-1 ${regeneratingStory ? "animate-spin" : ""}`} />
+                                  {meta.storyVideoUrl ? "Regerar vídeo" : "Gerar vídeo"}
+                                </Button>
+                                {meta.articleUrl && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      void navigator.clipboard
+                                        .writeText(`https://${meta.articleUrl}`)
+                                        .then(() => toast.success("Link do artigo copiado!"))
+                                        .catch(() => toast.error("Não deu para copiar o link."));
+                                    }}
+                                    className="h-8 px-2.5 rounded-none border-white/20 text-slate-200 hover:bg-white/10 text-[11px]"
+                                  >
+                                    Copiar link do artigo
+                                  </Button>
+                                )}
+                              </div>
+
+                              {meta.storyVideoUrl && (
+                                <div className="border border-white/15 bg-slate-950 aspect-[9/16] max-h-72 mx-auto relative overflow-hidden flex items-center justify-center">
+                                  <video key={meta.storyVideoUrl} src={meta.storyVideoUrl} controls playsInline loop className="size-full object-contain" />
+                                </div>
+                              )}
+
+                              {meta.storyPostId && (
+                                <p className="text-[11px] text-emerald-300 font-mono">✓ Story publicado junto com o post (ID: {meta.storyPostId})</p>
+                              )}
+                              {meta.storyError && <p className="text-[11px] text-amber-300">Aviso do Story: {meta.storyError}</p>}
                             </div>
                           )}
 

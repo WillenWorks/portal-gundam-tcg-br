@@ -26,7 +26,7 @@ describe("articleAdminRoutes", () => {
 
     expect(html).toContain("<!DOCTYPE html>");
     expect(html).toContain("ANAHEIM HUB");
-    expect(html).toContain("NOVO ANÁLISE NO SITE");
+    expect(html).toContain("NOVA ANÁLISE NO SITE");
     expect(html).toContain("Análise GD06: O Impacto no Metagame");
     expect(html).toContain("https://anaheimhub.com/articles/analise-gd06");
     expect(html).toContain("reel-canvas");

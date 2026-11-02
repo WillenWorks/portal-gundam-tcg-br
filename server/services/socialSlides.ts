@@ -1126,13 +1126,49 @@ export type ArticleStoryInput = {
   articleUrl: string;
 };
 
+const MAX_INLINE_IMAGE_BYTES = 8 * 1024 * 1024;
+const INLINE_IMAGE_TIMEOUT_MS = 10_000;
+
+/**
+ * Baixa a imagem e devolve como data URI. O vídeo é gravado de um canvas, que só aceita imagem de outra origem com
+ * CORS, e `/uploads` não manda esse cabeçalho: sem isto a capa do artigo falhava e o Story saía com o bloco cinza.
+ * `""` se não der para baixar (o Story sai sem a capa, com o aviso no log).
+ */
+export async function inlineImageAsDataUrl(url: string | null | undefined, fetchFn: typeof fetch = fetch): Promise<string> {
+  const safeUrl = safeImageUrl(url);
+  if (!safeUrl) return "";
+  try {
+    const res = await fetchFn(safeUrl, { signal: AbortSignal.timeout(INLINE_IMAGE_TIMEOUT_MS) });
+    const type = (res.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!type.startsWith("image/")) throw new Error(`tipo ${type || "desconhecido"}`);
+    const bytes = Buffer.from(await res.arrayBuffer());
+    if (bytes.length > MAX_INLINE_IMAGE_BYTES) throw new Error(`imagem grande demais (${bytes.length} bytes)`);
+    return `data:${type};base64,${bytes.toString("base64")}`;
+  } catch (err) {
+    console.warn(`[socialSlides] não baixou a capa do Story (${safeUrl}):`, err instanceof Error ? err.message : err);
+    return "";
+  }
+}
+
+const FEMININE_ARTICLE_KINDS = new Set(["NOTÍCIA", "ANÁLISE"]);
+
+/** selo do Story: "NOVA NOTÍCIA NO SITE", "NOVO GUIA NO SITE" */
+export function articleStoryBadge(kind: string | null | undefined): string {
+  const label = String(kind || "ARTIGO").toUpperCase();
+  return `${FEMININE_ARTICLE_KINDS.has(label) ? "NOVA" : "NOVO"} ${label} NO SITE`;
+}
+
+const isInlineImage = (url: string | null | undefined) => Boolean(url && /^data:image\/[a-z0-9.+-]+;base64,/i.test(url));
+
 /**
  * Constrói o HTML Canvas 9:16 (1080x1920) para o Story de notificação de um novo artigo publicado no portal.
- * Exibe animação visual com a capa do artigo, badge temático, título em destaque e sticker com o link do portal.
+ * Exibe animação visual com a capa do artigo, badge temático, título em destaque e o endereço do artigo. A API do
+ * Instagram não publica sticker de link, então nada aqui pode parecer um botão clicável: a chamada é para o link na bio.
  */
 export function buildArticleStoryHtml(article: ArticleStoryInput): string {
   const accent = "#38bdf8";
-  const safeImg = safeImageUrl(article.coverUrl);
+  const safeImg = isInlineImage(article.coverUrl) ? String(article.coverUrl) : safeImageUrl(article.coverUrl);
   const payload = JSON.stringify({
     title: String(article.title || ""),
     kind: String(article.kind || "ARTIGO").toUpperCase(),
@@ -1212,7 +1248,7 @@ export function buildArticleStoryHtml(article: ArticleStoryInput): string {
     ctx.fillText("ANAHEIM HUB", W / 2, 175);
 
     // 3. Selo badge do tipo
-    const badgeText = ${JSON.stringify("NOVO " + String(article.kind || "ARTIGO").toUpperCase() + " NO SITE")};
+    const badgeText = ${JSON.stringify(articleStoryBadge(article.kind))};
     ctx.font = "800 24px 'Segoe UI', Roboto, Arial, sans-serif";
     const badgeW = ctx.measureText(badgeText).width + 48;
     ctx.fillStyle = "rgba(56, 189, 248, 0.15)";
@@ -1236,7 +1272,13 @@ export function buildArticleStoryHtml(article: ArticleStoryInput): string {
     roundRect(ctx, boxX, boxY, boxW, boxH, 20);
     ctx.clip();
     if (loadedImg) {
-      ctx.drawImage(loadedImg, boxX - (boxW * (revealZoom - 1)) / 2, boxY - (boxH * (revealZoom - 1)) / 2, boxW * revealZoom, boxH * revealZoom);
+      // a capa inteira cabe na moldura (costuma ter texto até a borda), sem deformar nem cortar
+      ctx.fillStyle = "#020617";
+      ctx.fillRect(boxX, boxY, boxW, boxH);
+      const scale = Math.min(boxW / loadedImg.naturalWidth, boxH / loadedImg.naturalHeight) / revealZoom;
+      const drawW = loadedImg.naturalWidth * scale;
+      const drawH = loadedImg.naturalHeight * scale;
+      ctx.drawImage(loadedImg, boxX + (boxW - drawW) / 2, boxY + (boxH - drawH) / 2, drawW, drawH);
     } else {
       ctx.fillStyle = "#1e293b";
       ctx.fillRect(boxX, boxY, boxW, boxH);
@@ -1274,7 +1316,7 @@ export function buildArticleStoryHtml(article: ArticleStoryInput): string {
     }
     if (line) ctx.fillText(line, W / 2, lineY);
 
-    // 6. Botão / Sticker CTA inferior
+    // 6. Chamada inferior: o link na bio (o Story publicado pela API não tem nada clicável)
     const ctaY = H - 290;
     const ctaW = 840;
     const ctaH = 120;
@@ -1293,9 +1335,14 @@ export function buildArticleStoryHtml(article: ArticleStoryInput): string {
 
     ctx.fillStyle = "#ffffff";
     ctx.font = "900 32px 'Segoe UI', Roboto, Arial, sans-serif";
-    ctx.fillText("🔗 LER ARTIGO NO SITE", 0, -6);
+    ctx.fillText("LEIA O ARTIGO · LINK NA BIO", 0, -6);
     ctx.fillStyle = "#bae6fd";
-    ctx.font = "700 22px 'Consolas', monospace";
+    let urlFont = 26;
+    ctx.font = "700 " + urlFont + "px 'Consolas', monospace";
+    while (urlFont > 14 && ctx.measureText(ARTICLE.articleUrl).width > ctaW - 40) {
+      urlFont -= 1;
+      ctx.font = "700 " + urlFont + "px 'Consolas', monospace";
+    }
     ctx.fillText(ARTICLE.articleUrl, 0, 32);
     ctx.restore();
 
@@ -1471,7 +1518,8 @@ export async function renderArticleStory(
   article: ArticleStoryInput,
   outputMp4Path: string,
 ): Promise<{ videoOk: boolean }> {
-  const { videoOk } = await renderHtmlVideo(buildArticleStoryHtml(article), outputMp4Path);
+  const coverUrl = await inlineImageAsDataUrl(article.coverUrl);
+  const { videoOk } = await renderHtmlVideo(buildArticleStoryHtml({ ...article, coverUrl }), outputMp4Path);
   return { videoOk };
 }
 
