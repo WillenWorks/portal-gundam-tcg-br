@@ -11,6 +11,7 @@ import path from "node:path";
 import multer from "multer";
 import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType, HostedEventStatus, HostedEventRoundStatus, HostedEventMatchResult, TournamentTier, PostStatus, BinderItemTag } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
+import { PUBLIC_USER_SELECT } from "./publicUser.ts";
 import { resolvePublicAppUrl as resolvePublicAppUrlFrom } from "./publicAppUrl.ts";
 import { apiRateLimitOptions } from "./apiRateLimit.ts";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
@@ -1741,7 +1742,7 @@ app.delete("/api/binders/me/:id", authRequired, async (req: RequestWithUser, res
 app.get("/api/binders/share/:shareId", authOptional, async (req: RequestWithUser, res) => {
   const binder = await prisma.cardBinder.findUnique({
     where: { shareId: String(req.params.shareId) },
-    include: { user: true, items: { include: { card: { include: { set: true } } }, orderBy: { position: "asc" } } },
+    include: { user: { select: PUBLIC_USER_SELECT }, items: { include: { card: { include: { set: true } } }, orderBy: { position: "asc" } } },
   });
   const isOwner = Boolean(req.user && binder && req.user.userId === binder.userId);
   if (!binder || !binder.user.isActive || (!binder.isPublic && !isOwner)) return res.status(404).json({ error: "Pasta não encontrada." });
@@ -1766,7 +1767,7 @@ app.get("/api/posts", authOptional, async (req: RequestWithUser, res) => {
     const [items, total] = await Promise.all([
       prisma.post.findMany({
         where,
-        include: { author: true },
+        include: { author: { select: PUBLIC_USER_SELECT } },
         orderBy,
         skip: pagination.skip,
         take: pagination.take,
@@ -1778,7 +1779,7 @@ app.get("/api/posts", authOptional, async (req: RequestWithUser, res) => {
 
   const posts = await prisma.post.findMany({
     where,
-    include: { author: true },
+    include: { author: { select: PUBLIC_USER_SELECT } },
     orderBy,
   });
   res.json(posts);
@@ -1818,7 +1819,7 @@ app.post("/api/posts", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDIT
       status: (payload.status as any) || "DRAFT",
       publishedAt: payload.status === "PUBLISHED" ? new Date() : null,
     },
-    include: { author: true },
+    include: { author: { select: PUBLIC_USER_SELECT } },
   });
   if (post.status === PostStatus.PUBLISHED) queueArticleInstagramPost(post.id);
   res.status(201).json(post);
@@ -1855,7 +1856,7 @@ app.put("/api/posts/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.E
       status: (payload.status as any) || current.status,
       publishedAt: payload.status === "PUBLISHED" ? current.publishedAt ?? new Date() : payload.status === "DRAFT" ? null : current.publishedAt,
     },
-    include: { author: true },
+    include: { author: { select: PUBLIC_USER_SELECT } },
   });
   if (post.status === PostStatus.PUBLISHED && current.status !== PostStatus.PUBLISHED) queueArticleInstagramPost(post.id);
   res.json(post);
@@ -1871,7 +1872,7 @@ app.delete("/api/posts/:id", authRequired, roleRequired([UserRole.ADMIN]), async
 // quem tem ADMIN/EDITOR (preview do próprio CMS antes de publicar), mesma regra da listagem.
 app.get("/api/posts/slug/:slug", authOptional, async (req: RequestWithUser, res) => {
   const slug = String(req.params.slug);
-  const post = await prisma.post.findUnique({ where: { slug }, include: { author: true } });
+  const post = await prisma.post.findUnique({ where: { slug }, include: { author: { select: PUBLIC_USER_SELECT } } });
   if (!post) return res.status(404).json({ error: "Artigo não encontrado." });
   const isEditor = req.user?.role === UserRole.ADMIN || req.user?.role === UserRole.EDITOR;
   if (post.status !== PostStatus.PUBLISHED && !isEditor) return res.status(404).json({ error: "Artigo não encontrado." });
@@ -4923,7 +4924,7 @@ app.get("/api/decks/public", authOptional, async (req: RequestWithUser, res) => 
         prisma.deck.findMany({
           where,
           include: {
-            user: true,
+            user: { select: PUBLIC_USER_SELECT },
             items: { include: { card: true } },
             likes: req.user?.userId ? { where: { userId: req.user.userId }, select: { id: true } } : false,
           },
@@ -4937,7 +4938,7 @@ app.get("/api/decks/public", authOptional, async (req: RequestWithUser, res) => 
       const enriched = await enrichDecksWithFeaturedCards(rawItems, legality);
       const items = enriched.map((deck: any, idx: number) => ({
         ...deck,
-        user: rawItems[idx]?.user ? serializeUser(rawItems[idx].user) : null,
+        user: rawItems[idx]?.user ?? null,
         hasLiked: Array.isArray(rawItems[idx]?.likes) && rawItems[idx].likes.length > 0,
       }));
 
@@ -4955,7 +4956,7 @@ app.get("/api/decks/public", authOptional, async (req: RequestWithUser, res) => 
     const rawItems = await prisma.deck.findMany({
       where,
       include: {
-        user: true,
+        user: { select: PUBLIC_USER_SELECT },
         items: { include: { card: true } },
         likes: req.user?.userId ? { where: { userId: req.user.userId }, select: { id: true } } : false,
       },
@@ -4966,7 +4967,7 @@ app.get("/api/decks/public", authOptional, async (req: RequestWithUser, res) => 
     const enriched = await enrichDecksWithFeaturedCards(rawItems, legality);
     const items = enriched.map((deck: any, idx: number) => ({
       ...deck,
-      user: rawItems[idx]?.user ? serializeUser(rawItems[idx].user) : null,
+      user: rawItems[idx]?.user ?? null,
       hasLiked: Array.isArray(rawItems[idx]?.likes) && rawItems[idx].likes.length > 0,
     }));
 
@@ -4983,7 +4984,7 @@ app.get("/api/decks/share/:shareId", authOptional, async (req: RequestWithUser, 
   const deck = await prisma.deck.findUnique({
     where: { shareId },
     include: {
-      user: true,
+      user: { select: PUBLIC_USER_SELECT },
       items: { include: { card: true } },
       likes: req.user?.userId ? { where: { userId: req.user.userId }, select: { id: true } } : false,
     },
