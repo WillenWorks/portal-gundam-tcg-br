@@ -28,8 +28,7 @@ export function LatestCardsCarousel({ limit = 30, className }: LatestCardsCarous
   const scrollLeftRef = useRef(0);
   const hasDraggedRef = useRef(false);
 
-  // Busca e ordenação estrita conforme especificado:
-  // "se houver cartas cadastradas no mesmo dia, então considerar ordenação de id/código/coleção do último cadastrado para o primeiro"
+  // O servidor já entrega do cadastro mais novo para o mais antigo e, no mesmo dia, por código: LR primeiro
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
@@ -38,27 +37,7 @@ export function LatestCardsCarousel({ limit = 30, className }: LatestCardsCarous
       .listCardsPage({ sort: "created_desc" }, { page: 1, pageSize: limit })
       .then((res) => {
         if (!isMounted) return;
-        const rawItems = res?.items ?? [];
-
-        const sorted = [...rawItems].sort((a, b) => {
-          const dateA = a.createdAt ? new Date(a.createdAt).toISOString().slice(0, 10) : "";
-          const dateB = b.createdAt ? new Date(b.createdAt).toISOString().slice(0, 10) : "";
-
-          // 1. Data diferente: o mais recente primeiro
-          if (dateA !== dateB) {
-            return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-          }
-
-          // 2. Mesmo dia: do último cadastrado para o primeiro (código/coleção decrescente)
-          if (a.code && b.code && a.code !== b.code) {
-            return b.code.localeCompare(a.code, undefined, { numeric: true });
-          }
-
-          // 3. Fallback id decrescente
-          return String(b.id || "").localeCompare(String(a.id || ""));
-        });
-
-        setCards(sorted);
+        setCards(res?.items ?? []);
       })
       .catch((err) => {
         console.error("Falha ao carregar cartas recentes:", err);

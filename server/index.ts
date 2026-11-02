@@ -9,9 +9,12 @@ import { createServer } from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import multer from "multer";
-import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType, HostedEventStatus, HostedEventRoundStatus, HostedEventMatchResult, TournamentTier, PostStatus, BinderItemTag } from "@prisma/client";
+import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType, HostedEventStatus, HostedEventRoundStatus, HostedEventMatchResult, TournamentTier, PostStatus, PostType, BinderItemTag } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
 import { PUBLIC_USER_SELECT } from "./publicUser.ts";
+import { normalizePostTags } from "../src/lib/postTags.ts";
+import { safeImageSrc } from "../src/lib/safeImageSrc.ts";
+import { sortNewestFirstByCode } from "./cardsNewestOrder.ts";
 import { resolvePublicAppUrl as resolvePublicAppUrlFrom } from "./publicAppUrl.ts";
 import { apiRateLimitOptions } from "./apiRateLimit.ts";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
@@ -1758,10 +1761,24 @@ app.get("/api/posts", authOptional, async (req: RequestWithUser, res) => {
   const status = normalizeQueryValue(req.query.status);
   const pagination = getPagination(req.query, { pageSize: 12, maxPageSize: 50 });
   const isEditor = req.user?.role === UserRole.ADMIN || req.user?.role === UserRole.EDITOR;
-  const where = isEditor ? (status ? { status: status as PostStatus } : undefined) : { status: PostStatus.PUBLISHED };
+  const q = normalizeQueryValue(req.query.q)?.trim();
+  const type = normalizeQueryValue(req.query.type);
+  const tag = normalizePostTags([normalizeQueryValue(req.query.tag) ?? ""])[0];
+  const sort = normalizeQueryValue(req.query.sort);
+  const statusWhere: Prisma.PostWhereInput = isEditor ? (status ? { status: status as PostStatus } : {}) : { status: PostStatus.PUBLISHED };
+  const where: Prisma.PostWhereInput = {
+    ...statusWhere,
+    ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" } }, { excerpt: { contains: q, mode: "insensitive" } }] } : {}),
+    ...(type && (Object.values(PostType) as string[]).includes(type) ? { postType: type as PostType } : {}),
+    ...(tag ? { tags: { has: tag } } : {}),
+  };
   // vitrine pública (home e /articles): o mais novo primeiro pela data de publicação, não pela última edição
+  const newest: Prisma.PostOrderByWithRelationInput[] = [{ publishedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }];
   const orderBy: Prisma.PostOrderByWithRelationInput[] =
-    where?.status === PostStatus.PUBLISHED ? [{ publishedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }] : [{ updatedAt: "desc" }];
+    sort === "oldest" ? [{ publishedAt: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }]
+    : sort === "popular" ? [{ likeCount: "desc" }, ...newest]
+    : statusWhere.status === PostStatus.PUBLISHED ? newest
+    : [{ updatedAt: "desc" }];
 
   if (pagination.enabled) {
     const [items, total] = await Promise.all([
@@ -1783,6 +1800,15 @@ app.get("/api/posts", authOptional, async (req: RequestWithUser, res) => {
     orderBy,
   });
   res.json(posts);
+});
+
+// Hashtags em uso nos artigos publicados, para os filtros de /articles.
+app.get("/api/posts/tags", async (_req, res) => {
+  setPublicCache(res, 60, 300);
+  const posts = await prisma.post.findMany({ where: { status: PostStatus.PUBLISHED }, select: { tags: true } });
+  const counts = new Map<string, number>();
+  for (const tag of posts.flatMap((post) => post.tags)) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+  res.json([...counts].map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag)));
 });
 
 // Artigo publicado vira rascunho de post do Instagram (capa + resumo), para aprovar no painel/Discord.
@@ -1814,6 +1840,8 @@ app.post("/api/posts", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDIT
       excerpt: payload.excerpt ? String(payload.excerpt) : null,
       contentMd: String(payload.contentMd ?? ""),
       coverImage: payload.coverImage ? String(payload.coverImage) : null,
+      homeImage: safeImageSrc(payload.homeImage) || null,
+      tags: normalizePostTags(payload.tags),
       youtubeUrl: payload.youtubeUrl ? String(payload.youtubeUrl) : null,
       postType: (payload.postType as any) || "NEWS",
       status: (payload.status as any) || "DRAFT",
@@ -1851,6 +1879,8 @@ app.put("/api/posts/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.E
       excerpt: payload.excerpt ? String(payload.excerpt) : null,
       contentMd: String(payload.contentMd ?? ""),
       coverImage: payload.coverImage ? String(payload.coverImage) : null,
+      homeImage: safeImageSrc(payload.homeImage) || null,
+      tags: payload.tags === undefined ? current.tags : normalizePostTags(payload.tags),
       youtubeUrl: payload.youtubeUrl ? String(payload.youtubeUrl) : null,
       postType: (payload.postType as any) || current.postType,
       status: (payload.status as any) || current.status,
@@ -2272,7 +2302,7 @@ app.get("/api/cards", async (req, res) => {
     level_desc: [{ level: "desc" }, { code: "asc" }],
     updated_desc: [{ updatedAt: "desc" }, { code: "asc" }],
     updated_asc: [{ updatedAt: "asc" }, { code: "asc" }],
-    created_desc: [{ createdAt: "desc" }, { code: "desc" }, { id: "desc" }],
+    created_desc: [{ createdAt: "desc" }, { code: "asc" }, { id: "asc" }],
     created_asc: [{ createdAt: "asc" }, { code: "asc" }, { id: "asc" }],
     // rarity_* não existe mais em CardModel (raridade é por impressão) — cai no default.
   };
@@ -2324,6 +2354,16 @@ app.get("/api/cards", async (req, res) => {
       return res.json({ items: items.map(flattenModel), page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
     }
 
+    if (sort === "created_desc") {
+      // cada carga grava as cartas com milissegundos de diferença: a ordem por dia + código só dá para montar aqui
+      const rows = await prisma.cardModel.findMany({ where, select: { id: true, code: true, createdAt: true } });
+      const pageIds = sortNewestFirstByCode(rows).slice(pagination.skip, pagination.skip + pagination.take).map((row) => row.id);
+      const found = await prisma.cardModel.findMany({ where: { id: { in: pageIds } }, include: printInclude });
+      const byId = new Map(found.map((model) => [model.id, model]));
+      const items = pageIds.flatMap((id) => byId.get(id) ?? []);
+      return res.json({ items: items.map(flattenModel), page: pagination.page, pageSize: pagination.pageSize, total: rows.length, totalPages: Math.max(1, Math.ceil(rows.length / pagination.pageSize)) });
+    }
+
     const [items, total] = await Promise.all([
       prisma.cardModel.findMany({ where, include: printInclude, orderBy, skip: pagination.skip, take: pagination.take }),
       prisma.cardModel.count({ where }),
@@ -2335,7 +2375,7 @@ app.get("/api/cards", async (req, res) => {
   const cached = cardsListCache.get(cacheKey);
   if (cached && Date.now() - cached.at < CARDS_LIST_CACHE_MS) return res.json(cached.body);
   const models = await prisma.cardModel.findMany({ where, include: printInclude, orderBy });
-  const body = models.map(flattenModel);
+  const body = (sort === "created_desc" ? sortNewestFirstByCode(models) : models).map(flattenModel);
   if (cardsListCache.size >= CARDS_LIST_CACHE_MAX) cardsListCache.delete(cardsListCache.keys().next().value as string);
   cardsListCache.set(cacheKey, { at: Date.now(), body });
   res.json(body);

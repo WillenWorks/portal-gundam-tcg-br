@@ -2,6 +2,8 @@
  * editor com preview split-screen (CardMarkdown, mesmo renderer do leitor público) e um
  * gerador de prompt de capa temática + gerador completo de artigos com Agente de IA
  * especializado + fluxo de aprovação com post e Story simultâneos no Instagram. */
+import { HomeImageField } from "@/components/articles/HomeImageField";
+import { POST_TAG_LIMIT, normalizePostTags } from "@/lib/postTags";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -77,6 +79,8 @@ type FormState = {
   excerpt: string;
   contentMd: string;
   coverImage: string;
+  homeImage: string;
+  tags: string;
   youtubeUrl: string;
   postType: PostType;
   status: PostStatus;
@@ -95,6 +99,8 @@ const emptyForm: FormState = {
   excerpt: "",
   contentMd: "",
   coverImage: "",
+  homeImage: "",
+  tags: "",
   youtubeUrl: "",
   postType: "NEWS",
   status: "REVIEW",
@@ -315,6 +321,8 @@ export default function AdminArticlesPage() {
       excerpt: post.excerpt || "",
       contentMd: post.contentMd,
       coverImage: post.coverImage || "",
+      homeImage: post.homeImage || "",
+      tags: (post.tags ?? []).join(", "),
       youtubeUrl: post.youtubeUrl || "",
       postType: post.postType,
       status: post.status,
@@ -335,6 +343,24 @@ export default function AdminArticlesPage() {
       toast.success("Capa enviada.");
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erro ao enviar capa.");
+    } finally {
+      setSaving(false);
+      if (event.target) event.target.value = "";
+    }
+  };
+
+  const handleHomeImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !editing) return;
+    setSaving(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const result = await api.uploadAssetImage(formData);
+      setEditing((current) => current && { ...current, homeImage: result.imageUrl });
+      toast.success("Imagem da home enviada.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Erro ao enviar a imagem da home.");
     } finally {
       setSaving(false);
       if (event.target) event.target.value = "";
@@ -375,6 +401,8 @@ export default function AdminArticlesPage() {
         excerpt: res.article.excerpt || "",
         contentMd: res.article.contentMd || "",
         coverImage: res.article.coverImage || "",
+        homeImage: "",
+        tags: normalizePostTags(res.article.tags).join(", "),
         youtubeUrl: "",
         postType: res.article.postType || aiState.category,
         status: "REVIEW", // Criado para aprovação prévia
@@ -410,6 +438,8 @@ export default function AdminArticlesPage() {
         excerpt: editing.excerpt.trim() || null,
         contentMd: editing.contentMd,
         coverImage: editing.coverImage.trim() || null,
+        homeImage: editing.homeImage.trim() || null,
+        tags: normalizePostTags(editing.tags.split(",")),
         youtubeUrl: editing.youtubeUrl.trim() || null,
         postType: editing.postType,
         status: statusToSave,
@@ -812,6 +842,26 @@ export default function AdminArticlesPage() {
                           <img loading="lazy" decoding="async" src={editing.coverImage} alt="Capa" className="h-full w-full object-cover" />
                         </div>
                       ) : null}
+                    </div>
+                    <HomeImageField
+                      value={editing.homeImage}
+                      coverImage={editing.coverImage}
+                      saving={saving}
+                      onChange={(homeImage) => setEditing((c) => c && { ...c, homeImage })}
+                      onUpload={handleHomeImageUpload}
+                    />
+                    <div>
+                      <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Hashtags (separadas por vírgula, até {POST_TAG_LIMIT})</label>
+                      <Input
+                        value={editing.tags}
+                        onChange={(e) => setEditing((c) => c && { ...c, tags: e.target.value })}
+                        placeholder="simulador, gd06"
+                        className="mt-1.5 rounded-none"
+                      />
+                      <p className="mt-1 text-xs text-slate-500">
+                        Viram os selos do artigo e o filtro da página de artigos:{" "}
+                        {normalizePostTags(editing.tags.split(",")).map((tag) => `#${tag}`).join(" ") || "nenhuma por enquanto"}
+                      </p>
                     </div>
                     <div>
                       <label className="text-xs uppercase tracking-[0.2em] text-slate-500">

@@ -79,7 +79,7 @@ export default function Home({ targetSection }: HomeProps) {
         {/* ── HERO SECTION: PORTAL RESUMO (CARROSSEL + LINKS RÁPIDOS) ───── */}
         <section className="relative isolate overflow-hidden border-b border-white/10 py-6 sm:py-8 lg:py-10">
           <div className="container-ultrawide">
-            <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_0.95fr] xl:grid-cols-[1.45fr_0.95fr] gap-6 lg:gap-8 items-stretch">
+            <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] min-[1800px]:grid-cols-[1.45fr_0.95fr] gap-6 lg:gap-8 items-stretch">
               {/* LADO ESQUERDO: ARTIGOS PUBLICADOS EM DESTAQUE */}
               <HomeArticlesCarousel />
 
@@ -103,13 +103,13 @@ export default function Home({ targetSection }: HomeProps) {
                 </div>
 
                 {/* Lista dos 3 Links Rápidos com Ícones Animados */}
-                <div className="space-y-3.5 flex-1 flex flex-col justify-around">
+                <div className="flex flex-1 flex-col gap-3">
                   {/* Linha 1: Simulador (Arena Asticassia) */}
                   <Link
                     href="/simulador"
                     title={tr("Abrir o simulador — partidas online e treino contra o bot", "Open the simulator — online matches and practice against the bot")}
                     className={cn(
-                      "group relative flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4 transition-all duration-300 hover:bg-white/[0.07] hover:border-white/20 light:border-slate-300 light:bg-slate-50 light:hover:bg-slate-100",
+                      "group relative flex flex-1 items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4 transition-all duration-300 hover:bg-white/[0.07] hover:border-white/20 light:border-slate-300 light:bg-slate-50 light:hover:bg-slate-100",
                       isZeon ? "hover:border-red-500/40" : "hover:border-primary/40"
                     )}
                   >
@@ -170,7 +170,7 @@ export default function Home({ targetSection }: HomeProps) {
                   <Link
                     href="/deckbuilder"
                     title={tr("Abrir o deckbuilder — montar e validar decks", "Open the deckbuilder — build and validate decks")}
-                    className="group relative flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4 transition-all duration-300 hover:bg-white/[0.07] hover:border-amber-400/40 light:border-slate-300 light:bg-slate-50 light:hover:bg-slate-100"
+                    className="group relative flex flex-1 items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4 transition-all duration-300 hover:bg-white/[0.07] hover:border-amber-400/40 light:border-slate-300 light:bg-slate-50 light:hover:bg-slate-100"
                   >
                     {/* Ícone com Efeito Hangar On/Off no Hover */}
                     <div className="relative size-16 sm:size-20 shrink-0 overflow-hidden rounded-xl border border-white/15 bg-slate-950 transition-all duration-300 group-hover:scale-105 group-hover:shadow-[0_0_24px_rgba(234,179,8,0.5)] group-hover:border-amber-400/60">
@@ -212,7 +212,7 @@ export default function Home({ targetSection }: HomeProps) {
                   <Link
                     href="/stats"
                     title={tr("Abrir as estatísticas — taxas de vitória e meta", "Open the stats — win rates and meta")}
-                    className="group relative flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4 transition-all duration-300 hover:bg-white/[0.07] hover:border-emerald-400/40 light:border-slate-300 light:bg-slate-50 light:hover:bg-slate-100"
+                    className="group relative flex flex-1 items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4 transition-all duration-300 hover:bg-white/[0.07] hover:border-emerald-400/40 light:border-slate-300 light:bg-slate-50 light:hover:bg-slate-100"
                   >
                     {/* Ícone com Efeito VEDA On/Off no Hover */}
                     <div className="relative size-16 sm:size-20 shrink-0 overflow-hidden rounded-xl border border-white/15 bg-slate-950 transition-all duration-300 group-hover:scale-105 group-hover:shadow-[0_0_24px_rgba(16,185,129,0.55)] group-hover:border-emerald-400/60">
