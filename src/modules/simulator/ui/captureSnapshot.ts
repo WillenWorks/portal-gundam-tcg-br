@@ -1,4 +1,3 @@
-import html2canvas from "html2canvas-pro";
 import type { PlayerId } from "@/modules/simulator/engine/types";
 import type { ViewGameState, ViewCardInstance } from "@/modules/simulator/engine/viewState";
 import type { BattleLogEntry } from "./battleLog";
@@ -89,6 +88,8 @@ export async function captureSimulatorSnapshot(
       // nenhum relato tinha print. Com só `useCORS`, imagem sem CORS fica de fora e o resto da mesa sai.
       // JPEG e largura limitada: o POST do relato precisa caber com folga no `express.json({ limit: "4mb" })`.
       const width = containerElement.clientWidth || window.innerWidth || SCREENSHOT_MAX_WIDTH;
+      // carregado só aqui: é pesado e serve apenas ao relato de bug
+      const { default: html2canvas } = await import("html2canvas-pro");
       const canvas = await html2canvas(containerElement, {
         useCORS: true,
         logging: false,
