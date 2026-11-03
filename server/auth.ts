@@ -36,6 +36,14 @@ export function createAuth({ jwtSecret, loadSessionState, sessionTtlMs, tokenExp
     return jwt.sign(payload, jwtSecret, { expiresIn: tokenExpiresIn });
   }
 
+  /** O token de convidado do simulador (socketAuth) usa o mesmo segredo, mas não identifica uma conta. Tem que
+   *  parar aqui: no Prisma, `where: { userId: undefined }` ignora o filtro e alcançaria os dados de todo mundo. */
+  function verifyAccountToken(token: string): AuthPayload | null {
+    const payload = jwt.verify(token, jwtSecret);
+    if (typeof payload === "string" || typeof payload.userId !== "string" || !payload.userId) return null;
+    return payload as unknown as AuthPayload;
+  }
+
   /** Confere no banco (cache de 60 s) se a conta segue ativa e se o token é de depois da última troca de senha;
    *  papel e flag de organizador passam a vir do banco. Banco fora do ar → segue com o que o token diz. */
   async function resolveSession(payload: AuthPayload): Promise<AuthPayload | "inactive" | "revoked"> {
@@ -54,12 +62,13 @@ export function createAuth({ jwtSecret, loadSessionState, sessionTtlMs, tokenExp
   async function authRequired(req: RequestWithUser, res: Response, next: NextFunction) {
     const auth = req.headers.authorization;
     if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Token ausente." });
-    let payload: AuthPayload;
+    let payload: AuthPayload | null;
     try {
-      payload = jwt.verify(auth.slice(7), jwtSecret) as AuthPayload;
+      payload = verifyAccountToken(auth.slice(7));
     } catch {
       return res.status(401).json({ error: "Token inválido." });
     }
+    if (!payload) return res.status(401).json({ error: "Token inválido." });
     const session = await resolveSession(payload);
     if (session === "inactive") return res.status(401).json({ error: "Conta sem acesso ativo." });
     if (session === "revoked") return res.status(401).json({ error: "Sessão encerrada. Entre de novo." });
@@ -74,8 +83,9 @@ export function createAuth({ jwtSecret, loadSessionState, sessionTtlMs, tokenExp
     const auth = req.headers.authorization;
     if (auth?.startsWith("Bearer ")) {
       try {
-        const session = await resolveSession(jwt.verify(auth.slice(7), jwtSecret) as AuthPayload);
-        if (typeof session !== "string") req.user = session;
+        const payload = verifyAccountToken(auth.slice(7));
+        const session = payload && (await resolveSession(payload));
+        if (session && typeof session !== "string") req.user = session;
       } catch { /* token invalido, segue como anonimo */ }
     }
     next();

@@ -68,9 +68,11 @@ export function createSocketAuthMiddleware(
 
     if (auth.token) {
       try {
-        const payload = jwt.verify(auth.token, deps.jwtSecret) as { userId: string; username?: string; email?: string };
-        data.user = { userId: payload.userId, displayName: payload.username || payload.email || "Jogador", guest: false };
-        return next();
+        const payload = jwt.verify(auth.token, deps.jwtSecret) as { userId?: unknown; username?: string; email?: string };
+        if (typeof payload.userId === "string" && payload.userId) {
+          data.user = { userId: payload.userId, displayName: payload.username || payload.email || "Jogador", guest: false };
+          return next();
+        }
       } catch {
         // token expirado/inválido → cai pro fluxo de convidado abaixo em vez de derrubar a conexão
       }
