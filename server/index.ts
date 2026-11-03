@@ -17,6 +17,9 @@ import { safeImageSrc } from "../src/lib/safeImageSrc.ts";
 import { sortNewestFirstByCode } from "./cardsNewestOrder.ts";
 import { resolvePublicAppUrl as resolvePublicAppUrlFrom } from "./publicAppUrl.ts";
 import { apiRateLimitOptions } from "./apiRateLimit.ts";
+import { IMAGE_EXTENSION_BY_TYPE, sniffImageType, type SniffedImageType } from "./imageSniff.ts";
+import { tournamentCreateSchema, tournamentUpdateSchema } from "./tournamentInput.ts";
+import { tournamentListLimit } from "./tournamentsList.ts";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
 import { LATEST_SEASON, normalizeSeasonCode } from "../src/lib/seasons.ts";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, NON_STATS_SECTIONS, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
@@ -445,8 +448,10 @@ app.use(gzipJson());
 const CARDS_LIST_CACHE_MS = 30_000;
 const CARDS_LIST_CACHE_MAX = 20;
 const cardsListCache = new Map<string, { at: number; body: unknown }>();
-app.use((req, _res, next) => {
-  if (req.method !== "GET" && req.method !== "HEAD" && /^\/api\/(cards|sets|taxonomies|admin|import)/.test(req.path)) cardsListCache.clear();
+app.use((req, res, next) => {
+  if (req.method !== "GET" && req.method !== "HEAD" && /^\/api\/(cards|sets|taxonomies|admin|import)/.test(req.path)) {
+    res.once("finish", () => { if (res.statusCode < 400) cardsListCache.clear(); });
+  }
   next();
 });
 app.use("/uploads", express.static(uploadRootDir, {
@@ -574,7 +579,7 @@ type ImageManifestInput =
   | { entity: "set"; code: string; coverImage?: string | null; imageUrl?: string | null };
 
 // token, sessão conferida no banco e checagens de papel (ver server/auth.ts)
-const { sessions, signToken, authRequired, authOptional, roleRequired, hosterRequired } = createAuth({
+const { sessions, signToken, resolveSession, authRequired, authOptional, roleRequired, hosterRequired } = createAuth({
   jwtSecret: JWT_SECRET,
   loadSessionState: (userId) =>
     prisma.user.findUnique({ where: { id: userId }, select: { isActive: true, role: true, isHoster: true, tokenVersion: true } }),
@@ -591,13 +596,7 @@ function slugify(value: string) {
 }
 
 function getImageExtension(file: Express.Multer.File) {
-  const fromOriginal = path.extname(file.originalname || "").toLowerCase().replace(/[^.a-z0-9]/g, "");
-  if ([".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"].includes(fromOriginal)) return fromOriginal === ".jpeg" ? ".jpg" : fromOriginal;
-  if (file.mimetype === "image/png") return ".png";
-  if (file.mimetype === "image/webp") return ".webp";
-  if (file.mimetype === "image/gif") return ".gif";
-  if (file.mimetype === "image/avif") return ".avif";
-  return ".jpg";
+  return IMAGE_EXTENSION_BY_TYPE[file.mimetype as SniffedImageType] ?? ".jpg";
 }
 
 function buildStorageObjectKey(file: Express.Multer.File, input?: { entity?: "cards" | "collections" | "media" | "decks" | "avatars"; cardCode?: string; artId?: string; label?: string }) {
@@ -668,6 +667,9 @@ async function saveImageToSupabase(file: Express.Multer.File, objectKey: string)
 
 async function saveUploadedCardImage(file: Express.Multer.File, input?: { entity?: "cards" | "collections" | "media" | "decks" | "avatars"; cardCode?: string; artId?: string; label?: string }) {
   if (!file.buffer?.length) throw new Error("Arquivo de imagem vazio.");
+  const imageType = sniffImageType(file.buffer);
+  if (!imageType) throw new Error("Formato de imagem não aceito. Use JPG, PNG, WEBP, GIF ou AVIF.");
+  file.mimetype = imageType;
   const objectKey = buildStorageObjectKey(file, input);
   if (STORAGE_DRIVER === "supabase") return saveImageToSupabase(file, objectKey);
   if (STORAGE_DRIVER !== "local") throw new Error(`STORAGE_DRIVER inválido: ${STORAGE_DRIVER}. Use local ou supabase.`);
@@ -1152,6 +1154,10 @@ async function ensureAdminSeed() {
   if (existingAdminCount > 0) return;
 
   const email = process.env.SEED_ADMIN_EMAIL ?? "admin@gundambr.local";
+  if (IS_PRODUCTION && !process.env.SEED_ADMIN_PASSWORD) {
+    console.error("[seed] nenhum admin no banco e SEED_ADMIN_PASSWORD ausente: conta admin não criada.");
+    return;
+  }
   const password = process.env.SEED_ADMIN_PASSWORD ?? "admin123";
   const passwordHash = await bcrypt.hash(password, 10);
   await prisma.user.create({
@@ -1228,7 +1234,13 @@ app.get("/api/health", async (_req, res) => {
   }
 });
 
+const AVAILABILITY_RATE_LIMIT = 30;
+const availabilityRateLimiter = createBugReportRateLimiter(AVAILABILITY_RATE_LIMIT, 15 * 60 * 1000);
+
 app.get("/api/auth/check-availability", async (req, res) => {
+  const limiterKey = authRateLimitKey(req);
+  if (availabilityRateLimiter.isLimited(limiterKey)) return res.status(429).json({ error: "Muitas consultas. Aguarde alguns minutos." });
+  availabilityRateLimiter.record(limiterKey);
   const email = typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : undefined;
   const username = typeof req.query.username === "string" ? req.query.username.trim().toLowerCase().replace(/^@/, "") : undefined;
 
@@ -2474,9 +2486,8 @@ app.get("/api/cards/main-lr-units", async (_req, res) => {
 
 // Métricas de uso de cartas no metagame para o deck aberto
 app.post("/api/cards/usage-stats", async (req, res) => {
-  setPublicCache(res, 60, 300);
   try {
-    const cardCodes = Array.isArray(req.body?.cardCodes) ? req.body.cardCodes : [];
+    const cardCodes = Array.isArray(req.body?.cardCodes) ? req.body.cardCodes.filter((code: unknown) => typeof code === "string").slice(0, 200) : [];
     if (!cardCodes.length) return res.json({});
 
     const eligibleDecks = await fetchEligibleDecks(prisma);
@@ -3198,61 +3209,46 @@ const tournamentEntryInclude = {
 } as const;
 
 // Veda System: resultados de torneio paginados para as páginas (contrato em src/lib/veda/types.ts) e disparo do
-// workflow "Dados do site". A rota /api/tournaments abaixo devolve tudo de uma vez e fica para o admin.
+// workflow "Dados do site".
 registerVedaRoutes(app, prisma, [authRequired, roleRequired([UserRole.ADMIN])]);
 registerAdminDashboardRoutes(app, prisma, authRequired, roleRequired);
 registerSocialRoutes(app, prisma, authRequired, authOptional);
 registerArticleSocialRoutes(app, prisma, authRequired, authOptional);
 registerArticleAdminRoutes(app, prisma, authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]));
 
-// Lista de TODOS os torneios (home, estatísticas, admin, deck compartilhado). Com ~1.300 torneios / 21 mil
-// participações / 105 mil itens de lista, o include completo (`card: true` em cada item) passava de 2 GB de heap e
-// derrubava a API (quedas de 2026-10-17/18 — sempre com um GET /api/tournaments em andamento). Agora: card só com os
-// campos que as telas usam, `?resumo=1` sem as listas (home), e o resultado fica em memória por alguns minutos com uma
-// única consulta em voo por variante (várias visitas simultâneas não multiplicam o custo).
-const tournamentSnapshotCardSelect = { id: true, code: true, nameEn: true, namePt: true, color: true, cardType: true, rarity: true } as const;
-const tournamentEntryUserDeck = {
-  user: { select: { id: true, username: true, displayName: true } },
-  deck: { select: { id: true, name: true, shareId: true } },
-} as const;
-const tournamentListInclude = {
+// Lista de torneios sem as listas de cartas: com ~1.500 torneios / 21 mil participações / 105 mil itens, o include
+// completo passava de 2 GB de heap e derrubava a API (quedas de 2026-10-17/18). Público recebe no máximo 200, em poucos
+// valores de limite; a lista completa fica para o painel. Cada variante tem uma única consulta em voo e dura alguns minutos.
+const tournamentSummaryInclude = {
   seasonRef: true,
   entries: {
     include: {
-      ...tournamentEntryUserDeck,
-      deckSnapshot: {
-        select: {
-          id: true,
-          name: true,
-          format: true,
-          items: { select: { id: true, quantity: true, section: true, card: { select: tournamentSnapshotCardSelect } } },
-        },
-      },
+      user: { select: { id: true, username: true, displayName: true } },
+      deck: { select: { id: true, name: true, shareId: true } },
+      deckSnapshot: { select: { id: true, name: true, format: true } },
     },
   },
 } as const;
-const tournamentSummaryInclude = {
-  seasonRef: true,
-  entries: { include: { ...tournamentEntryUserDeck, deckSnapshot: { select: { id: true, name: true, format: true } } } },
-} as const;
 const TOURNAMENTS_LIST_CACHE_MS = 5 * 60_000;
-const tournamentsListCache = new Map<string, { at: number; data: Promise<unknown[]> }>();
-app.use((req, _res, next) => {
-  if (req.method !== "GET" && req.method !== "HEAD" && /^\/api\/(tournaments|seasons|admin|import|veda)/.test(req.path)) tournamentsListCache.clear();
+const tournamentsListCache = new Map<number | "all", { at: number; data: Promise<unknown[]> }>();
+app.use((req, res, next) => {
+  if (req.method !== "GET" && req.method !== "HEAD" && /^\/api\/(tournaments|seasons|admin|import)/.test(req.path)) {
+    res.once("finish", () => { if (res.statusCode < 400) tournamentsListCache.clear(); });
+  }
   next();
 });
 
-app.get("/api/tournaments", async (req, res) => {
-  setPublicCache(res, 60, 300);
-  const variant = req.query.resumo === "1" || req.query.resumo === "true" ? "resumo" : "full";
-  const rawLimit = req.query.limit ? Number(req.query.limit) : undefined;
-  const limit = rawLimit && !Number.isNaN(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 200) : undefined;
-  const cacheKey = `${variant}:${limit ?? "all"}`;
+app.get("/api/tournaments", authOptional, async (req: RequestWithUser, res) => {
+  const isStaff = req.user?.role === UserRole.ADMIN || req.user?.role === UserRole.EDITOR;
+  const limit = tournamentListLimit(req.query.limit, isStaff);
+  if (limit === null) setPrivateCache(res, 10, 30);
+  else setPublicCache(res, 60, 300);
+  const cacheKey = limit ?? "all";
   const cached = tournamentsListCache.get(cacheKey);
   if (cached && Date.now() - cached.at < TOURNAMENTS_LIST_CACHE_MS) return res.json(await cached.data);
   const data = prisma.tournament.findMany({
     where: { isActive: true },
-    include: variant === "resumo" ? tournamentSummaryInclude : tournamentListInclude,
+    include: tournamentSummaryInclude,
     orderBy: [{ dateStart: "desc" }],
     ...(limit ? { take: limit } : {}),
   }) as Promise<unknown[]>;
@@ -3274,13 +3270,17 @@ app.get("/api/tournaments/:id", async (req, res) => {
 });
 
 app.post("/api/tournaments", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
-  const event = await prisma.tournament.create({ data: req.body });
+  const parsed = tournamentCreateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Dados do evento inválidos." });
+  const event = await prisma.tournament.create({ data: parsed.data });
   res.status(201).json(event);
 });
 
 app.put("/api/tournaments/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
   const id = String(req.params.id);
-  const event = await prisma.tournament.update({ where: { id }, data: req.body });
+  const parsed = tournamentUpdateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Dados do evento inválidos." });
+  const event = await prisma.tournament.update({ where: { id }, data: parsed.data });
   res.json(event);
 });
 
@@ -4528,7 +4528,7 @@ app.post("/api/stats/meta/recommendations", async (req, res) => {
     if (!cardCodes || !Array.isArray(cardCodes)) {
       return res.status(400).json({ error: "`cardCodes` precisa ser um array de códigos de carta." });
     }
-    const recommendations = await getMetaRecommendations(prisma, cardCodes, colors);
+    const recommendations = await getMetaRecommendations(prisma, cardCodes.slice(0, 200), Array.isArray(colors) ? colors.slice(0, 10) : undefined);
     res.json(recommendations);
   } catch (error) {
     console.error("Erro ao gerar recomendações:", error);
@@ -5948,18 +5948,21 @@ async function boot() {
   const httpServer = createServer(app);
   attachSimulatorSocket(httpServer, {
     jwtSecret: JWT_SECRET,
+    resolveSession: (payload) => resolveSession(payload as AuthPayload),
     allowedOrigins,
     resolveDeck: resolveOnlineSimulatorDeck,
   });
   // Arena Multiplayer 4P (Fase 3 / Terminal 2) — path dedicado, ao lado do socket 1v1 acima.
   attachSimulatorArena4pSocket(httpServer, {
     jwtSecret: JWT_SECRET,
+    resolveSession: (payload) => resolveSession(payload as AuthPayload),
     allowedOrigins,
     resolveDeck: resolveOnlineSimulatorDeck,
   });
   // Rede Social & Chat P2P em tempo real (path /social.io)
   attachSocialSocket(httpServer, {
     jwtSecret: JWT_SECRET,
+    resolveSession: (payload) => resolveSession(payload as AuthPayload),
     allowedOrigins,
     prisma,
     resolveDeck: resolveOnlineSimulatorDeck,

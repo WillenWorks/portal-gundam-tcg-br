@@ -38,6 +38,7 @@ import {
   touchPresence,
 } from "../src/modules/simulator/server/matchStore.ts";
 import { ActionDeduper, ChallengeRegistry } from "../src/modules/simulator/server/socketBridge.ts";
+import { attachSocketEventLimiter } from "./services/socketRateLimit.ts";
 import { createSocketAuthMiddleware, UserSocketRegistry, type SocketAuthUser } from "./services/socketAuth.ts";
 
 const SOCKET_PATH = "/api/simulator/socket";
@@ -47,6 +48,7 @@ export type SimulatorDeckResolution = { ok: true; key: string; build: () => Deck
 
 export interface SimulatorSocketDeps {
   jwtSecret: string;
+  resolveSession?: (payload: { userId: string; tv?: number }) => Promise<unknown>;
   allowedOrigins: string[];
   /**
    * Mesma função `resolveOnlineSimulatorDeck` do `server/index.ts` — aceita
@@ -122,9 +124,10 @@ export function attachSimulatorSocket(httpServer: HttpServer, deps: SimulatorSoc
   });
 
   // --- Handshake: valida o JWT ou emite um guestId efêmero assinado (lógica compartilhada com a Arena 4P — `services/socketAuth.ts`). ---
-  io.use(createSocketAuthMiddleware({ jwtSecret: deps.jwtSecret }));
+  io.use(createSocketAuthMiddleware({ jwtSecret: deps.jwtSecret, resolveSession: deps.resolveSession }));
 
   io.on("connection", (socket) => {
+    attachSocketEventLimiter(socket);
     const data = socket.data as SocketData;
     const user = data.user;
 

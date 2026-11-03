@@ -16,6 +16,7 @@ import {
   filterTournaments,
   paginate,
   player,
+  similarEntries,
   summary,
   tournamentCard,
   tournamentDetail,
@@ -45,7 +46,7 @@ export async function loadVedaData(prisma: PrismaClient): Promise<VedaData> {
     }),
     prisma.tournamentEntry.findMany({
       where: { tournament: { isActive: true, deletedAt: null } },
-      select: { id: true, tournamentId: true, playerName: true, placement: true, wins: true, losses: true, draws: true, archetype: true, deckSnapshotId: true },
+      select: { id: true, tournamentId: true, playerName: true, placement: true, wins: true, losses: true, draws: true, archetype: true, deckSnapshotId: true, deck: { select: { name: true, shareId: true } } },
     }),
   ]);
   const snapshotIds = [...new Set(entries.map((e) => e.deckSnapshotId).filter((id): id is string => !!id))];
@@ -178,6 +179,14 @@ export function registerVedaRoutes(app: Express, prisma: PrismaClient, adminGuar
     const ix = await getVedaIndex(prisma);
     const page = paginate(filterTournaments(ix, filterFrom(req)), Number(req.query.offset ?? 0), Number(req.query.limit ?? 0));
     res.json({ ...page, items: page.items.map((t) => tournamentCard(ix, t)) });
+  }));
+
+  app.get("/api/veda/similar-entries", wrap(async (req, res) => {
+    publicCache(res);
+    const codes = (str(req.query.codes) ?? "").split(",").map((code) => code.trim()).filter(Boolean).slice(0, 100);
+    const deckName = (str(req.query.name) ?? "").slice(0, 120);
+    if (!codes.length && !deckName) return res.json([]);
+    res.json(similarEntries(await getVedaIndex(prisma), { codes, deckName }));
   }));
 
   app.get("/api/veda/tournaments/:id", wrap(async (req, res) => {

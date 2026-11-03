@@ -11,6 +11,7 @@ import {
   paginate,
   placementLabel,
   player,
+  similarEntries,
   slugify,
   sourceOf,
   summary,
@@ -175,5 +176,38 @@ describe("vedaCore — respostas", () => {
     const lists = exportLists(ix, { season: "GD05" });
     expect(lists).toHaveLength(3);
     expect(lists.find((l) => l.player === "Ana Souza")).toMatchObject({ format: "GD05", eventType: "Large Official Event", placing: 1, main: { "ST12-006": 3, "ST12-012": 4 }, source: "egman" });
+  });
+});
+
+describe("similarEntries", () => {
+  const snapshotOf = (...codes: string[]) => codes.map((code) => ({ cardId: code, quantity: 3 }));
+  const ix = new VedaIndex({
+    seasons: [],
+    tournaments: [t("antigo", { date: "2026-01-01T00:00:00.000Z" }), t("novo", { date: "2026-10-01T00:00:00.000Z" })],
+    entries: [
+      e("parecida-antiga", "antigo", "Ana", 1, "Wing", "s1"),
+      e("parecida-nova", "novo", "Bia", 2, "Wing", "s1"),
+      e("diferente", "novo", "Caio", 3, "Zeon", "s2"),
+      e("pelo-nome", "novo", "Duda", 4, "Unicorn", null),
+    ],
+    snapshots: new Map([["s1", snapshotOf("A", "B", "C")], ["s2", snapshotOf("X", "Y", "Z")]]),
+    cards: new Map(["A", "B", "C", "X", "Y", "Z"].map((code) => card(code, code, "UNIT", "Blue", 1))),
+  } as VedaData);
+
+  it("acha por cartas em comum, do evento mais novo para o mais antigo", () => {
+    expect(similarEntries(ix, { codes: ["A", "B", "C"], deckName: "" }).map((r) => r.id)).toEqual(["parecida-nova", "parecida-antiga"]);
+  });
+
+  it("exige ao menos 3 cartas quando o nome não bate", () => {
+    expect(similarEntries(ix, { codes: ["A", "B"], deckName: "Meu deck" })).toEqual([]);
+  });
+
+  it("nome igual ao arquétipo vale com 1 carta ou sem lista cadastrada", () => {
+    expect(similarEntries(ix, { codes: ["A"], deckName: "Wing Zero" }).map((r) => r.id)).toEqual(["parecida-nova", "parecida-antiga"]);
+    expect(similarEntries(ix, { codes: [], deckName: "Unicorn" }).map((r) => r.id)).toEqual(["pelo-nome"]);
+  });
+
+  it("respeita o limite", () => {
+    expect(similarEntries(ix, { codes: ["A", "B", "C"], deckName: "" }, 1).map((r) => r.id)).toEqual(["parecida-nova"]);
   });
 });

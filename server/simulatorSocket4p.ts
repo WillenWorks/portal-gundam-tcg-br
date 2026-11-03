@@ -53,6 +53,7 @@ import {
 } from "../src/modules/simulator/server/arena4pStore.ts";
 import { applyAction, subscribeAllMatches, touchPresence } from "../src/modules/simulator/server/matchStore.ts";
 import { ActionDeduper } from "../src/modules/simulator/server/socketBridge.ts";
+import { attachSocketEventLimiter } from "./services/socketRateLimit.ts";
 import { createSocketAuthMiddleware, UserSocketRegistry, type SocketAuthUser } from "./services/socketAuth.ts";
 import type { SimulatorDeckResolution } from "./simulatorSocket.ts";
 
@@ -60,6 +61,7 @@ const SOCKET_PATH = "/api/simulator/socket4p";
 
 export interface SimulatorArenaSocketDeps {
   jwtSecret: string;
+  resolveSession?: (payload: { userId: string; tv?: number }) => Promise<unknown>;
   allowedOrigins: string[];
   resolveDeck: (raw: unknown, userId: string) => Promise<SimulatorDeckResolution>;
   /** Só teste — sobrescreve `ARENA_RECONNECT_GRACE_MS` pra não esperar 45s reais no `vitest`. */
@@ -196,9 +198,10 @@ export function attachSimulatorArena4pSocket(httpServer: HttpServer, deps: Simul
   });
 
   // --- Handshake: mesmo contrato JWT/guest do socket 1v1 (`simulatorSocket.ts`) — lógica compartilhada em `services/socketAuth.ts`. ---
-  io.use(createSocketAuthMiddleware({ jwtSecret: deps.jwtSecret }));
+  io.use(createSocketAuthMiddleware({ jwtSecret: deps.jwtSecret, resolveSession: deps.resolveSession }));
 
   io.on("connection", (socket) => {
+    attachSocketEventLimiter(socket);
     const data = socket.data as SocketData;
     const user = data.user;
 
