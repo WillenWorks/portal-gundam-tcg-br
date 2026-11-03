@@ -104,3 +104,30 @@ describe("createAuth", () => {
     expect(load).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("token sem conta (convidado do simulador usa o mesmo segredo)", () => {
+  const guestToken = jwt.sign({ guestId: "guest:abc", guest: true }, SECRET, { expiresIn: "12h" });
+
+  // leitor igual ao de produção: o Prisma recusa `where: { id: undefined }`, e essa falha não pode virar "segue com o token"
+  const auth = () =>
+    createAuth({
+      jwtSecret: SECRET,
+      loadSessionState: async (userId) => {
+        if (!userId) throw new Error("Argument `where` needs at least one of `id`");
+        return ACTIVE;
+      },
+    });
+
+  it("authRequired recusa", async () => {
+    const { req, res, next } = await run(auth().authRequired, `Bearer ${guestToken}`);
+    expect(res.statusCode).toBe(401);
+    expect(next).not.toHaveBeenCalled();
+    expect(req.user).toBeUndefined();
+  });
+
+  it("authOptional segue como anônimo", async () => {
+    const { req, next } = await run(auth().authOptional, `Bearer ${guestToken}`);
+    expect(next).toHaveBeenCalled();
+    expect(req.user).toBeUndefined();
+  });
+});
