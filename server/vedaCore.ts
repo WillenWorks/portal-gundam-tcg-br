@@ -63,6 +63,7 @@ export interface RawEntry {
   draws: number | null;
   archetype: string | null;
   deckSnapshotId: string | null;
+  deck?: { name: string; shareId: string } | null;
 }
 
 export interface RawCard {
@@ -339,6 +340,52 @@ const TYPE_ORDER = ["UNIT", "PILOT", "COMMAND", "BASE", "RESOURCE", "TOKEN"];
 
 function deckCard(card: RawCard, quantity: number): VedaDeckCard {
   return { cardModelId: card.cardModelId, code: card.code, name: card.nameEn, namePt: card.namePt, cardType: card.cardType, color: card.color, level: card.level, cost: card.cost, quantity, imageUrl: card.imageUrl };
+}
+
+export interface SimilarEntry {
+  id: string;
+  name: string;
+  shareId?: string;
+  author: string | null;
+  tournament: string;
+  tournamentId: string;
+  date: string | null;
+  organizer: string | null;
+  tier: string;
+  sourceUrl: string | null;
+  placement: number | null;
+}
+
+/** Listas de torneio parecidas com um deck, do evento mais recente para o mais antigo. */
+export function similarEntries(ix: VedaIndex, input: { codes: string[]; deckName: string }, limit = 100): SimilarEntry[] {
+  const mine = new Set(input.codes);
+  const deckName = input.deckName.trim().toLowerCase();
+  const tournaments = [...ix.data.tournaments].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+  const found: SimilarEntry[] = [];
+  for (const t of tournaments) {
+    for (const e of ix.entriesByTournament.get(t.id) ?? []) {
+      const deck = ix.deck(e) ?? [];
+      const shared = deck.reduce((n, { card }) => n + (mine.has(card.code) ? 1 : 0), 0);
+      const archetype = (e.archetype ?? "").toLowerCase();
+      const nameMatches = Boolean(archetype && deckName) && (deckName.includes(archetype) || archetype.includes(deckName) || (deckName.includes("unicorn") && archetype.includes("unicorn")));
+      if (shared < 3 && !(nameMatches && (shared >= 1 || deck.length === 0))) continue;
+      found.push({
+        id: e.id,
+        name: e.deck?.name || (e.archetype ? `${e.archetype} (${t.name})` : t.name),
+        shareId: e.deck?.shareId,
+        author: e.playerName,
+        tournament: t.name,
+        tournamentId: t.id,
+        date: t.date,
+        organizer: t.organizer,
+        tier: String(t.tier),
+        sourceUrl: t.sourceUrl,
+        placement: e.placement,
+      });
+      if (found.length >= limit) return found;
+    }
+  }
+  return found;
 }
 
 export function decklist(ix: VedaIndex, entryId: string): VedaDecklist | null {
