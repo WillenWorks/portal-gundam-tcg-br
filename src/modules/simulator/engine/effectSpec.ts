@@ -781,6 +781,21 @@ export function commandCostUnpayable(state: GameState, controller: PlayerId, car
   return allSpecs.some((s) => s.cardCode === cardCode && s.trigger === trigger && exileCostShortfall(state, s, controller));
 }
 
+/** Q538 — "Choose 1 X. Then, …" separado em dois specs: sem alvo para o primeiro, a Command não pode ser jogada. */
+export function commandMissingRequiredTarget(
+  state: GameState,
+  controller: PlayerId,
+  cardCode: string,
+  trigger: string,
+  allSpecs: EffectSpec[],
+  targetFilterResolver?: TargetFilterResolver,
+  sourceInstanceId?: string,
+): boolean {
+  return allSpecs.some(
+    (s) => s.cardCode === cardCode && s.trigger === trigger && s.targetRequiredToPlay && computeLegalTargets(state, s, controller, targetFilterResolver, sourceInstanceId).length === 0,
+  );
+}
+
 /** W12 — filtro do `lookAtTopFilterReveal` com o Lv. máximo dinâmico ("equal to or lower than this Unit", ST13-011) */
 export function revealFilter(
   call: Extract<PrimitiveCall, { op: "lookAtTopFilterReveal" }>,
@@ -1620,6 +1635,8 @@ export interface EffectSpec {
    * alvo legal). Nenhum efeito de ST01/ST02 é opcional.
    */
   optional?: boolean;
+  /** A Command só pode ser jogada se este spec tiver alvo, mesmo que outro spec do gatilho não precise (Q538). */
+  targetRequiredToPlay?: boolean;
   /**
    * `true` quando o texto oficial prefixa o gatilho com 【During Pair】 (ex.
    * ST04-009 Miguel's Ginn 【During Pair】【Destroyed】) — quem despacha só ativa
