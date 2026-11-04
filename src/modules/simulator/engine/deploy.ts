@@ -2,7 +2,8 @@ import type { CardDef, GameEvent, GameState, PlayerId, QueuedTrigger } from "./t
 import { effectiveDeployCost, effectiveLevel, effectivePilotDef, hasTrait, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
 import { applyEvent, applyEvents, findCard } from "./events";
 import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { callsNeedChoice, commandCostUnpayable, commandHasNoAvailableMode, exileCostChoiceFirst, specActiveCalls } from "./effectSpec";
+import { callsNeedChoice, commandCostUnpayable,
+  commandMissingRequiredTarget, commandHasNoAvailableMode, exileCostChoiceFirst, specActiveCalls } from "./effectSpec";
 import { dispatchTrigger, findTriggerSpecs } from "./dispatcher";
 import {
   awaitingFollowUpOf,
@@ -393,6 +394,9 @@ export function playCommand(
 
   if (commandHasNoAvailableMode(state, player, card.def.code, cardInstanceId, trigger, specs, options.targetFilterResolver, options.predicateResolver)) {
     throw new Error(`${card.def.code}: nenhum dos efeitos pode ser escolhido agora (não há alvo para nenhum modo)`);
+  }
+  if (commandMissingRequiredTarget(state, player, card.def.code, trigger, specs, options.targetFilterResolver, cardInstanceId)) {
+    throw new Error(`${card.def.code}: não há alvo para jogar esta carta`);
   }
   if (commandCostUnpayable(state, player, card.def.code, trigger, specs)) {
     throw new Error(`${card.def.code}: não há cartas suficientes no trash pra pagar o custo de exilar`);

@@ -744,6 +744,7 @@ const COMMANDS: EffectSpec[] = [
   // Q538: precisa de alvo pra jogar
   // o texto do 【Burst】 é o começo do 【Main】/【Action】: o "Then, …" fica num spec à parte do mesmo gatilho (como ST03-015)
   ...mainAndAction("GD06-101", {
+    targetRequiredToPlay: true,
     actions: [{ op: "moveZone", target, toZone: "hand" }],
     targetScope: "enemyUnit",
     targetFilter: "hp<=5",
