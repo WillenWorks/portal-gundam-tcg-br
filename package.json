@@ -40,6 +40,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "gundam:faq-trace": "node scripts/gundam-faq-trace.mjs",
     "test:fast": "vitest run --exclude \"**/bot/mctsPolicy.test.ts\" --exclude \"**/bot/neuralPolicy.test.ts\" --exclude \"**/engine/selfPlay.test.ts\" --exclude \"**/engine/goldenMaster.test.ts\" --exclude \"scripts/gundam-golden.test.mjs\"",
     "sfx:build": "node scripts/audio/build-sfx.mjs",
     "test:smoke:regional-meta": "vitest run server/services/regionalMetaService.smoke.test.ts",

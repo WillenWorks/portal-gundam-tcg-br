@@ -171,18 +171,9 @@ describe("ST05 — EffectSpecs bespoke", () => {
 
     const decision = paused.pendingDecision.A;
     const q = decision?.kind === "abilityResolution" ? decision.queue.find((e) => e.specId === "ST05-010-WhenPaired") : undefined;
-    expect(q?.secondaryTarget?.legalTargets).toEqual([]);
-
-    const resolved = applyPlayerAction(
-      paused,
-      "A",
-      { kind: "resolveAbility", resolutions: [{ specId: q!.specId, activate: true, targetIds: [allyId], secondaryTargetIds: [] }] },
-      ST05_EFFECT_SPECS,
-      defaultPredicateResolver,
-      defaultTargetFilterResolver,
-    );
-    expect(findCard(resolved, allyId).damage).toBe(0); // "Choose 1 X and 1 Y" — sem o 2º, o efeito inteiro não ativa
-    expect(resolved.pendingDecision.A).toBeNull();
+    // Q522 (mesmo padrão): sem o 2º alvo nem pergunta ao jogador
+    expect(q).toBeUndefined();
+    expect(findCard(paused, allyId).damage).toBe(0);
   });
 
   it("ST05-011 Akihiro Altland — 【Burst】adiciona a própria carta à mão (a cláusula 【During Link】 está deferida)", () => {
