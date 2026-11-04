@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ErrorEvent } from "@sentry/react";
+import type { ErrorEvent } from "@sentry/browser";
 import { DEFAULT_SENTRY_DSN, scrubEvent, scrubText, shouldMonitorErrors } from "./errorMonitoring";
 
 describe("shouldMonitorErrors", () => {
