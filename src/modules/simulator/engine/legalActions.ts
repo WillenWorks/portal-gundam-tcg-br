@@ -1,7 +1,8 @@
 import type { AttackTarget, CardInstance, GameState, PlayerId } from "./types";
 import { effectiveCost, effectiveDeployCost, effectivePilotDef, hasKeyword, satisfiesLinkCondition, specPairGateOpen } from "./types";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { commandCostUnpayable, commandHasNoAvailableMode, computeLegalTargets, costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, resolveTargetCount, specNeedsNamedTarget, trashExileChoice } from "./effectSpec";
+import { commandCostUnpayable,
+  commandMissingRequiredTarget, commandHasNoAvailableMode, computeLegalTargets, costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, resolveTargetCount, specNeedsNamedTarget, trashExileChoice } from "./effectSpec";
 import { findTriggerSpecs, specOncePerTurnMarker } from "./dispatcher";
 import { findCard } from "./events";
 import { attackIneligibilityReason, attackTargetError, canActivateBlocker } from "./combat";
@@ -142,6 +143,7 @@ function commandPlayCandidates(
   // W7 — FAQ GD05-102/106: sem nenhum modo escolhível, não dá pra jogar
   if (commandHasNoAvailableMode(state, seat, def.code, card.instanceId, trigger, specs, opts.targetFilterResolver)) return [];
   if (commandCostUnpayable(state, seat, def.code, trigger, specs)) return [];
+  if (commandMissingRequiredTarget(state, seat, def.code, trigger, specs, opts.targetFilterResolver, card.instanceId)) return [];
   const specWithSecondary = findTriggerSpecs(specs, def.code, trigger).find((s) => s.secondaryTarget);
   if (specWithSecondary?.secondaryTarget) {
     const primaryIds = computeLegalTargets(state, specWithSecondary, seat, opts.targetFilterResolver, card.instanceId);

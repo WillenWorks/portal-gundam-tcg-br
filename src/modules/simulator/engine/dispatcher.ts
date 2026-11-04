@@ -14,6 +14,7 @@ import {
   paidForUnitEffectOccurrence,
   resourcePaymentAmount,
   attachQueuedTriggers,
+  dispatchCommandActivated,
   markCommandTraitsActivated,
   pairingTriggerEntries,
 } from "./abilityDispatch";
@@ -323,8 +324,17 @@ export function dispatchTrigger(
       const followUpSources = [
         followUp.source ? { ...followUp.source } : { code: current.def.code, instanceId: sourceInstanceId, implicitTargets: previousTarget },
       ];
-      // rulings Q376/Q397 — ativar o 【Main】 de uma Command conta como "ativou o 【Main】" (GD05-068/089)
+      // rulings Q376/Q397/Q530 — ativar o 【Main】 de uma Command conta como "ativou o 【Main】" (GD05-068/089, GD06-071);
+      // a reação espera o efeito da Command resolver
       if (followUp.source) next = markCommandTraitsActivated(next, followUp.source.instanceId);
+      const reactToCommand = (state: GameState) =>
+        followUp.source
+          ? dispatchCommandActivated(state, followUp.source.instanceId, allSpecs, {
+              predicateResolver: opts.predicateResolver,
+              targetFilterResolver: opts.targetFilterResolver,
+              traitsAlreadyMarked: true,
+            })
+          : state;
       // algo do próprio efeito pausou antes (ex. 【Destroyed】 da Unit que ele destruiu): a continuação espera na fila
       if (next.pendingDecision.A || next.pendingDecision.B) {
         next = attachQueuedTriggers(next, [
@@ -335,6 +345,7 @@ export function dispatchTrigger(
             decider: followUp.decidedBy === "opponent" ? otherPlayer(current.owner) : undefined,
           },
         ]);
+        next = reactToCommand(next);
         continue;
       }
       next = deferOrDispatchAbilities(next, current.owner, followUp.trigger, followUpSources, allSpecs, {
@@ -346,6 +357,7 @@ export function dispatchTrigger(
         decider: followUp.decidedBy === "opponent" ? otherPlayer(current.owner) : undefined,
         parentTrigger: rootTrigger,
       });
+      next = reactToCommand(next);
       // a continuação que pausou lembra a ORIGEM (não o `Then:` intermediário que resolveu na hora): senão, numa
       // reação de combate cuja continuação encadeia outra (GD05-034: Then:1 sem escolha → Then:2 do controlador),
       // a decisão fecha e o Damage Step nunca segue pro Battle End (achado da matriz de confrontos)

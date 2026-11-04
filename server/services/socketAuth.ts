@@ -45,6 +45,8 @@ export interface SocketAuthDeps {
   jwtSecret: string;
   /** Default `"12h"` (`DEFAULT_GUEST_TOKEN_TTL`) — nenhum dos dois sockets usa um valor diferente hoje, mas fica configurável caso um dia precisem divergir. */
   guestTokenTtl?: string;
+  /** Mesma checagem da API HTTP (`createAuth().resolveSession`): conta desativada ou senha trocada viram convidado. */
+  resolveSession?: (payload: { userId: string; tv?: number }) => Promise<unknown>;
 }
 
 /**
@@ -66,30 +68,46 @@ export function createSocketAuthMiddleware(
     const auth = (socket.handshake.auth ?? {}) as { token?: string; guestToken?: string };
     const data = socket.data as SocketAuthData;
 
+    const continueAsGuest = () => {
+      if (auth.guestToken) {
+        try {
+          const payload = jwt.verify(auth.guestToken, deps.jwtSecret) as { guestId: string };
+          data.user = { userId: payload.guestId, displayName: "Convidado", guest: true };
+          return next();
+        } catch {
+          // guestToken velho → gera um novo abaixo
+        }
+      }
+      const guestId = `guest:${randomUUID()}`;
+      data.user = { userId: guestId, displayName: "Convidado", guest: true };
+      data.freshGuestToken = jwt.sign({ guestId, guest: true }, deps.jwtSecret, { expiresIn: guestTokenTtl as SignOptions["expiresIn"] });
+      next();
+    };
+
+    let account: { userId: string; username?: string; email?: string; tv?: number } | null = null;
     if (auth.token) {
       try {
-        const payload = jwt.verify(auth.token, deps.jwtSecret) as { userId?: unknown; username?: string; email?: string };
-        if (typeof payload.userId === "string" && payload.userId) {
-          data.user = { userId: payload.userId, displayName: payload.username || payload.email || "Jogador", guest: false };
-          return next();
-        }
+        const payload = jwt.verify(auth.token, deps.jwtSecret) as { userId?: unknown; username?: string; email?: string; tv?: number };
+        if (typeof payload.userId === "string" && payload.userId) account = { ...payload, userId: payload.userId };
       } catch {
-        // token expirado/inválido → cai pro fluxo de convidado abaixo em vez de derrubar a conexão
+        // token expirado/inválido → cai pro fluxo de convidado em vez de derrubar a conexão
       }
     }
-    if (auth.guestToken) {
-      try {
-        const payload = jwt.verify(auth.guestToken, deps.jwtSecret) as { guestId: string };
-        data.user = { userId: payload.guestId, displayName: "Convidado", guest: true };
-        return next();
-      } catch {
-        // guestToken velho → gera um novo abaixo
-      }
-    }
-    const guestId = `guest:${randomUUID()}`;
-    data.user = { userId: guestId, displayName: "Convidado", guest: true };
-    data.freshGuestToken = jwt.sign({ guestId, guest: true }, deps.jwtSecret, { expiresIn: guestTokenTtl as SignOptions["expiresIn"] });
-    next();
+    if (!account) return continueAsGuest();
+
+    const { userId, username, email } = account;
+    const enterAsAccount = () => {
+      data.user = { userId, displayName: username || email || "Jogador", guest: false };
+      next();
+    };
+    if (!deps.resolveSession) return enterAsAccount();
+    deps.resolveSession(account).then(
+      (session) => (typeof session === "string" ? continueAsGuest() : enterAsAccount()),
+      (error) => {
+        console.warn("[socket] falha ao conferir a sessão", error instanceof Error ? error.message : error);
+        continueAsGuest();
+      },
+    );
   };
 }
 

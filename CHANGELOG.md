@@ -11,8 +11,23 @@ primeiro grande lançamento (`v1.0.0`) — esperem ajustes e coisa nova toda sem
 
 ## [Não lançado]
 
-### No radar (Ciclo v2.3)
-- Fechamento do backlog de cobertura de GD03 no motor (132 cartas, 76 faltando) — ainda bloqueado em runtime (`deckCoverageGate.ts`), sem deck fixo exposto a jogadores.
+### Simulador
+- **Todas as cartas no motor**: ST11–ST14 e GD06 (Stardust Trails, 130 cartas) entraram no simulador. Nenhum set do catálogo oficial fica de fora.
+- **Ritmo de mesa**: abertura com moeda e mulligan visível, começo de turno fase a fase, combate passo a passo e cada efeito no seu tempo.
+- **Tela guiada pelo motor**: mão, pareamento, Commands, ataques e bloqueios vêm do menu de jogadas legais calculado pelo motor.
+- **Pacote de sons Gundam** amarrado ao tempo das cenas.
+- **FAQ do GD06**: todos os 60 Q&As oficiais têm teste, com ajustes de regra em transferência de dano, alvos obrigatórios e ativação de Command pareada.
+
+### Portal
+- **Temporada GD06** aberta, com as telas de análise ainda em GD05 até haver listas suficientes.
+- **Artigos**: hashtags, filtros e destaque na home.
+- **Instagram**: carta da semana, torneios do Brasil, deck do mês e posts de artigos.
+- **Vitrine de séries**: Gundam 0083 e Gundam ZZ.
+
+### Desempenho e segurança
+- Lista de torneios mais leve; o deck compartilhado busca listas parecidas no servidor.
+- Site mais leve: monitoramento de erros menor e partes pesadas carregadas só quando usadas.
+- Conferência de sessão mais rígida, validação de uploads e limites de uso no simulador online.
 
 ---
 

@@ -9,12 +9,13 @@ import { GD05_DECKS } from "./gd05Decks";
 import { ST10_TEST_DECKS } from "./st10Decks";
 import { EB01_TEST_DECKS } from "./eb01Decks";
 import { ST11_TO_14_DECKS } from "./st11to14Decks";
+import { GD06_TEST_DECKS } from "./gd06Decks";
 
 /**
  * Pools de decks das réguas de força do bot (spec bot-avaliacao-forca):
  * `starters` = decks validados (ST01..ST08), `meta-gd02` = receitas oficiais da
  * época GD02 + ST06, `sets-novos` = decks dos sets fechados depois (GD03, GD04, ST09, as receitas
- * oficiais do GD05 e do ST11–ST14, e os decks de teste do ST10 e do EB01), `all` = os três. `knownGaps` = cartas com efeito ainda não implementado — o
+ * oficiais do GD05 e do ST11–ST14, e os decks de teste do ST10, do EB01 e do GD06), `all` = os três. `knownGaps` = cartas com efeito ainda não implementado — o
  * relatório da escada sinaliza.
  */
 export const BENCHMARK_POOLS = ["starters", "meta-gd02", "sets-novos", "all", "calib", "valid"] as const;
@@ -46,7 +47,7 @@ function metaGd02(): BenchmarkDeck[] {
 
 /** sets fechados (sem cartas parciais nem faltando): os mesmos decks do fuzz e do golden */
 function setsNovos(): BenchmarkDeck[] {
-  return [GD03_TEST_DECKS, GD04_TEST_DECKS, ST09_DECKS, GD05_DECKS, ST10_TEST_DECKS, EB01_TEST_DECKS, ST11_TO_14_DECKS].flatMap((decks) =>
+  return [GD03_TEST_DECKS, GD04_TEST_DECKS, ST09_DECKS, GD05_DECKS, ST10_TEST_DECKS, EB01_TEST_DECKS, ST11_TO_14_DECKS, GD06_TEST_DECKS].flatMap((decks) =>
     Object.values(decks).map((d) => ({ id: d.id, label: d.label, knownGaps: [], build: d.build })),
   );
 }
