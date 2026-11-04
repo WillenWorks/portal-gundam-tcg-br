@@ -4,7 +4,6 @@
  * e mural dinâmico integrado ao banco de dados e sessão.
  */
 import { useEffect, useState } from "react";
-import QRCode from "qrcode";
 import { Check, Copy, ExternalLink, HeartHandshake, Loader2, QrCode, ShieldCheck, Sparkles, UserCheck } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
@@ -45,11 +44,14 @@ function PixPanel() {
 
   useEffect(() => {
     if (!payload) return;
-    QRCode.toDataURL(payload, {
-      margin: 1,
-      width: 260,
-      color: { dark: "#0b0f19", light: "#ffffff" },
-    })
+    import("qrcode")
+      .then(({ default: QRCode }) =>
+        QRCode.toDataURL(payload, {
+          margin: 1,
+          width: 260,
+          color: { dark: "#0b0f19", light: "#ffffff" },
+        }),
+      )
       .then(setQrDataUrl)
       .catch(() => setQrDataUrl(null));
   }, [payload]);

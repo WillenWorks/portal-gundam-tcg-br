@@ -8,13 +8,13 @@
  *
  * O DSN é público por natureza (vai no código do site de qualquer jeito); VITE_SENTRY_DSN no build
  * sobrescreve, se um dia precisar trocar. */
-import type { ErrorEvent, EventHint } from "@sentry/react";
+import type { ErrorEvent, EventHint } from "@sentry/browser";
 
 export const DEFAULT_SENTRY_DSN =
   "https://6175b4ddb9ce7103a34f3550645c6313@o4512285592518656.ingest.us.sentry.io/4512285603790848";
 const PRODUCTION_HOSTS = new Set(["anaheimhub.com", "www.anaheimhub.com"]);
 
-type SentryModule = typeof import("@sentry/react");
+type SentryModule = typeof import("./sentryClient");
 
 let sentry: SentryModule | null = null;
 let pending: unknown[] = [];
@@ -85,7 +85,7 @@ export function initErrorMonitoring(
   window.addEventListener("unhandledrejection", queue);
 
   const load = () =>
-    import("@sentry/react")
+    import("./sentryClient")
       .then((mod) => {
         mod.init({
           dsn: dsn.trim(),
