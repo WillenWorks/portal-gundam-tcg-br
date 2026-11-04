@@ -41,6 +41,21 @@ export const GUNDAM_SERIES_CATALOG: SeriesInfo[] = [
     colorAccent: "border-blue-500/40 hover:border-blue-400 text-blue-300",
   },
   {
+    id: "gundam-0083",
+    dbName: "Mobile Suit Gundam 0083",
+    name: "Mobile Suit Gundam 0083: Stardust Memory",
+    jpName: "機動戦士ガンダム0083 STARDUST MEMORY",
+    timeline: "Universal Century (U.C. 0083)",
+    year: "1991",
+    cardCount: 24,
+    highlightMecha: "Gundam GP01Fb & Gundam GP02A",
+    startersOrPacks: "GD06",
+    description:
+      "Três anos depois da Guerra de Um Ano, Anavel Gato e a Frota Delaz roubam o protótipo nuclear GP02A da Federação. O piloto de testes Kou Uraki parte em perseguição a bordo do GP01, em um conflito que abre caminho para a fundação dos Titãs.",
+    tcgStyle: "Frota Delaz com recursos do trash de Zeon, Units da Federação em volta das GM e a destruição de Bases do GP02A.",
+    colorAccent: "border-amber-500/40 hover:border-amber-400 text-amber-300",
+  },
+  {
     id: "zeta-gundam",
     // Grafia exata do dataset oficial (sourceTitle em data/gcg-official-cards.json) -- "Zeta"
     // por extenso nunca bate com carta nenhuma, o link "Ver Cartas" ficava sempre vazio.
@@ -57,6 +72,21 @@ export const GUNDAM_SERIES_CATALOG: SeriesInfo[] = [
     tcgStyle: "Morfologia transformável Wave Rider, Bio-Sensor ativado sob pressão crítica e alto poder de contra-ataque.",
     colorAccent: "border-sky-500/40 hover:border-sky-400 text-sky-300",
     loreSlug: "mobile-suit-z-gundam",
+  },
+  {
+    id: "gundam-zz",
+    dbName: "Mobile Suit Gundam ZZ",
+    name: "Mobile Suit Gundam ZZ",
+    jpName: "機動戦士ガンダムΖΖ",
+    timeline: "Universal Century (U.C. 0088)",
+    year: "1986",
+    cardCount: 23,
+    highlightMecha: "ZZ Gundam & Qubeley Mk-Ⅱ",
+    startersOrPacks: "GD06",
+    description:
+      "Logo após a Guerra de Gryps, o jovem Judau Ashta entra para a AEUG e assume o ZZ Gundam contra Neo Zeon, comandada por Haman Karn, enquanto Elpeo Ple e outras Newtypes da nova geração entram na disputa pela Terra.",
+    tcgStyle: "Dano ampliado nas cartas da AEUG com o ZZ, e Neo Zeon com <Breach> e transferência de dano da Qubeley Mk-Ⅱ.",
+    colorAccent: "border-teal-500/40 hover:border-teal-400 text-teal-300",
   },
   {
     id: "gundam-0080",
