@@ -1538,13 +1538,17 @@ export const api = {
   updateRuling: (id: string, payload: any) => mutate<any>(`/rulings/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/rulings", "/rulings/filters"]),
   deleteRuling: (id: string) => mutate<void>(`/rulings/${id}`, { method: "DELETE" }, ["/rulings", "/rulings/filters"]),
   importRulings: (payload: any) => mutate<{ imported: number }>("/import/rulings", { method: "POST", body: JSON.stringify(payload) }, ["/rulings", "/rulings/filters"]),
-  /** `resumo`: sem as listas de cartas das participações (bem mais leve — a home só mostra pódio e arquétipo) */
-  listTournaments: (opts: { resumo?: boolean; limit?: number } = {}) => {
+  /** Sem as listas de cartas das participações. Sem `limit`, a lista completa só vem para quem administra. */
+  listTournaments: (opts: { limit?: number } = {}) => {
     const params = new URLSearchParams();
-    if (opts.resumo) params.set("resumo", "1");
     if (opts.limit) params.set("limit", String(opts.limit));
     const qs = params.toString();
     return request<any[]>(qs ? `/tournaments?${qs}` : "/tournaments", undefined, { ttlMs: 60_000 });
+  },
+  /** Listas de torneio parecidas com um deck, calculadas no servidor. */
+  getSimilarTournamentEntries: (opts: { codes: string[]; name: string }) => {
+    const params = new URLSearchParams({ codes: opts.codes.join(","), name: opts.name });
+    return request<Array<{ id: string; name: string; shareId?: string; author: string | null; tournament: string; tournamentId: string; date: string | null; organizer: string | null; tier: string; sourceUrl: string | null; placement: number | null }>>(`/veda/similar-entries?${params}`, undefined, { ttlMs: 60_000 });
   },
   getTournament: (id: string) => request<any>(`/tournaments/${id}`, undefined, { ttlMs: 20_000 }),
   createTournament: (payload: any) => mutate<any>("/tournaments", { method: "POST", body: JSON.stringify(payload) }, ["/tournaments", "/stats"]),

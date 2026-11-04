@@ -3,7 +3,7 @@
  * canto inferior direito, o modal de convite do convidado e a modal de escolha de deck. */
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { io as ioClient, type Socket } from "socket.io-client";
+import type { Socket } from "socket.io-client";
 import { toast } from "sonner";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -72,91 +72,99 @@ export function SocialQuickMatchOverlay({ children }: { children: React.ReactNod
       return;
     }
 
-    // o token fica salvo como o JWT cru (storeAuth), não como JSON
-    const { token } = getStoredAuth();
-    const socket = ioClient(window.location.origin, {
-      path: "/social.io",
-      auth: { token: token ?? undefined },
-      transports: ["websocket", "polling"],
-      reconnection: true,
-    });
-
-    socketRef.current = socket;
-
-    // Convidado recebe convite de partida rápida
-    socket.on("quick_match:incoming", (data: { inviteId: string; hostUser: any }) => {
-      setIncomingInvite({
-        inviteId: data.inviteId,
-        hostUser: data.hostUser,
+    // o pacote do socket entra só para quem está logado
+    let cancelled = false;
+    let socket: Socket | null = null;
+    void import("socket.io-client").then(({ io: ioClient }) => {
+      if (cancelled) return;
+      // o token fica salvo como o JWT cru (storeAuth), não como JSON
+      const { token } = getStoredAuth();
+      const connection = ioClient(window.location.origin, {
+        path: "/social.io",
+        auth: { token: token ?? undefined },
+        transports: ["websocket", "polling"],
+        reconnection: true,
       });
-    });
 
-    // Anfitrião recebe recusa do convidado
-    socket.on("quick_match:declined", () => {
-      setHostWidget((prev) => (prev ? { ...prev, status: "DECLINED" } : null));
-      setTimeout(() => {
-        setHostWidget(null);
-      }, 3500);
-    });
+      socket = connection;
+      socketRef.current = connection;
 
-    // Convite cancelado pelo anfitrião
-    socket.on("quick_match:cancelled", () => {
-      setIncomingInvite(null);
-    });
-
-    // Convite expirado por timeout
-    socket.on("quick_match:expired", () => {
-      setIncomingInvite(null);
-      setHostWidget((prev) => (prev ? { ...prev, status: "EXPIRED" } : null));
-      setTimeout(() => {
-        setHostWidget(null);
-      }, 3500);
-    });
-
-    // Ambos entram na fase de escolha de deck
-    socket.on("quick_match:launch", (data: { quickMatchId: string; hostUser: any; guestUser: any }) => {
-      setHostWidget(null);
-      setIncomingInvite(null);
-
-      const isHost = data.hostUser.id === currentUser.id;
-      const opponent = isHost ? data.guestUser : data.hostUser;
-
-      setDeckSelectSession({
-        quickMatchId: data.quickMatchId,
-        opponent,
-        opponentConfirmed: false,
-        submitting: false,
-        waiting: false,
+      // Convidado recebe convite de partida rápida
+      connection.on("quick_match:incoming", (data: { inviteId: string; hostUser: any }) => {
+        setIncomingInvite({
+          inviteId: data.inviteId,
+          hostUser: data.hostUser,
+        });
       });
-    });
 
-    // Oponente confirmou deck
-    socket.on("quick_match:opponent_deck_confirmed", () => {
-      setDeckSelectSession((prev) => (prev ? { ...prev, opponentConfirmed: true } : null));
-    });
+      // Anfitrião recebe recusa do convidado
+      connection.on("quick_match:declined", () => {
+        setHostWidget((prev) => (prev ? { ...prev, status: "DECLINED" } : null));
+        setTimeout(() => {
+          setHostWidget(null);
+        }, 3500);
+      });
 
-    // Partida pronta -> Navega para o simulador
-    socket.on("quick_match:ready", (data: { matchId: string }) => {
-      setDeckSelectSession(null);
-      toast.success("Partida iniciada! Entrando no campo de combate...");
-      navigate(`/simulador/partida/${data.matchId}`);
-    });
+      // Convite cancelado pelo anfitrião
+      connection.on("quick_match:cancelled", () => {
+        setIncomingInvite(null);
+      });
 
-    // Erro ao resolver deck
-    socket.on("quick_match:error", (data: { message: string }) => {
-      toast.error(data.message || "Erro ao iniciar partida rápida.");
-      setDeckSelectSession(null);
-    });
+      // Convite expirado por timeout
+      connection.on("quick_match:expired", () => {
+        setIncomingInvite(null);
+        setHostWidget((prev) => (prev ? { ...prev, status: "EXPIRED" } : null));
+        setTimeout(() => {
+          setHostWidget(null);
+        }, 3500);
+      });
 
-    // Alerta de denúncia para Administrador
-    socket.on("social:admin_report", (data: { reporterUsername: string; reportedUsername: string; reason: string }) => {
-      toast.error(`🚨 ALERTA ADMIN: @${data.reporterUsername} denunciou @${data.reportedUsername}! Motivo: ${data.reason}`, {
-        duration: 10000,
+      // Ambos entram na fase de escolha de deck
+      connection.on("quick_match:launch", (data: { quickMatchId: string; hostUser: any; guestUser: any }) => {
+        setHostWidget(null);
+        setIncomingInvite(null);
+
+        const isHost = data.hostUser.id === currentUser.id;
+        const opponent = isHost ? data.guestUser : data.hostUser;
+
+        setDeckSelectSession({
+          quickMatchId: data.quickMatchId,
+          opponent,
+          opponentConfirmed: false,
+          submitting: false,
+          waiting: false,
+        });
+      });
+
+      // Oponente confirmou deck
+      connection.on("quick_match:opponent_deck_confirmed", () => {
+        setDeckSelectSession((prev) => (prev ? { ...prev, opponentConfirmed: true } : null));
+      });
+
+      // Partida pronta -> Navega para o simulador
+      connection.on("quick_match:ready", (data: { matchId: string }) => {
+        setDeckSelectSession(null);
+        toast.success("Partida iniciada! Entrando no campo de combate...");
+        navigate(`/simulador/partida/${data.matchId}`);
+      });
+
+      // Erro ao resolver deck
+      connection.on("quick_match:error", (data: { message: string }) => {
+        toast.error(data.message || "Erro ao iniciar partida rápida.");
+        setDeckSelectSession(null);
+      });
+
+      // Alerta de denúncia para Administrador
+      connection.on("social:admin_report", (data: { reporterUsername: string; reportedUsername: string; reason: string }) => {
+        toast.error(`🚨 ALERTA ADMIN: @${data.reporterUsername} denunciou @${data.reportedUsername}! Motivo: ${data.reason}`, {
+          duration: 10000,
+        });
       });
     });
 
     return () => {
-      socket.disconnect();
+      cancelled = true;
+      socket?.disconnect();
       socketRef.current = null;
     };
   }, [isAuthenticated, currentUser?.id, navigate]);
