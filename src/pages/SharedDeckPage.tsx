@@ -341,7 +341,7 @@ export default function SharedDeckPage() {
   const [officialTokens, setOfficialTokens] = useState<any[]>([]);
   const [archetypeMeta, setArchetypeMeta] = useState<ArchetypeMetaBreakdown | null>(null);
   const [communityDecks, setCommunityDecks] = useState<ApiDeck[]>([]);
-  const [tournamentsData, setTournamentsData] = useState<any[]>([]);
+  const [similarEntries, setSimilarEntries] = useState<Awaited<ReturnType<typeof api.getSimilarTournamentEntries>>>([]);
 
   // Pílula de filtro ativa na visualização de cartas
   const [activeFilterPill, setActiveFilterPill] = useState<{
@@ -389,13 +389,21 @@ export default function SharedDeckPage() {
           })
           .catch(() => {});
 
-        // Carrega torneios competitivos oficiais e resultados de metagame para a amostra
+        // Listas de torneio parecidas com este deck, para a amostra
         api
-          .listTournaments()
-          .then((data: any) => {
-            if (Array.isArray(data)) {
-              setTournamentsData(data);
-            }
+          .getSimilarTournamentEntries({
+            codes: Array.from(
+              new Set(
+                (loadedDeck.items || [])
+                  .filter((it) => it.section !== "resource" && !NON_COUNTED_SECTIONS.has(it.section || ""))
+                  .map((it) => it.card?.code)
+                  .filter(Boolean) as string[]
+              )
+            ),
+            name: loadedDeck.name || "",
+          })
+          .then((entries) => {
+            if (Array.isArray(entries)) setSimilarEntries(entries);
           })
           .catch(() => {});
 
@@ -732,46 +740,24 @@ export default function SharedDeckPage() {
     }
 
     const myCodeSet = new Set(mainRows.map((r) => r.code));
-    const deckNameLower = (deck?.name || "").toLowerCase();
     const result: SourceDeckEntry[] = [];
 
-    // 1. Torneios reais: busca entradas de torneios competitivos que usaram este arquétipo ou lista similar
-    if (tournamentsData.length > 0) {
-      for (const t of tournamentsData) {
-        const entries = t.entries || [];
-        for (const entry of entries) {
-          const entryArchLower = (entry.archetype || "").toLowerCase();
-          const snapshotItems = entry.deckSnapshot?.items || [];
-          let sharedCards = 0;
-          for (const item of snapshotItems) {
-            if (item.card?.code && myCodeSet.has(item.card.code)) {
-              sharedCards++;
-            }
-          }
-
-          const nameMatches =
-            (deckNameLower.includes("unicorn") && entryArchLower.includes("unicorn")) ||
-            (entryArchLower && deckNameLower.includes(entryArchLower)) ||
-            (entryArchLower && entryArchLower.includes(deckNameLower));
-
-          if (sharedCards >= 3 || (nameMatches && (sharedCards >= 1 || snapshotItems.length === 0))) {
-            result.push({
-              id: entry.id,
-              name: entry.deck?.name || (entry.archetype ? `${entry.archetype} (${t.name})` : t.name),
-              shareId: entry.deck?.shareId,
-              author: entry.playerName || tr("Piloto de Torneio", "Tournament Player"),
-              tournament: t.name,
-              tournamentId: t.id,
-              tournamentDate: t.dateStart,
-              organizer: t.organizer,
-              tier: t.tier ? String(t.tier) : undefined,
-              sourceUrl: t.sourceUrl,
-              placement: entry.placement ? `${entry.placement}º lugar` : "Top Cut",
-              date: t.dateStart,
-            });
-          }
-        }
-      }
+    // 1. Torneios reais com lista parecida
+    for (const entry of similarEntries) {
+      result.push({
+        id: entry.id,
+        name: entry.name,
+        shareId: entry.shareId,
+        author: entry.author || tr("Piloto de Torneio", "Tournament Player"),
+        tournament: entry.tournament,
+        tournamentId: entry.tournamentId,
+        tournamentDate: entry.date,
+        organizer: entry.organizer,
+        tier: entry.tier,
+        sourceUrl: entry.sourceUrl,
+        placement: entry.placement ? `${entry.placement}º lugar` : "Top Cut",
+        date: entry.date,
+      } as SourceDeckEntry);
     }
 
     // 2. Outros decks públicos cadastrados da comunidade com afinidade nesta lista
@@ -825,7 +811,7 @@ export default function SharedDeckPage() {
       ];
     }
     return [];
-  }, [archetypeMeta, deck, mainRows, communityDecks, tournamentsData]);
+  }, [archetypeMeta, deck, mainRows, communityDecks, similarEntries]);
 
   // Pílulas interativas de Traits e Links
   const { traitList, linkList, quickCountersCount, burstCount } = useMemo(() => {

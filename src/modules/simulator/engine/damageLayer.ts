@@ -168,9 +168,17 @@ export function incomingDamage(state: GameState, target: CardInstance, amount: n
 
 /** GD04-087/095 — para onde vai o dano de batalha que `unit` receberia (a própria, se não há redirecionamento válido) */
 export function battleDamageVictim(state: GameState, unit: CardInstance): CardInstance {
-  const r = unit.battleDamageRedirect;
-  if (!r || r.turn !== state.turnNumber || (r.scope === "battle" && !state.combat)) return unit;
-  // W13b — GD06-018: o dano pode ir pra uma Base amiga (Q493: continua sendo dano de batalha)
-  const to = state.players[unit.owner].battleArea.find((c) => c.instanceId === r.toId) ?? state.players[unit.owner].baseSection.find((c) => c.instanceId === r.toId);
-  return to ?? unit;
+  // Q494: cada efeito de redirecionamento se aplica uma vez, então A→B com B→A devolve o dano para A
+  const applied = new Set<string>();
+  let victim = unit;
+  while (!applied.has(victim.instanceId)) {
+    const r = victim.battleDamageRedirect;
+    if (!r || r.turn !== state.turnNumber || (r.scope === "battle" && !state.combat)) return victim;
+    // W13b — GD06-018: o dano pode ir pra uma Base amiga (Q493: continua sendo dano de batalha)
+    const to = state.players[victim.owner].battleArea.find((c) => c.instanceId === r.toId) ?? state.players[victim.owner].baseSection.find((c) => c.instanceId === r.toId);
+    if (!to) return victim;
+    applied.add(victim.instanceId);
+    victim = to;
+  }
+  return victim;
 }

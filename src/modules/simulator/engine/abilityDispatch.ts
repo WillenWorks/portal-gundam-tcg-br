@@ -333,8 +333,14 @@ export function deferOrDispatchAbilities(
   // (ex: condição falhou e não tem `else` nem `actions` fora da condição).
   // W12 — com custo ("Rest this Base: If …", ST12-016) a ativação acontece e o custo é pago; só o "If" falha.
   // Antes a ativação virava um no-op sem custo, sempre legal — o bot repetia sem fim (achado do fuzz).
-  const activeEntries = entriesWithCalls.filter(({ spec, activeCalls }) => {
+  const activeEntries = entriesWithCalls.filter(({ spec, activeCalls, sourceInstanceId }) => {
     if (spec.condition && activeCalls.length === 0 && !(spec.cost ?? []).length) return false;
+    // Q522: "Choose 1 X and 1 Y" só ativa se os dois alvos existem. Com custo, o 2º alvo é o custo e segue o fluxo dele.
+    const second = spec.secondaryTarget;
+    if (second && !second.sequential && !(spec.cost ?? []).length) {
+      const pool = computeLegalTargets(state, { targetScope: second.targetScope, targetFilter: second.targetFilter }, player, opts.targetFilterResolver, sourceInstanceId);
+      if (pool.length === 0) return false;
+    }
     return true;
   });
   if (activeEntries.length === 0) return state;
@@ -1341,10 +1347,10 @@ export function dispatchCommandActivated(
   stateIn: GameState,
   commandId: string,
   specs: EffectSpec[],
-  opts: { predicateResolver?: PredicateResolver; targetFilterResolver?: TargetFilterResolver } = {},
+  opts: { predicateResolver?: PredicateResolver; targetFilterResolver?: TargetFilterResolver; traitsAlreadyMarked?: boolean } = {},
 ): GameState {
   if (stateIn.gameOver) return stateIn;
-  const state = markCommandTraitsActivated(stateIn, commandId);
+  const state = opts.traitsAlreadyMarked ? stateIn : markCommandTraitsActivated(stateIn, commandId);
   const card = findCard(state, commandId);
   const occ: ReactionOccurrence = { event: "commandActivated", subjectId: commandId, owner: card.owner };
   // auditoria A8 — a resolução pausou numa cascata (ex. 【Destroyed】 com escolha): a reação espera na fila da decisão

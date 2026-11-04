@@ -110,7 +110,20 @@ export interface CoreBuildSummary {
  * Combina decks públicos do banco com os decks oficiais validados (ST01-ST04)
  * para garantir amostragem estatística mesmo em ambientes locais com poucos dados.
  */
-export async function fetchEligibleDecks(prisma: PrismaClient): Promise<RawDeckData[]> {
+// As rotas públicas de estatística chamam isto a cada pedido; uma consulta por minuto basta. Só leitura para quem recebe.
+const ELIGIBLE_DECKS_CACHE_MS = 60_000;
+const eligibleDecksCache = new WeakMap<PrismaClient, { at: number; data: Promise<RawDeckData[]> }>();
+
+export function fetchEligibleDecks(prisma: PrismaClient): Promise<RawDeckData[]> {
+  const cached = eligibleDecksCache.get(prisma);
+  if (cached && Date.now() - cached.at < ELIGIBLE_DECKS_CACHE_MS) return cached.data;
+  const data = loadEligibleDecks(prisma);
+  eligibleDecksCache.set(prisma, { at: Date.now(), data });
+  data.catch(() => eligibleDecksCache.delete(prisma));
+  return data;
+}
+
+async function loadEligibleDecks(prisma: PrismaClient): Promise<RawDeckData[]> {
   const publicDecks = await prisma.deck.findMany({
     where: { visibility: { in: ["PUBLIC", "UNLISTED"] } },
     include: {

@@ -7,6 +7,7 @@
 import type { Server as HttpServer } from "node:http";
 import { Server, type Socket } from "socket.io";
 import { PrismaClient, FriendshipStatus } from "@prisma/client";
+import { attachSocketEventLimiter } from "./services/socketRateLimit.ts";
 import { createSocketAuthMiddleware, UserSocketRegistry, type SocketAuthData } from "./services/socketAuth.ts";
 import { createMatch, joinMatch } from "../src/modules/simulator/server/matchStore.ts";
 
@@ -17,6 +18,7 @@ export type SimulatorDeckResolution = { ok: true; key: string; build: () => any 
 
 export interface SocialSocketDeps {
   jwtSecret: string;
+  resolveSession?: (payload: { userId: string; tv?: number }) => Promise<unknown>;
   allowedOrigins: string[];
   prisma: PrismaClient;
   resolveDeck?: (raw: unknown, userId: string) => Promise<SimulatorDeckResolution>;
@@ -66,9 +68,10 @@ export function attachSocialSocket(httpServer: HttpServer, deps: SocialSocketDep
   });
 
 
-  io.use(createSocketAuthMiddleware({ jwtSecret: deps.jwtSecret }));
+  io.use(createSocketAuthMiddleware({ jwtSecret: deps.jwtSecret, resolveSession: deps.resolveSession }));
 
   io.on("connection", (socket: Socket) => {
+    attachSocketEventLimiter(socket);
     const data = socket.data as SocketAuthData;
     const userId = data.user.userId;
 
