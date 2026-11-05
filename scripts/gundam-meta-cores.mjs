@@ -43,15 +43,24 @@ const catalog = (code) => {
   return d ? { type: d.type, level: d.level ?? 0, color: d.color } : undefined;
 };
 
+// formato com poucas listas ainda não forma arquétipo: fica fora da fixture até ter o que analisar
+function addFormat(formats, id, lists, description = id) {
+  const r = analyzeFormat(lists, catalog);
+  if (!r.archetypes.length) {
+    console.log(`[meta-cores] ${description}: ${r.lists} listas, sem arquétipos, fora da fixture`);
+    return;
+  }
+  formats[id] = r;
+  console.log(`[meta-cores] ${description}: ${r.lists} listas, ${r.events} eventos, ${r.archetypes.length} arquétipos (${r.archetypes.filter((a) => a.simulavel).length} simuláveis)`);
+}
+
 const byFormat = new Map();
 for (const l of raw.lists) byFormat.set(l.format, [...(byFormat.get(l.format) ?? []), l]);
 const formats = {};
 for (const f of [...byFormat.keys()].sort()) {
   // só os campos que a análise usa — o `player` fica para trás
   const lists = byFormat.get(f).map(({ format, event, eventType, date, placing, label, players, main }) => ({ format, event, eventType, date, placing, label, players, main }));
-  formats[f] = analyzeFormat(lists, catalog);
-  const r = formats[f];
-  console.log(`[meta-cores] ${f}: ${r.lists} listas, ${r.events} eventos, ${r.archetypes.length} arquétipos (${r.archetypes.filter((a) => a.simulavel).length} simuláveis)`);
+  addFormat(formats, f, lists);
 }
 
 // Recortes de temporada dentro de um formato da Egman: um starter novo não muda o formato lá, mas muda o meta.
@@ -61,9 +70,7 @@ for (const slice of SEASON_SLICES) {
     .filter((l) => (l.date ?? "") >= slice.since)
     .map(({ event, eventType, date, placing, label, players, main }) => ({ format: slice.id, event, eventType, date, placing, label, players, main }));
   if (!lists.length) continue;
-  formats[slice.id] = analyzeFormat(lists, catalog);
-  const r = formats[slice.id];
-  console.log(`[meta-cores] ${slice.id} (${slice.format} desde ${slice.since}): ${r.lists} listas, ${r.events} eventos, ${r.archetypes.length} arquétipos (${r.archetypes.filter((a) => a.simulavel).length} simuláveis)`);
+  addFormat(formats, slice.id, lists, `${slice.id} (${slice.format} desde ${slice.since})`);
 }
 
 const data = { generatedAt: raw.date, source: raw.source, formats };
