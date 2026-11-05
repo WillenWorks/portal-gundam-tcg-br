@@ -273,16 +273,22 @@ function aggregateFormatData(formatKeys: string[]): {
   };
 }
 
+/** A temporada padrão de análise vem primeiro; as demais, da mais nova para a mais antiga. */
+export function seasonDisplayOrder(codes: readonly string[], defaultSeason: string): string[] {
+  const newestFirst = [...codes].reverse();
+  return [...newestFirst.filter((code) => code === defaultSeason), ...newestFirst.filter((code) => code !== defaultSeason)];
+}
+
 /**
- * Lista todos os formatos disponíveis em metaCores, do mais novo ao mais antigo, seguidos pela opção de histórico
- * geral (ALL). Recortes (GD05.5) contam dentro do próprio formato para não duplicar filtro (`src/lib/seasons.ts`).
+ * Lista os formatos disponíveis em metaCores, com a temporada padrão de análise no topo, seguidos pela opção de
+ * histórico geral (ALL). Recortes (GD05.5) contam dentro do próprio formato para não duplicar filtro (`src/lib/seasons.ts`).
  */
 
 export function getAvailableFormats(): FormatOverviewItem[] {
   const result: FormatOverviewItem[] = [];
 
-  // 1. Formatos individuais do mais novo ao mais antigo (formato sem listas ainda fica de fora)
-  for (const formatKey of [...SEASON_CODES].reverse()) {
+  // 1. Formatos individuais (formato sem arquétipos ainda fica de fora da fixture)
+  for (const formatKey of seasonDisplayOrder(SEASON_CODES, DEFAULT_ANALYSIS_SEASON)) {
     const formatData = META_CORES.formats[formatKey as keyof typeof META_CORES.formats];
     if (!formatData) continue;
     const archetypes = formatData.archetypes || [];

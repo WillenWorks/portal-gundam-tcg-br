@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getAvailableFormats,
   getFormatMetaBreakdown,
+  seasonDisplayOrder,
 } from "./seasonFormatMetaService.ts";
 import { META_CORES } from "../src/modules/simulator/fixtures/metaCores.ts";
 import { SEASON_CODES } from "../src/lib/seasons.ts";
@@ -97,6 +98,11 @@ describe("seasonFormatMetaService", () => {
     expect(formats.some((f) => f.format === "GD05.5")).toBe(false);
     expect(formats.some((f) => f.format === "GD05_COMBINED")).toBe(false);
     expect(formats.some((f) => f.format === "ALL")).toBe(true);
+  });
+
+  it("mantém a temporada padrão no topo mesmo com uma temporada mais nova", () => {
+    expect(seasonDisplayOrder(["S1", "S2", "S3", "S4"], "S3")).toEqual(["S3", "S4", "S2", "S1"]);
+    expect(seasonDisplayOrder(["S1", "S2", "S3"], "S3")).toEqual(["S3", "S2", "S1"]);
   });
 
   it("temporada atual unifica GD05 e GD05.5 sob GD05 sem somar duas vezes", async () => {
