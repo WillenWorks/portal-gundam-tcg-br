@@ -2,6 +2,7 @@ import { PrismaClient, UserRole, CardLanguage, SetKind, CardType } from "@prisma
 import bcrypt from "bcryptjs";
 import fs from "node:fs";
 import path from "node:path";
+import { seedPassword } from "./seedPassword.mjs";
 
 const prisma = new PrismaClient();
 
@@ -62,10 +63,10 @@ function buildFlattenedText(card, { preferEn = false } = {}) {
 
 async function seedUser({ email, displayName, username, password, role, bio, preferredTheme = "dark" }) {
   const passwordHash = await bcrypt.hash(password, 10);
+  // conta que já existe mantém a senha: rodar o seed de novo não pode trocar a senha de ninguém
   const user = await prisma.user.upsert({
     where: { email },
     update: {
-      passwordHash,
       displayName,
       username,
       role,
@@ -654,7 +655,7 @@ async function main() {
 
   const admin = await seedUser({
     email: process.env.SEED_ADMIN_EMAIL || "admin@gundambr.local",
-    password: process.env.SEED_ADMIN_PASSWORD || "admin123",
+    password: seedPassword("SEED_ADMIN_PASSWORD", "admin123"),
     displayName: "Administrador Portal BR",
     username: "admin-portal",
     role: UserRole.ADMIN,
@@ -663,7 +664,7 @@ async function main() {
 
   const user = await seedUser({
     email: process.env.SEED_USER_EMAIL || "pilot@gundambr.local",
-    password: process.env.SEED_USER_PASSWORD || "pilot123",
+    password: seedPassword("SEED_USER_PASSWORD", "pilot123"),
     displayName: "Usuário Exemplo",
     username: "pilot-example",
     role: UserRole.USER,
