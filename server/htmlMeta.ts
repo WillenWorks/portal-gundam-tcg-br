@@ -23,7 +23,12 @@ export type DetailMeta = {
   section?: { name: string; path: string };
   /** item acessível pelo link mas fora do Google (ex.: deck "não listado") */
   noindex?: boolean;
+  /** conteúdo da página em HTML (server/htmlContent.ts), no lugar do texto genérico do index.html */
+  body?: string;
 };
+
+/** Conteúdo das páginas que não são de detalhe (listas, regras). `null` = mantém o texto do index.html. */
+export type BodyLoader = (path: string) => Promise<string | null>;
 
 export type DetailLoaders = Record<DetailKind, (key: string) => Promise<DetailMeta | null>>;
 
@@ -36,6 +41,7 @@ export type HtmlPage = {
   noindex: boolean;
   ogType: "website" | "article";
   jsonLd: Record<string, unknown>[];
+  body?: string;
 };
 
 const SECTION_BY_KIND: Record<DetailKind, { name: string; path: string }> = {
@@ -76,7 +82,7 @@ function breadcrumb(items: Array<{ name: string; path: string }>) {
 }
 
 /** Monta os dados da página para um caminho (sem query). `loaders` só é chamado nas páginas de detalhe. */
-export async function resolveHtmlPage(pathname: string, loaders: DetailLoaders): Promise<HtmlPage> {
+export async function resolveHtmlPage(pathname: string, loaders: DetailLoaders, bodyFor?: BodyLoader): Promise<HtmlPage> {
   const path = pathname.replace(/\/+$/, "") || "/";
   const match = matchSiteRoute(path);
   if (!match.known) return notFound(path);
@@ -104,6 +110,10 @@ export async function resolveHtmlPage(pathname: string, loaders: DetailLoaders):
     page.ogType = match.detail === "article" ? "article" : "website";
     if (detail.noindex) page.noindex = true;
     page.jsonLd = [breadcrumb([{ name: "Início", path: "/" }, section, { name: detail.title, path }]), ...(detail.jsonLd ?? [])];
+    if (detail.body) page.body = detail.body;
+  } else if (bodyFor && !page.noindex) {
+    const body = await bodyFor(path);
+    if (body) page.body = body;
   }
   return page;
 }
@@ -123,10 +133,17 @@ const STRIP = [
   /<meta\s[^>]*name="twitter:[^"]*"[^>]*>\s*/gi,
 ];
 
-/** Troca os metadados do index.html do build pelos da página. O resto do arquivo (scripts, CSS, conteúdo
+/** Troca os metadados do index.html do build pelos da página e, quando a página tem conteúdo próprio
+ *  (`body`), troca o texto genérico do <main> por ele. O resto do arquivo (scripts, CSS, cabeçalho e rodapé
  *  sem JavaScript) fica igual. */
 export function renderHtml(template: string, page: HtmlPage): string {
   let html = template;
+  if (page.body) {
+    // função no replace: `$` do conteúdo não pode virar padrão de substituição
+    const body = page.body;
+    if (/<main\b[^>]*>[\s\S]*?<\/main>/i.test(html)) html = html.replace(/<main\b[^>]*>[\s\S]*?<\/main>/i, () => `<main>\n${body}\n</main>`);
+    else html = html.replace(/<div id="root">\s*<\/div>/i, () => `<div id="root"><main>\n${body}\n</main></div>`);
+  }
   for (const re of STRIP) html = html.replace(re, "");
   const description = page.description.replace(/\s+/g, " ").trim().slice(0, 300);
   const tags = [
