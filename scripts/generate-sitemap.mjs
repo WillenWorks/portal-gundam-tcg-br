@@ -51,10 +51,11 @@ async function main() {
   try {
     const [cards, sets, series, posts, tournaments, decks] = await Promise.all([
       prisma.cardModel.findMany({ where: { isActive: true }, select: { id: true, updatedAt: true }, orderBy: { code: "asc" } }),
-      prisma.cardSet.findMany({ select: { code: true, updatedAt: true }, orderBy: { code: "asc" } }),
-      prisma.taxonomyEntry.findMany({ where: { kind: "SOURCE_TITLE" }, select: { slug: true, updatedAt: true }, orderBy: { slug: "asc" } }),
+      prisma.cardSet.findMany({ where: { isActive: true }, select: { code: true, updatedAt: true }, orderBy: { code: "asc" } }),
+      prisma.taxonomyEntry.findMany({ where: { kind: "SOURCE_TITLE", isActive: true }, select: { slug: true, updatedAt: true }, orderBy: { slug: "asc" } }),
       prisma.post.findMany({ where: { status: "PUBLISHED" }, select: { slug: true, updatedAt: true }, orderBy: { publishedAt: "desc" } }),
-      prisma.tournament.findMany({ where: { isActive: true }, select: { id: true, updatedAt: true }, orderBy: { dateStart: "desc" } }),
+      // torneio sem nenhum resultado cadastrado fica de fora (a página dele é noindex: não há o que mostrar)
+      prisma.tournament.findMany({ where: { isActive: true, entries: { some: {} } }, select: { id: true, updatedAt: true }, orderBy: { dateStart: "desc" } }),
       prisma.deck.findMany({ where: { visibility: "PUBLIC" }, select: { shareId: true, updatedAt: true }, orderBy: { updatedAt: "desc" }, take: 10000 }),
     ]);
     const urls = STATIC.map(([path, changefreq, priority]) => entry(path, { changefreq, priority }));

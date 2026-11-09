@@ -145,7 +145,7 @@ import { createMailer, registerAuthEmailRoutes, sendVerificationEmail, validateP
 import { recaptchaVerifier } from "./recaptchaService.ts";
 import { captureServerError, initServerErrorMonitoring } from "./errorMonitoring.ts";
 import { createAuth, type AuthPayload, type RequestWithUser } from "./auth.ts";
-import { createHtmlDetailLoaders, registerHtmlPages } from "./routes/htmlPages.ts";
+import { createHtmlBodyLoader, createHtmlDetailLoaders, registerHtmlPages } from "./routes/htmlPages.ts";
 
 const prisma = new PrismaClient();
 
@@ -5887,6 +5887,7 @@ app.post("/api/simulator/matches/:id/join", authRequired, hosterRequired, (req: 
 registerHtmlPages(app, {
   distDir: process.env.WEB_DIST_DIR || path.resolve(process.cwd(), "dist"),
   loaders: createHtmlDetailLoaders(prisma),
+  bodyFor: createHtmlBodyLoader(prisma),
 });
 
 app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
