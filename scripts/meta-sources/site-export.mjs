@@ -20,7 +20,24 @@ if (!token) {
 
 const query = new URLSearchParams();
 for (const k of ["format", "since", "source"]) if (args[k]) query.set(k, String(args[k]));
-const res = await fetch(`${site}/api/veda/export/lists?${query}`, { headers: { "X-Dados-Token": token } });
+// O runner do Actions às vezes não conecta na VPS de primeira (timeout de 10 s do undici em 10/11/2026, com o site no ar).
+// Falha de rede e 5xx tentam de novo com espera crescente; 4xx (token errado, rota) falha na hora.
+const TENTATIVAS = 5;
+let res;
+for (let tentativa = 1; ; tentativa++) {
+  try {
+    res = await fetch(`${site}/api/veda/export/lists?${query}`, {
+      headers: { "X-Dados-Token": token },
+      signal: AbortSignal.timeout(120_000),
+    });
+    if (res.status < 500 || tentativa === TENTATIVAS) break;
+    console.warn(`[site-export] HTTP ${res.status} (tentativa ${tentativa}/${TENTATIVAS})`);
+  } catch (error) {
+    if (tentativa === TENTATIVAS) throw error;
+    console.warn(`[site-export] ${error.cause?.code ?? error.name}: ${error.cause?.message ?? error.message} (tentativa ${tentativa}/${TENTATIVAS})`);
+  }
+  await new Promise((r) => setTimeout(r, 15_000 * tentativa));
+}
 if (!res.ok) {
   console.error(`[site-export] HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`);
   process.exit(1);
