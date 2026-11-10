@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { cardBody, markdownToHtml, rulesBody, setBody, tournamentBody } from "./htmlContent.ts";
+import { aboutBody, cardBody, markdownToHtml, rulesBody, setBody, tournamentBody } from "./htmlContent.ts";
+import { ABOUT_CONTACT, ABOUT_LEAD, ABOUT_SECTIONS, ABOUT_TITLE, ABOUT_UPDATED } from "../src/lib/aboutContent.ts";
+import { matchSiteRoute } from "../src/lib/siteRoutes.ts";
 import { renderHtml, resolveHtmlPage, type DetailLoaders } from "./htmlMeta.ts";
 
 const TEMPLATE = `<!doctype html><html><head><title>Home</title></head><body><div id="root"><header>nav</header><main><section>texto genérico da home</section></main><footer>rodapé</footer></div></body></html>`;
@@ -57,6 +59,16 @@ describe("conteúdo das páginas no HTML", () => {
     const html = rulesBody({ keywords: [{ name: "Breach", raw: "<Breach N>", descriptionPt: "Causa dano ao escudo.", category: "effect_keyword" }], rulings: [{ id: "r1", title: "Breach e Blocker", answer: "Sim." }] });
     expect(html).toContain("&lt;Breach N&gt;");
     expect(html).toContain('href="/rules/r1"');
+  });
+});
+
+describe("página Sobre", () => {
+  it("existe como rota e o HTML traz todas as seções e o contato", () => {
+    expect(matchSiteRoute("/sobre")).toEqual({ known: true });
+    const html = aboutBody({ title: ABOUT_TITLE, lead: ABOUT_LEAD, updated: ABOUT_UPDATED, contact: ABOUT_CONTACT, sections: ABOUT_SECTIONS });
+    for (const s of ABOUT_SECTIONS) expect(html).toContain(s.title);
+    expect(html).toContain('href="/cards"');
+    expect(html).toContain(`mailto:${ABOUT_CONTACT}`);
   });
 });
 

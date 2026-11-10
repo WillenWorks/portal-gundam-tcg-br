@@ -77,6 +77,7 @@ const ResetPasswordPage = lazy(() => import("@/pages/ResetPasswordPage"));
 const VerifyEmailPage = lazy(() => import("@/pages/VerifyEmailPage"));
 const PrivacyPage = lazy(() => import("@/pages/LegalPages").then((m) => ({ default: m.PrivacyPage })));
 const TermsPage = lazy(() => import("@/pages/LegalPages").then((m) => ({ default: m.TermsPage })));
+const AboutPage = lazy(() => import("@/pages/AboutPage"));
 
 function RouteLoader({ label }: { label: string }) {
   return <GlobalLoader label={tr(`Abrindo ${label}`, "Loading")} />;
@@ -141,6 +142,7 @@ function AppRouter() {
         <Route path="/confirmar-email">{() => <LazyRoute label="Confirmar e-mail"><VerifyEmailPage /></LazyRoute>}</Route>
         <Route path="/privacidade">{() => <LazyRoute label="Política de Privacidade"><PrivacyPage /></LazyRoute>}</Route>
         <Route path="/termos">{() => <LazyRoute label="Termos de Uso"><TermsPage /></LazyRoute>}</Route>
+        <Route path="/sobre">{() => <LazyRoute label="Sobre"><AboutPage /></LazyRoute>}</Route>
         <Route path="/portal">{() => <RequireAuth><DashboardPage /></RequireAuth>}</Route>
         <Route path="/binders">{() => <RequireAuth><BinderListPage /></RequireAuth>}</Route>
         <Route path="/binders/:id">{() => <RequireAuth><BinderPage /></RequireAuth>}</Route>
