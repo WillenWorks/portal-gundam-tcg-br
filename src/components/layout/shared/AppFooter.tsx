@@ -48,8 +48,8 @@ export function AppFooter({ className }: { className?: string }) {
               </p>
               <p className="text-[11px] leading-5 text-slate-500 dark:text-slate-500 light:text-slate-500">
                 {tr(
-                  "Cartas, artes e marcas registradas pertencem à Bandai Co., Ltd. e Sunrise/Sotsu. Anaheim Hub é um projeto comunitário independente sem fins lucrativos.",
-                  "Cards, artwork and trademarks belong to Bandai Co., Ltd. and Sunrise/Sotsu. Anaheim Hub is an independent, non-profit community project.",
+                  "Cartas, artes e marcas registradas pertencem à Bandai Co., Ltd. e Sunrise/Sotsu. Anaheim Hub é um projeto comunitário independente, sem vínculo oficial com a Bandai.",
+                  "Cards, artwork and trademarks belong to Bandai Co., Ltd. and Sunrise/Sotsu. Anaheim Hub is an independent community project with no official link to Bandai.",
                 )}
               </p>
             </div>
