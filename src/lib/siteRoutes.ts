@@ -33,6 +33,7 @@ export const SITE_ROUTES: Array<{ path: string; detail?: DetailKind }> = [
   { path: "/rules" }, { path: "/rules/:id" },
   { path: "/series" }, { path: "/series/:slug", detail: "series" },
   { path: "/sets" }, { path: "/sets/:code", detail: "set" },
+  { path: "/sobre" },
   { path: "/simulador" }, { path: "/simulador/multiplayer" }, { path: "/simulador/partida/:matchId" },
   { path: "/simulador/preview-layout" }, { path: "/simulador/treino" },
   { path: "/stats" },

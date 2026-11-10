@@ -9,6 +9,8 @@
  * Aqui só a montagem do HTML (funções puras, testadas em htmlContent.test.ts); as consultas ficam em
  * server/routes/htmlPages.ts. O React monta a página interativa por cima (createRoot troca o #root). */
 
+import type { AboutSection } from "../src/lib/aboutContent.ts";
+
 export const esc = (value: unknown): string =>
   String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -276,6 +278,23 @@ export function deckBody(d: { name: string; author?: string | null; description?
     lead: `Deck de Gundam Card Game${d.author ? ` montado por ${d.author}` : ""}${total ? `, com ${total} cartas no deck principal` : ""}.`,
     crumbs: [{ name: "Decks", path: "/decks" }],
     sections: [section("Descrição", paragraphs(d.description)), section("Deck principal", listing(main)), section("Deck de recursos", listing(bySection("resource")))],
+  });
+}
+
+export function aboutBody(a: { title: string; lead: string; updated: string; contact: string; sections: AboutSection[] }): string {
+  return pageShell({
+    title: a.title,
+    lead: a.lead,
+    sections: [
+      `<p style="color:#94a3b8;font-size:12px">Última atualização: ${esc(a.updated)}</p>`,
+      ...a.sections.map((s) =>
+        section(s.title, [
+          s.items?.length ? `<ul>${s.items.map((i) => `<li>${i.label ? `<strong>${i.href ? link(i.href, i.label) : esc(i.label)}</strong>: ` : ""}${esc(i.text)}</li>`).join("")}</ul>` : "",
+          ...(s.paragraphs ?? []).map((p) => `<p>${esc(p)}</p>`),
+        ].join("\n")),
+      ),
+      section("Contato", `<p>Dúvidas, correções e parcerias: <a href="mailto:${esc(a.contact)}" style="color:#38bdf8">${esc(a.contact)}</a></p>`),
+    ],
   });
 }
 

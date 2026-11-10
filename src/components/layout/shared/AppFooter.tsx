@@ -100,6 +100,11 @@ export function AppFooter({ className }: { className?: string }) {
               </p>
               <ul className="space-y-2 text-xs">
                 <li>
+                  <Link href="/sobre" className="transition-colors hover:text-primary">
+                    {tr("Sobre o Anaheim Hub", "About Anaheim Hub")}
+                  </Link>
+                </li>
+                <li>
                   <Link href="/privacidade" className="transition-colors hover:text-primary">
                     {tr("Privacidade de Dados", "Data Privacy")}
                   </Link>

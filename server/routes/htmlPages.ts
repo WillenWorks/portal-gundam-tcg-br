@@ -7,10 +7,11 @@ import type { Express } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { createPageCache, renderHtml, resolveHtmlPage, type BodyLoader, type DetailLoaders } from "../htmlMeta.ts";
 import {
-  articleBody, articlesIndexBody, cardBody, deckBody, decksIndexBody, rulesBody, rulingBody, seriesBody, seriesIndexBody,
+  aboutBody, articleBody, articlesIndexBody, cardBody, deckBody, decksIndexBody, rulesBody, rulingBody, seriesBody, seriesIndexBody,
   setBody, setsIndexBody, tournamentBody, tournamentsIndexBody, type CardRow,
 } from "../htmlContent.ts";
 import { ALL_KEYWORDS } from "../../src/i18n/keywords.ts";
+import { ABOUT_CONTACT, ABOUT_LEAD, ABOUT_SECTIONS, ABOUT_TITLE, ABOUT_UPDATED } from "../../src/lib/aboutContent.ts";
 import { GAME_COLOR_LABEL_PT } from "../../src/lib/gundam-catalog.ts";
 
 /** Endereços que não são páginas do site (API, sockets, arquivos). */
@@ -219,6 +220,8 @@ export function createHtmlBodyLoader(prisma: PrismaClient): BodyLoader {
 
   return async (path) => {
     switch (path) {
+      case "/sobre":
+        return aboutBody({ title: ABOUT_TITLE, lead: ABOUT_LEAD, updated: ABOUT_UPDATED, contact: ABOUT_CONTACT, sections: ABOUT_SECTIONS });
       case "/cards":
       case "/database":
         return setsIndex("Catálogo de cartas de Gundam Card Game", "Todas as cartas do jogo organizadas por coleção: Unidades, Pilotos, Comandos e Bases, com efeitos em português, dados de nível, custo, AP e HP, e as regras de cada carta.");
