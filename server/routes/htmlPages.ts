@@ -77,7 +77,7 @@ export function createHtmlDetailLoaders(prisma: PrismaClient): DetailLoaders {
         where: { OR: [{ id: key }, { code: key }], isActive: true },
         select: {
           id: true, code: true, nameEn: true, namePt: true, cardType: true, color: true, level: true, cost: true, ap: true, hp: true,
-          traits: true, trait: true, series: true, sourceTitle: true, zone: true, linkText: true, effectPt: true, effectEn: true,
+          traits: true, trait: true, series: true, sourceTitle: true, zone: true, linkText: true, effectPt: true, effectEn: true, legalityStatus: true,
           prints: { where: { isActive: true }, orderBy: [{ isPrimaryPrint: "desc" }, { code: "asc" }], select: { id: true, code: true, printLabel: true, rarity: true, imageMediumUrl: true, imageUrl: true, set: { select: { code: true, nameEn: true, namePt: true, isActive: true } } } },
           rulings: { where: { isActive: true }, select: { title: true, questionPt: true, answerPt: true, questionEn: true, answerEn: true } },
         },
@@ -102,6 +102,7 @@ export function createHtmlDetailLoaders(prisma: PrismaClient): DetailLoaders {
           zone: card.zone, link: card.linkText, effectPt: card.effectPt, effectEn: card.effectEn,
           prints: card.prints.map((p) => ({ code: p.code, label: p.printLabel, rarity: p.rarity, set: p.set?.isActive ? { code: p.set.code, name: p.set.namePt || p.set.nameEn } : null })),
           rulings,
+          preview: card.legalityStatus === "preview",
         }),
       };
     },

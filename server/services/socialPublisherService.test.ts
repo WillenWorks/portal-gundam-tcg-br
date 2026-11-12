@@ -297,6 +297,32 @@ describe("socialPublisherService", () => {
       expect(JSON.parse(String(result.metadata))).toMatchObject({ storyPostId: "story-555", storyError: null });
     });
 
+    it("resumo de spoilers: depois do companheiro, publica os outros stories em ordem; um que falha não derruba o resto", async () => {
+      const post = {
+        ...basePost,
+        type: "SPOILER_DIGEST",
+        metadata: JSON.stringify({
+          storyVideoUrl: "/uploads/social/social-sp-1.mp4",
+          storyEnabled: true,
+          extraStoryVideoUrls: ["/uploads/social/social-sp-2.mp4", "/uploads/social/social-sp-3.mp4"],
+        }),
+      };
+      const prisma = makePrisma(1, post);
+      const publish = vi.fn().mockResolvedValue({ mediaId: "999", permalink: null });
+      const publishStory = vi
+        .fn()
+        .mockResolvedValueOnce({ mediaId: "s1" })
+        .mockRejectedValueOnce(new Error("limite de stories"))
+        .mockResolvedValueOnce({ mediaId: "s3" });
+      const result = await publishApprovedPost(prisma, "p1", { publish, publishStory, publicAppUrl: "https://anaheimhub.com" });
+      expect(publishStory).toHaveBeenCalledTimes(3);
+      expect(result.status).toBe("PUBLISHED");
+      const meta = JSON.parse(String(result.metadata));
+      expect(meta.storyPostId).toBe("s1");
+      expect(meta.extraStoryPostIds).toEqual([null, "s3"]);
+      expect(meta.extraStoryErrors[0]).toContain("limite de stories");
+    });
+
     it("erro do Instagram marca FAILED e guarda a mensagem", async () => {
       const prisma = makePrisma();
       const publish = vi.fn().mockRejectedValue(new Error("Instagram (publicar): limite atingido"));
@@ -322,6 +348,17 @@ describe("socialPublisherService", () => {
       const result = await approveSocialPost(makePrisma(draft), "p1", {}, { instagramReady: true, publishNow });
       expect(publishNow).toHaveBeenCalledWith("p1");
       expect(result).toMatchObject({ ok: true, post: { status: "PUBLISHED" } });
+    });
+
+    it("resumo de spoilers: aprovar publica o site (artigo e cartas) mesmo sem Instagram; descartar marca o resumo", async () => {
+      const digestPost = { ...draft, type: "SPOILER_DIGEST", metadata: JSON.stringify({ spoilerDigestId: "d1" }) };
+      const prisma = makePrisma(digestPost);
+      prisma.spoilerDigest = { findUnique: vi.fn().mockResolvedValue({ id: "d1", status: "PUBLISHED", captures: [] }), updateMany: vi.fn().mockResolvedValue({ count: 1 }) };
+      const result = await approveSocialPost(prisma, "p1", {}, { instagramReady: false });
+      expect(prisma.spoilerDigest.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "d1" } }));
+      expect(result.post.status).toBe("APPROVED");
+      await rejectSocialPost(prisma, "p1", "não");
+      expect(prisma.spoilerDigest.updateMany).toHaveBeenCalledWith({ where: { id: "d1", status: "PENDING_APPROVAL" }, data: { status: "REJECTED" } });
     });
 
     it("rascunho da agenda com horário futuro só fica APROVADO (sai no horário)", async () => {

@@ -229,4 +229,31 @@ export function registerSocialRoutes(app: Express, prisma: PrismaClient, authReq
       res.status(400).json({ error: errorMessage(err, "Erro ao excluir post.") });
     }
   });
+
+  // spoilers do Discord: últimas capturas (para conferir leitura e falhas)
+  app.get("/api/admin/spoilers", authRequired, adminOnly, async (_req: Request, res: Response) => {
+    try {
+      const [captures, digests] = await Promise.all([
+        prisma.spoilerCapture.findMany({ orderBy: { postedAt: "desc" }, take: 60, select: { id: true, status: true, cardCode: true, imageUrl: true, sourceUrl: true, error: true, extracted: true, digestId: true, postedAt: true } }),
+        prisma.spoilerDigest.findMany({ orderBy: { createdAt: "desc" }, take: 20 }),
+      ]);
+      const { readSpoilerConfig } = await import("../services/spoilerService.ts");
+      res.json({ enabled: Boolean(readSpoilerConfig()), captures, digests });
+    } catch (err) {
+      res.status(500).json({ error: errorMessage(err, "Erro ao listar os spoilers.") });
+    }
+  });
+
+  // força um ciclo agora (captura + propostas), sem esperar os 2 minutos
+  app.post("/api/admin/spoilers/run", authRequired, adminOnly, async (_req: Request, res: Response) => {
+    try {
+      const { readSpoilerConfig, runSpoilerTick } = await import("../services/spoilerService.ts");
+      const config = readSpoilerConfig();
+      if (!config) return res.status(400).json({ error: "Captura de spoilers desligada (SPOILER_CAPTURE_ENABLED, DISCORD_BOT_TOKEN e SPOILER_DISCORD_CHANNEL_ID)." });
+      const result = await runSpoilerTick(prisma, config);
+      res.json({ ok: true, captured: result?.capture.captured ?? 0, failed: result?.capture.failed ?? 0, digestIds: result?.digests.map((d) => d.id) ?? [], busy: result === null });
+    } catch (err) {
+      res.status(500).json({ error: errorMessage(err, "Erro ao rodar a captura de spoilers.") });
+    }
+  });
 }

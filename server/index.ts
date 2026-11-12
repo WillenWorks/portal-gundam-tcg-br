@@ -5984,6 +5984,12 @@ async function boot() {
   if (process.env.SOCIAL_SCHEDULER_ENABLED === "true") {
     void import("./services/socialScheduler.ts").then(({ startSocialScheduler }) => startSocialScheduler(prisma));
   }
+  // spoilers do canal seguido do Discord → catálogo (prévia) + artigo + carrossel/stories, só com SPOILER_CAPTURE_ENABLED=true
+  if (process.env.SPOILER_CAPTURE_ENABLED === "true") {
+    void import("./services/spoilerService.ts")
+      .then(({ startSpoilerWatcher }) => startSpoilerWatcher(prisma))
+      .catch((err) => console.error("[spoilers] não deu para iniciar:", err instanceof Error ? err.message : err));
+  }
 }
 
 boot();
