@@ -503,7 +503,7 @@ jobs:
 
             social_conferir() {
               secao "agente do Instagram: variáveis no .env (só sim/não)"
-              for v in GEMINI_API_KEY DISCORD_WEBHOOK_URL INSTAGRAM_USER_ID INSTAGRAM_ACCESS_TOKEN SOCIAL_SCHEDULER_ENABLED SOCIAL_CHROMIUM_PATH; do
+              for v in GEMINI_API_KEY DISCORD_WEBHOOK_URL INSTAGRAM_USER_ID INSTAGRAM_ACCESS_TOKEN SOCIAL_SCHEDULER_ENABLED SOCIAL_CHROMIUM_PATH SPOILER_CAPTURE_ENABLED SPOILER_DISCORD_CHANNEL_ID; do
                 echo "$v: $(sim_nao "$(grep -E "^${v}=.+" "$APP/.env" 2>/dev/null | head -1)")"
               done
               secao "navegador do Playwright e ffmpeg (Reels MP4)"
@@ -520,7 +520,7 @@ jobs:
                 | awk '{print $4, $6, $7, $9, $10}' | sed -E 's#/posts/[A-Za-z0-9]+/#/posts/<id>/#' | tail -n 20 || echo "sem registros"
               secao "erros do serviço social no log da API (últimas 40 linhas)"
               L=$(pm2 jlist | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const p=JSON.parse(s).find(x=>x.name==="gundam-portal");console.log(p.pm2_env.pm_err_log_path+" "+p.pm2_env.pm_out_log_path)})')
-              grep -ahE "socialPublisher|socialScheduler|socialSlides|discordInteractions|Instagram" "${L%% *}" "${L##* }" 2>/dev/null \
+              grep -ahE "socialPublisher|socialScheduler|socialSlides|discordInteractions|Instagram|\[spoilers\]" "${L%% *}" "${L##* }" 2>/dev/null \
                 | sed -E 's/(access_token|token)=[^ &"]+/\1=***/g' | cut -c1-300 | tail -n 40 || echo "sem registros"
             }
 

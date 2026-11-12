@@ -86,6 +86,8 @@ export interface GeneratePostInput {
   scheduledFor?: Date;
   /** dia da agenda que gerou o rascunho (impede dois rascunhos no mesmo dia) */
   slotKey?: string;
+  /** resumo de spoilers do Discord (tipo SPOILER_DIGEST, ver spoilerService.ts) */
+  spoilerDigestId?: string;
 }
 
 export interface GeneratedPostContent {
@@ -731,6 +733,16 @@ export function readPostStoryMeta(post: { cardCode?: string | null; metadata?: s
   }
 }
 
+/** Stories além do companheiro (resumo de spoilers: um por carta), na ordem de publicação. */
+export function extraStoryVideoUrlsOf(post: { metadata?: string | null }): string[] {
+  try {
+    const list = (JSON.parse(post.metadata || "{}") as { extraStoryVideoUrls?: unknown }).extraStoryVideoUrls;
+    return Array.isArray(list) ? list.filter((u): u is string => typeof u === "string" && /^\/uploads\/social\/[A-Za-z0-9-]+\.mp4$/.test(u)) : [];
+  } catch {
+    return [];
+  }
+}
+
 /** Devolve a URL do vídeo MP4 do Story companheiro de um post, se houver. */
 export function storyVideoUrlOf(post: { metadata?: string | null }): string | null {
   return readPostStoryMeta(post).storyVideoUrl;
@@ -752,6 +764,7 @@ export async function cleanupOrphanSocialImages(prisma: PrismaClient, now = new 
       p.imageUrl,
       ...(p.mediaUrls ?? []),
       storyVideoUrlOf(p),
+      ...extraStoryVideoUrlsOf(p),
     ]),
   );
   let removed = 0;
@@ -821,7 +834,7 @@ export function buildDiscordSocialPayload(post: DiscordNoticePost, publicUrl: st
           ...(reelVideo ? [{ name: "Formato", value: `🎬 Reel (vídeo MP4) · [Assistir prévia](${publicUrl}${reelVideo})`, inline: false }] : []),
           ...(slides > 1 ? [{ name: "Formato", value: `🖼️ Carrossel com ${slides} imagens`, inline: false }] : []),
           ...(!reelVideo && storyMeta.storyEnabled && storyMeta.storyVideoUrl
-            ? [{ name: "Story companheiro", value: `📱 Story 9:16 sai junto ao aprovar · [Assistir prévia](${publicUrl}${storyMeta.storyVideoUrl})`, inline: false }]
+            ? [{ name: "Story companheiro", value: `📱 ${extraStoryVideoUrlsOf(post).length ? `${extraStoryVideoUrlsOf(post).length + 1} stories 9:16 saem` : "Story 9:16 sai"} junto ao aprovar · [Assistir prévia](${publicUrl}${storyMeta.storyVideoUrl})`, inline: false }]
             : []),
           { name: "Painel", value: `[Abrir no painel do admin](${adminLink})`, inline: false },
         ],
@@ -873,7 +886,7 @@ export function socialPublicAppUrl(): string {
 }
 
 /** Conteúdo de um rascunho antes de gravar: legenda, slides (o primeiro é a capa) e dados para o painel. */
-type DraftContent = {
+export type DraftContent = {
   type: SocialPostType;
   content: GeneratedPostContent;
   cardCode?: string;
@@ -888,6 +901,8 @@ type DraftContent = {
   storyCard?: ReelCardInput;
   /** dados de renderização do Story companheiro (9:16 MP4) que sai junto com o post de artigo */
   storyArticle?: ArticleStoryInput;
+  /** vários stories de carta (resumo de spoilers): o primeiro é o companheiro de sempre, os outros saem em sequência */
+  storyCards?: ReelCardInput[];
   metadata?: Record<string, unknown>;
   /** motivo para o aviso no Discord (ex.: semana sem torneio virou carta da semana) */
   notice?: string;
@@ -1515,6 +1530,7 @@ export async function queueArticleSocialDraft(prisma: PrismaClient, articleId: s
 async function buildDraft(prisma: PrismaClient, input: GeneratePostInput): Promise<DraftContent> {
   if (input.reel) return draftCardRevealReel(prisma, input);
   if (input.type === SocialPostType.ARTICLE) return draftArticlePost(prisma, input);
+  if (input.type === SocialPostType.SPOILER_DIGEST) return (await import("./spoilerSocial.ts")).draftSpoilerDigest(prisma, input);
   if (input.type === SocialPostType.TOURNAMENT_REPORT) return draftTournamentReport(prisma, input);
   if (input.type === SocialPostType.DECK_FEATURE) return draftDeckFeature(prisma, input);
   return draftCardSpotlight(prisma, input);
@@ -1539,7 +1555,20 @@ export async function createSocialPostDraft(prisma: PrismaClient, input: Generat
     const renderedSlides = await renderDraftSlides(draft.fileStem, draft.slides);
     imageUrl = renderedSlides[0] ?? null;
     mediaUrls = renderedSlides.length > 1 ? renderedSlides : [];
-    if (draft.storyCard) {
+    if (draft.storyCards?.length) {
+      const videos: string[] = [];
+      for (const [i, card] of draft.storyCards.entries()) {
+        const url = await renderDraftStory(`${draft.fileStem}-story${i + 1}`, card);
+        if (url) videos.push(url);
+      }
+      extraMeta = {
+        storyVideoUrl: videos[0] ?? null,
+        storyEnabled: videos.length > 0,
+        storyTitle: draft.storyCards[0].storyTitle || "SPOILER",
+        storyCard: draft.storyCards[0],
+        extraStoryVideoUrls: videos.slice(1),
+      };
+    } else if (draft.storyCard) {
       const storyVideoUrl = await renderDraftStory(`${draft.fileStem}-story`, draft.storyCard);
       const storyTitle = draft.storyCard.storyTitle || (draft.storyCard.isSpoiler ? "SPOILER DA SEMANA" : "CARTA DA SEMANA");
       extraMeta = {
@@ -1864,6 +1893,26 @@ export async function publishApprovedPost(
           console.warn("[socialPublisher] Post publicado, mas o Story companheiro falhou:", storyMsg);
           updatedMetadata = JSON.stringify({ ...rawMeta, storyError: storyMsg });
         }
+
+        // demais stories (resumo de spoilers): um de cada vez, na ordem; falha num não derruba o post nem os outros
+        const extras = extraStoryVideoUrlsOf(post);
+        if (extras.length) {
+          const meta = JSON.parse(updatedMetadata || "{}") as Record<string, unknown>;
+          const done = Array.isArray(meta.extraStoryPostIds) ? (meta.extraStoryPostIds as Array<string | null>) : [];
+          const errors: string[] = [];
+          for (const [i, url] of extras.entries()) {
+            if (done[i]) continue;
+            try {
+              const story = await (deps.publishStory ?? publishInstagramStory)(prisma, { videoUrl: `${publicAppUrl}${url}` });
+              done[i] = story.mediaId;
+            } catch (err) {
+              done[i] = null;
+              errors.push(`story ${i + 2}: ${(err instanceof Error ? err.message : String(err)).slice(0, 160)}`);
+            }
+          }
+          updatedMetadata = JSON.stringify({ ...meta, extraStoryPostIds: done, extraStoryErrors: errors });
+          if (errors.length) console.warn("[socialPublisher] alguns stories do resumo falharam:", errors.join(" | "));
+        }
       }
     }
 
@@ -1938,6 +1987,9 @@ export async function approveSocialPost(
     });
   }
 
+  // resumo de spoilers: o mesmo clique publica o artigo e ativa as cartas prévia no site, com ou sem Instagram
+  if (existing.type === SocialPostType.SPOILER_DIGEST) await (await import("./spoilerService.ts")).publishSpoilerDigestSite(prisma, existing);
+
   const approved = await prisma.socialMediaPost.update({
     where: { id },
     data: { title: edits.title, caption, status: SocialPostStatus.APPROVED, approvedAt: new Date(), publishError: null, rejectedReason: null },
@@ -1958,7 +2010,9 @@ export async function rejectSocialPost(prisma: PrismaClient, id: string, reason:
     data: { status: SocialPostStatus.REJECTED, rejectedReason: reason || "Rejeitado pelo moderador" },
   });
   if (updated.count !== 1) throw new SocialActionError("Post não encontrado ou já publicado.", 409);
-  return prisma.socialMediaPost.findUnique({ where: { id } });
+  const post = await prisma.socialMediaPost.findUnique({ where: { id } });
+  if (post?.type === SocialPostType.SPOILER_DIGEST) await (await import("./spoilerService.ts")).rejectSpoilerDigest(prisma, post);
+  return post;
 }
 
 /** Situação das integrações para o painel (só sim/não; nenhum segredo). */

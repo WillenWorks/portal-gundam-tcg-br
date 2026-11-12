@@ -1146,6 +1146,7 @@ enum SocialPostType {
   PRODUCT_AFFILIATE
   TOURNAMENT_REPORT
   ARTICLE
+  SPOILER_DIGEST
 }
 
 /// Fila e historico de postagens para redes sociais com Human-in-the-Loop (Instagram / Discord / Web Admin)
@@ -1190,4 +1191,64 @@ model SocialIntegrationToken {
   expiresAt   DateTime?
   refreshedAt DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+enum SpoilerCaptureStatus {
+  /// imagem guardada e carta lida pela IA; espera entrar no resumo do dia
+  CAPTURED
+  /// a IA não conseguiu ler (ou a imagem não é carta): fica registrado para conferir no painel
+  FAILED
+  /// já entrou num resumo (SpoilerDigest)
+  DIGESTED
+}
+
+enum SpoilerDigestStatus {
+  PENDING_APPROVAL
+  PUBLISHED
+  REJECTED
+}
+
+/// Uma imagem de spoiler copiada do canal seguido do Discord (o canal do servidor do Anaheim Hub que recebe os
+/// spoilers pelo botão "Seguir"). Uma linha por imagem: uma mensagem com 3 cartas vira 3 linhas.
+model SpoilerCapture {
+  id               String               @id @default(cuid())
+  /// "<id da mensagem>:<id do anexo ou índice do embed>" — impede capturar a mesma imagem duas vezes
+  sourceKey        String               @unique
+  discordMessageId String
+  channelId        String
+  /// link da mensagem original (quando o Discord informa de onde ela veio)
+  sourceUrl        String?
+  messageText      String?              @db.Text
+  /// cópia local da imagem (/uploads/spoilers/...): o link do Discord expira
+  imageUrl         String
+  status           SpoilerCaptureStatus @default(CAPTURED)
+  /// dados lidos da carta pela IA (SpoilerCardData, ver server/services/spoilerExtract.ts)
+  extracted        Json?
+  cardCode         String?
+  cardModelId      String?
+  error            String?              @db.Text
+  digestId         String?
+  postedAt         DateTime
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  digest SpoilerDigest? @relation(fields: [digestId], references: [id], onDelete: SetNull)
+
+  @@index([status, postedAt])
+  @@index([digestId])
+}
+
+/// Resumo de spoilers: um artigo do dia + um carrossel com stories, aprovados juntos por um clique.
+model SpoilerDigest {
+  id           String              @id @default(cuid())
+  status       SpoilerDigestStatus @default(PENDING_APPROVAL)
+  /// coleção dos spoilers (ex.: GD07)
+  setCode      String?
+  articleId    String?
+  socialPostId String?
+  publishedAt  DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  captures SpoilerCapture[]
 }

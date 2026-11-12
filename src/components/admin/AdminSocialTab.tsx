@@ -34,7 +34,7 @@ function InstagramIcon({ className = "size-4" }: { className?: string }) {
 
 export interface SocialMediaPost {
   id: string;
-  type: "CARD_SPOTLIGHT" | "DECK_FEATURE" | "META_INSIGHT" | "PRODUCT_AFFILIATE" | "TOURNAMENT_REPORT" | "ARTICLE";
+  type: "CARD_SPOTLIGHT" | "DECK_FEATURE" | "META_INSIGHT" | "PRODUCT_AFFILIATE" | "TOURNAMENT_REPORT" | "ARTICLE" | "SPOILER_DIGEST";
   status: "DRAFT" | "PENDING_APPROVAL" | "APPROVED" | "PUBLISHING" | "PUBLISHED" | "REJECTED" | "FAILED";
   title: string | null;
   caption: string;
@@ -63,6 +63,7 @@ const POST_TYPE_LABEL: Record<SocialMediaPost["type"], string> = {
   META_INSIGHT: "Meta",
   PRODUCT_AFFILIATE: "Afiliado",
   ARTICLE: "Artigo",
+  SPOILER_DIGEST: "Spoilers do dia",
 };
 
 type GenerateFormat = SocialMediaPost["type"] | "CARD_SPOILER" | "CARD_REEL";

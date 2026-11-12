@@ -35,6 +35,7 @@ export function paragraphs(text: string | null | undefined): string {
 const inlineMd = (text: string) =>
   esc(text)
     .replace(/!\[[^\]]*\]\([^)]*\)/g, "") // imagem: o React mostra
+    .replace(/\[\[([^\]]+)\]\]/g, "$1") // [[GD01-001]]: cartão de carta no React; aqui fica o texto
     .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, label, url) =>
       /^(https?:\/\/|\/)/.test(url) ? `<a href="${url}" style="color:#38bdf8">${label}</a>` : label)
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
@@ -141,6 +142,8 @@ export type CardContent = {
   prints: Array<{ code: string; label?: string | null; rarity?: string | null; set?: { code: string; name: string } | null }>;
   rulings: Array<{ title: string; question?: string | null; answer?: string | null }>;
   related?: Array<{ id: string; code: string; name: string }>;
+  /** carta revelada em spoiler, ainda sem lista oficial */
+  preview?: boolean;
 };
 
 export function cardBody(c: CardContent): string {
@@ -173,7 +176,7 @@ export function cardBody(c: CardContent): string {
   const related = c.related?.length ? `<ul>${c.related.map((r) => `<li>${link(`/cards/${r.id}`, `${r.name} (${r.code})`)}</li>`).join("")}</ul>` : "";
   return pageShell({
     title: `${c.name} (${c.code})`,
-    lead: `${c.typeLabel}${c.colorLabel ? ` ${c.colorLabel.toLowerCase()}` : ""} de Gundam Card Game.`,
+    lead: `${c.typeLabel}${c.colorLabel ? ` ${c.colorLabel.toLowerCase()}` : ""} de Gundam Card Game.${c.preview ? " Prévia: carta revelada em spoiler, o texto pode mudar até a lista oficial." : ""}`,
     crumbs: [{ name: "Cartas", path: "/cards" }],
     sections: [
       section("Dados da carta", stats),
