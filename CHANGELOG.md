@@ -23,7 +23,7 @@ primeiro grande lançamento (`v1.0.0`) — esperem ajustes e coisa nova toda sem
 - **Artigos**: hashtags, filtros e destaque na home.
 - **Instagram**: carta da semana, torneios do Brasil, deck do mês e posts de artigos.
 - **Vitrine de séries**: Gundam 0083 e Gundam ZZ.
-- **Spoilers automáticos**: os spoilers oficiais que chegam pelo Discord viram carta em prévia no catálogo, artigo do dia com sinergias, arquétipos e cartas parecidas, e carrossel com stories no Instagram, tudo publicado com um clique de aprovação.
+- **Spoilers automáticos**: cada spoiler oficial que chega pelo Discord vira uma proposta — carta em prévia no catálogo, artigo com sinergias, arquétipos e cartas parecidas, e carrossel com stories no Instagram — publicada com um clique de aprovação. Carta revelada em japonês sai traduzida para inglês e português, e a versão em inglês, quando chega, substitui ou atualiza a japonesa.
 - **Página "Sobre"** e o conteúdo de cada página já no HTML entregue pelo servidor.
 
 ### Desempenho e segurança

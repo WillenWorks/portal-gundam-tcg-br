@@ -1,11 +1,11 @@
--- Spoilers capturados do canal seguido do Discord: cada imagem vira um SpoilerCapture; os do dia viram um
--- SpoilerDigest (artigo + carrossel + stories) aprovado de uma vez.
+-- Spoilers capturados do canal seguido do Discord: cada imagem vira um SpoilerCapture; cada mensagem nova vira um
+-- SpoilerDigest (proposta: artigo + carrossel + stories) aprovado de uma vez.
 
 -- AlterEnum
 ALTER TYPE "SocialPostType" ADD VALUE 'SPOILER_DIGEST';
 
 -- CreateEnum
-CREATE TYPE "SpoilerCaptureStatus" AS ENUM ('CAPTURED', 'FAILED', 'DIGESTED');
+CREATE TYPE "SpoilerCaptureStatus" AS ENUM ('CAPTURED', 'FAILED', 'DIGESTED', 'DUPLICATE');
 
 -- CreateEnum
 CREATE TYPE "SpoilerDigestStatus" AS ENUM ('PENDING_APPROVAL', 'PUBLISHED', 'REJECTED');
@@ -15,7 +15,10 @@ CREATE TABLE "SpoilerDigest" (
     "id" TEXT NOT NULL,
     "status" "SpoilerDigestStatus" NOT NULL DEFAULT 'PENDING_APPROVAL',
     "setCode" TEXT,
+    "cardCodes" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "language" TEXT,
     "articleId" TEXT,
+    "updatesArticleId" TEXT,
     "socialPostId" TEXT,
     "publishedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -36,6 +39,7 @@ CREATE TABLE "SpoilerCapture" (
     "status" "SpoilerCaptureStatus" NOT NULL DEFAULT 'CAPTURED',
     "extracted" JSONB,
     "cardCode" TEXT,
+    "language" TEXT,
     "cardModelId" TEXT,
     "error" TEXT,
     "digestId" TEXT,

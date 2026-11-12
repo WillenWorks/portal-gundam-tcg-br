@@ -66,8 +66,11 @@ export async function draftSpoilerDigest(prisma: PrismaClient, input: GeneratePo
   if (!input.spoilerDigestId) throw new SocialActionError("Resumo de spoilers não informado.", 400);
   const digest = await prisma.spoilerDigest.findUnique({ where: { id: input.spoilerDigestId }, include: { captures: { where: { status: "DIGESTED" }, orderBy: { postedAt: "asc" } } } });
   if (!digest?.articleId) throw new SocialActionError("Resumo de spoilers sem artigo.", 404);
-  const article = await prisma.post.findUnique({ where: { id: digest.articleId }, select: { slug: true, title: true } });
-  if (!article) throw new SocialActionError("Artigo do resumo não encontrado.", 404);
+  const draftArticle = await prisma.post.findUnique({ where: { id: digest.articleId }, select: { slug: true, title: true } });
+  if (!draftArticle) throw new SocialActionError("Artigo do resumo não encontrado.", 404);
+  // versão nova de carta já publicada: o post aponta para o artigo que já existe (ele é atualizado ao aprovar)
+  const updated = digest.updatesArticleId ? await prisma.post.findUnique({ where: { id: digest.updatesArticleId }, select: { slug: true, title: true } }) : null;
+  const article = updated ?? draftArticle;
 
   const base = input.publicAppUrl || socialPublicAppUrl();
   const host = base.replace(/^https?:\/\//, "").replace(/\/+$/, "");
@@ -134,9 +137,10 @@ export async function draftSpoilerDigest(prisma: PrismaClient, input: GeneratePo
     storyTitle: setCode ? `SPOILER ${setCode}` : "SPOILER",
   }));
 
+  const translatedCards = cards.filter((c) => c.data.translated);
   const facts = cards.map((c) => ({ nome: c.data.nameEn, codigo: c.data.code, tipo: CARD_TYPE_PT[c.data.cardType], cor: c.data.color, nivel: c.data.level, custo: c.data.cost, ap: c.data.ap, hp: c.data.hp, traits: c.data.traits, efeito: c.data.effectPt || c.data.effectEn }));
   const prompt = `Você escreve os posts do Instagram do Anaheim Hub (anaheimhub.com), portal brasileiro feito por fãs do Gundam Card Game (Bandai). O portal não é oficial nem ligado à Bandai.
-Saíram spoilers oficiais${setCode ? ` de ${setCode}` : ""} (${dayLabel}). O post é um carrossel com uma capa e uma arte por carta; o artigo do site tem a análise completa.
+Saíram spoilers oficiais${setCode ? ` de ${setCode}` : ""} (${dayLabel}). O post é um carrossel com uma capa e uma arte por carta; o artigo do site tem a análise completa.${translatedCards.length ? "\nA carta foi revelada em japonês: os textos abaixo são tradução não oficial. Diga isso numa frase curta e que a versão em inglês pode mudar a redação." : ""}${updated ? "\nÉ a versão em inglês de carta que já postamos em japonês: diga que saiu o texto oficial em inglês." : ""}
 Cartas: ${JSON.stringify(facts)}
 Estrutura: gancho de 1 linha; uma linha por carta com nome, código e o que ela faz em poucas palavras; convite para ler a análise no artigo ${link} (link na bio); pergunta para os comentários; no final, exatamente estas 5 hashtags: ${tags.map((t) => `#${t}`).join(" ")}.
 Regras: português do Brasil; não traduza nomes de cartas, personagens nem palavras-chave do jogo; use SOMENTE os dados acima, sem inventar números nem previsão de metagame; não fale em nome da Bandai; no máximo 1.800 caracteres; a primeira linha cabe em 125 caracteres.
@@ -146,7 +150,12 @@ Responda APENAS com JSON válido:
 
   const failed = await prisma.spoilerCapture.findMany({ where: { status: "FAILED", createdAt: { gte: new Date(Date.now() - 24 * 3600_000) } }, select: { imageUrl: true, error: true } });
   const notice = [
-    `📰 Artigo "${article.title}" sai junto ao aprovar · ${base.replace(/\/+$/, "")}/admin#articles`,
+    translatedCards.length
+      ? `🇯🇵 ${translatedCards.length === cards.length ? "Imagem em japonês" : `${translatedCards.length} carta(s) em japonês`}: nome, efeito, traits e Link em inglês e português são tradução da IA. Se preferir, descarte e espere a versão em inglês — ela gera uma proposta nova.`
+      : null,
+    updated
+      ? `♻️ Versão nova de carta já publicada: aprovar atualiza o artigo "${updated.title}" (mesmo link) e os dados da carta no catálogo.`
+      : `📰 Artigo "${draftArticle.title}" sai junto ao aprovar · ${base.replace(/\/+$/, "")}/admin#articles`,
     `🃏 ${cards.filter((c) => c.inCatalog).length} carta(s) entram no catálogo como prévia · 📱 ${storyCards.length} story(s)`,
     failed.length ? `⚠️ ${failed.length} imagem(ns) não lida(s) nas últimas 24 h: ${failed.slice(0, 3).map((f) => (f.imageUrl ? absolute(f.imageUrl, base) : f.error)).join(" · ")}` : null,
   ].filter(Boolean).join("\n");
@@ -159,7 +168,7 @@ Responda APENAS com JSON válido:
     slides,
     altTexts,
     storyCards,
-    metadata: { spoilerDigestId: digest.id, digestArticleId: digest.articleId, digestArticleSlug: article.slug, isSpoiler: true, altTexts, ...meta },
+    metadata: { spoilerDigestId: digest.id, digestArticleId: digest.articleId, digestArticleSlug: article.slug, digestLanguage: digest.language, isSpoiler: true, altTexts, ...meta },
     notice,
   };
 }

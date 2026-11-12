@@ -30,8 +30,13 @@ export type SpoilerCardData = {
   effectEn: string | null;
   /** o mesmo efeito em português, palavras-chave em inglês */
   effectPt: string | null;
-  /** o texto impresso não estava em inglês e effectEn é tradução da IA */
+  /** o texto impresso não estava em inglês e nome/efeito em inglês são tradução da IA */
   translated: boolean;
+  /** idioma impresso ("en", "ja"...) */
+  language: string;
+  /** texto original quando não está em inglês (fica no artigo como referência) */
+  nameOriginal: string | null;
+  effectOriginal: string | null;
 };
 
 /** Formato pedido à IA (a mesma estrutura para Gemini e Claude). */
@@ -51,6 +56,10 @@ const RawSchema = z.object({
   effectEn: z.string().nullable(),
   effectPt: z.string().nullable(),
   printedLanguage: z.string().nullable(),
+  /** mesmo campo já normalizado (releitura do que foi gravado no banco) */
+  language: z.string().nullable(),
+  nameOriginal: z.string().nullable(),
+  effectOriginal: z.string().nullable(),
 });
 type RawCard = z.infer<typeof RawSchema>;
 
@@ -60,16 +69,17 @@ A imagem pode ser uma carta, várias cartas ou outra coisa (banner, produto, tex
 Se a imagem não mostrar UMA carta legível em destaque, responda {"isCard": false} com os demais campos null/[].
 Se mostrar, preencha:
 - code: código impresso (ex.: GD07-012, ST10-003). null se não aparecer.
-- nameEn: nome da carta como impresso. Não traduza.
+- nameEn: nome da carta em inglês. Se a carta estiver em inglês, exatamente como impresso. Se estiver em japonês, o nome oficial em inglês da unidade, personagem ou nave (ex.: ガンダム・エアリアル → Gundam Aerial, スレッタ・マーキュリー → Suletta Mercury); se não houver nome oficial conhecido, a romanização usada pela franquia.
 - cardType: UNIT, PILOT, COMMAND, BASE ou RESOURCE.
 - color: Blue, Green, Red, White, Purple ou Yellow (em inglês).
 - level, cost, ap, hp: números impressos (null se a carta não tiver).
 - rarity: C, U, R, LR, P ou o que estiver impresso (null se não aparecer).
 - traits: os traits entre parênteses, sem os parênteses (ex.: ["Earth Federation", "White Base Team"]).
 - linkText: a condição de Link como impressa (ex.: "[Amuro Ray]" ou "(Zeon) Trait"); null se não houver.
-- effectEn: o texto do efeito em inglês, mantendo as palavras-chave como no jogo: <Blocker>, <Repair 2>, <Breach 3>, 【Deploy】, 【Attack】, 【When Paired】, 【Burst】, 【Activate･Main】. Quebra de linha entre parágrafos. Se a carta estiver em japonês, traduza para o inglês usando a redação oficial das cartas em inglês.
+- effectEn: o texto do efeito em inglês, mantendo as palavras-chave como no jogo: <Blocker>, <Repair 2>, <Breach 3>, 【Deploy】, 【Attack】, 【When Paired】, 【Burst】, 【Activate･Main】. Quebra de linha entre parágrafos. Se a carta estiver em japonês, traduza para o inglês seguindo a redação das cartas oficiais em inglês (ex.: 【展開時】→【Deploy】, 【アタック時】→【Attack】, 〈ブロッカー〉→<Blocker>, 〈リペア2〉→<Repair 2>, 〈ブレイク〉/〈突破〉→<Breach>). Traits e condição de Link também em inglês (ex.: (地球連邦軍) → Earth Federation).
 - effectPt: o mesmo efeito em português do Brasil, mantendo em inglês os nomes de cartas, personagens e palavras-chave.
 - printedLanguage: "en", "ja" ou outro código do idioma impresso.
+- nameOriginal e effectOriginal: só quando a carta NÃO está em inglês, o nome e o efeito exatamente como impressos (no idioma original); null se estiver em inglês.
 Nunca invente número ou texto que não dá para ler: use null.
 Responda APENAS com JSON válido nesse formato.`;
 
@@ -98,6 +108,8 @@ export function normalizeSpoilerCard(raw: unknown): SpoilerCardData | null {
   const color = SPOILER_COLORS.find((c) => c.toLowerCase() === String(r.color || "").trim().toLowerCase()) ?? null;
   const traits = [...new Set((r.traits ?? []).map((t) => String(t).replace(/^[(\s]+|[)\s]+$/g, "").trim()).filter((t) => t && t.length <= 60))].slice(0, 6);
   const isUnit = cardType === "UNIT";
+  // sem idioma informado, presume inglês (é o que o canal mais posta); "ja-JP" → "ja"
+  const language = (/^[a-z]{2}/i.exec(String(r.printedLanguage || r.language || "en"))?.[0] ?? "en").toLowerCase();
   return {
     code: code && CARD_CODE_PATTERN.test(code) ? code : null,
     nameEn,
@@ -112,7 +124,10 @@ export function normalizeSpoilerCard(raw: unknown): SpoilerCardData | null {
     linkText: isUnit ? cleanText(r.linkText, 120) : null,
     effectEn: cleanText(r.effectEn, 2000),
     effectPt: cleanText(r.effectPt, 2400),
-    translated: Boolean(r.printedLanguage && !/^en/i.test(r.printedLanguage)),
+    translated: language !== "en",
+    language,
+    nameOriginal: language !== "en" ? cleanText(r.nameOriginal, 160) : null,
+    effectOriginal: language !== "en" ? cleanText(r.effectOriginal, 2000) : null,
   };
 }
 

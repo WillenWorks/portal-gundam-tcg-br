@@ -1,15 +1,20 @@
-/* Spoilers do Discord → catálogo (prévia) + artigo do dia + carrossel e stories, com um clique de aprovação.
+/* Spoilers do Discord → proposta (carta prévia + artigo + carrossel com stories), aprovada com um clique.
  *
  * Fluxo (liga com SPOILER_CAPTURE_ENABLED=true):
  *  1. O canal de spoilers de outro servidor é SEGUIDO (botão "Seguir" do Discord) para um canal do servidor do Anaheim
  *     Hub (SPOILER_DISCORD_CHANNEL_ID). O bot do Anaheim Hub lê esse canal pela API a cada 2 minutos — não usa conta
  *     pessoal (self-bot é proibido pelo Discord) e não precisa estar no servidor de origem.
  *  2. Cada imagem nova é copiada para /uploads/spoilers (o link do Discord expira) e a IA lê a carta
- *     (spoilerExtract.ts). Com código, a carta entra no catálogo como PRÉVIA e INATIVA (ninguém vê ainda).
- *  3. Passados SPOILER_QUIET_MINUTES (padrão 20) sem spoiler novo, junta os do dia num resumo: artigo (rascunho em
- *     revisão) com a análise de spoilerAnalysis.ts, carrossel e um story por carta. Aviso no Discord com ✅/❌.
- *  4. ✅ publica tudo: ativa as cartas prévia, publica o artigo e posta carrossel + stories. ❌ descarta o post e
- *     deixa artigo e cartas como rascunho (dá para revisar e publicar pelo painel).
+ *     (spoilerExtract.ts). Carta em japonês sai com nome, efeito, traits e Link traduzidos para o inglês e o português
+ *     (e o texto original guardado). Com código, a carta entra no catálogo como PRÉVIA e INATIVA.
+ *  3. Cada mensagem nova vira uma PROPOSTA na hora: artigo (rascunho) com a análise de spoilerAnalysis.ts, carrossel e
+ *     um story por carta. Aviso no Discord com ✅/❌ — dá para aprovar a versão em japonês ou esperar a em inglês.
+ *  4. A Bandai costuma mostrar a carta em japonês e depois em inglês. Quando a versão em inglês chega:
+ *     - proposta em japonês ainda pendente → é substituída (descartada) pela nova;
+ *     - proposta em japonês já publicada → a nova ATUALIZA o mesmo artigo (mesmo link) e os dados da carta ao aprovar.
+ *     A mesma carta no mesmo idioma postada de novo não gera proposta (DUPLICATE).
+ *  5. ✅ ativa/atualiza as cartas prévia, publica (ou atualiza) o artigo e posta carrossel + stories. ❌ deixa tudo como
+ *     rascunho (dá para revisar e publicar pelo painel).
  * Nada vai ao ar sem o clique.
  *
  * Configuração (uma vez):
@@ -19,11 +24,11 @@
  *     chegam sem texto nem anexos);
  *  d. .env: SPOILER_CAPTURE_ENABLED="true" e SPOILER_DISCORD_CHANNEL_ID="<id do canal>" (opcionais em .env.example);
  *  e. reiniciar a API: o log mostra "[spoilers] vigiando o canal ...".
- * Conferir: GET /api/admin/spoilers. Forçar um ciclo (sem esperar o silêncio): POST /api/admin/spoilers/run.
+ * Conferir: GET /api/admin/spoilers. Forçar um ciclo: POST /api/admin/spoilers/run.
  * Quando a lista oficial sai, prisma/import-official-set.mjs troca a prévia pela carta oficial. */
 import fs from "node:fs";
 import path from "node:path";
-import { PostStatus, PostType, SocialPostType, UserRole, type PrismaClient, type SocialMediaPost } from "@prisma/client";
+import { PostStatus, PostType, SocialPostType, UserRole, type Prisma, type PrismaClient, type SocialMediaPost } from "@prisma/client";
 import { sniffImageType, IMAGE_EXTENSION_BY_TYPE } from "../imageSniff.ts";
 import { parseCardEffects } from "../../src/lib/gundam-card-effects.ts";
 import { extractSpoilerCard, normalizeSpoilerCard, type SpoilerCardData } from "./spoilerExtract.ts";
@@ -46,7 +51,7 @@ const colorPt = (c: string | null | undefined) => (c ? COLOR_PT[c.toLowerCase()]
 // ---------------------------------------------------------------------------------------------------------
 // Configuração
 
-export type SpoilerConfig = { botToken: string; channelId: string; quietMinutes: number; backfillHours: number };
+export type SpoilerConfig = { botToken: string; channelId: string; backfillHours: number };
 
 export function readSpoilerConfig(env: NodeJS.ProcessEnv = process.env): SpoilerConfig | null {
   if (env.SPOILER_CAPTURE_ENABLED !== "true") return null;
@@ -60,7 +65,6 @@ export function readSpoilerConfig(env: NodeJS.ProcessEnv = process.env): Spoiler
   return {
     botToken,
     channelId,
-    quietMinutes: num(env.SPOILER_QUIET_MINUTES, 20, 1, 24 * 60),
     backfillHours: num(env.SPOILER_BACKFILL_HOURS, 12, 0, 72),
   };
 }
@@ -173,12 +177,19 @@ export async function saveSpoilerImage(url: string, stem: string, fetchFn: Fetch
 /**
  * Grava a carta como prévia INATIVA (aparece só depois do ✅). Carta já lançada (ativa e não prévia) não é tocada:
  * o spoiler só aponta para ela. Sem código impresso não há como entrar no catálogo.
+ * Prévia já publicada (ativa) só muda com `applyToPublished` — na aprovação; na captura, nada no ar muda sem o ✅.
  */
-export async function upsertPreviewCard(prisma: PrismaClient, card: SpoilerCardData, imageUrl: string): Promise<{ cardModelId: string; code: string; official: boolean } | null> {
+export async function upsertPreviewCard(
+  prisma: PrismaClient,
+  card: SpoilerCardData,
+  imageUrl: string,
+  opts: { applyToPublished?: boolean } = {},
+): Promise<{ cardModelId: string; code: string; official: boolean } | null> {
   if (!card.code) return null;
   const code = card.code;
   const existing = await prisma.cardModel.findUnique({ where: { code }, select: { id: true, isActive: true, legalityStatus: true } });
   if (existing && existing.isActive && existing.legalityStatus !== "preview") return { cardModelId: existing.id, code, official: true };
+  if (existing && existing.isActive && !opts.applyToPublished) return { cardModelId: existing.id, code, official: false };
 
   const parsed = parseCardEffects(card.effectEn || "", "");
   const sections = card.effectEn || card.effectPt ? [{ kind: "effect", label: "Effect", textPt: card.effectPt || "", textEn: card.effectEn || "" }] : [];
@@ -260,11 +271,27 @@ export async function captureNewSpoilers(prisma: PrismaClient, config: SpoilerCo
             failed += 1;
             continue;
           }
-          const linked = await upsertPreviewCard(prisma, result.card, image.localUrl);
+          const language = result.card.language;
+          // mesma carta no mesmo idioma de uma proposta que não foi descartada: é repostagem, não gera proposta nova
+          const repeated = result.card.code
+            ? await prisma.spoilerCapture.findFirst({
+                where: { cardCode: result.card.code, language, OR: [{ status: "CAPTURED" }, { status: "DIGESTED", digest: { status: { not: "REJECTED" } } }] },
+                select: { id: true },
+              })
+            : null;
+          const linked = repeated ? null : await upsertPreviewCard(prisma, result.card, image.localUrl);
           await prisma.spoilerCapture.create({
-            data: { ...base, imageUrl: image.localUrl, status: "CAPTURED", extracted: { ...result.card, provider: result.provider, model: result.model }, cardCode: result.card.code, cardModelId: linked?.cardModelId ?? null },
+            data: {
+              ...base,
+              imageUrl: image.localUrl,
+              status: repeated ? "DUPLICATE" : "CAPTURED",
+              extracted: { ...result.card, provider: result.provider, model: result.model },
+              cardCode: result.card.code,
+              language,
+              cardModelId: linked?.cardModelId ?? null,
+            },
           });
-          captured += 1;
+          if (!repeated) captured += 1;
         } catch (err) {
           const message = (err instanceof Error ? err.message : String(err)).slice(0, 500);
           console.warn("[spoilers] imagem não capturada:", message);
@@ -291,8 +318,9 @@ export type DigestCard = { data: SpoilerCardData; imageUrl: string; inCatalog: b
 const cardRef = (code: string, name: string) => `[[${code}]] ${name}`;
 const usageNote = (decks: number) => (decks ? ` — em ${decks} ${decks === 1 ? "lista" : "listas"} recentes` : "");
 
-export function digestTitle(setCode: string | null, count: number, dayLabel: string): string {
-  return `Spoilers${setCode ? ` de ${setCode}` : ""}: ${count} ${count === 1 ? "carta revelada" : "cartas reveladas"} em ${dayLabel}`;
+export function digestTitle(setCode: string | null, cards: Array<Pick<SpoilerCardData, "nameEn" | "code">>, dayLabel: string): string {
+  if (cards.length === 1) return `Spoiler${setCode ? ` de ${setCode}` : ""}: ${cards[0].nameEn}${cards[0].code ? ` (${cards[0].code})` : ""}`;
+  return `Spoilers${setCode ? ` de ${setCode}` : ""}: ${cards.length} cartas reveladas em ${dayLabel}`;
 }
 
 /** Corpo do artigo em Markdown. As análises vêm só de dado do site; `take` (IA) é o único trecho opinativo. */
@@ -324,7 +352,10 @@ export function buildDigestMarkdown(opts: { cards: DigestCard[]; setCode: string
       lines.push(`**Efeito:** ${(d.effectPt || d.effectEn || "").replace(/\n+/g, " ")}`, "");
       if (d.effectPt && d.effectEn) lines.push(`> ${d.effectEn.replace(/\n+/g, " ")}`, "");
     }
-    if (d.translated) lines.push(`*Texto traduzido do japonês pela equipe; pode mudar na versão oficial em inglês.*`, "");
+    if (d.translated) {
+      if (d.effectOriginal) lines.push(`> Texto original${d.nameOriginal ? ` (${d.nameOriginal})` : ""}: ${d.effectOriginal.replace(/\n+/g, " ")}`, "");
+      lines.push(`*Carta revelada em japonês: nome, efeito, traits e Link em inglês e português são tradução nossa e podem mudar na versão oficial em inglês — atualizamos quando ela sair.*`, "");
+    }
     if (c.take?.trim()) lines.push(`### Primeira leitura`, "", c.take.trim(), "");
     const a = c.analysis;
     if (a.sameTraits.length) {
@@ -416,33 +447,25 @@ Responda APENAS com JSON: {"intro": "...", "takes": [{"ref": "<ref da carta>", "
 
 export type DigestDeps = { now?: () => Date; context?: SpoilerAnalysisContext; createPost?: (prisma: PrismaClient, digestId: string) => Promise<{ id: string }>; writeTakes?: typeof writeTakes };
 
+/** Proposta anterior da mesma carta: a pendente é substituída; a publicada recebe a atualização. */
+async function previousDigests(prisma: PrismaClient, codes: string[]) {
+  if (!codes.length) return { pending: [], published: null };
+  const list = await prisma.spoilerDigest.findMany({ where: { cardCodes: { hasSome: codes }, status: { in: ["PENDING_APPROVAL", "PUBLISHED"] } }, orderBy: { createdAt: "desc" } });
+  return { pending: list.filter((d) => d.status === "PENDING_APPROVAL"), published: list.find((d) => d.status === "PUBLISHED" && d.articleId) ?? null };
+}
+
 /**
- * Junta os spoilers capturados num resumo, quando o canal ficou `quietMinutes` sem novidade. Cria o artigo
- * (rascunho em revisão) e o post do Instagram (aguardando aprovação). `null` = nada a fazer agora.
+ * Uma proposta por mensagem nova do canal (as imagens da mesma mensagem vão juntas): artigo (rascunho em revisão) e
+ * post do Instagram (aguardando aprovação). Devolve as propostas criadas (vazio = nada novo).
  */
-export async function buildSpoilerDigest(prisma: PrismaClient, quietMinutes: number, deps: DigestDeps = {}) {
+export async function buildSpoilerDigests(prisma: PrismaClient, deps: DigestDeps = {}) {
   const now = (deps.now ?? (() => new Date()))();
   const pending = await prisma.spoilerCapture.findMany({ where: { status: "CAPTURED", digestId: null }, orderBy: { postedAt: "asc" } });
-  if (!pending.length) return null;
-  const newest = pending[pending.length - 1].postedAt;
-  if (now.getTime() - newest.getTime() < quietMinutes * 60_000) return null;
+  if (!pending.length) return [];
+  const byMessage = new Map<string, typeof pending>();
+  for (const capture of pending) byMessage.set(capture.discordMessageId, [...(byMessage.get(capture.discordMessageId) ?? []), capture]);
 
   const context = deps.context ?? (await loadSpoilerAnalysisContext(prisma, now));
-  const seen = new Set<string>();
-  const cards: DigestCard[] = [];
-  for (const capture of pending) {
-    const data = normalizeSpoilerCard({ isCard: true, ...(capture.extracted as Record<string, unknown>) });
-    if (!data) continue;
-    const key = data.code || data.nameEn.toLowerCase();
-    if (seen.has(key)) continue; // mesma carta postada duas vezes
-    seen.add(key);
-    cards.push({ data, imageUrl: capture.imageUrl, inCatalog: Boolean(capture.cardModelId), analysis: analyzeSpoiler(data, context) });
-  }
-  const setCodes = [...new Set(cards.map((c) => setCodeOf(c.data.code)).filter(Boolean))] as string[];
-  const setCode = setCodes.length === 1 ? setCodes[0] : null;
-  const ai = cards.length ? await (deps.writeTakes ?? writeTakes)(cards, setCode) : null;
-  for (const c of cards) c.take = ai?.takes.get(c.data.code || c.data.nameEn) ?? null;
-
   const author =
     (process.env.SPOILER_AUTHOR_USERNAME
       ? await prisma.user.findFirst({ where: { username: process.env.SPOILER_AUTHOR_USERNAME, role: { in: [UserRole.ADMIN, UserRole.EDITOR] } }, select: { id: true } })
@@ -450,37 +473,72 @@ export async function buildSpoilerDigest(prisma: PrismaClient, quietMinutes: num
     (await prisma.user.findFirst({ where: { role: UserRole.ADMIN }, orderBy: { createdAt: "asc" }, select: { id: true } }));
   if (!author) throw new Error("Nenhum usuário ADMIN para assinar o artigo de spoilers.");
 
-  const title = digestTitle(setCode, cards.length, brDay(newest));
-  const slug = await uniqueSlug(prisma, `spoilers-${(setCode || "gcg").toLowerCase()}-${brIsoDay(newest)}`);
-  const sourceUrls = [...new Set(pending.map((p) => p.sourceUrl).filter((u): u is string => !!u))];
-  const contentMd = cards.length ? buildDigestMarkdown({ cards, setCode, intro: ai?.intro, windowLabel: context.windowLabel, sourceUrls }) : "";
-
-  return prisma.$transaction(async (tx) => {
-    const digest = await tx.spoilerDigest.create({ data: { setCode } });
-    let articleId: string | null = null;
-    if (cards.length) {
-      const article = await tx.post.create({
-        data: {
-          authorId: author.id,
-          title,
-          slug,
-          excerpt: `${cards.length} ${cards.length === 1 ? "carta nova" : "cartas novas"}${setCode ? ` de ${setCode}` : ""} com texto em português, sinergias, arquétipos e cartas parecidas.`,
-          contentMd,
-          coverImage: cards[0]?.imageUrl || null,
-          tags: ["spoiler", ...(setCode ? [setCode.toLowerCase()] : [])],
-          postType: PostType.PREVIEW,
-          status: PostStatus.REVIEW,
-        },
-      });
-      articleId = article.id;
+  const created: Awaited<ReturnType<typeof prisma.spoilerDigest.update>>[] = [];
+  for (const group of byMessage.values()) {
+    const seen = new Set<string>();
+    const cards: DigestCard[] = [];
+    for (const capture of group) {
+      const data = normalizeSpoilerCard({ isCard: true, ...(capture.extracted as Record<string, unknown>) });
+      if (!data) continue;
+      const key = data.code || data.nameEn.toLowerCase();
+      if (seen.has(key)) continue; // mesma carta duas vezes na mesma mensagem
+      seen.add(key);
+      cards.push({ data, imageUrl: capture.imageUrl, inCatalog: Boolean(capture.cardModelId), analysis: analyzeSpoiler(data, context) });
     }
-    await tx.spoilerCapture.updateMany({ where: { id: { in: pending.map((p) => p.id) } }, data: { status: "DIGESTED", digestId: digest.id } });
-    return tx.spoilerDigest.update({ where: { id: digest.id }, data: { articleId } });
-  }).then(async (digest) => {
-    if (!digest.articleId) return digest;
+    const codes = cards.map((c) => c.data.code).filter((c): c is string => !!c);
+    const setCodes = [...new Set(codes.map(setCodeOf).filter(Boolean))] as string[];
+    const setCode = setCodes.length === 1 ? setCodes[0] : null;
+    const language = cards.find((c) => c.data.language !== "en")?.data.language ?? "en";
+    const prev = await previousDigests(prisma, codes);
+    const ai = cards.length ? await (deps.writeTakes ?? writeTakes)(cards, setCode) : null;
+    for (const c of cards) c.take = ai?.takes.get(c.data.code || c.data.nameEn) ?? null;
+
+    const postedAt = group[group.length - 1].postedAt;
+    const title = digestTitle(setCode, cards.map((c) => c.data), brDay(postedAt));
+    const slugBase = cards.length === 1 && codes[0] ? `spoiler-${codes[0].toLowerCase()}` : `spoilers-${(setCode || "gcg").toLowerCase()}-${brIsoDay(postedAt)}`;
+    const slug = await uniqueSlug(prisma, slugBase);
+    const sourceUrls = [...new Set(group.map((p) => p.sourceUrl).filter((u): u is string => !!u))];
+
+    const digest = await prisma.$transaction(async (tx) => {
+      const d = await tx.spoilerDigest.create({ data: { setCode, cardCodes: codes, language, updatesArticleId: prev.published?.articleId ?? null } });
+      let articleId: string | null = null;
+      if (cards.length) {
+        const article = await tx.post.create({
+          data: {
+            authorId: author.id,
+            title,
+            slug,
+            excerpt:
+              cards.length === 1
+                ? `${cards[0].data.nameEn}${setCode ? `, de ${setCode},` : ""} com texto em português, sinergias, arquétipos e cartas parecidas.`
+                : `${cards.length} cartas novas${setCode ? ` de ${setCode}` : ""} com texto em português, sinergias, arquétipos e cartas parecidas.`,
+            contentMd: buildDigestMarkdown({ cards, setCode, intro: ai?.intro, windowLabel: context.windowLabel, sourceUrls }),
+            coverImage: cards[0]?.imageUrl || null,
+            tags: ["spoiler", ...(setCode ? [setCode.toLowerCase()] : [])],
+            postType: PostType.PREVIEW,
+            status: PostStatus.REVIEW,
+          },
+        });
+        articleId = article.id;
+      }
+      await tx.spoilerCapture.updateMany({ where: { id: { in: group.map((p) => p.id) } }, data: { status: "DIGESTED", digestId: d.id } });
+      // proposta anterior da mesma carta ainda pendente (ex.: a versão em japonês): sai da fila, a nova a substitui
+      for (const old of prev.pending) {
+        await tx.spoilerDigest.update({ where: { id: old.id }, data: { status: "REJECTED" } });
+        if (old.socialPostId) {
+          await tx.socialMediaPost.updateMany({
+            where: { id: old.socialPostId, status: { in: ["DRAFT", "PENDING_APPROVAL", "APPROVED", "FAILED"] } },
+            data: { status: "REJECTED", rejectedReason: language === "en" && old.language !== "en" ? "Substituída pela versão em inglês." : "Substituída por uma versão mais nova." },
+          });
+        }
+      }
+      return tx.spoilerDigest.update({ where: { id: d.id }, data: { articleId } });
+    });
+    if (!digest.articleId) continue;
     const post = await (deps.createPost ?? ((p, id) => import("./socialPublisherService.ts").then((m) => m.createSocialPostDraft(p, { type: SocialPostType.SPOILER_DIGEST, spoilerDigestId: id }))))(prisma, digest.id);
-    return prisma.spoilerDigest.update({ where: { id: digest.id }, data: { socialPostId: post.id } });
-  });
+    created.push(await prisma.spoilerDigest.update({ where: { id: digest.id }, data: { socialPostId: post.id } }));
+  }
+  return created;
 }
 
 // ---------------------------------------------------------------------------------------------------------
@@ -490,17 +548,35 @@ export async function buildSpoilerDigest(prisma: PrismaClient, quietMinutes: num
 export async function publishSpoilerDigestSite(prisma: PrismaClient, post: Pick<SocialMediaPost, "id" | "metadata">): Promise<void> {
   const digestId = spoilerDigestIdOf(post);
   if (!digestId) return;
-  const digest = await prisma.spoilerDigest.findUnique({ where: { id: digestId }, include: { captures: { select: { cardModelId: true } } } });
+  const digest = await prisma.spoilerDigest.findUnique({ where: { id: digestId }, include: { captures: { select: { cardModelId: true, extracted: true, imageUrl: true, status: true } } } });
   if (!digest || digest.status === "PUBLISHED") return;
-  const modelIds = [...new Set(digest.captures.map((c) => c.cardModelId).filter((id): id is string => !!id))];
+  // dados lidos nesta proposta valem agora (ex.: a versão em inglês corrige a tradução da japonesa já publicada)
+  const linked: string[] = [];
+  for (const capture of digest.captures) {
+    if (capture.status !== "DIGESTED") continue;
+    const data = normalizeSpoilerCard({ isCard: true, ...(capture.extracted as Record<string, unknown>) });
+    const result = data ? await upsertPreviewCard(prisma, data, capture.imageUrl, { applyToPublished: true }) : null;
+    if (result && !result.official) linked.push(result.cardModelId);
+  }
+  const modelIds = [...new Set([...linked, ...digest.captures.map((c) => c.cardModelId).filter((id): id is string => !!id)])];
   const previewModels = await prisma.cardModel.findMany({ where: { id: { in: modelIds }, legalityStatus: "preview" }, select: { id: true } });
   const ids = previewModels.map((m) => m.id);
   const now = new Date();
+  // versão nova de carta já publicada: o artigo antigo recebe o texto novo (mesmo link) e o rascunho desta proposta sai
+  const draft = digest.updatesArticleId && digest.articleId ? await prisma.post.findUnique({ where: { id: digest.articleId }, select: { title: true, excerpt: true, contentMd: true, coverImage: true } }) : null;
+  const articleOps: Prisma.PrismaPromise<unknown>[] = draft
+    ? [
+        prisma.post.update({ where: { id: digest.updatesArticleId! }, data: { title: draft.title, excerpt: draft.excerpt, contentMd: draft.contentMd, coverImage: draft.coverImage } }),
+        prisma.post.delete({ where: { id: digest.articleId! } }),
+      ]
+    : digest.articleId
+      ? [prisma.post.updateMany({ where: { id: digest.articleId, status: { not: PostStatus.PUBLISHED } }, data: { status: PostStatus.PUBLISHED, publishedAt: now } })]
+      : [];
   await prisma.$transaction([
     prisma.cardModel.updateMany({ where: { id: { in: ids } }, data: { isActive: true, deletedAt: null } }),
     prisma.card.updateMany({ where: { cardModelId: { in: ids } }, data: { isActive: true, deletedAt: null } }),
-    ...(digest.articleId ? [prisma.post.updateMany({ where: { id: digest.articleId, status: { not: PostStatus.PUBLISHED } }, data: { status: PostStatus.PUBLISHED, publishedAt: now } })] : []),
-    prisma.spoilerDigest.update({ where: { id: digest.id }, data: { status: "PUBLISHED", publishedAt: now } }),
+    ...articleOps,
+    prisma.spoilerDigest.update({ where: { id: digest.id }, data: { status: "PUBLISHED", publishedAt: now, ...(draft ? { articleId: digest.updatesArticleId } : {}) } }),
   ]);
   // coleção criada automaticamente pelos spoilers aparece junto com as cartas
   const sets = await prisma.card.findMany({ where: { cardModelId: { in: ids }, setId: { not: null } }, select: { setId: true }, distinct: ["setId"] });
@@ -539,9 +615,9 @@ export async function runSpoilerTick(prisma: PrismaClient, config: SpoilerConfig
   try {
     const capture = await captureNewSpoilers(prisma, config, deps);
     if (capture.captured || capture.failed) console.log(`[spoilers] ${capture.captured} spoiler(s) capturado(s), ${capture.failed} com falha`);
-    const digest = await buildSpoilerDigest(prisma, config.quietMinutes, deps);
-    if (digest) console.log(`[spoilers] resumo ${digest.id} criado (artigo ${digest.articleId ?? "—"})`);
-    return { capture, digest };
+    const digests = await buildSpoilerDigests(prisma, deps);
+    for (const d of digests) console.log(`[spoilers] proposta ${d.id} criada (${d.cardCodes.join(", ") || "sem código"}, ${d.language ?? "en"})`);
+    return { capture, digests };
   } finally {
     ticking = false;
   }

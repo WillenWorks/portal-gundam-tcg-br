@@ -1198,8 +1198,10 @@ enum SpoilerCaptureStatus {
   CAPTURED
   /// a IA não conseguiu ler (ou a imagem não é carta): fica registrado para conferir no painel
   FAILED
-  /// já entrou num resumo (SpoilerDigest)
+  /// já entrou numa proposta (SpoilerDigest)
   DIGESTED
+  /// mesma carta no mesmo idioma de uma proposta anterior (repostagem): não gera proposta nova
+  DUPLICATE
 }
 
 enum SpoilerDigestStatus {
@@ -1225,6 +1227,8 @@ model SpoilerCapture {
   /// dados lidos da carta pela IA (SpoilerCardData, ver server/services/spoilerExtract.ts)
   extracted        Json?
   cardCode         String?
+  /// idioma impresso na imagem ("en", "ja"...): a versão em inglês substitui a japonesa
+  language         String?
   cardModelId      String?
   error            String?              @db.Text
   digestId         String?
@@ -1238,13 +1242,19 @@ model SpoilerCapture {
   @@index([digestId])
 }
 
-/// Resumo de spoilers: um artigo do dia + um carrossel com stories, aprovados juntos por um clique.
+/// Proposta de spoiler (uma por mensagem nova do canal): artigo + carrossel com stories, aprovados por um clique.
 model SpoilerDigest {
   id           String              @id @default(cuid())
   status       SpoilerDigestStatus @default(PENDING_APPROVAL)
   /// coleção dos spoilers (ex.: GD07)
   setCode      String?
+  /// códigos das cartas da proposta (para achar a versão anterior da mesma carta)
+  cardCodes    String[]            @default([])
+  /// "ja" quando alguma carta da proposta veio impressa em japonês
+  language     String?
   articleId    String?
+  /// artigo já publicado da mesma carta (versão em japonês): ao aprovar, ele é atualizado em vez de sair outro
+  updatesArticleId String?
   socialPostId String?
   publishedAt  DateTime?
   createdAt    DateTime            @default(now())

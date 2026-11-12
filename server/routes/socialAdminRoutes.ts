@@ -244,14 +244,14 @@ export function registerSocialRoutes(app: Express, prisma: PrismaClient, authReq
     }
   });
 
-  // força um ciclo agora (captura + resumo sem esperar o canal ficar quieto)
+  // força um ciclo agora (captura + propostas), sem esperar os 2 minutos
   app.post("/api/admin/spoilers/run", authRequired, adminOnly, async (_req: Request, res: Response) => {
     try {
       const { readSpoilerConfig, runSpoilerTick } = await import("../services/spoilerService.ts");
       const config = readSpoilerConfig();
       if (!config) return res.status(400).json({ error: "Captura de spoilers desligada (SPOILER_CAPTURE_ENABLED, DISCORD_BOT_TOKEN e SPOILER_DISCORD_CHANNEL_ID)." });
-      const result = await runSpoilerTick(prisma, { ...config, quietMinutes: 0 });
-      res.json({ ok: true, captured: result?.capture.captured ?? 0, failed: result?.capture.failed ?? 0, digestId: result?.digest?.id ?? null, busy: result === null });
+      const result = await runSpoilerTick(prisma, config);
+      res.json({ ok: true, captured: result?.capture.captured ?? 0, failed: result?.capture.failed ?? 0, digestIds: result?.digests.map((d) => d.id) ?? [], busy: result === null });
     } catch (err) {
       res.status(500).json({ error: errorMessage(err, "Erro ao rodar a captura de spoilers.") });
     }
