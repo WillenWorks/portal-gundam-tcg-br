@@ -202,6 +202,12 @@ async function main() {
         for (const r of rows) {
           if (foreignCodes.has(r.code)) continue;
           const model = await tx.cardModel.upsert({ where: { code: r.code }, update: r.model, create: r.model });
+          // carta que entrou antes como prévia pelos spoilers do Discord (impressão sem externalId): a oficial vira a
+          // principal e a da prévia fica como arte extra, para os decks que já usavam a carta continuarem válidos
+          await tx.card.updateMany({
+            where: { cardModelId: model.id, externalId: null, legalityStatus: "preview" },
+            data: { isPrimaryPrint: false, legalityStatus: "legal", printLabel: "Prévia (spoiler)" },
+          });
           for (const card of r.cards) {
             await tx.card.upsert({
               where: { externalId: card.externalId },

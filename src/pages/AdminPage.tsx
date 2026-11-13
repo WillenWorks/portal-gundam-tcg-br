@@ -86,6 +86,7 @@ const LEGALITY_OPTIONS = [
   { value: "restricted",   label: "Restrita",        color: "text-amber-400 border-amber-400/40 bg-amber-400/10" },
   { value: "banned",       label: "Banida",          color: "text-red-400 border-red-400/40 bg-red-400/10" },
   { value: "not_in_format",label: "Fora do formato", color: "text-slate-400 border-white/20 bg-white/5" },
+  { value: "preview",      label: "Prévia (spoiler)", color: "text-sky-400 border-sky-400/40 bg-sky-400/10" },
 ];
 
 /* Convenção de direção por tipo de relação editorial — ver docs/10-convencoes-relacoes-cartas.md.
