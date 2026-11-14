@@ -142,8 +142,22 @@ const STRIP = [
   /<meta\s[^>]*name="twitter:[^"]*"[^>]*>\s*/gi,
 ];
 
-/** Script dos anúncios automáticos do AdSense (index.html). */
-const ADSENSE_SCRIPT = /<script\b[^>]*pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js[^>]*><\/script>\s*/gi;
+/** Marcadores em volta do script dos anúncios automáticos no index.html. O trecho é cortado por posição (indexOf),
+ *  não por regex sobre `<script`: limpar HTML com regex é frágil (e o CodeQL aponta, com razão, como sanitização
+ *  incompleta). Aqui o template é o nosso próprio build, mas o corte por marcador é exato e não depende de atributos. */
+export const ADS_START = "<!-- anuncios:inicio";
+export const ADS_END = "<!-- anuncios:fim -->";
+
+/** Remove todo trecho entre ADS_START e ADS_END (marcadores inclusive). Sem marcador, devolve igual. */
+export function stripAdsBlock(html: string): string {
+  let out = html;
+  for (let start = out.indexOf(ADS_START); start !== -1; start = out.indexOf(ADS_START)) {
+    const end = out.indexOf(ADS_END, start);
+    if (end === -1) break;
+    out = out.slice(0, start) + out.slice(end + ADS_END.length);
+  }
+  return out;
+}
 
 /** Página sem conteúdo próprio para anúncio: erro, login, painel, ferramentas logadas (todas noindex). A política
  *  do Google proíbe anúncio nessas telas ("Google-served ads on screens without publisher-content"). */
@@ -154,7 +168,7 @@ export const pageAllowsAds = (page: Pick<HtmlPage, "status" | "noindex">) => pag
  *  script dos anúncios automáticos. O resto do arquivo (scripts, CSS, cabeçalho e rodapé sem JavaScript) fica igual. */
 export function renderHtml(template: string, page: HtmlPage): string {
   let html = template;
-  if (!pageAllowsAds(page)) html = html.replace(ADSENSE_SCRIPT, "");
+  if (!pageAllowsAds(page)) html = stripAdsBlock(html);
   if (page.body) {
     // função no replace: `$` do conteúdo não pode virar padrão de substituição
     const body = page.body;

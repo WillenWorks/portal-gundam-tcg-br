@@ -3,7 +3,7 @@ import { aboutBody, archetypeBody, archetypesIndexBody, cardBody, markdownToHtml
 import { SUPPORT_LEAD, SUPPORT_TITLE, SUPPORT_WHY, supportChannels } from "../src/lib/supportContent.ts";
 import { ABOUT_CONTACT, ABOUT_LEAD, ABOUT_SECTIONS, ABOUT_TITLE, ABOUT_UPDATED } from "../src/lib/aboutContent.ts";
 import { matchSiteRoute } from "../src/lib/siteRoutes.ts";
-import { renderHtml, resolveHtmlPage, type DetailLoaders } from "./htmlMeta.ts";
+import { renderHtml, resolveHtmlPage, stripAdsBlock, type DetailLoaders } from "./htmlMeta.ts";
 
 const TEMPLATE = `<!doctype html><html><head><title>Home</title></head><body><div id="root"><header>nav</header><main><section>texto genérico da home</section></main><footer>rodapé</footer></div></body></html>`;
 const nada = async () => null;
@@ -86,15 +86,20 @@ describe("markdownToHtml", () => {
 });
 
 describe("anúncios só em telas com conteúdo", () => {
-  const TPL = `<html><head><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1" crossorigin="anonymous"></script></head><body><div id="root"><main>x</main></div></body></html>`;
+  const ADS = `<!-- anuncios:inicio (x) -->\n<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1" crossorigin="anonymous"></script>\n<!-- anuncios:fim -->`;
+  const TPL = `<html><head>${ADS}</head><body><div id="root"><main>x</main></div></body></html>`;
   const base = { title: "t", description: "", canonical: "c", image: "i", ogType: "website" as const, jsonLd: [] };
   it("tira o script em página noindex e em erro; mantém em página de conteúdo", () => {
     expect(renderHtml(TPL, { ...base, status: 200, noindex: true })).not.toContain("adsbygoogle.js");
     expect(renderHtml(TPL, { ...base, status: 404, noindex: true })).not.toContain("adsbygoogle.js");
     expect(renderHtml(TPL, { ...base, status: 200, noindex: false })).toContain("adsbygoogle.js");
   });
+  it("corta só entre os marcadores; sem marcador de fim, não mexe", () => {
+    expect(stripAdsBlock(`a${ADS}b${ADS}c`)).toBe("abc");
+    expect(stripAdsBlock("a<!-- anuncios:inicio -->b")).toBe("a<!-- anuncios:inicio -->b");
+  });
   it("login (rota privada) e endereço inexistente saem sem o script", async () => {
-    const tpl = `<html><head><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1"></script></head><body></body></html>`;
+    const tpl = `<html><head>${ADS}</head><body></body></html>`;
     expect(renderHtml(tpl, await resolveHtmlPage("/login", loaders()))).not.toContain("adsbygoogle");
     expect(renderHtml(tpl, await resolveHtmlPage("/nao-existe/de-jeito-nenhum", loaders()))).not.toContain("adsbygoogle");
     expect(renderHtml(tpl, await resolveHtmlPage("/sobre", loaders()))).toContain("adsbygoogle");
