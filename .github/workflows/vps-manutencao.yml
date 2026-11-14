@@ -23,6 +23,9 @@ name: Manutenção da VPS
 #   backup-externo-testar      baixa o backup mais recente do Drive, descriptografa e confere
 #   social-conferir   só leitura: variáveis do agente do Instagram (sim/não), navegador do Playwright, espaço
 #   social-navegador  instala o Chromium do Playwright (arte dos posts) e testa se abre
+#   spoilers-ligar    liga a captura de spoilers do Discord no .env (SPOILER_CAPTURE_ENABLED e o ID do canal
+#                     SPOILER_CANAL abaixo), guarda cópia do .env, reinicia a API e mostra o log [spoilers]
+#   spoilers-desligar SPOILER_CAPTURE_ENABLED="false" e reinicia a API
 #   pg17-remover      depois do upgrade: confere 18 online + sites, faz backup e cópia do cluster 17, remove o 17 e
 #                     os pacotes do PostgreSQL 17 (só eles, sem autoremove)
 
@@ -32,7 +35,7 @@ on:
       tarefa:
         description: "O que fazer"
         type: choice
-        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, postgres-18, fail2ban-instalar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar, bug-reports, social-conferir, social-navegador, pg17-remover]
+        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, postgres-18, fail2ban-instalar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar, bug-reports, social-conferir, social-navegador, spoilers-ligar, spoilers-desligar, pg17-remover]
         default: diagnostico
 
 # nunca junto com um deploy ou outra manutenção
@@ -524,6 +527,37 @@ jobs:
                 | sed -E 's/(access_token|token)=[^ &"]+/\1=***/g' | cut -c1-300 | tail -n 40 || echo "sem registros"
             }
 
+            # canal do servidor do Anaheim Hub que recebe os spoilers pelo botão "Seguir" do Discord
+            # (ID de canal não é segredo: só serve para quem tem o token do bot)
+            SPOILER_CANAL=1571201546434121738
+
+            # grava CHAVE="valor" no .env: troca a linha se existir, senão acrescenta (cópia do anterior em .env.antes-spoilers)
+            env_definir() {
+              if grep -qE "^$1=" "$APP/.env"; then sed -i -E "s|^$1=.*|$1=\"$2\"|" "$APP/.env"; else printf '%s="%s"\n' "$1" "$2" >> "$APP/.env"; fi
+            }
+
+            spoilers_definir() {
+              [ -f "$APP/.env" ] || { echo "sem $APP/.env"; exit 1; }
+              cp -p "$APP/.env" "$APP/.env.antes-spoilers"
+              env_definir SPOILER_CAPTURE_ENABLED "$1"
+              env_definir SPOILER_DISCORD_CHANNEL_ID "$SPOILER_CANAL"
+              secao "variáveis (só sim/não e o liga/desliga)"
+              grep -E '^SPOILER_CAPTURE_ENABLED=' "$APP/.env"
+              for v in SPOILER_DISCORD_CHANNEL_ID DISCORD_BOT_TOKEN GEMINI_API_KEY; do
+                echo "$v: $(sim_nao "$(grep -E "^${v}=.+" "$APP/.env" | head -1)")"
+              done
+              # sem --update-env: o processo mantém NODE_OPTIONS/NODE_ENV do deploy; o dotenv lê o .env novo no boot
+              secao "reiniciando a API"
+              pm2 reload gundam-portal >/dev/null
+              OK=""
+              for i in $(seq 1 30); do curl -sf -o /dev/null -m 5 http://127.0.0.1:8787/api/health && { OK=1; break; }; sleep 3; done
+              [ -n "$OK" ] && echo "API respondeu" || { echo "API não respondeu — voltando o .env anterior"; cp -p "$APP/.env.antes-spoilers" "$APP/.env"; pm2 reload gundam-portal >/dev/null; exit 1; }
+              sleep 20
+              secao "log [spoilers] (últimas 20 linhas)"
+              L=$(pm2 jlist | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const p=JSON.parse(s).find(x=>x.name==="gundam-portal");console.log(p.pm2_env.pm_err_log_path+" "+p.pm2_env.pm_out_log_path)})')
+              grep -ahE "\[spoilers\]" "${L%% *}" "${L##* }" 2>/dev/null | cut -c1-300 | tail -n 20 || echo "sem registros"
+            }
+
             social_navegador() {
               secao "instalando o Chromium do Playwright e o ffmpeg (arte dos posts e Reels MP4)"
               df -h / | tail -1
@@ -546,6 +580,8 @@ jobs:
               social-conferir) social_conferir ;;
               pg17-remover) pg17_remover ;;
               social-navegador) social_navegador ;;
+              spoilers-ligar) spoilers_definir true ;;
+              spoilers-desligar) spoilers_definir false ;;
               diagnostico) diagnostico ;;
               seguranca-conferir) seguranca_conferir ;;
               upgrade-preparar) upgrade_preparar ;;
