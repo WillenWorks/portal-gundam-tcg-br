@@ -20,6 +20,18 @@ interface AdSlotProps {
   className?: string;
 }
 
+/**
+ * Pausa (ou volta) os pedidos de anúncio do AdSense, inclusive os automáticos, com a API oficial
+ * `adsbygoogle.pauseAdRequests`. O site é uma SPA: o script carregado numa página de conteúdo continua na memória
+ * quando a pessoa navega para login, painel, simulador ou 404 — e a política do Google proíbe anúncio nessas telas.
+ * No primeiro carregamento dessas páginas o servidor nem manda o script (server/htmlMeta.ts → pageAllowsAds).
+ */
+export function setAdRequestsPaused(paused: boolean): void {
+  if (typeof window === "undefined") return;
+  const queue = (window.adsbygoogle = window.adsbygoogle || []) as unknown[] & { pauseAdRequests?: number };
+  queue.pauseAdRequests = paused ? 1 : 0;
+}
+
 const DEFAULT_ADSENSE_CLIENT =
   (import.meta.env.VITE_ADSENSE_CLIENT_ID as string | undefined) || "ca-pub-4516039090052126";
 

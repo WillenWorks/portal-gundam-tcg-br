@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { aboutBody, cardBody, markdownToHtml, rulesBody, setBody, tournamentBody } from "./htmlContent.ts";
+import { aboutBody, archetypeBody, archetypesIndexBody, cardBody, markdownToHtml, playerBody, rulesBody, setBody, supportBody, tournamentBody } from "./htmlContent.ts";
+import { SUPPORT_LEAD, SUPPORT_TITLE, SUPPORT_WHY, supportChannels } from "../src/lib/supportContent.ts";
 import { ABOUT_CONTACT, ABOUT_LEAD, ABOUT_SECTIONS, ABOUT_TITLE, ABOUT_UPDATED } from "../src/lib/aboutContent.ts";
 import { matchSiteRoute } from "../src/lib/siteRoutes.ts";
 import { renderHtml, resolveHtmlPage, type DetailLoaders } from "./htmlMeta.ts";
@@ -81,5 +82,59 @@ describe("markdownToHtml", () => {
     expect(html).not.toContain("javascript:");
     expect(html).toContain("<ul><li>um</li><li>dois</li></ul>");
     expect(html).not.toContain("<div");
+  });
+});
+
+describe("anúncios só em telas com conteúdo", () => {
+  const TPL = `<html><head><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1" crossorigin="anonymous"></script></head><body><div id="root"><main>x</main></div></body></html>`;
+  const base = { title: "t", description: "", canonical: "c", image: "i", ogType: "website" as const, jsonLd: [] };
+  it("tira o script em página noindex e em erro; mantém em página de conteúdo", () => {
+    expect(renderHtml(TPL, { ...base, status: 200, noindex: true })).not.toContain("adsbygoogle.js");
+    expect(renderHtml(TPL, { ...base, status: 404, noindex: true })).not.toContain("adsbygoogle.js");
+    expect(renderHtml(TPL, { ...base, status: 200, noindex: false })).toContain("adsbygoogle.js");
+  });
+  it("login (rota privada) e endereço inexistente saem sem o script", async () => {
+    const tpl = `<html><head><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1"></script></head><body></body></html>`;
+    expect(renderHtml(tpl, await resolveHtmlPage("/login", loaders()))).not.toContain("adsbygoogle");
+    expect(renderHtml(tpl, await resolveHtmlPage("/nao-existe/de-jeito-nenhum", loaders()))).not.toContain("adsbygoogle");
+    expect(renderHtml(tpl, await resolveHtmlPage("/sobre", loaders()))).toContain("adsbygoogle");
+  });
+});
+
+describe("páginas com título próprio pelo carregador de conteúdo", () => {
+  it("título, descrição, noindex e 404", async () => {
+    const page = await resolveHtmlPage("/jogadores/ana", loaders(), async () => ({ body: "<p>ok</p>", title: "Ana — resultados", description: "d", noindex: true }));
+    expect(page).toMatchObject({ title: expect.stringContaining("Ana — resultados"), description: "d", noindex: true, body: "<p>ok</p>" });
+    expect((await resolveHtmlPage("/arquetipos/x", loaders(), async () => ({ notFound: true }))).status).toBe(404);
+  });
+  it("arquétipo e jogador com dados, links e escape", () => {
+    const a = archetypeBody({
+      name: "Azul <Academy>", colors: ["blue", "white"], lists: 12, share: 0.25, wins: 2, top8Share: 0.5,
+      sample: { tournaments: 6, from: "2026-09-01", to: "2026-11-01" },
+      cards: [{ cardModelId: "m1", code: "GD03-001", name: "Aerial", inclusion: 1, avgCopies: 4, tier: "core" }],
+      results: [{ tournamentId: "t1", tournamentName: "Regional", date: "2026-11-01", placementLabel: "1º", player: { name: "Ana", slug: "ana" } }],
+    });
+    expect(a).toContain("Azul &lt;Academy&gt;");
+    expect(a).toContain("25% do metagame");
+    expect(a).toContain("Base do deck: Aerial");
+    expect(a).toContain('href="/cards/m1"');
+    expect(a).toContain('href="/jogadores/ana"');
+    const p = playerBody({ name: "Ana", tournaments: 3, wins: 1, top8: 2, archetypes: [{ name: "Azul", slug: "azul", count: 2 }], results: [{ tournamentId: "t1", tournamentName: "Regional", date: null, placementLabel: "1º", record: "5-0", archetype: { name: "Azul", slug: "azul" } }] });
+    expect(p).toContain("3 torneios, 1 título e 2 top 8");
+    expect(p).toContain('href="/arquetipos/azul"');
+    expect(archetypesIndexBody([{ name: "Azul", slug: "azul", colors: ["blue"], lists: 4, share: 0.5, wins: 1, top8Share: 0.25 }], { tournaments: 2, lists: 8 })).toContain("8 listas de 2 torneios");
+  });
+});
+
+describe("página Apoie", () => {
+  it("só mostra os canais configurados e só aceita https", () => {
+    const none = supportChannels({});
+    expect(none.map((c) => c.title)).toEqual(["Comprar pelos nossos links", "Mandar correções e resultados"]);
+    const all = supportChannels({ supportUrl: "https://apoia.se/anaheimhub", pixKey: "pix@anaheimhub.com", instagramUrl: "javascript:alert(1)", discordUrl: "https://discord.gg/x", mypCoupon: "ANAHEIM" });
+    expect(all.map((c) => c.title)).toEqual(["Apoio mensal", "Pix", "Cupom ANAHEIM na MYP Cards", "Comprar pelos nossos links", "Comunidade no Discord", "Mandar correções e resultados"]);
+    expect(matchSiteRoute("/apoie")).toEqual({ known: true });
+    const html = supportBody({ title: SUPPORT_TITLE, lead: SUPPORT_LEAD, why: SUPPORT_WHY, channels: all });
+    expect(html).toContain("<code>pix@anaheimhub.com</code>");
+    expect(html).not.toContain("javascript:");
   });
 });
