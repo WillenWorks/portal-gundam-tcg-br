@@ -13,6 +13,9 @@ import { CommunitySupportModal } from "@/components/support/CommunitySupportModa
 import anaheimLogo from "@/assets/anaheim-logo-transparent.webp";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
 
+/** Perfil do Instagram no rodapé (só aparece configurado). */
+const INSTAGRAM_URL = /^https:\/\/(www\.)?instagram\.com\/[^\s"'<>]+$/.test(String(import.meta.env.VITE_INSTAGRAM_URL || "")) ? String(import.meta.env.VITE_INSTAGRAM_URL) : "";
+
 export function AppFooter({ className }: { className?: string }) {
   const [supportModalOpen, setSupportModalOpen] = useState(false);
   const { tr } = useSiteLanguage();
@@ -104,6 +107,18 @@ export function AppFooter({ className }: { className?: string }) {
                     {tr("Sobre o Anaheim Hub", "About Anaheim Hub")}
                   </Link>
                 </li>
+                <li>
+                  <Link href="/apoie" className="transition-colors hover:text-primary">
+                    {tr("Apoie o site", "Support the site")}
+                  </Link>
+                </li>
+                {INSTAGRAM_URL ? (
+                  <li>
+                    <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-primary">
+                      Instagram
+                    </a>
+                  </li>
+                ) : null}
                 <li>
                   <Link href="/privacidade" className="transition-colors hover:text-primary">
                     {tr("Privacidade de Dados", "Data Privacy")}

@@ -74,3 +74,15 @@ describe("AdSlot Component", () => {
     expect(container.firstChild).toBeNull();
   });
 });
+
+describe("setAdRequestsPaused", () => {
+  it("liga e desliga a pausa oficial do AdSense sem perder a fila", async () => {
+    const { setAdRequestsPaused } = await import("./AdSlot");
+    window.adsbygoogle = [{ queued: true }];
+    setAdRequestsPaused(true);
+    expect((window.adsbygoogle as unknown as { pauseAdRequests: number }).pauseAdRequests).toBe(1);
+    expect(window.adsbygoogle).toHaveLength(1);
+    setAdRequestsPaused(false);
+    expect((window.adsbygoogle as unknown as { pauseAdRequests: number }).pauseAdRequests).toBe(0);
+  });
+});

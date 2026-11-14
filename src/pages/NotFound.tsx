@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { Link } from "wouter";
+import { setAdRequestsPaused } from "@/components/ads/AdSlot";
 import { usePageMeta } from "@/lib/pageMeta";
 
 import { Button } from "@/components/ui/button";
@@ -8,6 +10,8 @@ import { useSiteLanguage } from "@/i18n/siteLanguage";
 export default function NotFound() {
   const { tr } = useSiteLanguage();
   usePageMeta({ title: tr("Página não encontrada", "Page not found"), noindex: true });
+  // tela de erro não pode ter anúncio (política do AdSense); a próxima rota de conteúdo volta a liberar
+  useEffect(() => setAdRequestsPaused(true), []);
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <Card className="panel-cut w-full max-w-xl rounded-none border-white/10 bg-slate-950/80 text-white">

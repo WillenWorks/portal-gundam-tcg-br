@@ -5,13 +5,14 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Express } from "express";
 import type { PrismaClient } from "@prisma/client";
-import { createPageCache, renderHtml, resolveHtmlPage, type BodyLoader, type DetailLoaders } from "../htmlMeta.ts";
+import { createPageCache, renderHtml, resolveHtmlPage, type BodyLoader, type BodyResult, type DetailLoaders } from "../htmlMeta.ts";
 import {
-  aboutBody, articleBody, articlesIndexBody, cardBody, deckBody, decksIndexBody, rulesBody, rulingBody, seriesBody, seriesIndexBody,
+  aboutBody, supportBody, archetypeBody, archetypesIndexBody, articleBody, articlesIndexBody, playerBody, cardBody, deckBody, decksIndexBody, rulesBody, rulingBody, seriesBody, seriesIndexBody,
   setBody, setsIndexBody, tournamentBody, tournamentsIndexBody, type CardRow,
 } from "../htmlContent.ts";
 import { ALL_KEYWORDS } from "../../src/i18n/keywords.ts";
 import { ABOUT_CONTACT, ABOUT_LEAD, ABOUT_SECTIONS, ABOUT_TITLE, ABOUT_UPDATED } from "../../src/lib/aboutContent.ts";
+import { SUPPORT_LEAD, SUPPORT_TITLE, SUPPORT_WHY, supportChannels } from "../../src/lib/supportContent.ts";
 import { GAME_COLOR_LABEL_PT } from "../../src/lib/gundam-catalog.ts";
 
 /** Endereços que não são páginas do site (API, sockets, arquivos). */
@@ -207,8 +208,53 @@ export function createHtmlDetailLoaders(prisma: PrismaClient): DetailLoaders {
   };
 }
 
+/** Arquétipos e jogadores, dos dados de torneio do Zero System (o mesmo índice que a página usa). */
+async function metaBodyFrom(prisma: PrismaClient, path: string): Promise<string | BodyResult | null> {
+  const [{ getVedaIndex }, veda] = await Promise.all([import("../vedaService.ts"), import("../vedaCore.ts")]);
+  const ix = await getVedaIndex(prisma);
+  if (path === "/arquetipos") {
+    const rows = veda.archetypeRows(ix, {});
+    const s = veda.summary(ix);
+    return archetypesIndexBody(
+      rows.map((r) => ({ name: r.archetype.name, slug: r.archetype.slug, colors: r.archetype.colors, lists: r.lists, share: r.share, wins: r.wins, top8Share: r.top8Share })),
+      { tournaments: s.sample.tournaments, lists: rows.reduce((n, r) => n + r.lists, 0) },
+    );
+  }
+  let slug = path.split("/")[2] ?? "";
+  try { slug = decodeURIComponent(slug); } catch { return { notFound: true }; }
+  if (path.startsWith("/arquetipos/")) {
+    const d = veda.archetypeDetail(ix, slug, {});
+    if (!d) return { notFound: true };
+    const name = d.row.archetype.name;
+    return {
+      title: `${name} — arquétipo`,
+      description: `${name}: ${Math.round(d.row.share * 100)}% do metagame em ${d.row.lists} listas, ${d.row.wins} títulos, cartas mais usadas e resultados recentes em torneios de Gundam Card Game.`,
+      body: archetypeBody({
+        name, colors: d.row.archetype.colors, lists: d.row.lists, share: d.row.share, wins: d.row.wins, top8Share: d.row.top8Share,
+        sample: { tournaments: d.sample.tournaments, from: d.sample.from, to: d.sample.to },
+        cards: d.cards.map((c) => ({ cardModelId: c.card.cardModelId, code: c.card.code, name: c.card.namePt || c.card.name, inclusion: c.inclusion, avgCopies: c.avgCopies, tier: c.tier })),
+        results: d.recentResults.map((r) => ({ tournamentId: r.tournamentId, tournamentName: r.tournamentName, date: r.date, placementLabel: r.placementLabel, player: r.player })),
+      }),
+    };
+  }
+  const p = veda.player(ix, slug);
+  if (!p) return { notFound: true };
+  return {
+    title: `${p.player.name} — resultados`,
+    description: `${p.player.name} em torneios de Gundam Card Game: ${p.tournaments} torneios, ${p.wins} títulos, ${p.top8} top 8 e os arquétipos que jogou.`,
+    // jogador com poucos resultados é página rasa: fica acessível pelo link, fora do Google
+    noindex: p.tournaments < 3,
+    body: playerBody({
+      name: p.player.name, tournaments: p.tournaments, wins: p.wins, top8: p.top8,
+      archetypes: p.archetypes.map((a) => ({ name: a.archetype.name, slug: a.archetype.slug, count: a.count })),
+      results: p.results.slice(0, 50).map((r) => ({ tournamentId: r.tournamentId, tournamentName: r.tournamentName, date: r.date, placementLabel: r.placementLabel, record: r.record, archetype: r.archetype })),
+    }),
+  };
+}
+
 /** Conteúdo das páginas de lista e de regras (as que não são de detalhe). `null` = fica o texto do index.html. */
 export function createHtmlBodyLoader(prisma: PrismaClient): BodyLoader {
+  const metaBody = (path: string) => metaBodyFrom(prisma, path);
   const setsIndex = async (title: string, lead: string) => {
     const sets = await prisma.cardSet.findMany({
       where: { isActive: true },
@@ -221,6 +267,14 @@ export function createHtmlBodyLoader(prisma: PrismaClient): BodyLoader {
 
   return async (path) => {
     switch (path) {
+      case "/apoie":
+        return supportBody({
+          title: SUPPORT_TITLE, lead: SUPPORT_LEAD, why: SUPPORT_WHY,
+          channels: supportChannels({
+            supportUrl: process.env.VITE_SUPPORT_URL, pixKey: process.env.VITE_SUPPORT_PIX_KEY, instagramUrl: process.env.VITE_INSTAGRAM_URL,
+            discordUrl: process.env.VITE_DISCORD_INVITE_URL, mypCoupon: process.env.VITE_MYPCARDS_COUPON,
+          }),
+        });
       case "/sobre":
         return aboutBody({ title: ABOUT_TITLE, lead: ABOUT_LEAD, updated: ABOUT_UPDATED, contact: ABOUT_CONTACT, sections: ABOUT_SECTIONS });
       case "/cards":
@@ -232,7 +286,8 @@ export function createHtmlBodyLoader(prisma: PrismaClient): BodyLoader {
         const series = await prisma.taxonomyEntry.findMany({ where: { kind: "SOURCE_TITLE", isActive: true }, orderBy: { name: "asc" }, select: { slug: true, name: true, description: true } });
         return seriesIndexBody(series);
       }
-      case "/articles": {
+      case "/articles":
+      case "/novidades": {
         const posts = await prisma.post.findMany({ where: { status: "PUBLISHED" }, orderBy: { publishedAt: "desc" }, take: 100, select: { slug: true, title: true, excerpt: true, publishedAt: true } });
         return articlesIndexBody(posts.map((p) => ({ slug: p.slug, title: p.title, excerpt: p.excerpt, publishedAt: dayPt(p.publishedAt) || undefined })));
       }
@@ -258,6 +313,7 @@ export function createHtmlBodyLoader(prisma: PrismaClient): BodyLoader {
         });
       }
     }
+    if (path === "/arquetipos" || path.startsWith("/arquetipos/") || path.startsWith("/jogadores/")) return metaBody(path);
     const rule = /^\/rules\/([^/]+)$/.exec(path);
     if (rule) {
       let id = rule[1];
