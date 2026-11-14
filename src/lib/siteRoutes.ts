@@ -34,6 +34,7 @@ export const SITE_ROUTES: Array<{ path: string; detail?: DetailKind }> = [
   { path: "/series" }, { path: "/series/:slug", detail: "series" },
   { path: "/sets" }, { path: "/sets/:code", detail: "set" },
   { path: "/sobre" },
+  { path: "/apoie" },
   { path: "/simulador" }, { path: "/simulador/multiplayer" }, { path: "/simulador/partida/:matchId" },
   { path: "/simulador/preview-layout" }, { path: "/simulador/treino" },
   { path: "/stats" },

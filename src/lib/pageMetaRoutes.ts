@@ -60,6 +60,7 @@ const ROUTE_META: Array<[RegExp, { title: string; description?: string }]> = [
   [/^\/rules$/, { title: "Regras e rulings", description: "Regras, palavras-chave e esclarecimentos oficiais de Gundam Card Game." }],
   [/^\/privacidade$/, { title: "Política de Privacidade" }],
   [/^\/termos$/, { title: "Termos de Uso" }],
+  [/^\/apoie$/, { title: "Apoie o Anaheim Hub", description: "Quanto custa manter o Anaheim Hub no ar e as formas de ajudar: apoio mensal, Pix, cupom de parceiro e compras pelos nossos links." }],
   [/^\/sobre$/, { title: "Sobre", description: "Quem faz o Anaheim Hub, de onde vêm os dados de cartas, regras e torneios, e como o site se mantém." }],
   [/^\/login$/, { title: "Entrar" }],
   [/^\/recuperar-senha$/, { title: "Recuperar senha" }],

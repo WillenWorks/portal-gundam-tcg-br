@@ -27,8 +27,10 @@ export type DetailMeta = {
   body?: string;
 };
 
-/** Conteúdo das páginas que não são de detalhe (listas, regras). `null` = mantém o texto do index.html. */
-export type BodyLoader = (path: string) => Promise<string | null>;
+/** Conteúdo das páginas que não são de detalhe (listas, regras, arquétipos, jogadores). `null` = mantém o texto
+ *  do index.html. Página com título próprio (ex.: /jogadores/:slug) devolve o objeto; `notFound` = 404 de verdade. */
+export type BodyResult = { body: string; title?: string; description?: string; noindex?: boolean } | { notFound: true };
+export type BodyLoader = (path: string) => Promise<string | BodyResult | null>;
 
 export type DetailLoaders = Record<DetailKind, (key: string) => Promise<DetailMeta | null>>;
 
@@ -112,8 +114,15 @@ export async function resolveHtmlPage(pathname: string, loaders: DetailLoaders, 
     page.jsonLd = [breadcrumb([{ name: "Início", path: "/" }, section, { name: detail.title, path }]), ...(detail.jsonLd ?? [])];
     if (detail.body) page.body = detail.body;
   } else if (bodyFor && !page.noindex) {
-    const body = await bodyFor(path);
-    if (body) page.body = body;
+    const result = await bodyFor(path);
+    if (result && typeof result === "object" && "notFound" in result) return notFound(path);
+    if (typeof result === "string") page.body = result;
+    else if (result) {
+      page.body = result.body;
+      if (result.title) page.title = formatTitle(result.title);
+      if (result.description) page.description = result.description;
+      if (result.noindex) page.noindex = true;
+    }
   }
   return page;
 }
@@ -133,11 +142,33 @@ const STRIP = [
   /<meta\s[^>]*name="twitter:[^"]*"[^>]*>\s*/gi,
 ];
 
+/** Marcadores em volta do script dos anúncios automáticos no index.html. O trecho é cortado por posição (indexOf),
+ *  não por regex sobre `<script`: limpar HTML com regex é frágil (e o CodeQL aponta, com razão, como sanitização
+ *  incompleta). Aqui o template é o nosso próprio build, mas o corte por marcador é exato e não depende de atributos. */
+export const ADS_START = "<!-- anuncios:inicio";
+export const ADS_END = "<!-- anuncios:fim -->";
+
+/** Remove todo trecho entre ADS_START e ADS_END (marcadores inclusive). Sem marcador, devolve igual. */
+export function stripAdsBlock(html: string): string {
+  let out = html;
+  for (let start = out.indexOf(ADS_START); start !== -1; start = out.indexOf(ADS_START)) {
+    const end = out.indexOf(ADS_END, start);
+    if (end === -1) break;
+    out = out.slice(0, start) + out.slice(end + ADS_END.length);
+  }
+  return out;
+}
+
+/** Página sem conteúdo próprio para anúncio: erro, login, painel, ferramentas logadas (todas noindex). A política
+ *  do Google proíbe anúncio nessas telas ("Google-served ads on screens without publisher-content"). */
+export const pageAllowsAds = (page: Pick<HtmlPage, "status" | "noindex">) => page.status === 200 && !page.noindex;
+
 /** Troca os metadados do index.html do build pelos da página e, quando a página tem conteúdo próprio
- *  (`body`), troca o texto genérico do <main> por ele. O resto do arquivo (scripts, CSS, cabeçalho e rodapé
- *  sem JavaScript) fica igual. */
+ *  (`body`), troca o texto genérico do <main> por ele. Em página sem conteúdo (pageAllowsAds = false) tira o
+ *  script dos anúncios automáticos. O resto do arquivo (scripts, CSS, cabeçalho e rodapé sem JavaScript) fica igual. */
 export function renderHtml(template: string, page: HtmlPage): string {
   let html = template;
+  if (!pageAllowsAds(page)) html = stripAdsBlock(html);
   if (page.body) {
     // função no replace: `$` do conteúdo não pode virar padrão de substituição
     const body = page.body;

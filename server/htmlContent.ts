@@ -10,6 +10,7 @@
  * server/routes/htmlPages.ts. O React monta a página interativa por cima (createRoot troca o #root). */
 
 import type { AboutSection } from "../src/lib/aboutContent.ts";
+import type { SupportChannel } from "../src/lib/supportContent.ts";
 
 export const esc = (value: unknown): string =>
   String(value ?? "")
@@ -301,6 +302,22 @@ export function aboutBody(a: { title: string; lead: string; updated: string; con
   });
 }
 
+export function supportBody(s: { title: string; lead: string; why: string[]; channels: SupportChannel[] }): string {
+  return pageShell({
+    title: s.title,
+    lead: s.lead,
+    sections: [
+      `<ul>${s.why.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>`,
+      section(
+        "Como ajudar",
+        s.channels
+          .map((c) => `<div style="margin:14px 0"><h3 style="font-size:16px;margin:0 0 4px 0">${esc(c.title)}</h3><p style="margin:2px 0">${esc(c.text)}</p>${c.copy ? `<p style="margin:2px 0"><code>${esc(c.copy)}</code></p>` : ""}${c.href ? `<p style="margin:2px 0"><a href="${esc(c.href)}" rel="noopener" style="color:#38bdf8">${esc(c.cta ?? "Abrir")}</a></p>` : ""}</div>`)
+          .join("\n"),
+      ),
+    ],
+  });
+}
+
 // ---------------------------------------------------------------------------------------------------------
 // Páginas de lista
 
@@ -380,6 +397,104 @@ export function rulingBody(r: { title: string; question?: string | null; answer?
       r.answer ? section("Resposta", paragraphs(r.answer)) : "",
       r.example ? section("Exemplo de jogada", paragraphs(r.example)) : "",
       section("Referências", dl([["Palavra-chave", r.keyword], ["Fonte", r.source]]) + (r.card ? `<p>Carta: ${link(`/cards/${r.card.id}`, `${r.card.name} (${r.card.code})`)}</p>` : "")),
+    ],
+  });
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Metagame: arquétipos e jogadores (dados do Zero System, server/vedaCore.ts)
+
+const pct = (x: number) => `${Math.round(x * 100)}%`;
+const COLOR_WORD: Record<string, string> = { blue: "Azul", green: "Verde", red: "Vermelho", white: "Branco", purple: "Roxo", yellow: "Amarelo" };
+const colorsPt = (colors: string[]) => colors.map((c) => COLOR_WORD[c.toLowerCase()] ?? c).join("/");
+
+export type ArchetypeRowContent = { name: string; slug: string; colors: string[]; lists: number; share: number; wins: number; top8Share: number };
+
+export function archetypesIndexBody(rows: ArchetypeRowContent[], sample: { tournaments: number; lists: number }): string {
+  return pageShell({
+    title: "Arquétipos do metagame de Gundam Card Game",
+    lead: `Os decks que mais aparecem nos torneios, com presença, títulos e taxa de top 8 — ${sample.lists} listas de ${sample.tournaments} torneios.`,
+    sections: [
+      section(
+        "Arquétipos por presença",
+        table(
+          ["Arquétipo", "Cores", "Listas", "Presença", "Títulos", "Top 8"],
+          rows.map((r) => [link(`/arquetipos/${r.slug}`, r.name), esc(colorsPt(r.colors) || "—"), esc(r.lists), esc(pct(r.share)), esc(r.wins), esc(pct(r.top8Share))]),
+        ),
+      ),
+    ],
+  });
+}
+
+export type ArchetypeContent = {
+  name: string;
+  colors: string[];
+  lists: number;
+  share: number;
+  wins: number;
+  top8Share: number;
+  sample: { tournaments: number; from: string | null; to: string | null };
+  cards: Array<{ cardModelId: string | null; code: string; name: string; inclusion: number; avgCopies: number; tier: string }>;
+  results: Array<{ tournamentId: string; tournamentName: string; date: string | null; placementLabel: string; player: { name: string; slug: string } }>;
+};
+
+const TIER_PT: Record<string, string> = { core: "Núcleo", flex: "Flexível", tech: "Tech" };
+
+export function archetypeBody(a: ArchetypeContent): string {
+  const core = a.cards.filter((c) => c.tier === "core").slice(0, 4).map((c) => c.name);
+  const period = a.sample.from && a.sample.to ? ` entre ${a.sample.from} e ${a.sample.to}` : "";
+  return pageShell({
+    title: `${a.name} — arquétipo de Gundam Card Game`,
+    lead: `${a.name} (${colorsPt(a.colors) || "sem cor definida"}) apareceu em ${a.lists} listas de ${a.sample.tournaments} torneios${period}: ${pct(a.share)} do metagame, ${a.wins} ${a.wins === 1 ? "título" : "títulos"} e ${pct(a.top8Share)} das listas no top 8.${core.length ? ` Base do deck: ${core.join(", ")}.` : ""}`,
+    crumbs: [{ name: "Arquétipos", path: "/arquetipos" }],
+    sections: [
+      section(
+        "Cartas do arquétipo",
+        a.cards.length
+          ? table(
+              ["Carta", "Código", "Em quantas listas", "Cópias (média)", "Papel"],
+              a.cards.slice(0, 40).map((c) => [c.cardModelId ? link(`/cards/${c.cardModelId}`, c.name) : esc(c.name), esc(c.code), esc(pct(c.inclusion)), esc(c.avgCopies.toFixed(1).replace(".", ",")), esc(TIER_PT[c.tier] ?? c.tier)]),
+            )
+          : "",
+      ),
+      section(
+        "Resultados recentes",
+        a.results.length
+          ? table(
+              ["Data", "Torneio", "Colocação", "Jogador"],
+              a.results.map((r) => [esc(r.date ?? "—"), link(`/torneios/${r.tournamentId}`, r.tournamentName), esc(r.placementLabel), link(`/jogadores/${r.player.slug}`, r.player.name)]),
+            )
+          : "",
+      ),
+    ],
+  });
+}
+
+export type PlayerContent = {
+  name: string;
+  tournaments: number;
+  wins: number;
+  top8: number;
+  archetypes: Array<{ name: string; slug: string; count: number }>;
+  results: Array<{ tournamentId: string; tournamentName: string; date: string | null; placementLabel: string; record: string | null; archetype: { name: string; slug: string } | null }>;
+};
+
+export function playerBody(p: PlayerContent): string {
+  const fav = p.archetypes[0];
+  return pageShell({
+    title: `${p.name} — resultados em torneios de Gundam Card Game`,
+    lead: `${p.tournaments} ${p.tournaments === 1 ? "torneio" : "torneios"}, ${p.wins} ${p.wins === 1 ? "título" : "títulos"} e ${p.top8} top 8.${fav ? ` Arquétipo mais jogado: ${fav.name} (${fav.count}x).` : ""}`,
+    crumbs: [{ name: "Torneios", path: "/torneios" }],
+    sections: [
+      section("Arquétipos jogados", p.archetypes.length ? `<ul>${p.archetypes.map((a) => `<li>${link(`/arquetipos/${a.slug}`, a.name)} — ${a.count}x</li>`).join("")}</ul>` : ""),
+      section(
+        "Resultados",
+        table(
+          ["Data", "Torneio", "Colocação", "Campanha", "Arquétipo"],
+          p.results.map((r) => [esc(r.date ?? "—"), link(`/torneios/${r.tournamentId}`, r.tournamentName), esc(r.placementLabel), esc(r.record ?? "—"), r.archetype ? link(`/arquetipos/${r.archetype.slug}`, r.archetype.name) : "—"]),
+        ),
+      ),
+      `<p style="font-size:12px;color:#94a3b8">Resultados agrupados pelo nome usado nos torneios; jogadores com o mesmo nome aparecem juntos.</p>`,
     ],
   });
 }

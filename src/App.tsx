@@ -15,6 +15,7 @@ import { GlobalLoader } from "@/components/layout/GlobalLoader";
 import { SocialQuickMatchOverlay } from "@/components/social/SocialQuickMatchOverlay";
 import Home from "@/pages/Home";
 import NotFound from "@/pages/NotFound";
+import { setAdRequestsPaused } from "@/components/ads/AdSlot";
 const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
 const CardsPage = lazy(() => import("@/pages/CardsPage"));
 const CardDetailPage = lazy(() => import("@/pages/CardDetailPage"));
@@ -78,6 +79,7 @@ const VerifyEmailPage = lazy(() => import("@/pages/VerifyEmailPage"));
 const PrivacyPage = lazy(() => import("@/pages/LegalPages").then((m) => ({ default: m.PrivacyPage })));
 const TermsPage = lazy(() => import("@/pages/LegalPages").then((m) => ({ default: m.TermsPage })));
 const AboutPage = lazy(() => import("@/pages/AboutPage"));
+const SupportPage = lazy(() => import("@/pages/SupportPage"));
 
 function RouteLoader({ label }: { label: string }) {
   return <GlobalLoader label={tr(`Abrindo ${label}`, "Loading")} />;
@@ -123,7 +125,10 @@ function RequireAuth({ children, adminOnly = false, hosterOnly = false }: { chil
 function RouteMeta() {
   const [location] = useLocation();
   useEffect(() => {
-    applyPageMeta(routeMetaFor(location));
+    const meta = routeMetaFor(location);
+    applyPageMeta(meta);
+    // login, painel, ferramentas logadas: sem anúncio (a 404 pausa por conta própria em NotFound)
+    setAdRequestsPaused(Boolean(meta.noindex));
   }, [location]);
   return null;
 }
@@ -143,6 +148,7 @@ function AppRouter() {
         <Route path="/privacidade">{() => <LazyRoute label="Política de Privacidade"><PrivacyPage /></LazyRoute>}</Route>
         <Route path="/termos">{() => <LazyRoute label="Termos de Uso"><TermsPage /></LazyRoute>}</Route>
         <Route path="/sobre">{() => <LazyRoute label="Sobre"><AboutPage /></LazyRoute>}</Route>
+        <Route path="/apoie">{() => <LazyRoute label="Apoie"><SupportPage /></LazyRoute>}</Route>
         <Route path="/portal">{() => <RequireAuth><DashboardPage /></RequireAuth>}</Route>
         <Route path="/binders">{() => <RequireAuth><BinderListPage /></RequireAuth>}</Route>
         <Route path="/binders/:id">{() => <RequireAuth><BinderPage /></RequireAuth>}</Route>
