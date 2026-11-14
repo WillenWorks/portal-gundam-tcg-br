@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Express } from "express";
 import type { PrismaClient } from "@prisma/client";
+import { DECK_MAIN_SIZE } from "../../src/lib/deck-legality.ts";
 import { createPageCache, renderHtml, resolveHtmlPage, type BodyLoader, type BodyResult, type DetailLoaders } from "../htmlMeta.ts";
 import {
   aboutBody, supportBody, archetypeBody, archetypesIndexBody, articleBody, articlesIndexBody, playerBody, cardBody, deckBody, decksIndexBody, rulesBody, rulingBody, seriesBody, seriesIndexBody,
@@ -74,8 +75,15 @@ async function cardRowsFor(prisma: PrismaClient, printWhere: Record<string, unkn
 export function createHtmlDetailLoaders(prisma: PrismaClient): DetailLoaders {
   return {
     card: async (key) => {
+      // A carta abre pelo id, pelo código (GD01-001) ou por uma impressão (id/código da impressão, como a API
+      // /api/cards/:id). Todas viram a mesma página, com o endereço oficial /cards/<id> no canonical.
+      const code = key.trim().toUpperCase();
+      const direct = await prisma.cardModel.findFirst({ where: { OR: [{ id: key }, { code }], isActive: true }, select: { id: true } });
+      const modelId = direct?.id
+        ?? (await prisma.card.findFirst({ where: { OR: [{ id: key }, { code }] }, orderBy: { isPrimaryPrint: "desc" }, select: { cardModelId: true } }))?.cardModelId;
+      if (!modelId) return null;
       const card = await prisma.cardModel.findFirst({
-        where: { OR: [{ id: key }, { code: key }], isActive: true },
+        where: { id: modelId, isActive: true },
         select: {
           id: true, code: true, nameEn: true, namePt: true, cardType: true, color: true, level: true, cost: true, ap: true, hp: true,
           traits: true, trait: true, series: true, sourceTitle: true, zone: true, linkText: true, effectPt: true, effectEn: true, legalityStatus: true,
@@ -97,6 +105,7 @@ export function createHtmlDetailLoaders(prisma: PrismaClient): DetailLoaders {
         title: `${name} (${card.code})`,
         description: `Carta ${card.code} de Gundam Card Game: ${traits}. Veja as impressões, as regras e em quais decks ela aparece.`,
         image: card.prints[0]?.imageMediumUrl || card.prints[0]?.imageUrl,
+        canonicalPath: `/cards/${card.id}`,
         body: cardBody({
           name, nameEn: card.nameEn, code: card.code, typeLabel: typePt(card.cardType), colorLabel: colorPt(card.color),
           level: card.level, cost: card.cost, ap: card.ap, hp: card.hp, traits: traitList, series: card.sourceTitle || card.series,
@@ -122,7 +131,8 @@ export function createHtmlDetailLoaders(prisma: PrismaClient): DetailLoaders {
         title: deck.name,
         description: `Deck${author ? ` de ${author}` : ""} para Gundam Card Game${main ? `, com ${main} cartas no deck principal` : ""}: lista completa, curva de custo e estatísticas.`,
         image: deck.coverImage,
-        noindex: deck.visibility !== "PUBLIC",
+        // deck incompleto (rascunho, lista pela metade) abre pelo link mas fica fora do Google: é página rala
+        noindex: deck.visibility !== "PUBLIC" || main < DECK_MAIN_SIZE,
         body: deckBody({
           name: deck.name, author, description: deck.notes,
           items: deck.items

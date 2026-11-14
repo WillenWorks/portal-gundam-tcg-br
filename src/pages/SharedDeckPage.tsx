@@ -88,6 +88,11 @@ const DECK_MAIN_SIZE = 50;
 const DECK_RESOURCE_SIZE = 10;
 const NON_COUNTED_SECTIONS = new Set(["resource", "ex_base", "ex_resource"]);
 
+/** Cartas no deck principal — mesma conta do HTML do servidor (server/routes/htmlPages.ts) para decidir o noindex. */
+function mainDeckTotal(deck: ApiDeck): number {
+  return (deck.items || []).reduce((sum, it) => ((it.section || "main") === "main" ? sum + (it.quantity || 0) : sum), 0);
+}
+
 const chartConfig = {
   quantity: { label: "Quantidade", color: "var(--primary)" },
   value: { label: "Quantidade", color: "var(--primary)" },
@@ -309,7 +314,8 @@ export default function SharedDeckPage() {
     description: `Deck "${deck.name}" de ${deck.user?.displayName || deck.user?.username || "piloto da comunidade"} — lista de cartas, curva e estatísticas de Gundam Card Game.`,
     image: deck.coverImage || null,
     // Só deck público entra no Google; "não listado" é acessível por link mas não indexado.
-    noindex: deck.visibility !== "PUBLIC",
+    // Deck incompleto (rascunho) também fica fora: é página rala, conta como conteúdo de baixo valor.
+    noindex: deck.visibility !== "PUBLIC" || mainDeckTotal(deck) < DECK_MAIN_SIZE,
   } : null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);

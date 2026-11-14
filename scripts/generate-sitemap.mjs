@@ -14,7 +14,8 @@ import { resolve } from "node:path";
 const SITE = "https://anaheimhub.com";
 const outArg = process.argv.find((a) => a.startsWith("--out="));
 const OUT = resolve(outArg ? outArg.slice(6) : "dist/sitemap.xml");
-const MAX_URLS = 45000; // limite do protocolo é 50.000 por arquivo
+const MAX_URLS = 45000;
+const DECK_MAIN_SIZE = 50; // src/lib/deck-legality.ts // limite do protocolo é 50.000 por arquivo
 
 const STATIC = [
   ["/", "daily", "1.0"], ["/cards", "daily", "0.9"], ["/database", "daily", "0.9"], ["/decks", "daily", "0.9"],
@@ -56,18 +57,25 @@ async function main() {
       prisma.post.findMany({ where: { status: "PUBLISHED" }, select: { slug: true, updatedAt: true }, orderBy: { publishedAt: "desc" } }),
       // torneio sem nenhum resultado cadastrado fica de fora (a página dele é noindex: não há o que mostrar)
       prisma.tournament.findMany({ where: { isActive: true, entries: { some: {} } }, select: { id: true, updatedAt: true }, orderBy: { dateStart: "desc" } }),
-      prisma.deck.findMany({ where: { visibility: "PUBLIC" }, select: { shareId: true, updatedAt: true }, orderBy: { updatedAt: "desc" }, take: 10000 }),
+      prisma.deck.findMany({ where: { visibility: "PUBLIC" }, select: { id: true, shareId: true, updatedAt: true }, orderBy: { updatedAt: "desc" }, take: 10000 }),
     ]);
+    // Só deck completo (deck principal com 50 cartas) entra: rascunho é página rala e a página dele é noindex
+    // (mesma regra de server/routes/htmlPages.ts).
+    const mainTotals = decks.length
+      ? await prisma.deckItem.groupBy({ by: ["deckId"], where: { deckId: { in: decks.map((d) => d.id) }, section: "main" }, _sum: { quantity: true } })
+      : [];
+    const completeDecks = new Set(mainTotals.filter((row) => (row._sum.quantity ?? 0) >= DECK_MAIN_SIZE).map((row) => row.deckId));
+    const indexableDecks = decks.filter((d) => completeDecks.has(d.id));
     const urls = STATIC.map(([path, changefreq, priority]) => entry(path, { changefreq, priority }));
     for (const s of sets) urls.push(entry(`/sets/${encodeURIComponent(s.code)}`, { lastmod: day(s.updatedAt), changefreq: "weekly", priority: "0.7" }));
     for (const s of series) urls.push(entry(`/series/${encodeURIComponent(s.slug)}`, { lastmod: day(s.updatedAt), changefreq: "monthly", priority: "0.5" }));
     for (const p of posts) urls.push(entry(`/articles/${encodeURIComponent(p.slug)}`, { lastmod: day(p.updatedAt), changefreq: "monthly", priority: "0.6" }));
     for (const t of tournaments) urls.push(entry(`/torneios/${encodeURIComponent(t.id)}`, { lastmod: day(t.updatedAt), changefreq: "monthly", priority: "0.5" }));
     for (const c of cards) urls.push(entry(`/cards/${encodeURIComponent(c.id)}`, { lastmod: day(c.updatedAt), changefreq: "monthly", priority: "0.6" }));
-    for (const d of decks) urls.push(entry(`/deck/${encodeURIComponent(d.shareId)}`, { lastmod: day(d.updatedAt), changefreq: "monthly", priority: "0.4" }));
+    for (const d of indexableDecks) urls.push(entry(`/deck/${encodeURIComponent(d.shareId)}`, { lastmod: day(d.updatedAt), changefreq: "monthly", priority: "0.4" }));
     const body = urls.slice(0, MAX_URLS).join("\n");
     writeFileSync(OUT, `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`);
-    console.log(`sitemap: ${Math.min(urls.length, MAX_URLS)} URLs gravadas em ${OUT} (cartas ${cards.length}, coleções ${sets.length}, séries ${series.length}, artigos ${posts.length}, torneios ${tournaments.length}, decks ${decks.length}).`);
+    console.log(`sitemap: ${Math.min(urls.length, MAX_URLS)} URLs gravadas em ${OUT} (cartas ${cards.length}, coleções ${sets.length}, séries ${series.length}, artigos ${posts.length}, torneios ${tournaments.length}, decks ${indexableDecks.length} de ${decks.length} públicos).`);
   } finally {
     await prisma.$disconnect().catch(() => {});
   }

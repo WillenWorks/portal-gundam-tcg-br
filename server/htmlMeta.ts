@@ -25,6 +25,8 @@ export type DetailMeta = {
   noindex?: boolean;
   /** conteúdo da página em HTML (server/htmlContent.ts), no lugar do texto genérico do index.html */
   body?: string;
+  /** endereço oficial quando o item abre por mais de um (ex.: carta por código ou por impressão → /cards/<id>) */
+  canonicalPath?: string;
 };
 
 /** Conteúdo das páginas que não são de detalhe (listas, regras, arquétipos, jogadores). `null` = mantém o texto
@@ -111,7 +113,9 @@ export async function resolveHtmlPage(pathname: string, loaders: DetailLoaders, 
     page.image = absoluteUrl(detail.image) ?? DEFAULT_OG_IMAGE;
     page.ogType = match.detail === "article" ? "article" : "website";
     if (detail.noindex) page.noindex = true;
-    page.jsonLd = [breadcrumb([{ name: "Início", path: "/" }, section, { name: detail.title, path }]), ...(detail.jsonLd ?? [])];
+    const officialPath = detail.canonicalPath ?? path;
+    page.canonical = `${SITE_URL}${officialPath}`;
+    page.jsonLd = [breadcrumb([{ name: "Início", path: "/" }, section, { name: detail.title, path: officialPath }]), ...(detail.jsonLd ?? [])];
     if (detail.body) page.body = detail.body;
   } else if (bodyFor && !page.noindex) {
     const result = await bodyFor(path);
