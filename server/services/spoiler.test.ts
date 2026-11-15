@@ -305,6 +305,10 @@ describe("captura e propostas (banco em memória)", () => {
     expect(await svc.captureNewSpoilers(prisma as never, config, { fetchFn, extract, now: () => now })).toEqual({ captured: 1, failed: 0 });
     expect(db.cardModel.rows[0]).toMatchObject({ code: "GD07-010", isActive: false, legalityStatus: "preview" });
     expect(db.cardSet.rows[0]).toMatchObject({ code: "GD07", isActive: false });
+    // listas sem DEFAULT no banco (migração 0021): o create precisa mandar o valor
+    expect(db.cardModel.rows[0].cardSubtypes).toEqual([]);
+    expect(db.card.rows[0].cardSubtypes).toEqual([]);
+    expect(db.cardSet.rows[0].sourceTitles).toEqual([]);
     const [digest] = await svc.buildSpoilerDigests(prisma as never, deps);
     expect(digest).toMatchObject({ socialPostId: "sp1", setCode: "GD07", cardCodes: ["GD07-010"], language: "en", updatesArticleId: null });
     expect(db.post.rows[0]).toMatchObject({ status: "REVIEW", postType: "PREVIEW", title: "Spoiler de GD07: Gundam Aerial (GD07-010)", slug: "spoiler-gd07-010" });
@@ -314,6 +318,28 @@ describe("captura e propostas (banco em memória)", () => {
     expect(await svc.captureNewSpoilers(prisma as never, config, { fetchFn, extract, now: () => now })).toEqual({ captured: 0, failed: 0 });
     expect(db.spoilerCapture.rows.at(-1)).toMatchObject({ status: "DUPLICATE" });
     expect(await svc.buildSpoilerDigests(prisma as never, deps)).toEqual([]);
+  });
+
+  it("captura que falhou tenta de novo quando a mensagem volta a ser lida (reinício)", async () => {
+    const { svc, prisma } = await setup();
+    const now = new Date("2026-11-13T08:40:00Z");
+    // Discord de mentira que respeita ?after= (como o de verdade)
+    const all = [message("400001", 10, now)];
+    const fetchFn = vi.fn(async (url: string) => {
+      if (!url.includes("/messages")) return new Response(png);
+      const after = new URL(url).searchParams.get("after");
+      return new Response(JSON.stringify(all.filter((m) => !after || BigInt(m.id) > BigInt(after))));
+    }) as unknown as typeof fetch;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const failing = vi.fn(async () => { throw new Error("\nInvalid `prisma.cardModel.create()` invocation:\n\nNull constraint violation"); });
+    expect(await svc.captureNewSpoilers(prisma as never, config, { fetchFn, extract: failing, now: () => now })).toEqual({ captured: 0, failed: 1 });
+    expect(db.spoilerCapture.rows[0]).toMatchObject({ status: "FAILED", error: "Invalid `prisma.cardModel.create()` invocation: Null constraint violation" });
+
+    svc.resetSpoilerCursor(); // a API reiniciou: relê a janela
+    const ok = vi.fn(async () => ({ card: spoiler, provider: "gemini" as const, model: "m" }));
+    expect(await svc.captureNewSpoilers(prisma as never, config, { fetchFn, extract: ok, now: () => now })).toEqual({ captured: 1, failed: 0 });
+    expect(db.spoilerCapture.rows.map((r) => r.status)).toEqual(["CAPTURED"]);
+    warn.mockRestore();
   });
 
   it("mensagem que chega vazia (intent desligado) avisa no log em vez de passar em silêncio", async () => {
