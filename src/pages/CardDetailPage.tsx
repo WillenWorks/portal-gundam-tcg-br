@@ -270,6 +270,9 @@ export default function CardDetailPage() {
 
     image: artUrl || null,
 
+    // aberta por código ou impressão, a carta aponta para o endereço oficial (evita página duplicada no Google)
+    path: `/cards/${card.id}`,
+
   } : null);
 
 
