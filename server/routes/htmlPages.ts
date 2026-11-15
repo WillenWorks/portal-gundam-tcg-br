@@ -9,12 +9,15 @@ import { DECK_MAIN_SIZE } from "../../src/lib/deck-legality.ts";
 import { createPageCache, renderHtml, resolveHtmlPage, type BodyLoader, type BodyResult, type DetailLoaders } from "../htmlMeta.ts";
 import {
   aboutBody, supportBody, archetypeBody, archetypesIndexBody, articleBody, articlesIndexBody, playerBody, cardBody, deckBody, decksIndexBody, rulesBody, rulingBody, seriesBody, seriesIndexBody,
-  decklistBody, setBody, setsIndexBody, tournamentBody, tournamentsIndexBody, type CardRow,
+  decklistBody, metagameStatsBody, regionalMetaBody, setBody, setsIndexBody, tournamentBody, tournamentsIndexBody, type CardRow,
 } from "../htmlContent.ts";
 import { ALL_KEYWORDS } from "../../src/i18n/keywords.ts";
 import { ABOUT_CONTACT, ABOUT_LEAD, ABOUT_SECTIONS, ABOUT_TITLE, ABOUT_UPDATED } from "../../src/lib/aboutContent.ts";
 import { SUPPORT_LEAD, SUPPORT_TITLE, SUPPORT_WHY, supportChannels } from "../../src/lib/supportContent.ts";
 import { GAME_COLOR_LABEL_PT } from "../../src/lib/gundam-catalog.ts";
+import { LATEST_SEASON } from "../../src/lib/seasons.ts";
+import { getMetagameStats } from "../metagameTrendsService.ts";
+import { getRegionalMetagame } from "../services/regionalMetaService.ts";
 
 /** Endereços que não são páginas do site (API, sockets, arquivos). */
 export const HTML_PAGE_ROUTE = /^\/(?!api(?:\/|$)|socket\.io|social\.io|uploads\/|assets\/).*/;
@@ -296,6 +299,45 @@ async function decklistPage(prisma: PrismaClient, tournamentId: string, entryId:
   };
 }
 
+/** Temporada atual — o mesmo padrão ("current") que /api/stats/metagame e /api/metagame/regional usam. */
+async function currentSeason(prisma: PrismaClient) {
+  return (await prisma.season.findFirst({ where: { isCurrent: true }, select: { id: true, name: true } }))
+    ?? (await prisma.season.findFirst({ where: { code: LATEST_SEASON }, select: { id: true, name: true } }));
+}
+
+const comboPt = (combo: string) => combo.split(" + ").map((c) => colorPt(c) || c).join(" + ");
+
+async function statsPage(prisma: PrismaClient): Promise<string> {
+  const season = await currentSeason(prisma);
+  const m = await getMetagameStats(prisma, { seasonId: season?.id ?? null });
+  const p = m.provenance;
+  const period = p.startDate && p.endDate ? `de ${dayPt(new Date(p.startDate))} a ${dayPt(new Date(p.endDate))}` : undefined;
+  return metagameStatsBody({
+    seasonName: season?.name, totalDecks: m.totalDecks, totalTournaments: p.totalTournaments, period,
+    topCards: m.topCards.slice(0, 20).map((c) => ({ id: c.cardModelId, code: c.code, name: c.name, colorLabel: colorPt(c.color), presenceRate: c.presenceRate, avgCopies: c.avgCopies, winRate: c.winRate })),
+    colors: m.colorDistribution.map((c) => ({ label: colorPt(c.color) || c.color, decks: c.decks, presenceRate: c.presenceRate })),
+    combos: m.colorCombos.map((c) => ({ label: comboPt(c.combo), decks: c.decks, presenceRate: c.presenceRate })),
+    traits: m.traitDistribution.map((t) => ({ label: t.trait, decks: t.decks, presenceRate: t.presenceRate })),
+    rising: m.risingCards.slice(0, 8).map((c) => ({ id: c.cardModelId, code: c.code, name: c.name, colorLabel: colorPt(c.color), presenceRate: c.recentPresenceRate, delta: c.trendDelta })),
+    tournaments: p.tournaments.slice(0, 15).map((t) => ({ id: t.id, name: t.name, date: t.date ? dayPt(new Date(t.date)) : undefined, decks: t.deckCount })),
+  });
+}
+
+async function regionalPage(prisma: PrismaClient): Promise<string> {
+  const season = await currentSeason(prisma);
+  const r = await getRegionalMetagame(prisma, { seasonId: season?.id ?? null });
+  const region = (g: (typeof r)["national"]) => ({
+    label: g.label, totalDecks: g.totalDecks, winRate: g.winRate,
+    colors: g.colorDistribution.map((c) => ({ label: colorPt(c.color) || c.color, decks: c.decks, presenceRate: c.presenceRate })),
+    topCards: g.topCards.map((c) => ({ id: c.cardModelId, code: "", name: c.name, colorLabel: colorPt(c.color), presenceRate: c.presenceRate, avgCopies: c.avgCopies })),
+  });
+  return regionalMetaBody({
+    seasonName: season?.name, totalDecks: r.totalDecks, national: region(r.national),
+    states: r.states.map(region), cities: r.cities.map(region),
+    anomalies: r.anomalies.map((a) => ({ scope: a.scopeLabel, label: a.kind === "color" ? colorPt(a.label) || a.label : a.label, regionRate: a.regionRate, nationalRate: a.nationalRate, deltaPp: a.deltaPp })),
+  });
+}
+
 export function createHtmlBodyLoader(prisma: PrismaClient): BodyLoader {
   const metaBody = (path: string) => metaBodyFrom(prisma, path);
   const setsIndex = async (title: string, lead: string) => {
@@ -348,6 +390,10 @@ export function createHtmlBodyLoader(prisma: PrismaClient): BodyLoader {
         const decks = await prisma.deck.findMany({ where: { visibility: "PUBLIC" }, orderBy: { updatedAt: "desc" }, take: 60, select: { shareId: true, name: true, user: { select: { displayName: true, username: true } } } });
         return decksIndexBody(decks.map((d) => ({ shareId: d.shareId, name: d.name, author: d.user?.displayName || d.user?.username })));
       }
+      case "/stats":
+        return statsPage(prisma);
+      case "/metagame/regional":
+        return regionalPage(prisma);
       case "/rules": {
         const rulings = await prisma.ruling.findMany({ where: { isActive: true }, orderBy: { title: "asc" }, take: 500, select: rulingSelect });
         return rulesBody({

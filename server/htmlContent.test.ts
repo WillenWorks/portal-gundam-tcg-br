@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aboutBody, archetypeBody, archetypesIndexBody, cardBody, decklistBody, markdownToHtml, playerBody, rulesBody, setBody, supportBody, tournamentBody } from "./htmlContent.ts";
+import { aboutBody, archetypeBody, archetypesIndexBody, cardBody, decklistBody, metagameStatsBody, regionalMetaBody, markdownToHtml, playerBody, rulesBody, setBody, supportBody, tournamentBody } from "./htmlContent.ts";
 import { SUPPORT_LEAD, SUPPORT_TITLE, SUPPORT_WHY, supportChannels } from "../src/lib/supportContent.ts";
 import { ABOUT_CONTACT, ABOUT_LEAD, ABOUT_SECTIONS, ABOUT_TITLE, ABOUT_UPDATED } from "../src/lib/aboutContent.ts";
 import { matchSiteRoute } from "../src/lib/siteRoutes.ts";
@@ -159,6 +159,43 @@ describe("decklistBody", () => {
     expect(html).toContain('href="/cards/m1"');
     expect(html).toContain("Deck principal (4 cartas)");
     expect(html).toContain('href="/torneios/t1"');
+  });
+});
+
+describe("metagameStatsBody", () => {
+  const base = { seasonName: "GD03", totalDecks: 0, totalTournaments: 0, topCards: [], colors: [], combos: [], traits: [], rising: [], tournaments: [] };
+
+  it("mostra a amostra, as cartas mais jogadas e os torneios de origem", () => {
+    const html = metagameStatsBody({
+      ...base, totalDecks: 120, totalTournaments: 6, period: "de 1 a 30 de outubro",
+      topCards: [{ id: "m1", code: "GD01-001", name: "Gundam", colorLabel: "Azul", presenceRate: 45.5, avgCopies: 3.5, winRate: 52 }],
+      colors: [{ label: "Azul", decks: 60, presenceRate: 50 }],
+      rising: [{ id: "m2", code: "GD03-010", name: "Aerial", colorLabel: "Branco", presenceRate: 30, delta: 12.5 }],
+      tournaments: [{ id: "t1", name: "Regional SP", date: "10/10", decks: 32 }],
+    });
+    expect(html).toContain("120 listas usadas em 6 torneios");
+    expect(html).toContain('href="/cards/m1"');
+    expect(html).toContain("45,5%");
+    expect(html).toContain("subiu 12,5 pontos");
+    expect(html).toContain('href="/torneios/t1"');
+  });
+
+  it("sem listas explica o que a página vai mostrar", () => {
+    expect(metagameStatsBody(base)).toContain("Ainda não há listas de torneio");
+  });
+});
+
+describe("regionalMetaBody", () => {
+  it("compara estados com a média nacional", () => {
+    const region = (label: string, totalDecks: number) => ({ label, totalDecks, winRate: 50, colors: [{ label: "Azul", decks: 5, presenceRate: 40 }], topCards: [{ id: "m1", code: "", name: "Gundam", colorLabel: "Azul", presenceRate: 60 }] });
+    const html = regionalMetaBody({
+      seasonName: "GD03", totalDecks: 40, national: region("Brasil", 40), states: [region("São Paulo", 25)], cities: [region("Campinas", 10)],
+      anomalies: [{ scope: "São Paulo", label: "Vermelho", regionRate: 30, nationalRate: 15, deltaPp: 15 }],
+    });
+    expect(html).toContain("40 listas de torneio");
+    expect(html).toContain("São Paulo");
+    expect(html).toContain("Campinas");
+    expect(html).toContain("contra 15% no país (+15 pontos)");
   });
 });
 
