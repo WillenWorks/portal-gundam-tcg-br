@@ -1020,7 +1020,7 @@ export default function AdminPage() {
 
           <TabsContent value="events"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-5 p-6">
             <SectionTitle title="Eventos" description="Cadastro de torneios e resultados de participantes — alimenta o calendário público e as estatísticas competitivas." />
-            <div className="flex flex-wrap gap-3"><Button asChild variant="outline" className="rounded-none"><Link href="/tournaments">Ver calendário público</Link></Button></div>
+            <div className="flex flex-wrap gap-3"><Button asChild variant="outline" className="rounded-none"><Link href="/torneios">Ver calendário público</Link></Button></div>
 
             <ModalSection label={tournamentForm.id ? "Editar evento" : "Novo evento"} />
             <div className="grid gap-4 md:grid-cols-2">

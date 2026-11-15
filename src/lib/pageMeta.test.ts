@@ -3,6 +3,11 @@ import { describe, expect, it } from "vitest";
 import { applyPageMeta, isPrivatePath, routeMetaFor } from "./pageMeta";
 
 describe("routeMetaFor", () => {
+  it("endereço que repete outra página aponta para o principal", () => {
+    expect(routeMetaFor("/database")).toMatchObject({ path: "/cards", title: "Catálogo de cartas", noindex: false });
+    expect(routeMetaFor("/tournaments").path).toBe("/torneios");
+  });
+
   it("marca rotas de conta e ferramentas como noindex", () => {
     for (const p of ["/admin", "/admin/cards", "/portal", "/profile", "/deckbuilder/abc", "/simulador/treino", "/u/willen", "/binder/x", "/login", "/redefinir-senha", "/eventos/1/tv", "/eventos/1/checkin"]) {
       expect(isPrivatePath(p), p).toBe(true);

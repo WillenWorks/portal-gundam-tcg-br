@@ -9,7 +9,7 @@ import { DECK_MAIN_SIZE } from "../../src/lib/deck-legality.ts";
 import { createPageCache, renderHtml, resolveHtmlPage, type BodyLoader, type BodyResult, type DetailLoaders } from "../htmlMeta.ts";
 import {
   aboutBody, supportBody, archetypeBody, archetypesIndexBody, articleBody, articlesIndexBody, playerBody, cardBody, deckBody, decksIndexBody, rulesBody, rulingBody, seriesBody, seriesIndexBody,
-  setBody, setsIndexBody, tournamentBody, tournamentsIndexBody, type CardRow,
+  decklistBody, setBody, setsIndexBody, tournamentBody, tournamentsIndexBody, type CardRow,
 } from "../htmlContent.ts";
 import { ALL_KEYWORDS } from "../../src/i18n/keywords.ts";
 import { ABOUT_CONTACT, ABOUT_LEAD, ABOUT_SECTIONS, ABOUT_TITLE, ABOUT_UPDATED } from "../../src/lib/aboutContent.ts";
@@ -263,6 +263,39 @@ async function metaBodyFrom(prisma: PrismaClient, path: string): Promise<string 
 }
 
 /** Conteúdo das páginas de lista e de regras (as que não são de detalhe). `null` = fica o texto do index.html. */
+const listCardSelect = { cardModelId: true, id: true, code: true, nameEn: true, namePt: true, cardType: true } as const;
+
+/** /torneios/:id/lista/:entryId — a lista que o jogador usou (cópia congelada; sem ela, o deck vinculado). */
+async function decklistPage(prisma: PrismaClient, tournamentId: string, entryId: string): Promise<BodyResult> {
+  const entry = await prisma.tournamentEntry.findFirst({
+    where: { id: entryId, tournamentId, tournament: { isActive: true } },
+    select: {
+      playerName: true, placement: true, wins: true, losses: true, draws: true, archetype: true,
+      tournament: { select: { id: true, name: true, dateStart: true, participantCount: true, _count: { select: { entries: true } } } },
+      deckSnapshot: { select: { items: { select: { quantity: true, section: true, card: { select: listCardSelect } } } } },
+      deck: { select: { visibility: true, items: { select: { quantity: true, section: true, card: { select: listCardSelect } } } } },
+    },
+  });
+  if (!entry) return { notFound: true };
+  const raw = entry.deckSnapshot?.items ?? (entry.deck && entry.deck.visibility !== "PRIVATE" ? entry.deck.items : []);
+  const items = raw
+    .map((i) => ({ quantity: i.quantity, section: i.section, card: { id: i.card.cardModelId || i.card.id, code: i.card.code, name: cardName(i.card), typeLabel: typePt(i.card.cardType) } }))
+    .sort((a, b) => a.card.code.localeCompare(b.card.code));
+  const t = entry.tournament;
+  const date = dayPt(t.dateStart) || undefined;
+  return {
+    title: `Lista de ${entry.playerName} — ${t.name}`,
+    description: `Deck${entry.archetype ? ` ${entry.archetype}` : ""} usado por ${entry.playerName} em ${t.name}${entry.placement ? ` (${entry.placement}º lugar)` : ""}: lista completa de cartas.`,
+    // resultado sem lista cadastrada: a página só repetiria a linha da classificação
+    noindex: items.length === 0,
+    body: decklistBody({
+      tournament: { id: t.id, name: t.name, date }, playerName: entry.playerName, placement: entry.placement,
+      wins: entry.wins, losses: entry.losses, draws: entry.draws, archetype: entry.archetype,
+      totalPlayers: t.participantCount ?? t._count.entries, items,
+    }),
+  };
+}
+
 export function createHtmlBodyLoader(prisma: PrismaClient): BodyLoader {
   const metaBody = (path: string) => metaBodyFrom(prisma, path);
   const setsIndex = async (title: string, lead: string) => {
@@ -324,6 +357,8 @@ export function createHtmlBodyLoader(prisma: PrismaClient): BodyLoader {
       }
     }
     if (path === "/arquetipos" || path.startsWith("/arquetipos/") || path.startsWith("/jogadores/")) return metaBody(path);
+    const listMatch = /^\/torneios\/([^/]+)\/lista\/([^/]+)$/.exec(path);
+    if (listMatch) return decklistPage(prisma, listMatch[1], listMatch[2]);
     const rule = /^\/rules\/([^/]+)$/.exec(path);
     if (rule) {
       let id = rule[1];
