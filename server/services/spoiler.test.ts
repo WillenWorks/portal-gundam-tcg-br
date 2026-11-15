@@ -10,6 +10,8 @@ import {
   sourceUrlOf,
   spoilerDigestIdOf,
   spoilerImagesOf,
+  looksContentless,
+  messageTextOf,
   type DiscordMessage,
 } from "./spoilerService";
 import { spoilerCoverHtml, spoilerHashtags } from "./spoilerSocial";
@@ -70,6 +72,23 @@ describe("mensagens do Discord", () => {
   it("usa a cópia do embed no CDN quando não há anexo; link externo fica de fora", () => {
     const refs = spoilerImagesOf({ ...msg, attachments: [], embeds: [{ image: { url: "https://x.com/a.png", proxy_url: "https://media.discordapp.net/external/a.png" } }, { image: { url: "http://169.254.169.254/" } }] });
     expect(refs).toEqual([{ sourceKey: "123456789:e0", url: "https://media.discordapp.net/external/a.png" }]);
+  });
+  it("mensagem encaminhada: imagens e texto vêm da cópia em message_snapshots", () => {
+    const fwd: DiscordMessage = {
+      id: "555", channel_id: "999999", timestamp: "2026-11-15T10:00:00Z", content: "", attachments: [], embeds: [],
+      message_snapshots: [{ message: { content: "GD07 新カード", attachments: [{ id: "9", url: "https://cdn.discordapp.com/attachments/x/y/z.jpg", content_type: "image/jpeg", size: 2000 }], embeds: [] } }],
+    };
+    expect(spoilerImagesOf(fwd)).toEqual([{ sourceKey: "555:s0a9", url: "https://cdn.discordapp.com/attachments/x/y/z.jpg" }]);
+    expect(messageTextOf(fwd)).toBe("GD07 新カード");
+    expect(looksContentless(fwd)).toBe(false);
+  });
+  it("aceita o proxy de imagens externas do Discord (images-ext-N)", () => {
+    const refs = spoilerImagesOf({ ...msg, attachments: [], embeds: [{ image: { url: "https://x.com/a.png", proxy_url: "https://images-ext-1.discordapp.net/external/abc/a.png" } }] });
+    expect(refs.map((r) => r.url)).toEqual(["https://images-ext-1.discordapp.net/external/abc/a.png"]);
+  });
+  it("mensagem sem texto, anexo nem embed é sinal de Message Content Intent desligado", () => {
+    expect(looksContentless({ id: "1", channel_id: "2", timestamp: "2026-11-15T10:00:00Z", content: "", attachments: [], embeds: [] })).toBe(true);
+    expect(looksContentless(msg)).toBe(false);
   });
   it("monta o link da mensagem original", () => {
     expect(sourceUrlOf(msg)).toBe("https://discord.com/channels/111111/222222/333333");
@@ -286,6 +305,10 @@ describe("captura e propostas (banco em memória)", () => {
     expect(await svc.captureNewSpoilers(prisma as never, config, { fetchFn, extract, now: () => now })).toEqual({ captured: 1, failed: 0 });
     expect(db.cardModel.rows[0]).toMatchObject({ code: "GD07-010", isActive: false, legalityStatus: "preview" });
     expect(db.cardSet.rows[0]).toMatchObject({ code: "GD07", isActive: false });
+    // listas sem DEFAULT no banco (migração 0021): o create precisa mandar o valor
+    expect(db.cardModel.rows[0].cardSubtypes).toEqual([]);
+    expect(db.card.rows[0].cardSubtypes).toEqual([]);
+    expect(db.cardSet.rows[0].sourceTitles).toEqual([]);
     const [digest] = await svc.buildSpoilerDigests(prisma as never, deps);
     expect(digest).toMatchObject({ socialPostId: "sp1", setCode: "GD07", cardCodes: ["GD07-010"], language: "en", updatesArticleId: null });
     expect(db.post.rows[0]).toMatchObject({ status: "REVIEW", postType: "PREVIEW", title: "Spoiler de GD07: Gundam Aerial (GD07-010)", slug: "spoiler-gd07-010" });
@@ -295,6 +318,41 @@ describe("captura e propostas (banco em memória)", () => {
     expect(await svc.captureNewSpoilers(prisma as never, config, { fetchFn, extract, now: () => now })).toEqual({ captured: 0, failed: 0 });
     expect(db.spoilerCapture.rows.at(-1)).toMatchObject({ status: "DUPLICATE" });
     expect(await svc.buildSpoilerDigests(prisma as never, deps)).toEqual([]);
+  });
+
+  it("captura que falhou tenta de novo quando a mensagem volta a ser lida (reinício)", async () => {
+    const { svc, prisma } = await setup();
+    const now = new Date("2026-11-13T08:40:00Z");
+    // Discord de mentira que respeita ?after= (como o de verdade)
+    const all = [message("400001", 10, now)];
+    const fetchFn = vi.fn(async (url: string) => {
+      if (!url.includes("/messages")) return new Response(png);
+      const after = new URL(url).searchParams.get("after");
+      return new Response(JSON.stringify(all.filter((m) => !after || BigInt(m.id) > BigInt(after))));
+    }) as unknown as typeof fetch;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const failing = vi.fn(async () => { throw new Error("\nInvalid `prisma.cardModel.create()` invocation:\n\nNull constraint violation"); });
+    expect(await svc.captureNewSpoilers(prisma as never, config, { fetchFn, extract: failing, now: () => now })).toEqual({ captured: 0, failed: 1 });
+    expect(db.spoilerCapture.rows[0]).toMatchObject({ status: "FAILED", error: "Invalid `prisma.cardModel.create()` invocation: Null constraint violation" });
+
+    svc.resetSpoilerCursor(); // a API reiniciou: relê a janela
+    const ok = vi.fn(async () => ({ card: spoiler, provider: "gemini" as const, model: "m" }));
+    expect(await svc.captureNewSpoilers(prisma as never, config, { fetchFn, extract: ok, now: () => now })).toEqual({ captured: 1, failed: 0 });
+    expect(db.spoilerCapture.rows.map((r) => r.status)).toEqual(["CAPTURED"]);
+    warn.mockRestore();
+  });
+
+  it("mensagem que chega vazia (intent desligado) avisa no log em vez de passar em silêncio", async () => {
+    const { svc, prisma } = await setup();
+    const now = new Date("2026-11-13T08:40:00Z");
+    const empty: DiscordMessage = { id: "300001", channel_id: "555555", content: "", timestamp: new Date(now.getTime() - 60_000).toISOString(), attachments: [], embeds: [] };
+    const fetchFn = vi.fn(async () => new Response(JSON.stringify([empty]))) as unknown as typeof fetch;
+    const extract = vi.fn();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(await svc.captureNewSpoilers(prisma as never, config, { fetchFn, extract, now: () => now })).toEqual({ captured: 0, failed: 0 });
+    expect(extract).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("Message Content Intent"));
+    warn.mockRestore();
   });
 
   it("japonês pendente + inglês chega: a proposta em japonês sai da fila e a nova ocupa o lugar", async () => {

@@ -21,6 +21,7 @@ name: Manutenção da VPS
 #   backup-externo-configurar  grava o token do Google Drive e a senha (segredos RCLONE_DRIVE_TOKEN e
 #                     BACKUP_PASSPHRASE), agenda o backup diário criptografado no Drive e roda o primeiro
 #   backup-externo-testar      baixa o backup mais recente do Drive, descriptografa e confere
+#   spoilers-conferir só leitura: o que o bot enxerga no canal de spoilers (tipo/anexos/embeds, sem texto), capturas e propostas no banco, log [spoilers]
 #   social-conferir   só leitura: variáveis do agente do Instagram (sim/não), navegador do Playwright, espaço
 #   social-navegador  instala o Chromium do Playwright (arte dos posts) e testa se abre
 #   spoilers-ligar    liga a captura de spoilers do Discord no .env (SPOILER_CAPTURE_ENABLED e o ID do canal
@@ -35,7 +36,7 @@ on:
       tarefa:
         description: "O que fazer"
         type: choice
-        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, postgres-18, fail2ban-instalar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar, bug-reports, social-conferir, social-navegador, spoilers-ligar, spoilers-desligar, pg17-remover]
+        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, postgres-18, fail2ban-instalar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar, bug-reports, social-conferir, social-navegador, spoilers-ligar, spoilers-desligar, spoilers-conferir, pg17-remover]
         default: diagnostico
 
 # nunca junto com um deploy ou outra manutenção
@@ -558,6 +559,51 @@ jobs:
               grep -ahE "\[spoilers\]" "${L%% *}" "${L##* }" 2>/dev/null | cut -c1-300 | tail -n 20 || echo "sem registros"
             }
 
+            spoilers_conferir() {
+              [ -f "$APP/.env" ] || { echo "sem $APP/.env"; exit 1; }
+              secao "variáveis (só sim/não e o liga/desliga)"
+              grep -E '^SPOILER_CAPTURE_ENABLED=' "$APP/.env" || echo "SPOILER_CAPTURE_ENABLED ausente"
+              for v in SPOILER_DISCORD_CHANNEL_ID DISCORD_BOT_TOKEN GEMINI_API_KEY ANTHROPIC_API_KEY; do
+                echo "$v: $(sim_nao "$(grep -E "^${v}=.+" "$APP/.env" | head -1)")"
+              done
+              secao "log [spoilers] (últimas 40 linhas)"
+              L=$(pm2 jlist | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const p=JSON.parse(s).find(x=>x.name==="gundam-portal");console.log(p.pm2_env.pm_err_log_path+" "+p.pm2_env.pm_out_log_path)})')
+              grep -ahE "\[spoilers\]" "${L%% *}" "${L##* }" 2>/dev/null | cut -c1-300 | tail -n 40 || echo "sem registros"
+              # script temporário dentro do app (para achar @prisma/client e dotenv); nada de texto das mensagens nem segredos na saída
+              S="$APP/.spoilers-conferir.mjs"
+              cat > "$S" <<'JS'
+            import "dotenv/config";
+            import { PrismaClient } from "@prisma/client";
+            const token = process.env.DISCORD_BOT_TOKEN, channel = process.env.SPOILER_DISCORD_CHANNEL_ID;
+            const api = (p) => fetch(`https://discord.com/api/v10${p}`, { headers: { Authorization: `Bot ${token}` } });
+            const host = (u) => { try { return new URL(u).hostname; } catch { return "?"; } };
+            console.log("\n=================== canal no Discord (o que o bot recebe)");
+            if (!token || !channel) console.log("sem token ou canal");
+            else {
+              const ch = await api(`/channels/${channel}`);
+              console.log(`acesso ao canal: HTTP ${ch.status}${ch.ok ? ` (#${(await ch.json()).name})` : ""}`);
+              const res = await api(`/channels/${channel}/messages?limit=15`);
+              if (!res.ok) console.log(`mensagens: HTTP ${res.status}`);
+              else for (const m of await res.json()) {
+                const att = (m.attachments ?? []).map((a) => `${a.content_type || a.filename?.split(".").pop()}:${Math.round((a.size ?? 0) / 1024)}KB`);
+                const emb = (m.embeds ?? []).map((e) => `${e.type}[img:${e.image ? host(e.image.proxy_url || e.image.url) : "-"} thumb:${e.thumbnail ? host(e.thumbnail.proxy_url || e.thumbnail.url) : "-"}]`);
+                console.log(`${m.timestamp.slice(0, 16)} id=${m.id} tipo=${m.type} flags=${m.flags ?? 0} webhook=${m.webhook_id ? "sim" : "não"} texto=${(m.content ?? "").length}ch anexos=[${att.join(" ")}] embeds=[${emb.join(" ")}] snapshots=${(m.message_snapshots ?? []).length}`);
+              }
+            }
+            const prisma = new PrismaClient();
+            console.log("\n=================== capturas no banco");
+            console.log(JSON.stringify(await prisma.spoilerCapture.groupBy({ by: ["status"], _count: true })));
+            for (const c of await prisma.spoilerCapture.findMany({ orderBy: { createdAt: "desc" }, take: 12 }))
+              console.log(`${c.postedAt.toISOString().slice(0, 16)} msg=${c.discordMessageId} ${c.status} ${c.cardCode ?? "-"} ${c.language ?? ""} ${(c.error ?? "").slice(0, 160)}`);
+            console.log("\n=================== propostas");
+            for (const d of await prisma.spoilerDigest.findMany({ orderBy: { createdAt: "desc" }, take: 6 }))
+              console.log(`${d.createdAt.toISOString().slice(0, 16)} ${d.status} ${d.cardCodes.join(",") || "-"} ${d.language ?? ""}`);
+            await prisma.$disconnect();
+            JS
+              ( cd "$APP" && timeout 120 node "$S" 2>&1 | sed -E 's#/root[^ ]*#[caminho]#g' ) || echo "conferência falhou"
+              rm -f "$S"
+            }
+
             social_navegador() {
               secao "instalando o Chromium do Playwright e o ffmpeg (arte dos posts e Reels MP4)"
               df -h / | tail -1
@@ -582,6 +628,7 @@ jobs:
               social-navegador) social_navegador ;;
               spoilers-ligar) spoilers_definir true ;;
               spoilers-desligar) spoilers_definir false ;;
+              spoilers-conferir) spoilers_conferir ;;
               diagnostico) diagnostico ;;
               seguranca-conferir) seguranca_conferir ;;
               upgrade-preparar) upgrade_preparar ;;

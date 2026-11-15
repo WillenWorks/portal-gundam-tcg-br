@@ -43,6 +43,8 @@ export const DIGEST_MAX_SLIDE_CARDS = 9;
 export const DIGEST_MAX_STORIES = 10;
 /** só baixa imagem do CDN do Discord (anexo e cópia do embed): link de embed pode apontar para qualquer lugar */
 const DISCORD_CDN_HOSTS = new Set(["cdn.discordapp.com", "media.discordapp.net"]);
+/** Proxy de imagens externas do Discord (embeds de links): images-ext-1.discordapp.net, images-ext-2… */
+const DISCORD_EXT_PROXY = /^images-ext-\d+\.discordapp\.net$/;
 
 const CARD_TYPE_PT: Record<string, string> = { UNIT: "Unidade", PILOT: "Piloto", COMMAND: "Comando", BASE: "Base", RESOURCE: "Recurso" };
 const COLOR_PT: Record<string, string> = { blue: "Azul", green: "Verde", red: "Vermelho", white: "Branco", purple: "Roxo", yellow: "Amarelo" };
@@ -74,13 +76,13 @@ export function readSpoilerConfig(env: NodeJS.ProcessEnv = process.env): Spoiler
 
 export type DiscordAttachment = { id: string; url: string; proxy_url?: string; filename?: string; content_type?: string; size?: number };
 export type DiscordEmbed = { type?: string; image?: { url?: string; proxy_url?: string }; thumbnail?: { url?: string; proxy_url?: string } };
-export type DiscordMessage = {
+type DiscordMessageBody = { content?: string; attachments?: DiscordAttachment[]; embeds?: DiscordEmbed[] };
+export type DiscordMessage = DiscordMessageBody & {
   id: string;
   channel_id: string;
-  content?: string;
   timestamp: string;
-  attachments?: DiscordAttachment[];
-  embeds?: DiscordEmbed[];
+  /** mensagem encaminhada (botão "Encaminhar"): texto e imagens vêm aqui, não nos campos de cima */
+  message_snapshots?: Array<{ message?: DiscordMessageBody }>;
   message_reference?: { guild_id?: string; channel_id?: string; message_id?: string };
 };
 
@@ -90,13 +92,20 @@ const isDiscordCdn = (url: string | undefined): url is string => {
   if (!url) return false;
   try {
     const u = new URL(url);
-    return u.protocol === "https:" && DISCORD_CDN_HOSTS.has(u.hostname);
+    return u.protocol === "https:" && (DISCORD_CDN_HOSTS.has(u.hostname) || DISCORD_EXT_PROXY.test(u.hostname));
   } catch {
     return false;
   }
 };
 
-/** Imagens de uma mensagem: anexos de imagem e, se não houver anexo, imagens dos embeds (pela cópia no CDN do Discord). */
+/** Corpos da mensagem: ela mesma e, se for encaminhada, a cópia de cada mensagem encaminhada. */
+const bodiesOf = (msg: DiscordMessage): Array<{ prefix: string; body: DiscordMessageBody }> => [
+  { prefix: "", body: msg },
+  ...(msg.message_snapshots ?? []).flatMap((snap, i) => (snap.message ? [{ prefix: `s${i}`, body: snap.message }] : [])),
+];
+
+/** Imagens de uma mensagem: anexos de imagem e, se não houver anexo, imagens dos embeds (pela cópia no CDN do Discord).
+ *  Mensagem encaminhada traz as imagens em message_snapshots. */
 export function spoilerImagesOf(msg: DiscordMessage): SpoilerImageRef[] {
   const out: SpoilerImageRef[] = [];
   const seen = new Set<string>();
@@ -107,18 +116,31 @@ export function spoilerImagesOf(msg: DiscordMessage): SpoilerImageRef[] {
     seen.add(bare);
     out.push({ sourceKey: `${msg.id}:${key}`, url });
   };
-  for (const a of msg.attachments ?? []) {
-    const isImage = (a.content_type || "").startsWith("image/") || /\.(jpe?g|png|webp)$/i.test(a.filename || "");
-    if (isImage && (a.size ?? 0) <= MAX_IMAGE_BYTES) push(`a${a.id}`, a.url);
+  for (const { prefix, body } of bodiesOf(msg)) {
+    for (const a of body.attachments ?? []) {
+      const isImage = (a.content_type || "").startsWith("image/") || /\.(jpe?g|png|webp)$/i.test(a.filename || "");
+      if (isImage && (a.size ?? 0) <= MAX_IMAGE_BYTES) push(`${prefix}a${a.id}`, a.url);
+    }
   }
   if (!out.length) {
-    (msg.embeds ?? []).forEach((e, i) => {
-      push(`e${i}`, e.image?.proxy_url || e.image?.url);
-      push(`t${i}`, e.thumbnail?.proxy_url || e.thumbnail?.url);
-    });
+    for (const { prefix, body } of bodiesOf(msg)) {
+      (body.embeds ?? []).forEach((e, i) => {
+        push(`${prefix}e${i}`, e.image?.proxy_url || e.image?.url);
+        push(`${prefix}t${i}`, e.thumbnail?.proxy_url || e.thumbnail?.url);
+      });
+    }
   }
   return out;
 }
+
+/** Texto da mensagem (ou da encaminhada). */
+export const messageTextOf = (msg: DiscordMessage): string =>
+  bodiesOf(msg).map(({ body }) => body.content?.trim() ?? "").filter(Boolean).join("\n\n");
+
+/** Mensagem que chega sem texto, anexo nem embed: é o que a API devolve quando o bot não tem o
+ *  "Message Content Intent" ligado no Developer Portal (a captura não enxerga nada). */
+export const looksContentless = (msg: DiscordMessage): boolean =>
+  bodiesOf(msg).every(({ body }) => !body.content && !(body.attachments ?? []).length && !(body.embeds ?? []).length);
 
 /** Link da mensagem original (a do servidor seguido), quando o Discord informa. */
 export function sourceUrlOf(msg: DiscordMessage): string | null {
@@ -218,20 +240,20 @@ export async function upsertPreviewCard(
   };
   const model = existing
     ? await prisma.cardModel.update({ where: { id: existing.id }, data: fields })
-    : await prisma.cardModel.create({ data: { code, ...fields, isActive: false } });
+    : await prisma.cardModel.create({ data: { code, ...fields, cardSubtypes: [], isActive: false } }); // listas não têm DEFAULT no banco (migração 0021)
 
   const setCode = setCodeOf(code);
   let setId: string | null = null;
   if (setCode) {
     const set =
       (await prisma.cardSet.findUnique({ where: { code: setCode }, select: { id: true } })) ??
-      (await prisma.cardSet.create({ data: { code: setCode, nameEn: setCode, isActive: false, metadataJson: { autoCreatedBy: "spoilers" } }, select: { id: true } }));
+      (await prisma.cardSet.create({ data: { code: setCode, nameEn: setCode, sourceTitles: [], isActive: false, metadataJson: { autoCreatedBy: "spoilers" } }, select: { id: true } }));
     setId = set.id;
   }
   const print = await prisma.card.findFirst({ where: { cardModelId: model.id, isPrimaryPrint: true }, select: { id: true } });
   const printData = { ...fields, code, cardModelId: model.id, setId, rarity: card.rarity, imageUrl, imageLargeUrl: imageUrl, isPrimaryPrint: true };
   if (print) await prisma.card.update({ where: { id: print.id }, data: printData });
-  else await prisma.card.create({ data: { ...printData, isActive: model.isActive } });
+  else await prisma.card.create({ data: { ...printData, cardSubtypes: [], isActive: model.isActive } });
   return { cardModelId: model.id, code, official: false };
 }
 
@@ -248,24 +270,30 @@ export async function captureNewSpoilers(prisma: PrismaClient, config: SpoilerCo
   const fetchFn = deps.fetchFn ?? fetch;
   const extract = deps.extract ?? extractSpoilerCard;
   if (!lastSeenMessageId) {
-    const last = await prisma.spoilerCapture.findFirst({ where: { channelId: config.channelId }, orderBy: { postedAt: "desc" }, select: { discordMessageId: true } });
+    // retoma depois da última captura que deu certo: as que falharam ficam à frente do cursor e são tentadas de novo
+    const last = await prisma.spoilerCapture.findFirst({ where: { channelId: config.channelId, status: { not: "FAILED" } }, orderBy: { postedAt: "desc" }, select: { discordMessageId: true } });
     lastSeenMessageId = last?.discordMessageId ?? null;
   }
   const firstRun = !lastSeenMessageId;
   const messages = await fetchMessagesAfter(config, lastSeenMessageId, fetchFn);
   let captured = 0;
   let failed = 0;
+  let contentless = 0;
   for (const msg of messages) {
+    if (looksContentless(msg)) contentless += 1;
     const postedAt = new Date(msg.timestamp);
     // primeira execução: não volta no histórico inteiro do canal, só nas últimas horas
     const tooOld = firstRun && now.getTime() - postedAt.getTime() > config.backfillHours * 3600_000;
     if (!tooOld) {
       for (const ref of spoilerImagesOf(msg)) {
-        if (await prisma.spoilerCapture.findUnique({ where: { sourceKey: ref.sourceKey }, select: { id: true } })) continue;
-        const base = { sourceKey: ref.sourceKey, discordMessageId: msg.id, channelId: msg.channel_id, sourceUrl: sourceUrlOf(msg), messageText: msg.content?.slice(0, 4000) || null, postedAt };
+        const known = await prisma.spoilerCapture.findUnique({ where: { sourceKey: ref.sourceKey }, select: { id: true, status: true } });
+        // falha anterior (IA fora do ar, erro nosso já corrigido) tenta de novo quando a mensagem volta a ser lida
+        if (known && known.status !== "FAILED") continue;
+        if (known) await prisma.spoilerCapture.delete({ where: { id: known.id } });
+        const base = { sourceKey: ref.sourceKey, discordMessageId: msg.id, channelId: msg.channel_id, sourceUrl: sourceUrlOf(msg), messageText: messageTextOf(msg).slice(0, 4000) || null, postedAt };
         try {
           const image = await saveSpoilerImage(ref.url, `${msg.id}-${ref.sourceKey.split(":")[1]}`, fetchFn);
-          const result = await extract({ data: image.buffer, mimeType: image.mimeType }, msg.content);
+          const result = await extract({ data: image.buffer, mimeType: image.mimeType }, messageTextOf(msg));
           if (!result.card) {
             await prisma.spoilerCapture.create({ data: { ...base, imageUrl: image.localUrl, status: "FAILED", error: result.error ?? "Carta não lida." } });
             failed += 1;
@@ -293,7 +321,8 @@ export async function captureNewSpoilers(prisma: PrismaClient, config: SpoilerCo
           });
           if (!repeated) captured += 1;
         } catch (err) {
-          const message = (err instanceof Error ? err.message : String(err)).slice(0, 500);
+          // erro do Prisma começa com quebra de linha: junta numa linha só para o log e o painel
+          const message = (err instanceof Error ? err.message : String(err)).replace(/\s+/g, " ").trim().slice(0, 500);
           console.warn("[spoilers] imagem não capturada:", message);
           await prisma.spoilerCapture.create({ data: { ...base, imageUrl: "", status: "FAILED", error: message } }).catch(() => {});
           failed += 1;
@@ -301,6 +330,9 @@ export async function captureNewSpoilers(prisma: PrismaClient, config: SpoilerCo
       }
     }
     lastSeenMessageId = msg.id;
+  }
+  if (contentless) {
+    console.warn(`[spoilers] ${contentless} mensagem(ns) chegou(aram) sem texto, anexo nem embed — ligue o "Message Content Intent" do bot no Discord Developer Portal (Bot → Privileged Gateway Intents)`);
   }
   return { captured, failed };
 }
