@@ -240,20 +240,20 @@ export async function upsertPreviewCard(
   };
   const model = existing
     ? await prisma.cardModel.update({ where: { id: existing.id }, data: fields })
-    : await prisma.cardModel.create({ data: { code, ...fields, isActive: false } });
+    : await prisma.cardModel.create({ data: { code, ...fields, cardSubtypes: [], isActive: false } }); // listas não têm DEFAULT no banco (migração 0021)
 
   const setCode = setCodeOf(code);
   let setId: string | null = null;
   if (setCode) {
     const set =
       (await prisma.cardSet.findUnique({ where: { code: setCode }, select: { id: true } })) ??
-      (await prisma.cardSet.create({ data: { code: setCode, nameEn: setCode, isActive: false, metadataJson: { autoCreatedBy: "spoilers" } }, select: { id: true } }));
+      (await prisma.cardSet.create({ data: { code: setCode, nameEn: setCode, sourceTitles: [], isActive: false, metadataJson: { autoCreatedBy: "spoilers" } }, select: { id: true } }));
     setId = set.id;
   }
   const print = await prisma.card.findFirst({ where: { cardModelId: model.id, isPrimaryPrint: true }, select: { id: true } });
   const printData = { ...fields, code, cardModelId: model.id, setId, rarity: card.rarity, imageUrl, imageLargeUrl: imageUrl, isPrimaryPrint: true };
   if (print) await prisma.card.update({ where: { id: print.id }, data: printData });
-  else await prisma.card.create({ data: { ...printData, isActive: model.isActive } });
+  else await prisma.card.create({ data: { ...printData, cardSubtypes: [], isActive: model.isActive } });
   return { cardModelId: model.id, code, official: false };
 }
 
@@ -270,7 +270,8 @@ export async function captureNewSpoilers(prisma: PrismaClient, config: SpoilerCo
   const fetchFn = deps.fetchFn ?? fetch;
   const extract = deps.extract ?? extractSpoilerCard;
   if (!lastSeenMessageId) {
-    const last = await prisma.spoilerCapture.findFirst({ where: { channelId: config.channelId }, orderBy: { postedAt: "desc" }, select: { discordMessageId: true } });
+    // retoma depois da última captura que deu certo: as que falharam ficam à frente do cursor e são tentadas de novo
+    const last = await prisma.spoilerCapture.findFirst({ where: { channelId: config.channelId, status: { not: "FAILED" } }, orderBy: { postedAt: "desc" }, select: { discordMessageId: true } });
     lastSeenMessageId = last?.discordMessageId ?? null;
   }
   const firstRun = !lastSeenMessageId;
@@ -285,7 +286,10 @@ export async function captureNewSpoilers(prisma: PrismaClient, config: SpoilerCo
     const tooOld = firstRun && now.getTime() - postedAt.getTime() > config.backfillHours * 3600_000;
     if (!tooOld) {
       for (const ref of spoilerImagesOf(msg)) {
-        if (await prisma.spoilerCapture.findUnique({ where: { sourceKey: ref.sourceKey }, select: { id: true } })) continue;
+        const known = await prisma.spoilerCapture.findUnique({ where: { sourceKey: ref.sourceKey }, select: { id: true, status: true } });
+        // falha anterior (IA fora do ar, erro nosso já corrigido) tenta de novo quando a mensagem volta a ser lida
+        if (known && known.status !== "FAILED") continue;
+        if (known) await prisma.spoilerCapture.delete({ where: { id: known.id } });
         const base = { sourceKey: ref.sourceKey, discordMessageId: msg.id, channelId: msg.channel_id, sourceUrl: sourceUrlOf(msg), messageText: messageTextOf(msg).slice(0, 4000) || null, postedAt };
         try {
           const image = await saveSpoilerImage(ref.url, `${msg.id}-${ref.sourceKey.split(":")[1]}`, fetchFn);
@@ -317,7 +321,8 @@ export async function captureNewSpoilers(prisma: PrismaClient, config: SpoilerCo
           });
           if (!repeated) captured += 1;
         } catch (err) {
-          const message = (err instanceof Error ? err.message : String(err)).slice(0, 500);
+          // erro do Prisma começa com quebra de linha: junta numa linha só para o log e o painel
+          const message = (err instanceof Error ? err.message : String(err)).replace(/\s+/g, " ").trim().slice(0, 500);
           console.warn("[spoilers] imagem não capturada:", message);
           await prisma.spoilerCapture.create({ data: { ...base, imageUrl: "", status: "FAILED", error: message } }).catch(() => {});
           failed += 1;
