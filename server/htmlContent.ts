@@ -285,6 +285,37 @@ export function deckBody(d: { name: string; author?: string | null; description?
   });
 }
 
+export type DecklistCard = { quantity: number; section: string; card: { id: string; code: string; name: string; typeLabel: string } };
+
+/** Lista usada por um jogador num torneio (/torneios/:id/lista/:entryId). */
+export function decklistBody(d: {
+  tournament: { id: string; name: string; date?: string };
+  playerName: string; placement?: number | null; wins?: number | null; losses?: number | null; draws?: number | null; archetype?: string | null;
+  totalPlayers?: number | null; items: DecklistCard[];
+}): string {
+  const record = d.wins == null && d.losses == null ? null : `${d.wins ?? 0}-${d.losses ?? 0}${d.draws ? `-${d.draws}` : ""}`;
+  const list = (sec: string) => {
+    const items = d.items.filter((i) => i.section === sec);
+    return items.length ? `<ul>${items.map((i) => `<li>${i.quantity}× ${link(`/cards/${i.card.id}`, `${i.card.name} (${i.card.code})`)} — ${esc(i.card.typeLabel)}</li>`).join("")}</ul>` : "";
+  };
+  const main = d.items.filter((i) => i.section === "main").reduce((sum, i) => sum + i.quantity, 0);
+  const lead = [
+    `Lista de ${d.playerName} no torneio ${d.tournament.name}${d.tournament.date ? ` (${d.tournament.date})` : ""}.`,
+    d.placement ? `Terminou em ${d.placement}º lugar${d.totalPlayers ? ` entre ${d.totalPlayers} jogadores` : ""}${record ? `, com campanha ${record}` : ""}.` : record ? `Campanha: ${record}.` : "",
+    d.archetype ? `Arquétipo: ${d.archetype}.` : "",
+  ].filter(Boolean).join(" ");
+  return pageShell({
+    title: `${d.playerName} — ${d.tournament.name}`,
+    lead,
+    crumbs: [{ name: "Torneios", path: "/torneios" }, { name: d.tournament.name, path: `/torneios/${d.tournament.id}` }],
+    sections: [
+      section(`Deck principal${main ? ` (${main} cartas)` : ""}`, list("main")),
+      section("Deck de recursos", list("resource")),
+      `<p>${link(`/torneios/${d.tournament.id}`, "Ver a classificação completa do torneio")}</p>`,
+    ],
+  });
+}
+
 export function aboutBody(a: { title: string; lead: string; updated: string; contact: string; sections: AboutSection[] }): string {
   return pageShell({
     title: a.title,
