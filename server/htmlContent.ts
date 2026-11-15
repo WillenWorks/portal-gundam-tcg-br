@@ -316,6 +316,65 @@ export function decklistBody(d: {
   });
 }
 
+const pctPt = (value: number | null | undefined) => (value == null ? "—" : `${String(value).replace(".", ",")}%`);
+
+export type MetaCardStat = { id: string; code: string; name: string; colorLabel: string; presenceRate: number | null; avgCopies?: number | null; winRate?: number | null };
+export type MetaShare = { label: string; decks: number; presenceRate: number | null };
+
+/** /stats — o metagame competitivo da temporada, a partir das listas reais de torneio. */
+export function metagameStatsBody(m: {
+  seasonName?: string | null; totalDecks: number; totalTournaments: number; period?: string;
+  topCards: MetaCardStat[]; colors: MetaShare[]; combos: MetaShare[]; traits: MetaShare[];
+  rising: Array<MetaCardStat & { delta: number }>; tournaments: Array<{ id: string; name: string; date?: string; decks: number }>;
+}): string {
+  const scope = m.seasonName ? `na temporada ${m.seasonName}` : "em todas as temporadas";
+  const lead = m.totalDecks
+    ? `Estatísticas de Gundam Card Game ${scope}, calculadas a partir de ${m.totalDecks} listas usadas em ${m.totalTournaments} torneios${m.period ? ` (${m.period})` : ""}. Só entram decks de resultado real de torneio, nunca decks montados no site.`
+    : `Ainda não há listas de torneio cadastradas ${scope}. Assim que os resultados chegarem, esta página mostra as cartas mais jogadas, as cores e as combinações que dominam o metagame.`;
+  const cardLink = (c: MetaCardStat) => link(`/cards/${c.id}`, `${c.name} (${c.code})`);
+  const shares = (rows: MetaShare[], label: string) => (rows.length ? table([label, "Decks", "Presença"], rows.map((r) => [esc(r.label), esc(r.decks), esc(pctPt(r.presenceRate))])) : "");
+  return pageShell({
+    title: "Estatísticas do metagame",
+    lead,
+    sections: [
+      section("Cartas mais jogadas", m.topCards.length ? table(["Carta", "Cor", "Presença", "Cópias por deck", "Vitórias"], m.topCards.map((c) => [cardLink(c), esc(c.colorLabel || "—"), esc(pctPt(c.presenceRate)), esc(c.avgCopies == null ? "—" : String(c.avgCopies).replace(".", ",")), esc(pctPt(c.winRate))])) : ""),
+      section("Cores", shares(m.colors, "Cor")),
+      section("Combinações de cores", shares(m.combos, "Combinação")),
+      section("Traços mais presentes", shares(m.traits, "Traço")),
+      section("Cartas em alta", m.rising.length ? `<ul>${m.rising.map((c) => `<li>${cardLink(c)}: presença subiu ${esc(String(c.delta).replace(".", ","))} pontos nas semanas mais recentes</li>`).join("")}</ul>` : ""),
+      section("Torneios da amostra", m.tournaments.length ? `<ul>${m.tournaments.map((t) => `<li>${link(`/torneios/${t.id}`, t.name)}${t.date ? ` — ${esc(t.date)}` : ""} (${esc(t.decks)} listas)</li>`).join("")}</ul>` : ""),
+      `<p>Veja também os ${link("/arquetipos", "arquétipos do metagame")} e o ${link("/metagame/regional", "metagame por região do Brasil")}.</p>`,
+    ],
+  });
+}
+
+export type RegionStat = { label: string; totalDecks: number; winRate: number | null; colors: MetaShare[]; topCards: MetaCardStat[] };
+
+/** /metagame/regional — o metagame por estado, cidade e loja. */
+export function regionalMetaBody(r: {
+  seasonName?: string | null; totalDecks: number; national: RegionStat; states: RegionStat[]; cities: RegionStat[];
+  anomalies: Array<{ scope: string; label: string; regionRate: number; nationalRate: number; deltaPp: number }>;
+}): string {
+  const scope = r.seasonName ? `na temporada ${r.seasonName}` : "em todas as temporadas";
+  const cardList = (cards: MetaCardStat[]) => cards.map((c) => `${link(`/cards/${c.id}`, c.name)} (${esc(pctPt(c.presenceRate))})`).join(", ");
+  const colorList = (colors: MetaShare[]) => colors.slice(0, 3).map((c) => `${esc(c.label)} ${esc(pctPt(c.presenceRate))}`).join(", ");
+  const regionTable = (rows: RegionStat[], label: string) =>
+    rows.length ? table([label, "Listas", "Vitórias", "Cores principais", "Cartas mais jogadas"], rows.map((g) => [esc(g.label), esc(g.totalDecks), esc(pctPt(g.winRate)), colorList(g.colors) || "—", cardList(g.topCards.slice(0, 3)) || "—"])) : "";
+  return pageShell({
+    title: "Metagame regional",
+    lead: r.totalDecks
+      ? `Como o Gundam Card Game é jogado em cada região do Brasil ${scope}: ${r.totalDecks} listas de torneio separadas por estado e cidade, com as cores, as cartas mais jogadas e o que cada região joga diferente da média nacional.`
+      : `Ainda não há listas de torneio com local cadastrado ${scope}. Quando os resultados chegarem, esta página compara o metagame de cada estado e cidade com a média nacional.`,
+    sections: [
+      section("Brasil", r.national.totalDecks ? `<p>${esc(r.national.totalDecks)} listas. Cores: ${colorList(r.national.colors) || "—"}. Cartas mais jogadas: ${cardList(r.national.topCards.slice(0, 5)) || "—"}.</p>` : ""),
+      section("Por estado", regionTable(r.states, "Estado")),
+      section("Por cidade", regionTable(r.cities.slice(0, 20), "Cidade")),
+      section("O que cada região joga diferente", r.anomalies.length ? `<ul>${r.anomalies.slice(0, 10).map((a) => `<li>${esc(a.scope)}: ${esc(a.label)} aparece em ${esc(pctPt(a.regionRate))} das listas, contra ${esc(pctPt(a.nationalRate))} no país (${a.deltaPp > 0 ? "+" : ""}${esc(String(a.deltaPp).replace(".", ","))} pontos)</li>`).join("")}</ul>` : ""),
+      `<p>Veja também as ${link("/stats", "estatísticas gerais do metagame")} e os ${link("/torneios", "resultados de torneio")}.</p>`,
+    ],
+  });
+}
+
 export function aboutBody(a: { title: string; lead: string; updated: string; contact: string; sections: AboutSection[] }): string {
   return pageShell({
     title: a.title,
