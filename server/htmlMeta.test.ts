@@ -58,6 +58,14 @@ describe("resolveHtmlPage", () => {
     expect(JSON.stringify(page.jsonLd[0])).toContain("Cartas");
   });
 
+  it("carta aberta por código ou impressão aponta para o endereço oficial", async () => {
+    const card = async () => ({ title: "Gundam (GD01-001)", canonicalPath: "/cards/abc" });
+    const page = await resolveHtmlPage("/cards/GD01-001", loaders({ card }));
+    expect(page.canonical).toBe("https://anaheimhub.com/cards/abc");
+    expect(JSON.stringify(page.jsonLd[0])).toContain("https://anaheimhub.com/cards/abc");
+    expect((await resolveHtmlPage("/cards/abc", loaders({ card: async () => ({ title: "X" }) }))).canonical).toBe("https://anaheimhub.com/cards/abc");
+  });
+
   it("item que não existe é 404", async () => {
     expect((await resolveHtmlPage("/deck/naoexiste", loaders())).status).toBe(404);
   });
