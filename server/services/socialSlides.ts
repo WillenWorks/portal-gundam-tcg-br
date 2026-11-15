@@ -595,6 +595,12 @@ export function buildCardRevealReelHtml(card: ReelCardInput): string {
     const isRevealed = progress >= 0.30;
     const floatY = progress > 0.38 ? Math.sin((progress - 0.38) * Math.PI * 4) * 8 : 0;
 
+    // imagem deitada (spoiler oficial vem em banner promocional): depois de virar, o quadro assume o formato
+    // da imagem em vez de esticá-la no formato de carta (a troca acontece no meio do giro, com a carta de lado)
+    const wideImg = isRevealed && loadedImg && loadedImg.naturalWidth > loadedImg.naturalHeight * 1.1;
+    const fw = wideImg ? W - 100 : cardW;
+    const fh = wideImg ? Math.round(fw * loadedImg.naturalHeight / loadedImg.naturalWidth) : cardH;
+
     ctx.save();
     ctx.translate(W / 2, cardY + cardH / 2 + floatY);
     ctx.scale(Math.max(0.06, scaleX), 1);
@@ -602,29 +608,29 @@ export function buildCardRevealReelHtml(card: ReelCardInput): string {
     // Brilho externo da carta
     ctx.shadowColor = CARD.accent;
     ctx.shadowBlur = isRevealed ? 48 : 28;
-    roundRect(ctx, -cardW / 2, -cardH / 2, cardW, cardH, 26);
+    roundRect(ctx, -fw / 2, -fh / 2, fw, fh, 26);
     ctx.fillStyle = "#0b1329";
     ctx.fill();
     ctx.shadowBlur = 0;
 
     ctx.save();
-    roundRect(ctx, -cardW / 2, -cardH / 2, cardW, cardH, 26);
+    roundRect(ctx, -fw / 2, -fh / 2, fw, fh, 26);
     ctx.clip();
 
     if (!isRevealed) {
       // Verso oficial do Gundam Card Game antes do giro 3D + feixe de scan energético
       if (loadedBackImg) {
-        ctx.drawImage(loadedBackImg, -cardW / 2, -cardH / 2, cardW, cardH);
+        ctx.drawImage(loadedBackImg, -fw / 2, -fh / 2, fw, fh);
       } else {
-        const backGrad = ctx.createLinearGradient(-cardW / 2, -cardH / 2, cardW / 2, cardH / 2);
+        const backGrad = ctx.createLinearGradient(-fw / 2, -fh / 2, fw / 2, fh / 2);
         backGrad.addColorStop(0, "#0f172a");
         backGrad.addColorStop(0.5, "#1e293b");
         backGrad.addColorStop(1, "#020617");
         ctx.fillStyle = backGrad;
-        ctx.fillRect(-cardW / 2, -cardH / 2, cardW, cardH);
+        ctx.fillRect(-fw / 2, -fh / 2, fw, fh);
       }
 
-      const scanY = -cardH / 2 + ((progress / 0.28) % 1) * cardH;
+      const scanY = -fh / 2 + ((progress / 0.28) % 1) * fh;
       const scanGrad = ctx.createLinearGradient(0, scanY - 40, 0, scanY + 40);
       scanGrad.addColorStop(0, "rgba(56, 189, 248, 0)");
       scanGrad.addColorStop(0.5, CARD.accent);
@@ -632,13 +638,13 @@ export function buildCardRevealReelHtml(card: ReelCardInput): string {
       ctx.save();
       ctx.globalAlpha = 0.5;
       ctx.fillStyle = scanGrad;
-      ctx.fillRect(-cardW / 2, scanY - 40, cardW, 80);
+      ctx.fillRect(-fw / 2, scanY - 40, fw, 80);
       ctx.restore();
     } else if (loadedImg) {
-      ctx.drawImage(loadedImg, -cardW / 2, -cardH / 2, cardW, cardH);
+      ctx.drawImage(loadedImg, -fw / 2, -fh / 2, fw, fh);
     } else {
       ctx.fillStyle = "#0f172a";
-      ctx.fillRect(-cardW / 2, -cardH / 2, cardW, cardH);
+      ctx.fillRect(-fw / 2, -fh / 2, fw, fh);
       ctx.fillStyle = CARD.accent;
       ctx.font = "900 54px monospace";
       ctx.fillText(CARD.code, 0, -20);
@@ -648,7 +654,7 @@ export function buildCardRevealReelHtml(card: ReelCardInput): string {
     }
     ctx.restore();
 
-    roundRect(ctx, -cardW / 2, -cardH / 2, cardW, cardH, 26);
+    roundRect(ctx, -fw / 2, -fh / 2, fw, fh, 26);
     ctx.strokeStyle = isRevealed ? CARD.accent : "rgba(255,255,255,0.28)";
     ctx.lineWidth = 4;
     ctx.stroke();
@@ -937,29 +943,35 @@ export function buildCardStoryHtml(card: ReelCardInput): string {
     const isRevealed = progress >= 0.29;
     const floatY = progress > 0.38 ? Math.sin((progress - 0.38) * Math.PI * 3.5) * 10 : 0;
 
+    // imagem deitada (spoiler oficial vem em banner promocional): depois de virar, o quadro assume o formato
+    // da imagem em vez de esticá-la no formato de carta (a troca acontece no meio do giro, com a carta de lado)
+    const wideImg = isRevealed && loadedImg && loadedImg.naturalWidth > loadedImg.naturalHeight * 1.1;
+    const fw = wideImg ? W - 100 : cardW;
+    const fh = wideImg ? Math.round(fw * loadedImg.naturalHeight / loadedImg.naturalWidth) : cardH;
+
     ctx.save();
     ctx.translate(W / 2, cardY + cardH / 2 + floatY);
     ctx.scale(Math.max(0.06, scaleX), 1);
 
     ctx.shadowColor = CARD.accent;
     ctx.shadowBlur = isRevealed ? 56 : 32;
-    roundRect(ctx, -cardW / 2, -cardH / 2, cardW, cardH, 28);
+    roundRect(ctx, -fw / 2, -fh / 2, fw, fh, 28);
     ctx.fillStyle = "#0b1329";
     ctx.fill();
     ctx.shadowBlur = 0;
 
     ctx.save();
-    roundRect(ctx, -cardW / 2, -cardH / 2, cardW, cardH, 28);
+    roundRect(ctx, -fw / 2, -fh / 2, fw, fh, 28);
     ctx.clip();
 
     if (!isRevealed) {
       if (loadedBackImg) {
-        ctx.drawImage(loadedBackImg, -cardW / 2, -cardH / 2, cardW, cardH);
+        ctx.drawImage(loadedBackImg, -fw / 2, -fh / 2, fw, fh);
       } else {
         ctx.fillStyle = "#1e293b";
-        ctx.fillRect(-cardW / 2, -cardH / 2, cardW, cardH);
+        ctx.fillRect(-fw / 2, -fh / 2, fw, fh);
       }
-      const scanY = -cardH / 2 + ((progress / 0.28) % 1) * cardH;
+      const scanY = -fh / 2 + ((progress / 0.28) % 1) * fh;
       const scanGrad = ctx.createLinearGradient(0, scanY - 45, 0, scanY + 45);
       scanGrad.addColorStop(0, "rgba(56, 189, 248, 0)");
       scanGrad.addColorStop(0.5, CARD.accent);
@@ -967,13 +979,13 @@ export function buildCardStoryHtml(card: ReelCardInput): string {
       ctx.save();
       ctx.globalAlpha = 0.55;
       ctx.fillStyle = scanGrad;
-      ctx.fillRect(-cardW / 2, scanY - 45, cardW, 90);
+      ctx.fillRect(-fw / 2, scanY - 45, fw, 90);
       ctx.restore();
     } else if (loadedImg) {
-      ctx.drawImage(loadedImg, -cardW / 2, -cardH / 2, cardW, cardH);
+      ctx.drawImage(loadedImg, -fw / 2, -fh / 2, fw, fh);
     } else {
       ctx.fillStyle = "#0f172a";
-      ctx.fillRect(-cardW / 2, -cardH / 2, cardW, cardH);
+      ctx.fillRect(-fw / 2, -fh / 2, fw, fh);
       ctx.fillStyle = CARD.accent;
       ctx.font = "900 58px monospace";
       ctx.fillText(CARD.code, 0, -20);
@@ -983,7 +995,7 @@ export function buildCardStoryHtml(card: ReelCardInput): string {
     }
     ctx.restore();
 
-    roundRect(ctx, -cardW / 2, -cardH / 2, cardW, cardH, 28);
+    roundRect(ctx, -fw / 2, -fh / 2, fw, fh, 28);
     ctx.strokeStyle = isRevealed ? CARD.accent : "rgba(255,255,255,0.28)";
     ctx.lineWidth = 4;
     ctx.stroke();
