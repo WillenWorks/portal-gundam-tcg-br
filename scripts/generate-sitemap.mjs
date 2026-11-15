@@ -18,7 +18,7 @@ const MAX_URLS = 45000;
 const DECK_MAIN_SIZE = 50; // src/lib/deck-legality.ts // limite do protocolo é 50.000 por arquivo
 
 const STATIC = [
-  ["/", "daily", "1.0"], ["/cards", "daily", "0.9"], ["/database", "daily", "0.9"], ["/decks", "daily", "0.9"],
+  ["/", "daily", "1.0"], ["/cards", "daily", "0.9"], ["/decks", "daily", "0.9"],
   ["/torneios", "daily", "0.8"], ["/stats", "weekly", "0.8"], ["/arquetipos", "weekly", "0.7"],
   ["/metagame/regional", "weekly", "0.6"], ["/rules", "weekly", "0.7"], ["/sets", "weekly", "0.7"],
   ["/series", "weekly", "0.7"], ["/articles", "daily", "0.7"], ["/sobre", "monthly", "0.4"], ["/apoie", "monthly", "0.3"], ["/privacidade", "yearly", "0.2"], ["/termos", "yearly", "0.2"],

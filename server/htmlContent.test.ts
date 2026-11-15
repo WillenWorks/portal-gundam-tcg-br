@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aboutBody, archetypeBody, archetypesIndexBody, cardBody, markdownToHtml, playerBody, rulesBody, setBody, supportBody, tournamentBody } from "./htmlContent.ts";
+import { aboutBody, archetypeBody, archetypesIndexBody, cardBody, decklistBody, markdownToHtml, playerBody, rulesBody, setBody, supportBody, tournamentBody } from "./htmlContent.ts";
 import { SUPPORT_LEAD, SUPPORT_TITLE, SUPPORT_WHY, supportChannels } from "../src/lib/supportContent.ts";
 import { ABOUT_CONTACT, ABOUT_LEAD, ABOUT_SECTIONS, ABOUT_TITLE, ABOUT_UPDATED } from "../src/lib/aboutContent.ts";
 import { matchSiteRoute } from "../src/lib/siteRoutes.ts";
@@ -143,3 +143,22 @@ describe("página Apoie", () => {
     expect(html).not.toContain("javascript:");
   });
 });
+
+describe("decklistBody", () => {
+  it("mostra jogador, colocação, campanha e as cartas com link para cada uma", () => {
+    const html = decklistBody({
+      tournament: { id: "t1", name: "Regional SP", date: "10/11/2026" }, playerName: "Ana", placement: 1, wins: 5, losses: 0, archetype: "Aerial",
+      totalPlayers: 32,
+      items: [
+        { quantity: 4, section: "main", card: { id: "m1", code: "GD01-001", name: "Gundam", typeLabel: "Unidade" } },
+        { quantity: 10, section: "resource", card: { id: "r1", code: "R-001", name: "Recurso", typeLabel: "Recurso" } },
+      ],
+    });
+    expect(html).toContain("1º lugar entre 32 jogadores, com campanha 5-0");
+    expect(html).toContain("Arquétipo: Aerial");
+    expect(html).toContain('href="/cards/m1"');
+    expect(html).toContain("Deck principal (4 cartas)");
+    expect(html).toContain('href="/torneios/t1"');
+  });
+});
+

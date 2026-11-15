@@ -70,8 +70,12 @@ const ROUTE_META: Array<[RegExp, { title: string; description?: string }]> = [
   [/^\/deckbuilder/, { title: "Deckbuilder" }],
 ];
 
+/** Endereços que mostram a mesma página de outro: o canônico aponta para o principal (evita "cópia" no Google). */
+const CANONICAL_ALIAS: Record<string, string> = { "/database": "/cards", "/tournaments": "/torneios" };
+
 export function routeMetaFor(pathname: string): PageMeta {
   const path = pathname.replace(/\/+$/, "") || "/";
+  if (CANONICAL_ALIAS[path]) return { ...routeMetaFor(CANONICAL_ALIAS[path]), noindex: false };
   const noindex = isPrivatePath(path);
   if (path === "/" || HOME_SECTIONS.has(path.slice(1))) return { title: undefined, description: DEFAULT_DESCRIPTION, noindex: false, path: "/" };
   const hit = ROUTE_META.find(([re]) => re.test(path));

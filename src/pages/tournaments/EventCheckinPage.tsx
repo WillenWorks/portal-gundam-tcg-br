@@ -167,7 +167,7 @@ export function EventCheckinPage({ eventId: propEventId }: EventCheckinPageProps
             <h2 className="font-heading text-2xl uppercase">Evento Não Encontrado</h2>
             <p className="text-sm text-slate-400">Verifique se o link ou QR code escaneado está correto.</p>
             <Button asChild className="rounded-none bg-primary text-primary-foreground">
-              <Link to="/eventos">Voltar aos Eventos</Link>
+              <Link to="/torneios">Voltar aos Eventos</Link>
             </Button>
           </Card>
         ) : (
@@ -277,7 +277,7 @@ export function EventCheckinPage({ eventId: propEventId }: EventCheckinPageProps
                       </Link>
                     </Button>
                     <Button asChild className="rounded-none bg-primary text-primary-foreground">
-                      <Link to="/eventos">Voltar ao Hub</Link>
+                      <Link to="/torneios">Voltar ao Hub</Link>
                     </Button>
                   </div>
                 </CardContent>
