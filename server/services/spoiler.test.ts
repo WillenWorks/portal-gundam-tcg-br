@@ -176,7 +176,8 @@ describe("artigo e post do resumo", () => {
     expect(digestTitle("GD07", [spoiler], "13/11")).toBe("Spoiler de GD07: Gundam Aerial (GD07-010)");
     expect(spoilerHashtags("GD07")).toEqual(["GundamSpoiler", "GD07", "GundamCardGame", "GundamCardGameBR", "AnaheimHub"]);
     const cover = spoilerCoverHtml({ setCode: "GD07", dayLabel: "13/11", cards: [{ ...spoiler, nameEn: "<b>x</b>" }], extra: 2 });
-    expect(cover).toContain("3 cartas novas");
+    expect(cover).toContain("Spoiler do dia");
+    expect(cover).toContain("3 cartas reveladas em 13/11");
     expect(cover).toContain("&lt;b&gt;x&lt;/b&gt;");
   });
   it("stories extras: só vídeos da pasta social", () => {

@@ -25,11 +25,13 @@ export function spoilerHashtags(setCode: string | null): string[] {
 
 const absolute = (url: string, base: string) => (/^https?:\/\//.test(url) ? url : `${base.replace(/\/+$/, "")}${url.startsWith("/") ? "" : "/"}${url}`);
 
-/** Capa do carrossel: título do dia e a lista das cartas. */
-export function spoilerCoverHtml(opts: { setCode: string | null; dayLabel: string; cards: SpoilerCardData[]; extra: number }): string {
+/** Capa do carrossel: "Spoiler do dia", a lista das cartas e a imagem delas. */
+export function spoilerCoverHtml(opts: { setCode: string | null; dayLabel: string; cards: SpoilerCardData[]; extra: number; imageUrls?: string[] }): string {
   const rows = opts.cards
     .map((c) => `<li><span class="code">${escapeHtml(c.code || "—")}</span><span class="name">${escapeHtml(c.nameEn)}</span><span class="type">${escapeHtml(CARD_TYPE_PT[c.cardType] ?? c.cardType)}</span></li>`)
     .join("");
+  const total = opts.cards.length + opts.extra;
+  const pics = (opts.imageUrls ?? []).filter((u) => /^https?:\/\//.test(u)).slice(0, 3);
   return slideDocument({
     badge: `SPOILERS${opts.setCode ? ` • ${opts.setCode}` : ""}`,
     accent: "#f59e0b",
@@ -41,15 +43,17 @@ export function spoilerCoverHtml(opts: { setCode: string | null; dayLabel: strin
   li { display: flex; gap: 18px; align-items: baseline; background: rgba(15,23,42,.8); border-left: 4px solid #f59e0b; padding: 14px 18px; border-radius: 4px; }
   .code { font-family: monospace; font-size: 20px; color: #f59e0b; font-weight: 800; min-width: 130px; }
   .name { font-size: 26px; font-weight: 800; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .type { font-size: 16px; color: #94a3b8; text-transform: uppercase; }`,
-    body: `<h1>${opts.cards.length + opts.extra} ${opts.cards.length + opts.extra === 1 ? "carta nova" : "cartas novas"}</h1>
-  <p class="sub">Reveladas em ${escapeHtml(opts.dayLabel)} · análise completa no site</p>
-  <ul>${rows}</ul>${opts.extra ? `<p class="sub">+ ${opts.extra} no artigo</p>` : ""}`,
+  .type { font-size: 16px; color: #94a3b8; text-transform: uppercase; }
+  .pics { flex: 1; min-height: 0; display: flex; gap: 16px; align-items: center; justify-content: center; margin-top: 30px; }
+  .pics img { flex: 1 1 0; min-width: 0; max-height: 100%; object-fit: contain; border-radius: 12px; border: 2px solid rgba(255,255,255,.14); box-shadow: 0 25px 50px -12px rgba(0,0,0,.8); }`,
+    body: `<h1>Spoiler do dia</h1>
+  <p class="sub">${total} ${total === 1 ? "carta revelada" : "cartas reveladas"} em ${escapeHtml(opts.dayLabel)} · análise completa no site</p>
+  <ul>${rows}</ul>${opts.extra ? `<p class="sub">+ ${opts.extra} no artigo</p>` : ""}${pics.length ? `<div class="pics">${pics.map((u) => `<img src="${escapeHtml(u)}" alt="" />`).join("")}</div>` : ""}`,
   });
 }
 
 function captionTemplate(cards: SpoilerCardData[], setCode: string | null, link: string, tags: string[]): GeneratedPostContent {
-  const hook = `🚨 Spoilers${setCode ? ` de ${setCode}` : ""}: ${cards.length} ${cards.length === 1 ? "carta nova revelada" : "cartas novas reveladas"}!`;
+  const hook = `🚨 Spoiler do dia${setCode ? ` de ${setCode}` : ""}: ${cards.length === 1 ? cards[0].nameEn : `${cards.length} cartas reveladas`}!`;
   const list = cards.map((c) => `• ${c.nameEn}${c.code ? ` (${c.code})` : ""} — ${CARD_TYPE_PT[c.cardType] ?? c.cardType}`).join("\n");
   return {
     title: hook.replace(/^🚨\s*/, "").slice(0, 140),
@@ -95,7 +99,10 @@ export async function draftSpoilerDigest(prisma: PrismaClient, input: GeneratePo
   const cardUrl = (c: (typeof cards)[number]) => (c.inCatalog && c.data.code ? cardDatabaseUrl(c.data.code, base) : link);
 
   const slides = [
-    spoilerCoverHtml({ setCode, dayLabel, cards: slideCards.map((c) => c.data), extra: cards.length - slideCards.length }),
+    spoilerCoverHtml({
+      setCode, dayLabel, cards: slideCards.map((c) => c.data), extra: cards.length - slideCards.length,
+      imageUrls: slideCards.flatMap((c) => (c.imageUrl ? [absolute(c.imageUrl, base)] : [])),
+    }),
     ...slideCards.map((c, i) =>
       buildSocialCardHtml(
         {
@@ -111,6 +118,7 @@ export async function draftSpoilerDigest(prisma: PrismaClient, input: GeneratePo
           imageUrl: c.imageUrl ? absolute(c.imageUrl, base) : undefined,
           rarity: c.data.rarity ?? undefined,
           isSpoiler: true,
+          badgeText: "SPOILER DO DIA",
           cardUrl: cardUrl(c),
         },
         `${i + 2}/${total}`,
@@ -134,7 +142,7 @@ export async function draftSpoilerDigest(prisma: PrismaClient, input: GeneratePo
     imageUrl: c.imageUrl ? absolute(c.imageUrl, base) : null,
     isSpoiler: true,
     cardUrl: cardUrl(c),
-    storyTitle: setCode ? `SPOILER ${setCode}` : "SPOILER",
+    storyTitle: "SPOILER DO DIA",
   }));
 
   const translatedCards = cards.filter((c) => c.data.translated);
