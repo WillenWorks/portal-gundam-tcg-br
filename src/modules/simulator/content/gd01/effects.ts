@@ -162,7 +162,7 @@ export const CHUCHUS_DEMI_TRAINER_ATTACK: EffectSpec = {
   trigger: "Attack",
   actions: [
     { op: "draw", player: "controller", n: 1 },
-    { op: "discardNamed", player: "controller", name: "discardTarget", n: 1 },
+    { op: "discardNamed", player: "controller", name: "discard", n: 1 },
   ],
   sourceText: "【Attack】Draw 1. Then, discard 1.",
 };
@@ -295,7 +295,7 @@ export const OVERFLOWING_AFFECTION_MAIN: EffectSpec = {
   trigger: "Main",
   actions: [
     { op: "draw", player: "controller", n: 2 },
-    { op: "discardNamed", player: "controller", name: "discardTarget", n: 1 },
+    { op: "discardNamed", player: "controller", name: "discard", n: 1 },
   ],
   sourceText: "【Main】Draw 2. Then, discard 1.",
 };

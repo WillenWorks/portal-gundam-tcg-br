@@ -196,7 +196,7 @@ export const GD03_W1_EFFECT_SPECS: EffectSpec[] = [
       predicate: "controllerOtherUnitWithTrait:Triple Ship Alliance",
       then: [
         { op: "draw", player: "controller", n: 1 },
-        { op: "discardNamed", player: "controller", name: "discardTarget", n: 1 },
+        { op: "discardNamed", player: "controller", name: "discard", n: 1 },
       ],
     },
     actions: [],

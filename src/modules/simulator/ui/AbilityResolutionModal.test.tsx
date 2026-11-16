@@ -388,6 +388,47 @@ describe("AbilityResolutionModal", () => {
     expect(onResolve).toHaveBeenCalledWith([{ specId: "ST04-002-Deploy", activate: true, targetIds: ["h2"] }]);
   });
 
+  it("handDiscard \"you may\" (GD03-096 Jamil Neate — BUG-1RBJPB): dá para recusar sem descartar", () => {
+    const dec: AR = {
+      kind: "abilityResolution",
+      trigger: "Attack",
+      queue: [
+        {
+          sourceInstanceId: "jamil",
+          specId: "GD03-096-Attack",
+          label: "【During Link】【Attack】You may discard 1. If you do, draw 1.",
+          optional: true,
+          needsTarget: false,
+          targetScope: "enemyUnit",
+          legalTargets: [],
+          handDiscard: { n: 1, legalHandIds: ["h1", "h2"], label: "You may discard 1." },
+        },
+      ],
+    };
+    const onResolve = vi.fn();
+    render(<Harness decision={dec} resolveHandLabel={(id) => (id === "h1" ? "Ginn" : "Aegis")} onResolve={onResolve} />);
+    fireEvent.click(screen.getByRole("button", { name: "Pular" }));
+    expect(screen.queryByRole("button", { name: "Aegis" })).not.toBeInTheDocument();
+    const confirm = screen.getByRole("button", { name: "Confirmar" });
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+    expect(onResolve).toHaveBeenCalledWith([{ specId: "GD03-096-Attack", activate: false, targetIds: [] }]);
+  });
+
+  it("handDiscard \"you may\" ativado continua exigindo a carta", () => {
+    const dec: AR = {
+      kind: "abilityResolution",
+      trigger: "Attack",
+      queue: [{ sourceInstanceId: "jamil", specId: "GD03-096-Attack", label: "You may discard 1.", optional: true, needsTarget: false, targetScope: "enemyUnit", legalTargets: [], handDiscard: { n: 1, legalHandIds: ["h1"], label: "discard 1" } }],
+    };
+    const onResolve = vi.fn();
+    render(<Harness decision={dec} resolveHandLabel={() => "Ginn"} onResolve={onResolve} />);
+    expect(screen.getByRole("button", { name: "Confirmar" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Ginn" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+    expect(onResolve).toHaveBeenCalledWith([{ specId: "GD03-096-Attack", activate: true, targetIds: ["h1"] }]);
+  });
+
   it("deckReorder (ST02-015): atribui topo/fundo → targetIds na ordem dos slots", () => {
     const c = (id: string, name: string): CardInstance =>
       ({ instanceId: id, def: { code: id, nameEn: name, cardType: "UNIT", color: "blue" }, owner: "A", zone: "deck", rested: false, damage: 0, statModifiers: [], keywordGrants: [], usedKeywordsThisTurn: [], enteredZoneOnTurn: 0 }) as CardInstance;
