@@ -116,6 +116,8 @@ export type SocialCard = {
   altArtCount?: number;
   /** modo Spoiler da Semana (carta nova revelada) */
   isSpoiler?: boolean;
+  /** selo no topo do slide (padrão: "SPOILER DA SEMANA" / "CARTA DA SEMANA") */
+  badgeText?: string;
   /** endereço direto da carta no database (ex.: anaheimhub.com/cards/GD01-010) */
   cardUrl?: string;
   /** desempenho real da carta nas listas dos últimos torneios */
@@ -622,7 +624,7 @@ export function buildSocialCardHtml(card: SocialCard, pager?: string): string {
   const typeLabel = CARD_TYPE_PT[card.type] || card.type;
   const effect = card.text?.trim() || "Sem efeito.";
   const tier = rarityTier(card.rarity);
-  const badgePrefix = card.isSpoiler ? "SPOILER DA SEMANA" : "CARTA DA SEMANA";
+  const badgePrefix = card.badgeText || (card.isSpoiler ? "SPOILER DA SEMANA" : "CARTA DA SEMANA");
   return slideDocument({
     badge: `${badgePrefix}${tier ? ` • ${tier}` : " • GCG"}`,
     accent: accentColor,
@@ -646,11 +648,19 @@ export function buildSocialCardHtml(card: SocialCard, pager?: string): string {
   .stat-unit { font-size: 16px; color: #64748b; }
   .effect-box { background: rgba(15, 23, 42, 0.9); border-left: 4px solid ${accentColor}; border-radius: 4px; padding: 20px; font-size: 18px; line-height: 1.6; color: #cbd5e1; max-height: 300px; overflow: hidden; }
   .effect-text { white-space: pre-line; }
-  .effect-label { font-size: 12px; font-weight: 800; text-transform: uppercase; color: ${accentColor}; margin-bottom: 6px; }`,
+  .effect-label { font-size: 12px; font-weight: 800; text-transform: uppercase; color: ${accentColor}; margin-bottom: 6px; }
+  /* imagem deitada (spoiler oficial vem em banner promocional): ocupa a largura, e os dados descem para baixo dela */
+  .wide .content { flex-direction: column; align-items: center; gap: 30px; justify-content: center; }
+  .wide .card-frame { flex: none; width: auto; max-width: 100%; height: auto; }
+  .wide .card-img { width: auto; height: auto; max-width: 100%; max-height: 640px; display: block; }
+  .wide .info-pane { flex: none; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 16px 28px; align-content: start; align-items: start; }
+  .wide .card-name { font-size: 36px; }
+  .wide .stats-grid { margin: 0; grid-column: 1; }
+  .wide .effect-box { grid-column: 2; grid-row: 1 / span 2; max-height: 330px; font-size: 17px; }`,
     body: `
   <div class="content">
     <div class="card-frame">
-      ${imageUrl ? `<img class="card-img" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.name)}" />` : `<div style="text-align:center;padding:20px;"><div style="font-size:24px;font-weight:800;color:#38bdf8;">${escapeHtml(card.code)}</div><div style="font-size:16px;color:#94a3b8;margin-top:8px;">${escapeHtml(card.name)}</div></div>`}
+      ${imageUrl ? `<img class="card-img" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.name)}" onload="if (this.naturalWidth > this.naturalHeight * 1.1) document.body.classList.add('wide')" />` : `<div style="text-align:center;padding:20px;"><div style="font-size:24px;font-weight:800;color:#38bdf8;">${escapeHtml(card.code)}</div><div style="font-size:16px;color:#94a3b8;margin-top:8px;">${escapeHtml(card.name)}</div></div>`}
     </div>
     <div class="info-pane">
       <div>
