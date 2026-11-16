@@ -110,7 +110,8 @@ export function analyzeSpoiler(spoiler: SpoilerCardData, ctx: SpoilerAnalysisCon
   const linkTraits = spoiler.cardType === "UNIT" ? traitsMentioned(spoiler.linkText, knownTraits) : [];
   for (const card of catalog) {
     const cardTraits = card.traits.map(norm);
-    const hit = wantsTraits.filter((t) => cardTraits.includes(t));
+    // trait que a carta nova também tem já está em "mesmos traits": repetir aqui só enche a lista (GD07-062 citava Zeon)
+    const hit = wantsTraits.filter((t) => cardTraits.includes(t) && !myTraitSet.has(t));
     if (hit.length) add(card, `O efeito da carta nova cita ${pretty(hit, card.traits)}, trait desta carta`, 3);
     const mentionsMe = traitsMentioned(card.effectEn, knownTraits).filter((t) => myTraitSet.has(t));
     if (mentionsMe.length) add(card, `O efeito desta carta cita ${pretty(mentionsMe, spoiler.traits)}, trait da carta nova`, 3);
@@ -126,7 +127,9 @@ export function analyzeSpoiler(spoiler: SpoilerCardData, ctx: SpoilerAnalysisCon
       if (viaTrait.length) add(card, `Unidade com Link por trait (${pretty(viaTrait, spoiler.traits)})`, 2);
     }
   }
-  const synergies = rank([...synergyMap.values()], 8, (x) => x.weight).map(({ card, reason, decks }) => ({ card, reason, decks }));
+  // carta que já apareceu em "mesmos traits" só volta aqui se o motivo for Link (relação direta com a carta nova)
+  const listedByTrait = new Set(sameTraits.map((r) => r.card.id));
+  const synergies = rank([...synergyMap.values()].filter((x) => !listedByTrait.has(x.card.id) || x.weight >= 4), 8, (x) => x.weight).map(({ card, reason, decks }) => ({ card, reason, decks }));
 
   // 3. arquétipos: cor em comum e/ou traits do núcleo do arquétipo
   const myColors = colorsOf(spoiler.color);

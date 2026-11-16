@@ -129,11 +129,12 @@ describe("analyzeSpoiler", () => {
     expect(a.sameTraits.map((r) => r.card.code)).toEqual(["GD03-001", "GD03-050"]);
     expect(a.sameTraits[0].decks).toBe(12);
   });
-  it("sinergias: piloto do Link, efeito que cita o trait dela, efeito dela que cita trait", () => {
+  it("sinergias: piloto do Link e efeito que cita o trait dela; não repete quem já está em \"mesmos traits\"", () => {
     const reasons = Object.fromEntries(a.synergies.map((r) => [r.card.code, r.reason]));
-    expect(reasons["GD03-050"]).toMatch(/Link/);
+    expect(reasons["GD03-050"]).toMatch(/Link/); // também tem Academy, mas Link é relação direta
     expect(reasons["GD02-010"]).toMatch(/cita Academy/);
-    expect(reasons["GD03-001"]).toMatch(/efeito da carta nova cita/);
+    // a carta nova cita o próprio trait (Academy): Darilbalde já aparece em "mesmos traits" (antes repetia — GD07-062)
+    expect(reasons["GD03-001"]).toBeUndefined();
     expect(reasons["GD01-020"]).toBeUndefined();
   });
   it("arquétipos: cor e núcleo com trait em comum; o verde sem trait em comum fica de fora", () => {
