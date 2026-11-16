@@ -462,17 +462,21 @@ jobs:
             }
 
             bug_reports() {
-              secao "bug-reports em disco (antes)"
-              find "$APP/bug-reports" -maxdepth 2 2>/dev/null || echo "sem pasta bug-reports"
-              secao "marcando BUG-8STNFY e BUG-CVKER1 como fixed no banco"
-              sudo -u postgres psql -d gundam_portal -c "UPDATE \"SimulatorBugReport\" SET status = 'fixed', \"prUrl\" = 'https://github.com/WillenWorks/portal-gundam-tcg-br/pull/161', note = 'Corrigido no PR #161 e deploy em produção efetuado.' WHERE \"shortCode\" IN ('BUG-8STNFY', 'BUG-CVKER1');" || true
-              sudo -u postgres psql -d gundam_portal -c "SELECT \"shortCode\", status, \"prUrl\", note, \"createdAt\" FROM \"SimulatorBugReport\" WHERE \"shortCode\" IN ('BUG-8STNFY', 'BUG-CVKER1');" || true
-              secao "removendo pastas dos relatos corrigidos do disco"
-              for code in BUG-8STNFY BUG-CVKER1; do
-                rm -rf $APP/bug-reports/*${code}* 2>/dev/null || true
-              done
-              secao "bug-reports em disco (depois)"
-              find "$APP/bug-reports" -maxdepth 2 2>/dev/null || echo "sem pasta bug-reports"
+              # Acerta status/PR dos relatos de bug do simulador (levantados com pendencias-conferir em 16/11).
+              # Rodar depois do deploy do #324 em produção. Idempotente.
+              Q() { runuser -u postgres -- psql -d gundam_portal -v ON_ERROR_STOP=1 -c "$1"; }
+              GH=https://github.com/WillenWorks/portal-gundam-tcg-br/pull
+              marcar() { # código, PR, nota
+                Q "UPDATE \"SimulatorBugReport\" SET status = 'fixed', \"prUrl\" = '$GH/$2', note = left(coalesce(note, ''), 1500) || ' — $3', \"updatedAt\" = now() WHERE \"shortCode\" = '$1' AND (status <> 'fixed' OR \"prUrl\" IS NULL)" ;
+              }
+              secao "acertando status"
+              marcar BUG-1RBJPB 324 "Corrigido no PR #324: descarte \"you may\" do Jamil Neate pode ser recusado."
+              marcar BUG-065ZK9 324 "Corrigido no PR #324: o descarte é feito (GD01-118, e também GD01-074 e GD03-072)."
+              marcar BUG-BM8YZN 247 "Corrigido no PR #247 (deploy via #248): só é jogável com 3 Units no trash."
+              marcar BUG-QW8NEV 226 "Corrigido no PR #226: Burst com alvo pede o alvo antes de ativar."
+              marcar BUG-8FYFQH 208 "Corrigido no PR #208: o deploy por sacrifício do Unicorn aparece nas jogadas."
+              secao "relatos (todos)"
+              Q "SELECT \"shortCode\", status, \"prUrl\", to_char(\"createdAt\", 'YYYY-MM-DD') AS criado FROM \"SimulatorBugReport\" ORDER BY \"createdAt\" DESC"
             }
 
             sim_nao() { if [ -n "$1" ]; then echo sim; else echo não; fi; }
