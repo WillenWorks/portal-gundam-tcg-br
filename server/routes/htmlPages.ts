@@ -13,8 +13,10 @@ import {
 } from "../htmlContent.ts";
 import { ALL_KEYWORDS } from "../../src/i18n/keywords.ts";
 import { ABOUT_CONTACT, ABOUT_LEAD, ABOUT_SECTIONS, ABOUT_TITLE, ABOUT_UPDATED } from "../../src/lib/aboutContent.ts";
-import { SUPPORT_LEAD, SUPPORT_TITLE, SUPPORT_WHY, supportChannels } from "../../src/lib/supportContent.ts";
+import { SUPPORT_LEAD, SUPPORT_TIER_PERKS, SUPPORT_TITLE, SUPPORT_WHY, supportChannels } from "../../src/lib/supportContent.ts";
 import { GAME_COLOR_LABEL_PT } from "../../src/lib/gundam-catalog.ts";
+import { SUPPORTER_TIERS, supporterTierInfo } from "../../src/lib/supporters.ts";
+import { listPublicSupporters } from "./supporterRoutes.ts";
 import { LATEST_SEASON } from "../../src/lib/seasons.ts";
 import { getMetagameStats } from "../metagameTrendsService.ts";
 import { getRegionalMetagame } from "../services/regionalMetaService.ts";
@@ -359,6 +361,8 @@ export function createHtmlBodyLoader(prisma: PrismaClient): BodyLoader {
             supportUrl: process.env.VITE_SUPPORT_URL, pixKey: process.env.VITE_SUPPORT_PIX_KEY, instagramUrl: process.env.VITE_INSTAGRAM_URL,
             discordUrl: process.env.VITE_DISCORD_INVITE_URL, mypCoupon: process.env.VITE_MYPCARDS_COUPON,
           }),
+          tiers: SUPPORTER_TIERS.map((t) => ({ icon: t.icon, label: t.label, minMonthly: t.minMonthly, perks: SUPPORT_TIER_PERKS[t.key] ?? [] })),
+          supporters: (await listPublicSupporters(prisma).catch(() => [])).map((p) => ({ name: p.name, tierLabel: supporterTierInfo(p.tier)?.label })),
         });
       case "/sobre":
         return aboutBody({ title: ABOUT_TITLE, lead: ABOUT_LEAD, updated: ABOUT_UPDATED, contact: ABOUT_CONTACT, sections: ABOUT_SECTIONS });

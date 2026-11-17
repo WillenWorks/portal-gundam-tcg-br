@@ -822,7 +822,7 @@ export default function ProfilePage() {
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">{tr("Dados pessoais", "Personal details")}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-3">
                   <h2 className="font-heading text-4xl uppercase">{tr("Sua conta", "Your account")}</h2>
-                  {user?.isSupporter ? <SupporterBadge /> : null}
+                  {user?.isSupporter ? <SupporterBadge tier={user.supporterTier} /> : null}
                 </div>
                 <p className="mt-2 text-sm leading-6 text-slate-400 dark:text-slate-400 light:text-slate-600">{tr("Nome, avatar e senha de acesso. O que já vem do seu login social (Google) não pode ser editado por aqui.", "Name, avatar and password. What comes from your social sign-in (Google) can't be edited here.")}</p>
               </div>
@@ -946,13 +946,17 @@ export default function ProfilePage() {
                   <span className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">{tr("Apoio Comunitário", "Community Support")}</span>
                   {user?.isSupporter ? (
                     <div className="flex flex-wrap items-center gap-2">
-                      <SupporterBadge size="sm" />
+                      <SupporterBadge size="sm" tier={user.supporterTier} />
                       {user.supporterSince ? (
                         <span className="text-xs text-slate-400">
                           desde {new Date(user.supporterSince).toLocaleDateString()}
                         </span>
                       ) : null}
                     </div>
+                  ) : user?.supporterClaimPending ? (
+                    <span className="text-xs text-amber-300 light:text-amber-700">
+                      {tr("Pedido de apoio recebido — o selo aparece assim que for conferido.", "Support claim received — your badge shows up once it's checked.")}
+                    </span>
                   ) : (
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-slate-500">{tr("Ainda não apoia", "Not a supporter yet")}</span>
