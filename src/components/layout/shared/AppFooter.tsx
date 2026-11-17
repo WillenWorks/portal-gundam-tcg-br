@@ -112,6 +112,11 @@ export function AppFooter({ className }: { className?: string }) {
                     {tr("Apoie o site", "Support the site")}
                   </Link>
                 </li>
+                <li>
+                  <Link href="/apoiadores" className="transition-colors hover:text-primary">
+                    {tr("Mural de apoiadores", "Supporters wall")}
+                  </Link>
+                </li>
                 {INSTAGRAM_URL ? (
                   <li>
                     <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-primary">

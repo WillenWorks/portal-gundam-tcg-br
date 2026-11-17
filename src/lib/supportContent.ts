@@ -1,3 +1,5 @@
+import { SUPPORTER_TIERS } from "./supporters";
+
 /* Página "Apoie o Anaheim Hub" (/apoie). Mesmo esquema da /sobre: o texto mora aqui e é lido pelo React
  * (SupportPage.tsx) e pelo HTML que o servidor entrega (server/htmlContent.ts → supportBody).
  *
@@ -55,4 +57,19 @@ export const SUPPORT_TIER_PERKS: Record<string, string[]> = {
   AS: ["Convite para testar novidades do simulador antes de todo mundo", "Seu deck analisado em artigo ou story (até 3 por mês)"],
   COMANDANTE: ["Suas sugestões com prioridade na lista de próximas funções", "Destaque no topo do mural"],
 };
+
+export const SUPPORTERS_TITLE = "Mural de apoiadores";
+export const SUPPORTERS_LEAD =
+  "Quem mantém o hangar funcionando: cada nome aqui ajuda a pagar o servidor, a tradução dos spoilers e a evolução do simulador. O Anaheim Hub continua gratuito para todo mundo graças a essas pessoas. Muito obrigado!";
+
+export type SupporterGroup<T> = { key: string; title: string; icon?: string; supporters: T[] };
+
+/** Agrupa o mural por patente, da mais alta para a mais baixa; quem não tem patente fica em "Apoiadores". */
+export function groupSupportersByTier<T extends { tier?: string | null }>(supporters: T[]): SupporterGroup<T>[] {
+  const groups: SupporterGroup<T>[] = [...SUPPORTER_TIERS]
+    .reverse()
+    .map((t) => ({ key: t.key, title: t.label === "Ás" ? "Ases" : `${t.label}s`, icon: t.icon, supporters: supporters.filter((s) => s.tier === t.key) }));
+  groups.push({ key: "SEM_PATENTE", title: "Apoiadores", supporters: supporters.filter((s) => !SUPPORTER_TIERS.some((t) => t.key === s.tier)) });
+  return groups.filter((g) => g.supporters.length > 0);
+}
 

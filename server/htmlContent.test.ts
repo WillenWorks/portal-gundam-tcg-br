@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { aboutBody, archetypeBody, archetypesIndexBody, cardBody, decklistBody, metagameStatsBody, regionalMetaBody, markdownToHtml, playerBody, rulesBody, setBody, supportBody, tournamentBody } from "./htmlContent.ts";
-import { SUPPORT_LEAD, SUPPORT_TITLE, SUPPORT_WHY, supportChannels } from "../src/lib/supportContent.ts";
+import { aboutBody, archetypeBody, archetypesIndexBody, cardBody, decklistBody, metagameStatsBody, regionalMetaBody, markdownToHtml, playerBody, rulesBody, setBody, supportBody, supportersBody, tournamentBody } from "./htmlContent.ts";
+import { SUPPORTERS_LEAD, SUPPORTERS_TITLE, groupSupportersByTier, SUPPORT_LEAD, SUPPORT_TITLE, SUPPORT_WHY, supportChannels } from "../src/lib/supportContent.ts";
 import { ABOUT_CONTACT, ABOUT_LEAD, ABOUT_SECTIONS, ABOUT_TITLE, ABOUT_UPDATED } from "../src/lib/aboutContent.ts";
 import { matchSiteRoute } from "../src/lib/siteRoutes.ts";
 import { renderHtml, resolveHtmlPage, stripAdsBlock, type DetailLoaders } from "./htmlMeta.ts";
@@ -153,6 +153,29 @@ describe("página Apoie", () => {
     expect(html).toContain("Recruta — R$ 5/mês");
     expect(html).toContain("<li>Char &lt;Zeon&gt; — Comandante</li>");
     expect(html).toContain("<li>Fã sem patente</li>");
+  });
+
+  it("/apoiadores: agrupa por patente (mais alta primeiro), conta vira link e nome sem conta é só texto", () => {
+    const groups = groupSupportersByTier([
+      { name: "Fã", tier: "RECRUTA" },
+      { name: "Char", username: "char", tier: "COMANDANTE", message: "Sieg <Zeon>" },
+      { name: "Kai", username: "kai", tier: null },
+      { name: "Sayla", tier: "AS" },
+    ]);
+    expect(groups.map((g) => [g.title, g.supporters.map((p) => p.name)])).toEqual([
+      ["Comandantes", ["Char"]], ["Ases", ["Sayla"]], ["Recrutas", ["Fã"]], ["Apoiadores", ["Kai"]],
+    ]);
+    const html = supportersBody({ title: SUPPORTERS_TITLE, lead: SUPPORTERS_LEAD, groups });
+    expect(html).toContain("👑 Comandantes (1)");
+    expect(html).toContain('href="/u/char"');
+    expect(html).toContain("“Sieg &lt;Zeon&gt;”");
+    expect(html).toContain("<li>Fã</li>");
+    expect(html).toContain('href="/apoie"');
+    expect(matchSiteRoute("/apoiadores")).toEqual({ known: true });
+  });
+
+  it("/apoiadores vazio convida a ser o primeiro", () => {
+    expect(supportersBody({ title: SUPPORTERS_TITLE, lead: SUPPORTERS_LEAD, groups: [] })).toContain("o primeiro nome aqui pode ser o seu");
   });
 
   it("sem apoiadores, a seção do mural não aparece", () => {
