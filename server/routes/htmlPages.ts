@@ -8,12 +8,12 @@ import type { PrismaClient } from "@prisma/client";
 import { DECK_MAIN_SIZE } from "../../src/lib/deck-legality.ts";
 import { createPageCache, renderHtml, resolveHtmlPage, type BodyLoader, type BodyResult, type DetailLoaders, type PageCacheState } from "../htmlMeta.ts";
 import {
-  aboutBody, supportBody, archetypeBody, archetypesIndexBody, articleBody, articlesIndexBody, playerBody, cardBody, deckBody, decksIndexBody, rulesBody, rulingBody, seriesBody, seriesIndexBody,
+  aboutBody, supportBody, supportersBody, archetypeBody, archetypesIndexBody, articleBody, articlesIndexBody, playerBody, cardBody, deckBody, decksIndexBody, rulesBody, rulingBody, seriesBody, seriesIndexBody,
   decklistBody, metagameStatsBody, regionalMetaBody, setBody, setsIndexBody, tournamentBody, tournamentsIndexBody, type CardRow,
 } from "../htmlContent.ts";
 import { ALL_KEYWORDS } from "../../src/i18n/keywords.ts";
 import { ABOUT_CONTACT, ABOUT_LEAD, ABOUT_SECTIONS, ABOUT_TITLE, ABOUT_UPDATED } from "../../src/lib/aboutContent.ts";
-import { SUPPORT_LEAD, SUPPORT_TIER_PERKS, SUPPORT_TITLE, SUPPORT_WHY, supportChannels } from "../../src/lib/supportContent.ts";
+import { SUPPORT_LEAD, SUPPORT_TIER_PERKS, SUPPORT_TITLE, SUPPORT_WHY, SUPPORTERS_LEAD, SUPPORTERS_TITLE, groupSupportersByTier, supportChannels } from "../../src/lib/supportContent.ts";
 import { GAME_COLOR_LABEL_PT } from "../../src/lib/gundam-catalog.ts";
 import { SUPPORTER_TIERS, supporterTierInfo } from "../../src/lib/supporters.ts";
 import { listPublicSupporters } from "./supporterRoutes.ts";
@@ -364,6 +364,12 @@ export function createHtmlBodyLoader(prisma: PrismaClient): BodyLoader {
           tiers: SUPPORTER_TIERS.map((t) => ({ icon: t.icon, label: t.label, minMonthly: t.minMonthly, perks: SUPPORT_TIER_PERKS[t.key] ?? [] })),
           supporters: (await listPublicSupporters(prisma).catch(() => [])).map((p) => ({ name: p.name, tierLabel: supporterTierInfo(p.tier)?.label })),
         });
+      case "/apoiadores":
+        return supportersBody({
+          title: SUPPORTERS_TITLE,
+          lead: SUPPORTERS_LEAD,
+          groups: groupSupportersByTier(await listPublicSupporters(prisma).catch(() => [])),
+        });
       case "/sobre":
         return aboutBody({ title: ABOUT_TITLE, lead: ABOUT_LEAD, updated: ABOUT_UPDATED, contact: ABOUT_CONTACT, sections: ABOUT_SECTIONS });
       case "/cards":
@@ -431,7 +437,7 @@ export function createHtmlBodyLoader(prisma: PrismaClient): BodyLoader {
 /** Páginas aquecidas sem visita: as principais do sitemap; o resto (artigos, torneios recentes) vem de `warmPaths`. */
 export const WARM_STATIC_PATHS = [
   "/", "/cards", "/sets", "/series", "/articles", "/torneios", "/decks", "/stats", "/metagame/regional",
-  "/arquetipos", "/rules", "/sobre", "/apoie",
+  "/arquetipos", "/rules", "/sobre", "/apoie", "/apoiadores",
 ];
 const WARM_FIRST_MS = 15_000;
 const WARM_EVERY_MS = 20 * 60_000;

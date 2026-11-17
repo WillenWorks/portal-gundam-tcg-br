@@ -80,6 +80,7 @@ const PrivacyPage = lazy(() => import("@/pages/LegalPages").then((m) => ({ defau
 const TermsPage = lazy(() => import("@/pages/LegalPages").then((m) => ({ default: m.TermsPage })));
 const AboutPage = lazy(() => import("@/pages/AboutPage"));
 const SupportPage = lazy(() => import("@/pages/SupportPage"));
+const SupportersPage = lazy(() => import("@/pages/SupportersPage"));
 
 function RouteLoader({ label }: { label: string }) {
   return <GlobalLoader label={tr(`Abrindo ${label}`, "Loading")} />;
@@ -149,6 +150,7 @@ function AppRouter() {
         <Route path="/termos">{() => <LazyRoute label="Termos de Uso"><TermsPage /></LazyRoute>}</Route>
         <Route path="/sobre">{() => <LazyRoute label="Sobre"><AboutPage /></LazyRoute>}</Route>
         <Route path="/apoie">{() => <LazyRoute label="Apoie"><SupportPage /></LazyRoute>}</Route>
+        <Route path="/apoiadores">{() => <LazyRoute label="Apoiadores"><SupportersPage /></LazyRoute>}</Route>
         <Route path="/portal">{() => <RequireAuth><DashboardPage /></RequireAuth>}</Route>
         <Route path="/binders">{() => <RequireAuth><BinderListPage /></RequireAuth>}</Route>
         <Route path="/binders/:id">{() => <RequireAuth><BinderPage /></RequireAuth>}</Route>

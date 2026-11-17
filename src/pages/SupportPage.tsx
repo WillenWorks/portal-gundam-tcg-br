@@ -96,7 +96,10 @@ export default function SupportPage() {
         ) : null}
 
         <h2 className="mt-10 font-heading text-xl uppercase text-white light:text-slate-900">Mural de apoiadores</h2>
-        <p className="mt-2">Quem mantém o hangar funcionando. Muito obrigado!</p>
+        <p className="mt-2">
+          Quem mantém o hangar funcionando. Muito obrigado!{" "}
+          <Link href="/apoiadores" className="text-primary hover:underline">Ver o mural completo, por patente →</Link>
+        </p>
         <div className="mt-4">
           {supporters === null ? <p className="text-xs text-slate-500">Carregando o mural…</p> : <SupportersWall supporters={supporters} emptyText="O mural ainda está vazio — o primeiro nome aqui pode ser o seu." />}
         </div>

@@ -418,6 +418,33 @@ export function supportBody(s: {
   });
 }
 
+/** /apoiadores — o mural agrupado por patente (grupos já montados por groupSupportersByTier). */
+export function supportersBody(s: {
+  title: string; lead: string;
+  groups: Array<{ title: string; icon?: string; supporters: Array<{ name: string; username?: string; message?: string; sinceMonth?: string }> }>;
+}): string {
+  const total = s.groups.reduce((n, g) => n + g.supporters.length, 0);
+  return pageShell({
+    title: s.title,
+    lead: s.lead,
+    sections: [
+      total
+        ? s.groups
+            .map((g) =>
+              section(
+                `${g.icon ? `${g.icon} ` : ""}${g.title} (${g.supporters.length})`,
+                `<ul>${g.supporters
+                  .map((p) => `<li>${p.username ? link(`/u/${p.username}`, p.name) : esc(p.name)}${p.message ? ` — “${esc(p.message)}”` : ""}${p.sinceMonth ? ` <small>(desde ${esc(p.sinceMonth)})</small>` : ""}</li>`)
+                  .join("")}</ul>`,
+              ),
+            )
+            .join("\n")
+        : `<p>O mural ainda está vazio — o primeiro nome aqui pode ser o seu.</p>`,
+      `<p>${link("/apoie", "Veja as patentes e as formas de apoiar o Anaheim Hub")}.</p>`,
+    ],
+  });
+}
+
 // ---------------------------------------------------------------------------------------------------------
 // Páginas de lista
 
