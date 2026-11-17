@@ -118,6 +118,8 @@ export type SocialCard = {
   isSpoiler?: boolean;
   /** selo no topo do slide (padrão: "SPOILER DA SEMANA" / "CARTA DA SEMANA") */
   badgeText?: string;
+  /** chamada do rodapé (padrão: artes alternativas ou a página da carta) */
+  ctaText?: string;
   /** endereço direto da carta no database (ex.: anaheimhub.com/cards/GD01-010) */
   cardUrl?: string;
   /** desempenho real da carta nas listas dos últimos torneios */
@@ -631,9 +633,8 @@ export function buildSocialCardHtml(card: SocialCard, pager?: string): string {
     pager,
     cta: card.altArtCount
       ? `Arraste para ver ${card.altArtCount === 1 ? "a arte alternativa" : `as ${card.altArtCount} artes alternativas`} →`
-      : card.cardUrl
-        ? `Veja a carta em ${card.cardUrl}`
-        : undefined,
+      // endereço escrito na arte não é clicável: o link vai na legenda
+      : card.ctaText ?? (card.cardUrl ? "Página completa da carta: link na bio" : undefined),
     css: `
   .content { display: flex; gap: 40px; align-items: center; flex: 1; }
   .card-frame { flex: 0 0 480px; height: 672px; background: rgba(255, 255, 255, 0.03); border: 2px solid rgba(255, 255, 255, 0.15); border-radius: 16px; display: flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.15); }

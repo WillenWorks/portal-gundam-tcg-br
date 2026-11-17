@@ -21,6 +21,7 @@ name: Manutenção da VPS
 #   backup-externo-configurar  grava o token do Google Drive e a senha (segredos RCLONE_DRIVE_TOKEN e
 #                     BACKUP_PASSPHRASE), agenda o backup diário criptografado no Drive e roda o primeiro
 #   backup-externo-testar      baixa o backup mais recente do Drive, descriptografa e confere
+#   pendencias-conferir só leitura: artigos em rascunho/revisão (com o texto), posts do Instagram aguardando aprovação ou com falha, relatos de bug do simulador em aberto
 #   spoilers-conferir só leitura: o que o bot enxerga no canal de spoilers (tipo/anexos/embeds, sem texto), capturas e propostas no banco, log [spoilers]
 #   social-conferir   só leitura: variáveis do agente do Instagram (sim/não), navegador do Playwright, espaço
 #   social-navegador  instala o Chromium do Playwright (arte dos posts) e testa se abre
@@ -36,7 +37,7 @@ on:
       tarefa:
         description: "O que fazer"
         type: choice
-        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, postgres-18, fail2ban-instalar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar, bug-reports, social-conferir, social-navegador, spoilers-ligar, spoilers-desligar, spoilers-conferir, pg17-remover]
+        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, postgres-18, fail2ban-instalar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar, bug-reports, social-conferir, social-navegador, spoilers-ligar, spoilers-desligar, spoilers-conferir, pendencias-conferir, pg17-remover]
         default: diagnostico
 
 # nunca junto com um deploy ou outra manutenção
@@ -462,17 +463,21 @@ jobs:
             }
 
             bug_reports() {
-              secao "bug-reports em disco (antes)"
-              find "$APP/bug-reports" -maxdepth 2 2>/dev/null || echo "sem pasta bug-reports"
-              secao "marcando BUG-8STNFY e BUG-CVKER1 como fixed no banco"
-              sudo -u postgres psql -d gundam_portal -c "UPDATE \"SimulatorBugReport\" SET status = 'fixed', \"prUrl\" = 'https://github.com/WillenWorks/portal-gundam-tcg-br/pull/161', note = 'Corrigido no PR #161 e deploy em produção efetuado.' WHERE \"shortCode\" IN ('BUG-8STNFY', 'BUG-CVKER1');" || true
-              sudo -u postgres psql -d gundam_portal -c "SELECT \"shortCode\", status, \"prUrl\", note, \"createdAt\" FROM \"SimulatorBugReport\" WHERE \"shortCode\" IN ('BUG-8STNFY', 'BUG-CVKER1');" || true
-              secao "removendo pastas dos relatos corrigidos do disco"
-              for code in BUG-8STNFY BUG-CVKER1; do
-                rm -rf $APP/bug-reports/*${code}* 2>/dev/null || true
-              done
-              secao "bug-reports em disco (depois)"
-              find "$APP/bug-reports" -maxdepth 2 2>/dev/null || echo "sem pasta bug-reports"
+              # Acerta status/PR dos relatos de bug do simulador (levantados com pendencias-conferir em 16/11).
+              # Rodar depois do deploy do #324 em produção. Idempotente.
+              Q() { runuser -u postgres -- psql -d gundam_portal -v ON_ERROR_STOP=1 -c "$1"; }
+              GH=https://github.com/WillenWorks/portal-gundam-tcg-br/pull
+              marcar() { # código, PR, nota
+                Q "UPDATE \"SimulatorBugReport\" SET status = 'fixed', \"prUrl\" = '$GH/$2', note = left(coalesce(note, ''), 1500) || ' — $3', \"updatedAt\" = now() WHERE \"shortCode\" = '$1' AND (status <> 'fixed' OR \"prUrl\" IS NULL)" ;
+              }
+              secao "acertando status"
+              marcar BUG-1RBJPB 324 "Corrigido no PR #324: descarte \"you may\" do Jamil Neate pode ser recusado."
+              marcar BUG-065ZK9 324 "Corrigido no PR #324: o descarte é feito (GD01-118, e também GD01-074 e GD03-072)."
+              marcar BUG-BM8YZN 247 "Corrigido no PR #247 (deploy via #248): só é jogável com 3 Units no trash."
+              marcar BUG-QW8NEV 226 "Corrigido no PR #226: Burst com alvo pede o alvo antes de ativar."
+              marcar BUG-8FYFQH 208 "Corrigido no PR #208: o deploy por sacrifício do Unicorn aparece nas jogadas."
+              secao "relatos (todos)"
+              Q "SELECT \"shortCode\", status, \"prUrl\", to_char(\"createdAt\", 'YYYY-MM-DD') AS criado FROM \"SimulatorBugReport\" ORDER BY \"createdAt\" DESC"
             }
 
             sim_nao() { if [ -n "$1" ]; then echo sim; else echo não; fi; }
@@ -604,6 +609,55 @@ jobs:
               rm -f "$S"
             }
 
+            pendencias_conferir() {
+              # script temporário dentro do app (acha @prisma/client e dotenv); só leitura
+              S="$APP/.pendencias-conferir.mjs"
+              cat > "$S" <<'JS'
+            import "dotenv/config";
+            import { PrismaClient } from "@prisma/client";
+            const prisma = new PrismaClient();
+            const day = (d) => (d ? d.toISOString().slice(0, 16).replace("T", " ") : "-");
+            const h = (t) => console.log(`\n=================== ${t}`);
+
+            h("artigos em rascunho ou revisão (texto completo)");
+            const posts = await prisma.post.findMany({ where: { status: { in: ["DRAFT", "REVIEW"] } }, orderBy: { updatedAt: "desc" }, take: 12 });
+            if (!posts.length) console.log("nenhum");
+            for (const p of posts) {
+              console.log(`\n----- [${p.status}] ${p.postType} · atualizado ${day(p.updatedAt)} · /articles/${p.slug}`);
+              console.log(`TÍTULO: ${p.title}`);
+              if (p.excerpt) console.log(`RESUMO: ${p.excerpt}`);
+              console.log(p.contentMd);
+            }
+
+            h("posts do Instagram aguardando aprovação, aprovados na fila ou com falha");
+            const social = await prisma.socialMediaPost.findMany({ where: { status: { in: ["PENDING_APPROVAL", "DRAFT", "APPROVED", "PUBLISHING", "FAILED"] } }, orderBy: { createdAt: "desc" }, take: 15 });
+            if (!social.length) console.log("nenhum");
+            for (const p of social) {
+              console.log(`\n----- [${p.status}] ${p.type} · criado ${day(p.createdAt)} · agendado ${day(p.scheduledFor)} · ${p.mediaUrls.length} imagem(ns)`);
+              if (p.title) console.log(`TÍTULO: ${p.title}`);
+              if (p.publishError) console.log(`ERRO: ${p.publishError.replace(/\s+/g, " ").slice(0, 400)}`);
+              console.log(p.caption);
+            }
+            console.log("\npor status (todos):", JSON.stringify(await prisma.socialMediaPost.groupBy({ by: ["status"], _count: true })));
+
+            h("relatos de bug do simulador");
+            console.log("por status:", JSON.stringify(await prisma.simulatorBugReport.groupBy({ by: ["status"], _count: true })));
+            const bugs = await prisma.simulatorBugReport.findMany({ orderBy: { createdAt: "desc" }, take: 25, select: { shortCode: true, status: true, createdAt: true, updatedAt: true, note: true, prUrl: true, cardsInvolved: true, engineVersion: true, triage: true } });
+            for (const b of bugs) {
+              const triage = b.triage ? JSON.stringify(b.triage).replace(/\s+/g, " ").slice(0, 300) : "-";
+              console.log(`\n${b.shortCode} [${b.status}] criado ${day(b.createdAt)} · atualizado ${day(b.updatedAt)} · motor ${b.engineVersion} · PR ${b.prUrl ?? "-"}`);
+              console.log(`  cartas: ${b.cardsInvolved.join(", ") || "-"}`);
+              console.log(`  nota: ${(b.note ?? "-").replace(/\s+/g, " ").slice(0, 400)}`);
+              console.log(`  triagem: ${triage}`);
+            }
+            await prisma.$disconnect();
+            JS
+              ( cd "$APP" && timeout 120 node "$S" 2>&1 | sed -E 's#/root[^ ]*#[caminho]#g' ) || echo "conferência falhou"
+              rm -f "$S"
+              secao "dispatch dos relatos de bug (GH_DISPATCH_TOKEN, só sim/não)"
+              echo "GH_DISPATCH_TOKEN: $(sim_nao "$(grep -E '^GH_DISPATCH_TOKEN=.+' "$APP/.env" | head -1)")"
+            }
+
             social_navegador() {
               secao "instalando o Chromium do Playwright e o ffmpeg (arte dos posts e Reels MP4)"
               df -h / | tail -1
@@ -629,6 +683,7 @@ jobs:
               spoilers-ligar) spoilers_definir true ;;
               spoilers-desligar) spoilers_definir false ;;
               spoilers-conferir) spoilers_conferir ;;
+              pendencias-conferir) pendencias_conferir ;;
               diagnostico) diagnostico ;;
               seguranca-conferir) seguranca_conferir ;;
               upgrade-preparar) upgrade_preparar ;;
