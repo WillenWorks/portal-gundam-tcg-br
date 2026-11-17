@@ -13,20 +13,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { SupporterBadge } from "@/components/support/SupporterBadge";
+import { SupportersWall } from "@/components/support/SupportersWall";
 import { buildPixPayload } from "@/lib/pix";
 import { api, type ApiSupporter } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import supportersData from "@/data/supporters.json";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
 
-type StaticSupporter = { name: string; sinceMonth?: string; message?: string };
-const initialSupporters = supportersData as StaticSupporter[];
 
 const PIX_KEY = import.meta.env.VITE_PIX_KEY || "9ca1a9a1-885f-47c6-9911-fda7e2dfe309";
 const PIX_MERCHANT_NAME = import.meta.env.VITE_PIX_MERCHANT_NAME || "Willen Leolatto Carneiro";
 const PIX_MERCHANT_CITY = import.meta.env.VITE_PIX_MERCHANT_CITY || "SAO PAULO";
 const PIX_PAYLOAD = import.meta.env.VITE_PIX_PAYLOAD || "00020126920014BR.GOV.BCB.PIX01369ca1a9a1-885f-47c6-9911-fda7e2dfe3090230Anaheim Hub - Aquele cafezinho5204000053039865802BR5924Willen Leolatto Carneiro6009SAO PAULO62140510ZRgLn3K9h563046EEE";
 const PIX_PAYMENT_URL = import.meta.env.VITE_PIX_PAYMENT_URL || "";
+/** Campanha de apoio mensal (Apoia.se) — o mesmo endereço da página /apoie (src/lib/supportContent.ts). */
+const SUPPORT_URL = /^https:\/\//.test(import.meta.env.VITE_SUPPORT_URL || "") ? (import.meta.env.VITE_SUPPORT_URL as string) : "";
 
 function PixPanel() {
   const { tr } = useSiteLanguage();
@@ -159,27 +159,6 @@ function PixPanel() {
   );
 }
 
-function SupportersWall({ supporters }: { supporters: ApiSupporter[] }) {
-  const { tr } = useSiteLanguage();
-  if (supporters.length === 0) {
-    return <p className="text-sm dark:text-slate-400 light:text-slate-500">{tr("Ainda não há apoiadores listados — seja o primeiro a aparecer aqui!", "No supporters listed yet — be the first to show up here!")}</p>;
-  }
-  return (
-    <div className="flex flex-wrap gap-2">
-      {supporters.map((supporter, idx) => (
-        <div
-          key={`${supporter.username || supporter.name}-${idx}`}
-          title={supporter.message || (supporter.sinceMonth ? `Apoiador desde ${supporter.sinceMonth}` : "Apoiador Oficial")}
-          className="inline-flex items-center gap-2 border dark:border-white/10 dark:bg-white/[0.04] light:border-slate-200 light:bg-slate-100/90 px-2.5 py-1.5 transition-colors hover:border-primary/40 dark:hover:bg-white/[0.08] light:hover:bg-slate-200"
-        >
-          <span className="text-xs font-medium dark:text-slate-200 light:text-slate-800">{supporter.name}</span>
-          <SupporterBadge size="sm" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export function CommunitySupportModal({
   open,
   onOpenChange,
@@ -197,20 +176,10 @@ export function CommunitySupportModal({
 
   const loadSupporters = async () => {
     try {
-      const dbSupporters = await api.getSupporters();
-      const list = Array.isArray(dbSupporters) ? dbSupporters : [];
-      // Mescla com apoiadores estáticos caso não constem ainda
-      const namesInDb = new Set(list.map((s) => s.name.toLowerCase()));
-      const merged: ApiSupporter[] = [...list];
-      for (const st of initialSupporters) {
-        if (!namesInDb.has(st.name.toLowerCase())) {
-          merged.push(st);
-        }
-      }
-      setSupporters(merged);
+      const list = await api.getSupporters();
+      setSupporters(Array.isArray(list) ? list : []);
     } catch {
-      // Fallback para estático se houver erro
-      setSupporters(initialSupporters);
+      setSupporters([]);
     }
   };
 
@@ -228,8 +197,9 @@ export function CommunitySupportModal({
     setIsConfirming(true);
     try {
       const res = await api.confirmSupport(message.trim() || undefined);
-      setCurrentUser(res.user);
-      toast.success(res.message || tr("Insígnia de Apoiador ativada com sucesso! Muito obrigado pelo apoio.", "Supporter badge activated! Thank you so much for your support."));
+      // "já apoiei" é um pedido: o selo só aparece quando o admin confere o apoio (server/routes/supporterRoutes.ts)
+      if (user) setCurrentUser({ ...user, supporterMessage: message.trim() || user.supporterMessage, supporterClaimPending: res.status === "pending" });
+      toast.success(res.message || tr("Pedido recebido! Muito obrigado pelo apoio.", "Request received! Thank you so much for your support."));
       await loadSupporters();
     } catch (err: any) {
       toast.error(err?.message || tr("Erro ao registrar confirmação de apoio.", "Couldn't save your support confirmation."));
@@ -257,8 +227,23 @@ export function CommunitySupportModal({
             </span>
           </div>
           <p className="text-sm leading-relaxed dark:text-slate-300 light:text-slate-600">
-            O Anaheim Hub é mantido de forma independente pela comunidade de pilotos do Gundam Card Game. Qualquer contribuição voluntária via Pix (Nubank) ajuda a cobrir os custos de infraestrutura de servidor, banco de dados, catálogo e simulador — sem transformar o projeto em assinatura paga ou poluir a tela com anúncios.
+            {tr(
+              "O Anaheim Hub é mantido de forma independente pela comunidade de pilotos do Gundam Card Game. O apoio mensal pelo Apoia.se ou um Pix avulso ajudam a cobrir servidor, banco de dados, catálogo e simulador — e tudo continua gratuito para todo mundo.",
+              "Anaheim Hub is kept running independently by the Gundam Card Game community. A monthly pledge on Apoia.se or a one-off Pix helps cover the server, database, catalog and simulator — and everything stays free for everyone.",
+            )}
           </p>
+          {SUPPORT_URL ? (
+            <a
+              href={SUPPORT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex w-fit items-center gap-2 bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wider text-primary-foreground hover:bg-primary/90"
+            >
+              <HeartHandshake className="size-4" />
+              {tr("Apoiar todo mês no Apoia.se", "Support monthly on Apoia.se")}
+              <ExternalLink className="size-3.5" />
+            </a>
+          ) : null}
         </DialogHeader>
 
         {/* Layout em 2 colunas para widescreen / telas médias para grandes */}
@@ -311,7 +296,7 @@ export function CommunitySupportModal({
                     <div className="space-y-2.5 w-full">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-semibold dark:text-white light:text-amber-950">{tr("Piloto Apoiador Oficial Ativo!", "Official Supporter — active!")}</p>
-                        <SupporterBadge size="sm" />
+                        <SupporterBadge size="sm" tier={user.supporterTier} />
                       </div>
                       <p className="dark:text-slate-300 light:text-slate-700">
                         {tr("Obrigado de coração,", "Heartfelt thanks,")} <span className="font-medium dark:text-white light:text-slate-950">{user.displayName}</span>! {tr("Sua insígnia está brilhando no seu perfil e no mural comunitário.", "Your badge is shining on your profile and the community wall.")}
@@ -345,6 +330,19 @@ export function CommunitySupportModal({
                     </div>
                   </div>
                 </div>
+              ) : user?.supporterClaimPending ? (
+                /* Pediu o selo e aguarda conferência */
+                <div className="border dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200 light:border-amber-300 light:bg-amber-50 light:text-amber-900 p-4 text-xs leading-relaxed panel-cut">
+                  <div className="flex items-start gap-3">
+                    <Loader2 className="mt-0.5 size-5 shrink-0 text-amber-500" />
+                    <div className="space-y-1.5">
+                      <p className="font-semibold dark:text-white light:text-amber-950">{tr("Pedido recebido — em conferência", "Request received — being checked")}</p>
+                      <p className="dark:text-slate-300 light:text-slate-700">
+                        {tr("Assim que o apoio for conferido no Apoia.se ou no Pix, o selo de Apoiador aparece no seu perfil e seu nome entra no mural. Valeu demais!", "As soon as your support is checked on Apoia.se or Pix, the Supporter badge shows up on your profile and your name joins the wall. Thank you!")}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               ) : (
                 /* Usuário Logado mas ainda não marcou como Apoiador */
                 <div className="border border-primary/30 dark:bg-primary/5 dark:text-slate-300 light:border-primary/25 light:bg-primary/[0.04] light:text-slate-700 p-4 text-xs leading-relaxed panel-cut">
@@ -352,10 +350,10 @@ export function CommunitySupportModal({
                     <UserCheck className="mt-0.5 size-5 shrink-0 text-primary" />
                     <div className="w-full space-y-3">
                       <div>
-                        <p className="font-semibold dark:text-white light:text-slate-950">{tr("Confirmar Doação & Habilitar Insígnia", "Confirm Donation & Enable Badge")}</p>
+                        <p className="font-semibold dark:text-white light:text-slate-950">{tr("Já apoiou? Peça seu selo", "Already supporting? Request your badge")}</p>
                         <p className="mt-1 dark:text-slate-400 light:text-slate-600">
-                          {tr("Após realizar o Pix pelo app do seu banco ou Nubank, confirme abaixo para ativar a", "After sending the Pix from your bank app, confirm below to turn on the")}{" "}
-                          <span className="font-semibold text-primary">{tr("Insígnia de Apoiador", "Supporter badge")}</span> {tr("no seu perfil", "on your profile")} <span className="dark:text-white light:text-slate-950">(@{user?.username})</span> {tr("e no mural.", "and the wall.")}
+                          {tr("Depois de apoiar no Apoia.se ou pelo Pix, avise abaixo. Conferimos o apoio e liberamos a", "After supporting on Apoia.se or via Pix, let us know below. We check it and turn on the")}{" "}
+                          <span className="font-semibold text-primary">{tr("Insígnia de Apoiador", "Supporter badge")}</span> {tr("no seu perfil", "on your profile")} <span className="dark:text-white light:text-slate-950">(@{user?.username})</span> {tr("e seu nome no mural.", "and your name on the wall.")}
                         </p>
                       </div>
 
@@ -379,12 +377,12 @@ export function CommunitySupportModal({
                         {isConfirming ? (
                           <>
                             <Loader2 className="mr-2 size-3.5 animate-spin" />
-                            {tr("Ativando Insígnia...", "Activating badge...")}
+                            {tr("Enviando pedido...", "Sending request...")}
                           </>
                         ) : (
                           <>
                             <ShieldCheck className="mr-2 size-4" />
-                            {tr("Já realizei o Pix! Ativar minha Insígnia de Apoiador", "I've sent the Pix! Activate my Supporter badge")}
+                            {tr("Já apoiei! Pedir meu selo de Apoiador", "I've supported! Request my Supporter badge")}
                           </>
                         )}
                       </Button>

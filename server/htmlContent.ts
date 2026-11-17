@@ -392,12 +392,22 @@ export function aboutBody(a: { title: string; lead: string; updated: string; con
   });
 }
 
-export function supportBody(s: { title: string; lead: string; why: string[]; channels: SupportChannel[] }): string {
+export function supportBody(s: {
+  title: string; lead: string; why: string[]; channels: SupportChannel[];
+  tiers?: Array<{ icon: string; label: string; minMonthly: number; perks: string[] }>;
+  supporters?: Array<{ name: string; tierLabel?: string }>;
+}): string {
   return pageShell({
     title: s.title,
     lead: s.lead,
     sections: [
       `<ul>${s.why.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>`,
+      s.tiers?.length
+        ? section("Patentes de apoiador", s.tiers.map((t) => `<div style="margin:12px 0"><h3 style="font-size:16px;margin:0 0 4px 0">${esc(t.icon)} ${esc(t.label)} — R$ ${esc(t.minMonthly)}/mês</h3><ul>${t.perks.map((p) => `<li>${esc(p)}</li>`).join("")}</ul></div>`).join("\n"))
+        : "",
+      s.supporters?.length
+        ? section("Mural de apoiadores", `<ul>${s.supporters.map((p) => `<li>${esc(p.name)}${p.tierLabel ? ` — ${esc(p.tierLabel)}` : ""}</li>`).join("")}</ul>`)
+        : "",
       section(
         "Como ajudar",
         s.channels
