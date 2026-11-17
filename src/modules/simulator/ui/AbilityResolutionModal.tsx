@@ -221,11 +221,15 @@ export function AbilityResolutionModal({
       return { ...s, [specId]: cur };
     });
 
-  /** `deckTopReveal`/`handDiscard`/`deckReorder`/`enumChoice`/`trashSearch` ignoram o toggle Ativar/Pular (mandatórios). */
+  /** `deckTopReveal`/`deckReorder`/`enumChoice`/`trashSearch` ignoram o toggle Ativar/Pular (mandatórios). O descarte
+   *  da mão só é mandatório quando o efeito não é "you may": BUG-1RBJPB — Jamil Neate (GD03-096, "You may discard 1.
+   *  If you do, draw 1.") obrigava a descartar, sem como recusar. */
   const showActivateToggle = (specId: string) => {
     const q = itemFor(specId);
-    return q.optional && !q.deckTopReveal && !q.handDiscard && !q.deckReorder && !q.enumChoice && !q.trashSearch;
+    return q.optional && !q.deckTopReveal && !q.deckReorder && !q.enumChoice && !q.trashSearch;
   };
+  /** descarte "you may" recusado: nada a escolher */
+  const discardDeclined = (specId: string) => itemFor(specId).optional && !activate[specId];
 
   const pickSingle = (specId: string, instanceId: string) => setTargets((s) => pickSingleTarget(s, specId, instanceId));
 
@@ -250,7 +254,7 @@ export function AbilityResolutionModal({
     const chosen = targets[specId] ?? [];
     if (q.trashExile && exileActive(specId) && (exiles[specId] ?? []).length !== q.trashExile.count) return false;
     if (q.deckTopReveal) return true; // revelar 1 ou nenhuma — sempre válido
-    if (q.handDiscard) return chosen.length === Math.min(q.handDiscard.n, q.handDiscard.legalHandIds.length);
+    if (q.handDiscard) return discardDeclined(specId) || chosen.length === Math.min(q.handDiscard.n, q.handDiscard.legalHandIds.length);
     if (q.deckReorder) {
       const want = Math.min(q.deckReorder.slots.length, q.deckReorder.topCards.length);
       return Object.keys(reorder[specId] ?? {}).length === want;
@@ -277,7 +281,7 @@ export function AbilityResolutionModal({
         const chosen = targets[specId] ?? [];
         const secondaryChosen = q.secondaryTarget ? (secondaryTargets[specId] ?? []) : undefined;
         if (q.deckTopReveal) return { specId, activate: true, targetIds: chosen };
-        if (q.handDiscard) return { specId, activate: true, targetIds: chosen };
+        if (q.handDiscard) return discardDeclined(specId) ? { specId, activate: false, targetIds: [] } : { specId, activate: true, targetIds: chosen };
         if (q.deckReorder) {
           const map = reorder[specId] ?? {};
           return { specId, activate: true, targetIds: q.deckReorder.slots.map((s) => map[s.name]).filter(Boolean) };
@@ -585,7 +589,7 @@ export function AbilityResolutionModal({
                   </div>
                 ) : null}
 
-                {q.handDiscard ? (
+                {q.handDiscard && !discardDeclined(specId) ? (
                   q.handDiscard.legalHandIds.length > 0 ? (
                     <div className={cn(isSingle ? "mt-1 space-y-0.5" : "mt-2 space-y-1")}>
                       <p className="text-[10px] text-muted-portal">{strings.handDiscardPrompt}</p>

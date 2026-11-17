@@ -395,7 +395,7 @@ describe("GD03 — W1 (vocabulário existente)", () => {
     expect(state.players.A.hand.length).toBe(handBefore);
     placeCard(state, "A", GD03_CARD_DEFS["GD03-070"], "battleArea");
     const discardId = state.players.A.hand[0].instanceId;
-    state = run(state, "GD03-072-Deploy", aile, { discardTarget: [discardId] });
+    state = run(state, "GD03-072-Deploy", aile, { discard: [discardId] });
     expect(findCard(state, discardId).zone).toBe("trash");
     expect(state.players.A.hand.length).toBe(handBefore); // +1 compra −1 descarte
   });
