@@ -5888,6 +5888,14 @@ registerHtmlPages(app, {
   distDir: process.env.WEB_DIST_DIR || path.resolve(process.cwd(), "dist"),
   loaders: createHtmlDetailLoaders(prisma),
   bodyFor: createHtmlBodyLoader(prisma),
+  // além das páginas fixas: artigos e torneios mais recentes (os mais visitados vindos do Instagram/Facebook)
+  warmPaths: async () => {
+    const [posts, tournaments] = await Promise.all([
+      prisma.post.findMany({ where: { status: "PUBLISHED" }, orderBy: { publishedAt: "desc" }, take: 15, select: { slug: true } }),
+      prisma.tournament.findMany({ where: { isActive: true }, orderBy: { dateStart: "desc" }, take: 5, select: { id: true } }),
+    ]);
+    return [...posts.map((p) => `/articles/${p.slug}`), ...tournaments.map((t) => `/torneios/${t.id}`)];
+  },
 });
 
 app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {

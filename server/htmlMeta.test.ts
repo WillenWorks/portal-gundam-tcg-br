@@ -112,18 +112,67 @@ describe("absoluteUrl", () => {
 });
 
 describe("createPageCache", () => {
-  it("reaproveita dentro do prazo e não guarda erro", async () => {
-    let t = 0;
-    const cache = createPageCache(1000, 10, () => t);
-    const build = vi.fn(async () => resolveHtmlPage("/", loaders()));
-    await cache("/", build);
-    await cache("/", build);
+  const page = (title: string) => async () => ({ ...(await resolveHtmlPage("/", loaders())), title });
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+
+  it("dentro do prazo reaproveita; erro não fica guardado", async () => {
+    const cache = createPageCache(1000, 10, () => 0, 5000);
+    const build = vi.fn(page("v1"));
+    const states: string[] = [];
+    await cache("/", build, (s) => states.push(s));
+    await cache("/", build, (s) => states.push(s));
     expect(build).toHaveBeenCalledTimes(1);
-    t = 2000;
-    await cache("/", build);
-    expect(build).toHaveBeenCalledTimes(2);
-    const falha = vi.fn().mockRejectedValueOnce(new Error("db")).mockImplementation(async () => resolveHtmlPage("/", loaders()));
+    expect(states).toEqual(["miss", "hit"]);
+    const falha = vi.fn().mockRejectedValueOnce(new Error("db")).mockImplementation(page("ok"));
     await expect(cache("/x", falha)).rejects.toThrow("db");
     await expect(cache("/x", falha)).resolves.toBeTruthy();
+  });
+
+  it("vencida: entrega a versão guardada na hora e monta a nova em segundo plano", async () => {
+    let t = 0;
+    const cache = createPageCache(1000, 10, () => t, 5000);
+    await cache("/", page("v1"));
+    t = 2000;
+    let release!: () => void;
+    const slow = vi.fn(() => new Promise<Awaited<ReturnType<ReturnType<typeof page>>>>((resolve) => (release = () => void page("v2")().then(resolve))));
+    const states: string[] = [];
+    expect((await cache("/", slow, (s) => states.push(s))).title).toBe("v1"); // não esperou o banco
+    expect((await cache("/", slow)).title).toBe("v1");
+    expect(slow).toHaveBeenCalledTimes(1); // uma reconstrução só, mesmo com duas visitas
+    release();
+    await flush();
+    await flush();
+    expect((await cache("/", slow, (s) => states.push(s))).title).toBe("v2");
+    expect(states).toEqual(["stale", "hit"]);
+  });
+
+  it("vencida e o banco falha: segue com a guardada e tenta de novo na próxima visita", async () => {
+    let t = 0;
+    const cache = createPageCache(1000, 10, () => t, 5000);
+    await cache("/", page("v1"));
+    t = 2000;
+    const falha = vi.fn().mockRejectedValue(new Error("db"));
+    expect((await cache("/", falha)).title).toBe("v1");
+    await flush();
+    expect((await cache("/", falha)).title).toBe("v1");
+    expect(falha).toHaveBeenCalledTimes(2);
+  });
+
+  it("velha demais: monta de novo e espera", async () => {
+    let t = 0;
+    const cache = createPageCache(1000, 10, () => t, 5000);
+    await cache("/", page("v1"));
+    t = 6000;
+    const states: string[] = [];
+    expect((await cache("/", page("v2"), (s) => states.push(s))).title).toBe("v2");
+    expect(states).toEqual(["miss"]);
+  });
+
+  it("warm guarda a página sem visita", async () => {
+    const cache = createPageCache(1000, 10, () => 0, 5000);
+    await cache.warm("/stats", page("aquecida"));
+    const build = vi.fn(page("x"));
+    expect((await cache("/stats", build)).title).toBe("aquecida");
+    expect(build).not.toHaveBeenCalled();
   });
 });
