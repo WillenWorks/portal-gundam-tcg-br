@@ -13,7 +13,7 @@ export type SupportEnv = {
 };
 
 /** Custo mensal aproximado mostrado na página (transparência). Atualize quando o plano mudar. */
-export const SUPPORT_MONTHLY_COST = "cerca de R$ 110 por mês";
+export const SUPPORT_MONTHLY_COST = "cerca de R$ 40 por mês";
 
 export type SupportChannel = { title: string; text: string; href?: string; cta?: string; copy?: string };
 
@@ -23,7 +23,7 @@ const httpsOnly = (url: string | undefined) => (url && /^https:\/\/[^\s"'<>]+$/.
 export function supportChannels(env: SupportEnv): SupportChannel[] {
   const channels: SupportChannel[] = [];
   const supportUrl = httpsOnly(env.supportUrl);
-  if (supportUrl) channels.push({ title: "Apoio mensal", text: "Uma contribuição mensal de qualquer valor paga o servidor de forma previsível. Quem apoia aparece na lista de apoiadores desta página.", href: supportUrl, cta: "Quero apoiar" });
+  if (supportUrl) channels.push({ title: "Apoio mensal no Apoia.se", text: "A partir de R$ 5 por mês você ganha uma patente: selo de Apoiador no perfil e seu nome no mural desta página. É o que paga o servidor de forma previsível.", href: supportUrl, cta: "Quero apoiar" });
   const pix = env.pixKey?.trim();
   if (pix) channels.push({ title: "Pix", text: "Uma contribuição única, do valor que você quiser, direto pelo Pix.", copy: pix });
   const coupon = env.mypCoupon?.trim();
@@ -44,6 +44,15 @@ export const SUPPORT_LEAD =
   " em servidor e domínio, pagos com anúncios, links de afiliado e a ajuda de quem usa o site.";
 
 export const SUPPORT_WHY = [
-  "Todo o conteúdo continua aberto, sem conta e sem paywall: apoiar é opcional e não libera nada exclusivo.",
+  "Todo o conteúdo continua aberto, sem conta e sem paywall: as recompensas são reconhecimento e bastidores, nunca conteúdo trancado.",
   "O dinheiro vai primeiro para o servidor e o domínio. O que sobrar paga ferramentas que melhoram o site, como a leitura automática dos spoilers.",
 ];
+
+/** O que cada patente do Apoia.se recebe (patentes em src/lib/supporters.ts). Cada uma inclui as anteriores. */
+export const SUPPORT_TIER_PERKS: Record<string, string[]> = {
+  RECRUTA: ["Seu nome no mural de apoiadores desta página", "Agradecimento no post mensal do Instagram"],
+  PILOTO: ["Selo de Apoiador · Piloto no seu perfil e nos comentários", "Voto na enquete mensal do próximo artigo ou recurso"],
+  AS: ["Convite para testar novidades do simulador antes de todo mundo", "Seu deck analisado em artigo ou story (até 3 por mês)"],
+  COMANDANTE: ["Suas sugestões com prioridade na lista de próximas funções", "Destaque no topo do mural"],
+};
+

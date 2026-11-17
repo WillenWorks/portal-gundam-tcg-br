@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Check, Copy } from "lucide-react";
 import { PublicShell } from "@/components/layout/PublicShell";
-import { SUPPORT_LEAD, SUPPORT_TITLE, SUPPORT_WHY, supportChannels } from "@/lib/supportContent";
+import { SUPPORT_LEAD, SUPPORT_TIER_PERKS, SUPPORT_TITLE, SUPPORT_WHY, supportChannels } from "@/lib/supportContent";
+import { SUPPORTER_TIERS } from "@/lib/supporters";
+import { api, type ApiSupporter } from "@/lib/api";
+import { SupportersWall } from "@/components/support/SupportersWall";
 
 const channels = supportChannels({
   supportUrl: import.meta.env.VITE_SUPPORT_URL as string | undefined,
@@ -31,8 +34,22 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
+const SUPPORT_URL = /^https:\/\//.test(import.meta.env.VITE_SUPPORT_URL || "") ? (import.meta.env.VITE_SUPPORT_URL as string) : "";
+
 /** Página "Apoie" (/apoie). O texto mora em src/lib/supportContent.ts, o mesmo que o servidor põe no HTML. */
 export default function SupportPage() {
+  const [supporters, setSupporters] = useState<ApiSupporter[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    api
+      .getSupporters()
+      .then((list) => alive && setSupporters(Array.isArray(list) ? list : []))
+      .catch(() => alive && setSupporters([]));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   return (
     <PublicShell>
       <article className="mx-auto w-full max-w-3xl px-4 py-10 text-sm leading-7 text-slate-300 md:py-14 light:text-slate-700">
@@ -51,6 +68,38 @@ export default function SupportPage() {
             <li key={line} className="ml-5 list-disc">{line}</li>
           ))}
         </ul>
+
+        <h2 className="mt-10 font-heading text-xl uppercase text-white light:text-slate-900">Patentes de apoiador</h2>
+        <p className="mt-2">Cada patente do Apoia.se inclui tudo das anteriores.</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {SUPPORTER_TIERS.map((tier) => (
+            <section key={tier.key} className="panel-cut border border-white/10 bg-slate-950/60 p-4 light:border-slate-200 light:bg-white">
+              <div className="flex items-baseline justify-between gap-3">
+                <h3 className="font-heading text-base uppercase text-white light:text-slate-900">
+                  <span aria-hidden="true" className="mr-1.5">{tier.icon}</span>
+                  {tier.label}
+                </h3>
+                <span className="font-mono text-xs text-primary">R$ {tier.minMonthly}/mês</span>
+              </div>
+              <ul className="mt-2 space-y-1 text-xs leading-5">
+                {(SUPPORT_TIER_PERKS[tier.key] ?? []).map((perk) => (
+                  <li key={perk} className="ml-4 list-disc">{perk}</li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+        {SUPPORT_URL ? (
+          <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="mt-4 inline-block bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-wider text-primary-foreground hover:bg-primary/90">
+            Escolher minha patente no Apoia.se →
+          </a>
+        ) : null}
+
+        <h2 className="mt-10 font-heading text-xl uppercase text-white light:text-slate-900">Mural de apoiadores</h2>
+        <p className="mt-2">Quem mantém o hangar funcionando. Muito obrigado!</p>
+        <div className="mt-4">
+          {supporters === null ? <p className="text-xs text-slate-500">Carregando o mural…</p> : <SupportersWall supporters={supporters} emptyText="O mural ainda está vazio — o primeiro nome aqui pode ser o seu." />}
+        </div>
 
         <h2 className="mt-10 font-heading text-xl uppercase text-white light:text-slate-900">Como ajudar</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">

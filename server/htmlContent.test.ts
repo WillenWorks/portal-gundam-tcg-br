@@ -136,11 +136,27 @@ describe("página Apoie", () => {
     const none = supportChannels({});
     expect(none.map((c) => c.title)).toEqual(["Comprar pelos nossos links", "Mandar correções e resultados"]);
     const all = supportChannels({ supportUrl: "https://apoia.se/anaheimhub", pixKey: "pix@anaheimhub.com", instagramUrl: "javascript:alert(1)", discordUrl: "https://discord.gg/x", mypCoupon: "ANAHEIM" });
-    expect(all.map((c) => c.title)).toEqual(["Apoio mensal", "Pix", "Cupom ANAHEIM na MYP Cards", "Comprar pelos nossos links", "Comunidade no Discord", "Mandar correções e resultados"]);
+    expect(all.map((c) => c.title)).toEqual(["Apoio mensal no Apoia.se", "Pix", "Cupom ANAHEIM na MYP Cards", "Comprar pelos nossos links", "Comunidade no Discord", "Mandar correções e resultados"]);
     expect(matchSiteRoute("/apoie")).toEqual({ known: true });
     const html = supportBody({ title: SUPPORT_TITLE, lead: SUPPORT_LEAD, why: SUPPORT_WHY, channels: all });
     expect(html).toContain("<code>pix@anaheimhub.com</code>");
     expect(html).not.toContain("javascript:");
+  });
+
+  it("patentes e mural de apoiadores entram no HTML (o mural vem do banco)", () => {
+    const html = supportBody({
+      title: SUPPORT_TITLE, lead: SUPPORT_LEAD, why: SUPPORT_WHY, channels: supportChannels({}),
+      tiers: [{ icon: "🎖️", label: "Recruta", minMonthly: 5, perks: ["Seu nome no mural"] }],
+      supporters: [{ name: "Char <Zeon>", tierLabel: "Comandante" }, { name: "Fã sem patente" }],
+    });
+    expect(html).toContain("Patentes de apoiador");
+    expect(html).toContain("Recruta — R$ 5/mês");
+    expect(html).toContain("<li>Char &lt;Zeon&gt; — Comandante</li>");
+    expect(html).toContain("<li>Fã sem patente</li>");
+  });
+
+  it("sem apoiadores, a seção do mural não aparece", () => {
+    expect(supportBody({ title: SUPPORT_TITLE, lead: SUPPORT_LEAD, why: SUPPORT_WHY, channels: supportChannels({}), supporters: [] })).not.toContain("Mural de apoiadores");
   });
 });
 

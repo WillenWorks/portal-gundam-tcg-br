@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { toast } from "sonner";
 import { AdminSocialTab } from "@/components/admin/AdminSocialTab";
+import { AdminSupportersTab } from "@/components/admin/AdminSupportersTab";
 import {
   ArrowRight,
   Share2,
@@ -35,6 +36,7 @@ import {
   Swords,
   Trophy,
   Users,
+  HeartHandshake,
 } from "lucide-react";
 import {
   AreaChart,
@@ -511,6 +513,10 @@ export default function AdminDashboardPage() {
               <Share2 className="size-3.5 mr-1.5" />
               3. Redes Sociais & IA
             </TabsTrigger>
+            <TabsTrigger value="supporters" className="rounded-none text-xs uppercase tracking-wider py-2 px-3.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <HeartHandshake className="size-3.5 mr-1.5" />
+              Apoiadores & Tags
+            </TabsTrigger>
             <TabsTrigger value="dynamic" className="rounded-none text-xs uppercase tracking-wider py-2 px-3.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Megaphone className="size-3.5 mr-1.5" />
               4. Informações Dinâmicas
@@ -940,6 +946,10 @@ export default function AdminDashboardPage() {
           ──────────────────────────────────────────────────────────────── */}
           <TabsContent value="social" className="space-y-6">
             <AdminSocialTab />
+          </TabsContent>
+
+          <TabsContent value="supporters" className="space-y-6">
+            <AdminSupportersTab />
           </TabsContent>
 
           {/* ────────────────────────────────────────────────────────────────

@@ -541,8 +541,8 @@ jobs:
             # canais públicos mostrados em /apoie e no rodapé (o site é compilado com o .env da VPS: rodar o Deploy depois).
             # Vazio = não mexe na variável. Só https; chave Pix aleatória ou e-mail, nunca CPF.
             CANAL_INSTAGRAM="https://www.instagram.com/anaheimhub/"
-            CANAL_APOIO=""
-            CANAL_PIX=""
+            CANAL_APOIO="https://apoia.se/anaheimhubupgrades"
+            CANAL_PIX="9ca1a9a1-885f-47c6-9911-fda7e2dfe309"
             CANAL_DISCORD=""
 
             # grava CHAVE="valor" no .env: troca a linha se existir, senão acrescenta (cópia do anterior em .env.antes-spoilers)
