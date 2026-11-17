@@ -21,6 +21,7 @@ name: Manutenção da VPS
 #   backup-externo-configurar  grava o token do Google Drive e a senha (segredos RCLONE_DRIVE_TOKEN e
 #                     BACKUP_PASSPHRASE), agenda o backup diário criptografado no Drive e roda o primeiro
 #   backup-externo-testar      baixa o backup mais recente do Drive, descriptografa e confere
+#   pendencias-conferir só leitura: artigos em rascunho/revisão (com o texto), posts do Instagram aguardando aprovação ou com falha, relatos de bug do simulador em aberto
 #   spoilers-conferir só leitura: o que o bot enxerga no canal de spoilers (tipo/anexos/embeds, sem texto), capturas e propostas no banco, log [spoilers]
 #   social-conferir   só leitura: variáveis do agente do Instagram (sim/não), navegador do Playwright, espaço
 #   social-navegador  instala o Chromium do Playwright (arte dos posts) e testa se abre
@@ -36,7 +37,7 @@ on:
       tarefa:
         description: "O que fazer"
         type: choice
-        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, postgres-18, fail2ban-instalar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar, bug-reports, social-conferir, social-navegador, spoilers-ligar, spoilers-desligar, spoilers-conferir, pg17-remover]
+        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, postgres-18, fail2ban-instalar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar, bug-reports, social-conferir, social-navegador, spoilers-ligar, spoilers-desligar, spoilers-conferir, pendencias-conferir, pg17-remover]
         default: diagnostico
 
 # nunca junto com um deploy ou outra manutenção
@@ -608,6 +609,55 @@ jobs:
               rm -f "$S"
             }
 
+            pendencias_conferir() {
+              # script temporário dentro do app (acha @prisma/client e dotenv); só leitura
+              S="$APP/.pendencias-conferir.mjs"
+              cat > "$S" <<'JS'
+            import "dotenv/config";
+            import { PrismaClient } from "@prisma/client";
+            const prisma = new PrismaClient();
+            const day = (d) => (d ? d.toISOString().slice(0, 16).replace("T", " ") : "-");
+            const h = (t) => console.log(`\n=================== ${t}`);
+
+            h("artigos em rascunho ou revisão (texto completo)");
+            const posts = await prisma.post.findMany({ where: { status: { in: ["DRAFT", "REVIEW"] } }, orderBy: { updatedAt: "desc" }, take: 12 });
+            if (!posts.length) console.log("nenhum");
+            for (const p of posts) {
+              console.log(`\n----- [${p.status}] ${p.postType} · atualizado ${day(p.updatedAt)} · /articles/${p.slug}`);
+              console.log(`TÍTULO: ${p.title}`);
+              if (p.excerpt) console.log(`RESUMO: ${p.excerpt}`);
+              console.log(p.contentMd);
+            }
+
+            h("posts do Instagram aguardando aprovação, aprovados na fila ou com falha");
+            const social = await prisma.socialMediaPost.findMany({ where: { status: { in: ["PENDING_APPROVAL", "DRAFT", "APPROVED", "PUBLISHING", "FAILED"] } }, orderBy: { createdAt: "desc" }, take: 15 });
+            if (!social.length) console.log("nenhum");
+            for (const p of social) {
+              console.log(`\n----- [${p.status}] ${p.type} · criado ${day(p.createdAt)} · agendado ${day(p.scheduledFor)} · ${p.mediaUrls.length} imagem(ns)`);
+              if (p.title) console.log(`TÍTULO: ${p.title}`);
+              if (p.publishError) console.log(`ERRO: ${p.publishError.replace(/\s+/g, " ").slice(0, 400)}`);
+              console.log(p.caption);
+            }
+            console.log("\npor status (todos):", JSON.stringify(await prisma.socialMediaPost.groupBy({ by: ["status"], _count: true })));
+
+            h("relatos de bug do simulador");
+            console.log("por status:", JSON.stringify(await prisma.simulatorBugReport.groupBy({ by: ["status"], _count: true })));
+            const bugs = await prisma.simulatorBugReport.findMany({ orderBy: { createdAt: "desc" }, take: 25, select: { shortCode: true, status: true, createdAt: true, updatedAt: true, note: true, prUrl: true, cardsInvolved: true, engineVersion: true, triage: true } });
+            for (const b of bugs) {
+              const triage = b.triage ? JSON.stringify(b.triage).replace(/\s+/g, " ").slice(0, 300) : "-";
+              console.log(`\n${b.shortCode} [${b.status}] criado ${day(b.createdAt)} · atualizado ${day(b.updatedAt)} · motor ${b.engineVersion} · PR ${b.prUrl ?? "-"}`);
+              console.log(`  cartas: ${b.cardsInvolved.join(", ") || "-"}`);
+              console.log(`  nota: ${(b.note ?? "-").replace(/\s+/g, " ").slice(0, 400)}`);
+              console.log(`  triagem: ${triage}`);
+            }
+            await prisma.$disconnect();
+            JS
+              ( cd "$APP" && timeout 120 node "$S" 2>&1 | sed -E 's#/root[^ ]*#[caminho]#g' ) || echo "conferência falhou"
+              rm -f "$S"
+              secao "dispatch dos relatos de bug (GH_DISPATCH_TOKEN, só sim/não)"
+              echo "GH_DISPATCH_TOKEN: $(sim_nao "$(grep -E '^GH_DISPATCH_TOKEN=.+' "$APP/.env" | head -1)")"
+            }
+
             social_navegador() {
               secao "instalando o Chromium do Playwright e o ffmpeg (arte dos posts e Reels MP4)"
               df -h / | tail -1
@@ -633,6 +683,7 @@ jobs:
               spoilers-ligar) spoilers_definir true ;;
               spoilers-desligar) spoilers_definir false ;;
               spoilers-conferir) spoilers_conferir ;;
+              pendencias-conferir) pendencias_conferir ;;
               diagnostico) diagnostico ;;
               seguranca-conferir) seguranca_conferir ;;
               upgrade-preparar) upgrade_preparar ;;

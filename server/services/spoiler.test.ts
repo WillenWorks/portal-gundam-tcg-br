@@ -14,8 +14,9 @@ import {
   messageTextOf,
   type DiscordMessage,
 } from "./spoilerService";
-import { spoilerCoverHtml, spoilerHashtags } from "./spoilerSocial";
+import { draftSpoilerDigest, spoilerCoverHtml, spoilerHashtags, spoilerTextSlideHtml } from "./spoilerSocial";
 import { extraStoryVideoUrlsOf } from "./socialPublisherService";
+import { inlineCardImage } from "./socialSlides";
 import { markdownToHtml } from "../htmlContent";
 
 const card = (over: Partial<CatalogCard>): CatalogCard => ({
@@ -128,11 +129,12 @@ describe("analyzeSpoiler", () => {
     expect(a.sameTraits.map((r) => r.card.code)).toEqual(["GD03-001", "GD03-050"]);
     expect(a.sameTraits[0].decks).toBe(12);
   });
-  it("sinergias: piloto do Link, efeito que cita o trait dela, efeito dela que cita trait", () => {
+  it("sinergias: piloto do Link e efeito que cita o trait dela; não repete quem já está em \"mesmos traits\"", () => {
     const reasons = Object.fromEntries(a.synergies.map((r) => [r.card.code, r.reason]));
-    expect(reasons["GD03-050"]).toMatch(/Link/);
+    expect(reasons["GD03-050"]).toMatch(/Link/); // também tem Academy, mas Link é relação direta
     expect(reasons["GD02-010"]).toMatch(/cita Academy/);
-    expect(reasons["GD03-001"]).toMatch(/efeito da carta nova cita/);
+    // a carta nova cita o próprio trait (Academy): Darilbalde já aparece em "mesmos traits" (antes repetia — GD07-062)
+    expect(reasons["GD03-001"]).toBeUndefined();
     expect(reasons["GD01-020"]).toBeUndefined();
   });
   it("arquétipos: cor e núcleo com trait em comum; o verde sem trait em comum fica de fora", () => {
@@ -416,3 +418,56 @@ describe("captura e propostas (banco em memória)", () => {
     expect(await svc.upsertPreviewCard(prisma as never, { ...spoiler, code: null }, "/x.png")).toBeNull();
   });
 });
+
+describe("post do spoiler do dia", () => {
+  const capture = (id: string, data: SpoilerCardData) => ({ id, status: "DIGESTED", postedAt: new Date("2026-11-15T08:09:00Z"), imageUrl: `/uploads/spoilers/${id}.jpg`, cardModelId: "m1", extracted: data });
+  const fakePrisma = (captures: ReturnType<typeof capture>[]) => ({
+    spoilerDigest: { findUnique: vi.fn(async () => ({ id: "d1", articleId: "a1", updatesArticleId: null, setCode: "GD07", language: "en", captures })) },
+    post: { findUnique: vi.fn(async () => ({ slug: "spoilers-gd07-15-11", title: "Spoiler" })) },
+    spoilerCapture: { findMany: vi.fn(async () => []) },
+  });
+  const draft = (captures: ReturnType<typeof capture>[]) =>
+    draftSpoilerDigest(fakePrisma(captures) as never, { spoilerDigestId: "d1", publicAppUrl: "https://anaheimhub.com", apiKeyGemini: "" } as never);
+
+  it("uma carta só: a imagem fica na capa e o 2º slide traz o texto em português (sem repetir a arte)", async () => {
+    const out = await draft([capture("c1", spoiler)]);
+    expect(out.slides).toHaveLength(2);
+    expect(out.slides[0]).toContain("/uploads/spoilers/c1.jpg");
+    expect(out.slides[1]).not.toContain("/uploads/spoilers/c1.jpg");
+    expect(out.slides[1]).toContain("Escolha 1 das suas Unidades (Academy)");
+    expect(out.altTexts).toHaveLength(2);
+  });
+
+  it("várias cartas: um slide com a imagem de cada; nenhum slide escreve endereço do site na arte", async () => {
+    const out = await draft([capture("c1", spoiler), capture("c2", { ...spoiler, code: "GD07-011", nameEn: "Gundam Lfrith" })]);
+    expect(out.slides).toHaveLength(3);
+    expect(out.slides[2]).toContain("/uploads/spoilers/c2.jpg");
+    for (const html of out.slides) expect(html).not.toMatch(/anaheimhub\.com\/(cards|articles)\//);
+    expect(out.content.fullCaption).toContain("anaheimhub.com/articles/spoilers-gd07-15-11");
+  });
+
+  it("slide de texto: números, traits e chamada para o artigo", () => {
+    const html = spoilerTextSlideHtml(spoiler, "2/2");
+    expect(html).toContain("SPOILER DO DIA");
+    expect(html).toContain("Academy");
+    expect(html).toContain("link na bio");
+  });
+});
+
+describe("vídeo da carta: imagem embutida", () => {
+  it("troca o endereço da imagem por data: (o canvas não carrega /uploads, que não manda CORS)", async () => {
+    const url = "https://anaheimhub.com/uploads/spoilers/c1.jpg";
+    const fetchFn = vi.fn(async () => new Response("jpeg", { headers: { "content-type": "image/jpeg" } })) as unknown as typeof fetch;
+    const html = await inlineCardImage(`<script>const CARD = ${JSON.stringify({ imageUrl: url })};</script>`, url, fetchFn);
+    expect(html).not.toContain(url);
+    expect(html).toContain(`data:image/jpeg;base64,${Buffer.from("jpeg").toString("base64")}`);
+  });
+  it("sem conseguir baixar, mantém o endereço", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const url = "https://anaheimhub.com/uploads/spoilers/c1.jpg";
+    const fetchFn = vi.fn(async () => new Response("x", { status: 404, headers: { "content-type": "image/jpeg" } })) as unknown as typeof fetch;
+    expect(await inlineCardImage(`x ${url}`, url, fetchFn)).toBe(`x ${url}`);
+    warn.mockRestore();
+  });
+});
+

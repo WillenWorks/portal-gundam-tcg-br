@@ -746,7 +746,7 @@ export function buildCardRevealReelHtml(card: ReelCardInput): string {
 
       ctx.fillStyle = CARD.accent;
       ctx.font = "800 24px monospace";
-      ctx.fillText(CARD.cardUrl, W / 2, ctaY + 214);
+      ctx.fillText("Link na bio do @anaheimhub", W / 2, ctaY + 214);
       ctx.restore();
     }
 
@@ -1045,14 +1045,15 @@ export function buildCardStoryHtml(card: ReelCardInput): string {
 
       ctx.fillStyle = "#facc15";
       ctx.font = "800 28px 'Segoe UI', Roboto, Arial, sans-serif";
-      ctx.fillText("CONFIRA A POSTAGEM COMPLETA NO PERFIL @ANAHEIMHUB", W / 2, linkBoxY + 64);
+      ctx.fillText("ANÁLISE COMPLETA NO POST DO FEED", W / 2, linkBoxY + 64, W - 280);
 
       roundRect(ctx, 190, linkBoxY + 92, W - 380, 60, 30);
       ctx.fillStyle = CARD.accent;
       ctx.fill();
       ctx.fillStyle = "#020617";
       ctx.font = "900 26px monospace";
-      ctx.fillText("🔗 " + CARD.cardUrl, W / 2, linkBoxY + 131);
+      // endereço escrito no vídeo não é clicável: aponta para o perfil, onde está o link
+      ctx.fillText("👉 @anaheimhub · link na bio", W / 2, linkBoxY + 131, W - 420);
     }
     ctx.restore();
 
@@ -1414,6 +1415,18 @@ export function resolveFfmpegExecutable(): string | null {
   return probe.status === 0 ? "ffmpeg" : null;
 }
 
+/**
+ * O vídeo desenha a carta num canvas, que só aceita imagem de outro endereço com cabeçalho CORS. As imagens de
+ * /uploads (spoilers) não têm esse cabeçalho e a carta ficava em branco depois do giro. Troca o endereço pela
+ * imagem embutida (data:), como o Story de artigo já faz; se o download falhar, mantém o endereço (o vídeo
+ * mostra o código da carta no lugar).
+ */
+export async function inlineCardImage(html: string, imageUrl: string | null | undefined, fetchFn: typeof fetch = fetch): Promise<string> {
+  const url = safeImageUrl(imageUrl);
+  const data = url ? await inlineImageAsDataUrl(url, fetchFn) : "";
+  return data ? html.split(url).join(data) : html;
+}
+
 async function renderHtmlVideo(
   htmlContent: string,
   outputMp4Path: string,
@@ -1509,7 +1522,7 @@ export async function renderCardRevealReel(
   outputMp4Path: string,
   outputCoverJpgPath?: string,
 ): Promise<{ videoOk: boolean; coverOk: boolean }> {
-  return renderHtmlVideo(buildCardRevealReelHtml(card), outputMp4Path, outputCoverJpgPath);
+  return renderHtmlVideo(await inlineCardImage(buildCardRevealReelHtml(card), card.imageUrl), outputMp4Path, outputCoverJpgPath);
 }
 
 /**
@@ -1519,7 +1532,7 @@ export async function renderCardStory(
   card: ReelCardInput,
   outputMp4Path: string,
 ): Promise<{ videoOk: boolean }> {
-  const { videoOk } = await renderHtmlVideo(buildCardStoryHtml(card), outputMp4Path);
+  const { videoOk } = await renderHtmlVideo(await inlineCardImage(buildCardStoryHtml(card), card.imageUrl), outputMp4Path);
   return { videoOk };
 }
 
