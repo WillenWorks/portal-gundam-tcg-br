@@ -55,6 +55,13 @@ export default function SupportPage() {
       <article className="mx-auto w-full max-w-3xl px-4 py-10 text-sm leading-7 text-slate-300 md:py-14 light:text-slate-700">
         <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Anaheim Hub</p>
         <h1 className="mt-3 font-heading text-3xl uppercase text-white md:text-4xl light:text-slate-900">{SUPPORT_TITLE}</h1>
+        <img
+          src="/images/apoie-hangar-suprimentos.svg"
+          alt="Hangar do Anaheim Hub recebendo caixas de suprimentos: servidor, domínio e spoilers"
+          width={1200}
+          height={600}
+          className="mt-6 w-full border border-white/10 light:border-slate-200"
+        />
         <p className="mt-5 text-base leading-8 text-slate-200 light:text-slate-800">{SUPPORT_LEAD}</p>
         <ul className="mt-4 space-y-1">
           {SUPPORT_WHY.map((line) => (
