@@ -6,15 +6,17 @@ import path from "node:path";
 import type { Express } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { DECK_MAIN_SIZE } from "../../src/lib/deck-legality.ts";
-import { createPageCache, renderHtml, resolveHtmlPage, type BodyLoader, type BodyResult, type DetailLoaders } from "../htmlMeta.ts";
+import { createPageCache, renderHtml, resolveHtmlPage, type BodyLoader, type BodyResult, type DetailLoaders, type PageCacheState } from "../htmlMeta.ts";
 import {
-  aboutBody, supportBody, archetypeBody, archetypesIndexBody, articleBody, articlesIndexBody, playerBody, cardBody, deckBody, decksIndexBody, rulesBody, rulingBody, seriesBody, seriesIndexBody,
+  aboutBody, supportBody, supportersBody, archetypeBody, archetypesIndexBody, articleBody, articlesIndexBody, playerBody, cardBody, deckBody, decksIndexBody, rulesBody, rulingBody, seriesBody, seriesIndexBody,
   decklistBody, metagameStatsBody, regionalMetaBody, setBody, setsIndexBody, tournamentBody, tournamentsIndexBody, type CardRow,
 } from "../htmlContent.ts";
 import { ALL_KEYWORDS } from "../../src/i18n/keywords.ts";
 import { ABOUT_CONTACT, ABOUT_LEAD, ABOUT_SECTIONS, ABOUT_TITLE, ABOUT_UPDATED } from "../../src/lib/aboutContent.ts";
-import { SUPPORT_LEAD, SUPPORT_TITLE, SUPPORT_WHY, supportChannels } from "../../src/lib/supportContent.ts";
+import { SUPPORT_LEAD, SUPPORT_TIER_PERKS, SUPPORT_TITLE, SUPPORT_WHY, SUPPORTERS_LEAD, SUPPORTERS_TITLE, groupSupportersByTier, supportChannels } from "../../src/lib/supportContent.ts";
 import { GAME_COLOR_LABEL_PT } from "../../src/lib/gundam-catalog.ts";
+import { SUPPORTER_TIERS, supporterTierInfo } from "../../src/lib/supporters.ts";
+import { listPublicSupporters } from "./supporterRoutes.ts";
 import { LATEST_SEASON } from "../../src/lib/seasons.ts";
 import { getMetagameStats } from "../metagameTrendsService.ts";
 import { getRegionalMetagame } from "../services/regionalMetaService.ts";
@@ -359,6 +361,14 @@ export function createHtmlBodyLoader(prisma: PrismaClient): BodyLoader {
             supportUrl: process.env.VITE_SUPPORT_URL, pixKey: process.env.VITE_SUPPORT_PIX_KEY, instagramUrl: process.env.VITE_INSTAGRAM_URL,
             discordUrl: process.env.VITE_DISCORD_INVITE_URL, mypCoupon: process.env.VITE_MYPCARDS_COUPON,
           }),
+          tiers: SUPPORTER_TIERS.map((t) => ({ icon: t.icon, label: t.label, minMonthly: t.minMonthly, perks: SUPPORT_TIER_PERKS[t.key] ?? [] })),
+          supporters: (await listPublicSupporters(prisma).catch(() => [])).map((p) => ({ name: p.name, tierLabel: supporterTierInfo(p.tier)?.label })),
+        });
+      case "/apoiadores":
+        return supportersBody({
+          title: SUPPORTERS_TITLE,
+          lead: SUPPORTERS_LEAD,
+          groups: groupSupportersByTier(await listPublicSupporters(prisma).catch(() => [])),
         });
       case "/sobre":
         return aboutBody({ title: ABOUT_TITLE, lead: ABOUT_LEAD, updated: ABOUT_UPDATED, contact: ABOUT_CONTACT, sections: ABOUT_SECTIONS });
@@ -424,17 +434,33 @@ export function createHtmlBodyLoader(prisma: PrismaClient): BodyLoader {
 }
 
 /** Registra a rota das páginas. Sem index.html (dev sem build) → segue para o próximo handler. */
-export function registerHtmlPages(app: Express, { distDir, loaders, bodyFor }: { distDir: string; loaders: DetailLoaders; bodyFor?: BodyLoader }) {
+/** Páginas aquecidas sem visita: as principais do sitemap; o resto (artigos, torneios recentes) vem de `warmPaths`. */
+export const WARM_STATIC_PATHS = [
+  "/", "/cards", "/sets", "/series", "/articles", "/torneios", "/decks", "/stats", "/metagame/regional",
+  "/arquetipos", "/rules", "/sobre", "/apoie", "/apoiadores",
+];
+const WARM_FIRST_MS = 15_000;
+const WARM_EVERY_MS = 20 * 60_000;
+
+export function registerHtmlPages(
+  app: Express,
+  { distDir, loaders, bodyFor, warmPaths }: { distDir: string; loaders: DetailLoaders; bodyFor?: BodyLoader; warmPaths?: () => Promise<string[]> },
+) {
   const readIndexHtml = createIndexHtmlReader(distDir);
   const pageCache = createPageCache();
+  const build = (path: string) => () => resolveHtmlPage(path, loaders, bodyFor);
 
   app.get(HTML_PAGE_ROUTE, async (req, res, next) => {
     const template = readIndexHtml();
     if (!template) return next();
     res.setHeader("Cache-Control", "no-cache");
     res.type("html");
+    const started = performance.now();
+    let state: PageCacheState = "miss";
     try {
-      const page = await pageCache(req.path, () => resolveHtmlPage(req.path, loaders, bodyFor));
+      const page = await pageCache(req.path, build(req.path), (s) => (state = s));
+      // DevTools → Network → Timing mostra quanto o servidor levou e se veio do cache
+      res.setHeader("Server-Timing", `html;dur=${(performance.now() - started).toFixed(1)};desc="${state}"`);
       res.status(page.status).send(renderHtml(template, page));
     } catch (error) {
       // banco fora do ar: entrega o index.html do build como antes (o React monta a página do mesmo jeito)
@@ -442,4 +468,26 @@ export function registerHtmlPages(app: Express, { distDir, loaders, bodyFor }: {
       res.status(200).send(template);
     }
   });
+
+  // Aquecimento: com pouco tráfego, a primeira visita de cada página esperava o banco. Monta as principais no boot
+  // e a cada 20 min, uma por vez (não disputa o banco com as visitas).
+  if (!warmPaths) return;
+  const warm = async () => {
+    if (!readIndexHtml()) return;
+    let paths = WARM_STATIC_PATHS;
+    try {
+      paths = [...new Set([...WARM_STATIC_PATHS, ...(await warmPaths())])];
+    } catch (error) {
+      console.warn("[html] lista de páginas para aquecer indisponível:", error instanceof Error ? error.message : error);
+    }
+    for (const path of paths) {
+      try {
+        await pageCache.warm(path, build(path));
+      } catch {
+        // página que falhou fica para a próxima visita/rodada
+      }
+    }
+  };
+  setTimeout(() => void warm(), WARM_FIRST_MS).unref();
+  setInterval(() => void warm(), WARM_EVERY_MS).unref();
 }

@@ -392,18 +392,55 @@ export function aboutBody(a: { title: string; lead: string; updated: string; con
   });
 }
 
-export function supportBody(s: { title: string; lead: string; why: string[]; channels: SupportChannel[] }): string {
+export function supportBody(s: {
+  title: string; lead: string; why: string[]; channels: SupportChannel[];
+  tiers?: Array<{ icon: string; label: string; minMonthly: number; perks: string[] }>;
+  supporters?: Array<{ name: string; tierLabel?: string }>;
+}): string {
   return pageShell({
     title: s.title,
     lead: s.lead,
     sections: [
       `<ul>${s.why.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>`,
+      s.tiers?.length
+        ? section("Patentes de apoiador", s.tiers.map((t) => `<div style="margin:12px 0"><h3 style="font-size:16px;margin:0 0 4px 0">${esc(t.icon)} ${esc(t.label)} — R$ ${esc(t.minMonthly)}/mês</h3><ul>${t.perks.map((p) => `<li>${esc(p)}</li>`).join("")}</ul></div>`).join("\n"))
+        : "",
+      s.supporters?.length
+        ? section("Mural de apoiadores", `<ul>${s.supporters.map((p) => `<li>${esc(p.name)}${p.tierLabel ? ` — ${esc(p.tierLabel)}` : ""}</li>`).join("")}</ul>`)
+        : "",
       section(
         "Como ajudar",
         s.channels
           .map((c) => `<div style="margin:14px 0"><h3 style="font-size:16px;margin:0 0 4px 0">${esc(c.title)}</h3><p style="margin:2px 0">${esc(c.text)}</p>${c.copy ? `<p style="margin:2px 0"><code>${esc(c.copy)}</code></p>` : ""}${c.href ? `<p style="margin:2px 0"><a href="${esc(c.href)}" rel="noopener" style="color:#38bdf8">${esc(c.cta ?? "Abrir")}</a></p>` : ""}</div>`)
           .join("\n"),
       ),
+    ],
+  });
+}
+
+/** /apoiadores — o mural agrupado por patente (grupos já montados por groupSupportersByTier). */
+export function supportersBody(s: {
+  title: string; lead: string;
+  groups: Array<{ title: string; icon?: string; supporters: Array<{ name: string; username?: string; message?: string; sinceMonth?: string }> }>;
+}): string {
+  const total = s.groups.reduce((n, g) => n + g.supporters.length, 0);
+  return pageShell({
+    title: s.title,
+    lead: s.lead,
+    sections: [
+      total
+        ? s.groups
+            .map((g) =>
+              section(
+                `${g.icon ? `${g.icon} ` : ""}${g.title} (${g.supporters.length})`,
+                `<ul>${g.supporters
+                  .map((p) => `<li>${p.username ? link(`/u/${p.username}`, p.name) : esc(p.name)}${p.message ? ` — “${esc(p.message)}”` : ""}${p.sinceMonth ? ` <small>(desde ${esc(p.sinceMonth)})</small>` : ""}</li>`)
+                  .join("")}</ul>`,
+              ),
+            )
+            .join("\n")
+        : `<p>O mural ainda está vazio — o primeiro nome aqui pode ser o seu.</p>`,
+      `<p>${link("/apoie", "Veja as patentes e as formas de apoiar o Anaheim Hub")}.</p>`,
     ],
   });
 }

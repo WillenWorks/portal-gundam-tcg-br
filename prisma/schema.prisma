@@ -141,6 +141,11 @@ model User {
   isSupporter           Boolean      @default(false)
   supporterSince        DateTime?
   supporterMessage      String?      @db.Text
+  /// patente do apoiador (src/lib/supporters.ts): RECRUTA, PILOTO, AS, COMANDANTE
+  supporterTier         String?
+  /// "já apoiei" pedido pela própria pessoa; vira apoiador quando o admin aprova
+  supporterClaimedAt    DateTime?
+  tags                  UserTag[]
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
 
@@ -172,6 +177,8 @@ model User {
   postLikes               PostLike[]
   postComments            PostComment[]
   postCommentLikes        PostCommentLike[]
+
+  @@index([supporterClaimedAt])
 }
 
 // Tokens de uso único enviados por e-mail (confirmação de e-mail e recuperação de senha). Só o hash
@@ -1261,4 +1268,28 @@ model SpoilerDigest {
   updatedAt    DateTime            @updatedAt
 
   captures SpoilerCapture[]
+}
+
+/// Tag de reconhecimento dada pelo admin (catálogo em src/lib/supporters.ts); uma conta pode ter várias.
+model UserTag {
+  id        String   @id @default(cuid())
+  userId    String
+  tag       String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tag])
+  @@index([tag])
+}
+
+/// Nome no mural de apoiadores de quem apoia pelo Apoia.se sem ter conta no site.
+model SupporterWallEntry {
+  id          String   @id @default(cuid())
+  displayName String
+  tier        String?
+  message     String?
+  since       DateTime @default(now())
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

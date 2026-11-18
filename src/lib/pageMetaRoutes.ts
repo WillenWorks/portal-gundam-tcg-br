@@ -61,6 +61,7 @@ const ROUTE_META: Array<[RegExp, { title: string; description?: string }]> = [
   [/^\/privacidade$/, { title: "Política de Privacidade" }],
   [/^\/termos$/, { title: "Termos de Uso" }],
   [/^\/apoie$/, { title: "Apoie o Anaheim Hub", description: "Quanto custa manter o Anaheim Hub no ar e as formas de ajudar: apoio mensal, Pix, cupom de parceiro e compras pelos nossos links." }],
+  [/^\/apoiadores$/, { title: "Mural de apoiadores do Anaheim Hub", description: "Os pilotos que mantêm o Anaheim Hub no ar: apoiadores por patente (Comandante, Ás, Piloto e Recruta) da campanha no Apoia.se." }],
   [/^\/sobre$/, { title: "Sobre", description: "Quem faz o Anaheim Hub, de onde vêm os dados de cartas, regras e torneios, e como o site se mantém." }],
   [/^\/login$/, { title: "Entrar" }],
   [/^\/recuperar-senha$/, { title: "Recuperar senha" }],

@@ -32,14 +32,51 @@ export type AuthUser = {
   isSupporter?: boolean;
   supporterSince?: string | null;
   supporterMessage?: string | null;
+  /** patente (src/lib/supporters.ts) — só quando isSupporter */
+  supporterTier?: string | null;
+  /** clicou em "já apoiei" e aguarda o admin conferir */
+  supporterClaimPending?: boolean;
   stats?: { deckCount: number; publicDeckCount: number; binderCount?: number };
 };
 
 export type ApiSupporter = {
   name: string;
   username?: string;
+  /** patente (src/lib/supporters.ts); null = apoiador sem patente definida */
+  tier?: string | null;
   sinceMonth?: string;
   message?: string;
+};
+
+/** Conta vista pela aba Apoiadores do painel admin (server/routes/supporterRoutes.ts). */
+export type AdminSupporterUser = {
+  id: string;
+  username: string;
+  displayName: string;
+  email: string;
+  avatarUrl: string | null;
+  isSupporter: boolean;
+  supporterTier: string | null;
+  supporterSince: string | null;
+  supporterMessage: string | null;
+  supporterClaimedAt: string | null;
+  tags: string[];
+};
+
+export type SupporterWallEntry = {
+  id: string;
+  displayName: string;
+  tier: string | null;
+  message: string | null;
+  since: string;
+  isActive: boolean;
+};
+
+export type AdminSupportersOverview = {
+  claims: AdminSupporterUser[];
+  supporters: AdminSupporterUser[];
+  tagged: AdminSupporterUser[];
+  wall: SupporterWallEntry[];
 };
 
 export type ApiDeck = {
@@ -1378,7 +1415,16 @@ export const api = {
   },
   uploadAvatar: (formData: FormData) => mutate<AuthUser>("/auth/me/avatar", { method: "POST", body: formData }, ["/auth/me"]),
   getPublicProfile: (username: string) => request<{ id: string; username: string; displayName: string; bio?: string | null; avatarUrl?: string | null; isSupporter?: boolean; supporterSince?: string | null; decks: ApiDeck[]; binders: ApiBinder[] }>(`/users/${username}`, undefined, { ttlMs: 30_000 }),
-  confirmSupport: (message?: string) => mutate<{ ok: true; user: AuthUser; message?: string }>("/support/confirm", { method: "POST", body: JSON.stringify({ message }) }, ["/auth/me", "/support/supporters"]),
+  confirmSupport: (message?: string) => mutate<{ ok: true; status: "pending" | "supporter"; message: string }>("/support/confirm", { method: "POST", body: JSON.stringify({ message }) }, ["/auth/me", "/support/supporters"]),
+  getAdminSupporters: () => request<AdminSupportersOverview>("/admin/supporters", undefined, { ttlMs: 0 }),
+  searchAdminSupporterUsers: (q: string) => request<AdminSupporterUser[]>(`/admin/supporters/search?q=${encodeURIComponent(q)}`, undefined, { ttlMs: 0 }),
+  updateAdminSupporterUser: (id: string, body: { isSupporter?: boolean; tier?: string | null; tags?: string[]; claim?: "reject" }) =>
+    mutate<AdminSupporterUser>(`/admin/supporters/users/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }, ["/admin/supporters", "/support/supporters", "/users/"]),
+  createSupporterWallEntry: (body: { displayName: string; tier?: string | null; message?: string; since?: string }) =>
+    mutate<SupporterWallEntry>("/admin/supporters/wall", { method: "POST", body: JSON.stringify(body) }, ["/admin/supporters", "/support/supporters"]),
+  updateSupporterWallEntry: (id: string, body: Partial<Pick<SupporterWallEntry, "displayName" | "tier" | "message" | "isActive" | "since">>) =>
+    mutate<SupporterWallEntry>(`/admin/supporters/wall/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }, ["/admin/supporters", "/support/supporters"]),
+  deleteSupporterWallEntry: (id: string) => mutate<void>(`/admin/supporters/wall/${encodeURIComponent(id)}`, { method: "DELETE" }, ["/admin/supporters", "/support/supporters"]),
   getSupporters: () => request<ApiSupporter[]>("/support/supporters", undefined, { ttlMs: 10_000 }),
   listAdminUsers: () => request<any[]>("/users/admin", undefined, { ttlMs: 5_000 }),
   updateAdminUser: (id: string, payload: any) => mutate<AuthUser>(`/users/admin/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/users/admin", "/auth/me", "/users/"]),

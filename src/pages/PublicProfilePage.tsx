@@ -24,6 +24,7 @@ import { api, type ApiDeck, type ApiBinder } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { PublicShell } from "@/components/layout/PublicShell";
 import { SupporterBadge } from "@/components/support/SupporterBadge";
+import { UserTagChips } from "@/components/support/UserTagChips";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,6 +40,8 @@ type PublicProfile = {
   avatarUrl?: string | null;
   isSupporter?: boolean;
   supporterSince?: string | null;
+  supporterTier?: string | null;
+  tags?: string[];
   decks: ApiDeck[];
   binders: ApiBinder[];
 };
@@ -246,8 +249,9 @@ export default function PublicProfilePage() {
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-mono">Dossiê de Piloto</p>
                     <div className="flex flex-wrap items-center gap-3">
                       <h2 className="font-heading text-4xl uppercase tracking-wider">{profile.displayName}</h2>
-                      {profile.isSupporter ? <SupporterBadge size="md" /> : null}
+                      {profile.isSupporter ? <SupporterBadge size="md" tier={profile.supporterTier} /> : null}
                     </div>
+                    <UserTagChips tags={profile.tags} />
                     <p className="text-sm uppercase tracking-[0.18em] text-primary font-mono font-semibold">
                       @{profile.username}
                     </p>

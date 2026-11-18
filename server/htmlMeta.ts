@@ -202,21 +202,58 @@ export function renderHtml(template: string, page: HtmlPage): string {
   return html.replace(/<\/head>/i, `    ${tags.join("\n    ")}\n  </head>`);
 }
 
-/** Cache curto por caminho: a mesma página pedida várias vezes seguidas (robôs, prévias) não vai ao banco. */
-export function createPageCache(ttlMs = 5 * 60_000, max = 3000, now: () => number = Date.now) {
-  const cache = new Map<string, { at: number; page: Promise<HtmlPage> }>();
-  return (path: string, build: () => Promise<HtmlPage>) => {
-    const hit = cache.get(path);
-    if (hit && now() - hit.at < ttlMs) return hit.page;
-    const page = build().catch((error) => {
-      cache.delete(path);
-      throw error;
-    });
-    cache.set(path, { at: now(), page });
+export type PageCacheState = "hit" | "stale" | "miss";
+type PageCacheBuild = () => Promise<HtmlPage>;
+
+/**
+ * Cache das páginas HTML montadas no servidor.
+ * - até `ttlMs`: entrega o que está guardado ("hit");
+ * - de `ttlMs` a `staleMs`: entrega o guardado na hora e monta a versão nova em segundo plano ("stale") — com
+ *   pouco tráfego quase toda visita chegava depois dos 5 min do cache antigo e esperava o banco (TTFB ~1,7 s);
+ * - sem nada guardado (ou velho demais): monta e espera ("miss"). Erro não fica guardado.
+ * `warm` monta e guarda sem visita (aquecimento das páginas principais).
+ */
+export function createPageCache(ttlMs = 10 * 60_000, max = 3000, now: () => number = Date.now, staleMs = 24 * 60 * 60_000) {
+  type Entry = { at: number; page: Promise<HtmlPage>; refreshing?: boolean };
+  const cache = new Map<string, Entry>();
+  const store = (path: string, entry: Entry) => {
+    cache.delete(path); // reinsere no fim: o mais antigo sai primeiro quando passa de `max`
+    cache.set(path, entry);
     if (cache.size > max) {
       const oldest = cache.keys().next().value;
       if (oldest !== undefined) cache.delete(oldest);
     }
-    return page;
   };
+  const get = (path: string, build: PageCacheBuild, onState?: (state: PageCacheState) => void): Promise<HtmlPage> => {
+    const hit = cache.get(path);
+    const age = hit ? now() - hit.at : Infinity;
+    if (hit && age < ttlMs) {
+      onState?.("hit");
+      return hit.page;
+    }
+    if (hit && age < staleMs) {
+      onState?.("stale");
+      if (!hit.refreshing) {
+        hit.refreshing = true;
+        build().then(
+          (page) => store(path, { at: now(), page: Promise.resolve(page) }),
+          () => {
+            hit.refreshing = false; // banco fora: segue entregando a versão guardada e tenta de novo na próxima visita
+          },
+        );
+      }
+      return hit.page;
+    }
+    onState?.("miss");
+    const entry: Entry = { at: now(), page: build() };
+    store(path, entry);
+    entry.page.catch(() => {
+      if (cache.get(path) === entry) cache.delete(path);
+    });
+    return entry.page;
+  };
+  get.warm = async (path: string, build: PageCacheBuild) => {
+    store(path, { at: now(), page: Promise.resolve(await build()) });
+  };
+  return get;
 }

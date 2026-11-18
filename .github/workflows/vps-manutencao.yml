@@ -21,6 +21,7 @@ name: Manutenção da VPS
 #   backup-externo-configurar  grava o token do Google Drive e a senha (segredos RCLONE_DRIVE_TOKEN e
 #                     BACKUP_PASSPHRASE), agenda o backup diário criptografado no Drive e roda o primeiro
 #   backup-externo-testar      baixa o backup mais recente do Drive, descriptografa e confere
+#   canais-apoio      grava no .env os canais públicos de apoio/comunidade (CANAIS_* abaixo; vazio = não mexe) — depois rode o Deploy para o site mostrar
 #   pendencias-conferir só leitura: artigos em rascunho/revisão (com o texto), posts do Instagram aguardando aprovação ou com falha, relatos de bug do simulador em aberto
 #   spoilers-conferir só leitura: o que o bot enxerga no canal de spoilers (tipo/anexos/embeds, sem texto), capturas e propostas no banco, log [spoilers]
 #   social-conferir   só leitura: variáveis do agente do Instagram (sim/não), navegador do Playwright, espaço
@@ -37,7 +38,7 @@ on:
       tarefa:
         description: "O que fazer"
         type: choice
-        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, postgres-18, fail2ban-instalar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar, bug-reports, social-conferir, social-navegador, spoilers-ligar, spoilers-desligar, spoilers-conferir, pendencias-conferir, pg17-remover]
+        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, postgres-18, fail2ban-instalar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar, bug-reports, social-conferir, social-navegador, spoilers-ligar, spoilers-desligar, spoilers-conferir, pendencias-conferir, canais-apoio, pg17-remover]
         default: diagnostico
 
 # nunca junto com um deploy ou outra manutenção
@@ -537,9 +538,28 @@ jobs:
             # (ID de canal não é segredo: só serve para quem tem o token do bot)
             SPOILER_CANAL=1571201546434121738
 
+            # canais públicos mostrados em /apoie e no rodapé (o site é compilado com o .env da VPS: rodar o Deploy depois).
+            # Vazio = não mexe na variável. Só https; chave Pix aleatória ou e-mail, nunca CPF.
+            CANAL_INSTAGRAM="https://www.instagram.com/anaheimhub/"
+            CANAL_APOIO="https://apoia.se/anaheimhubupgrades"
+            CANAL_PIX="9ca1a9a1-885f-47c6-9911-fda7e2dfe309"
+            CANAL_DISCORD=""
+
             # grava CHAVE="valor" no .env: troca a linha se existir, senão acrescenta (cópia do anterior em .env.antes-spoilers)
             env_definir() {
               if grep -qE "^$1=" "$APP/.env"; then sed -i -E "s|^$1=.*|$1=\"$2\"|" "$APP/.env"; else printf '%s="%s"\n' "$1" "$2" >> "$APP/.env"; fi
+            }
+
+            canais_apoio() {
+              [ -f "$APP/.env" ] || { echo "sem $APP/.env"; exit 1; }
+              cp -p "$APP/.env" "$APP/.env.antes-canais"
+              [ -n "$CANAL_INSTAGRAM" ] && env_definir VITE_INSTAGRAM_URL "$CANAL_INSTAGRAM"
+              [ -n "$CANAL_APOIO" ] && env_definir VITE_SUPPORT_URL "$CANAL_APOIO"
+              [ -n "$CANAL_PIX" ] && env_definir VITE_SUPPORT_PIX_KEY "$CANAL_PIX"
+              [ -n "$CANAL_DISCORD" ] && env_definir VITE_DISCORD_INVITE_URL "$CANAL_DISCORD"
+              secao "canais no .env (públicos)"
+              grep -E '^VITE_(INSTAGRAM_URL|SUPPORT_URL|SUPPORT_PIX_KEY|DISCORD_INVITE_URL)=' "$APP/.env" || echo "nenhum"
+              echo "→ agora rode o workflow Deploy (Run workflow na main) para o site ser compilado com esses canais"
             }
 
             spoilers_definir() {
@@ -684,6 +704,7 @@ jobs:
               spoilers-desligar) spoilers_definir false ;;
               spoilers-conferir) spoilers_conferir ;;
               pendencias-conferir) pendencias_conferir ;;
+              canais-apoio) canais_apoio ;;
               diagnostico) diagnostico ;;
               seguranca-conferir) seguranca_conferir ;;
               upgrade-preparar) upgrade_preparar ;;

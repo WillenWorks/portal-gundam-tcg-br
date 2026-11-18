@@ -136,6 +136,8 @@ import { engineShaFromEnv } from "./engineSha.ts";
 import { purgeStaleSimulatorMatches, SIMULATOR_MATCH_PURGE_INTERVAL_MS } from "./simulatorMatchCleanup.ts";
 import { registerVedaRoutes } from "./vedaService.ts";
 import { registerAdminDashboardRoutes } from "./routes/adminDashboardRoutes.ts";
+import { registerSupporterRoutes } from "./routes/supporterRoutes.ts";
+import { normalizeUserTags } from "../src/lib/supporters.ts";
 import { registerSocialRoutes } from "./routes/socialRoutes.ts";
 import { registerDiscordInteractionRoute } from "./routes/discordInteractionRoute.ts";
 import { registerArticleSocialRoutes } from "./routes/articleSocialRoutes.ts";
@@ -1124,6 +1126,8 @@ function serializeUser(user: any, stats?: { deckCount: number; publicDeckCount: 
     isSupporter: Boolean(user.isSupporter),
     supporterSince: user.supporterSince ? (user.supporterSince instanceof Date ? user.supporterSince.toISOString() : user.supporterSince) : null,
     supporterMessage: user.supporterMessage ?? null,
+    supporterTier: user.isSupporter ? (user.supporterTier ?? null) : null,
+    supporterClaimPending: !user.isSupporter && Boolean(user.supporterClaimedAt),
     preferredCardLanguage: user.preferredCardLanguage,
     preferredSiteLanguage: user.preferredSiteLanguage === "en" ? "en" : "pt-BR",
     preferredTheme: user.preferredTheme,
@@ -1582,6 +1586,9 @@ app.put("/api/users/admin/:id", authRequired, roleRequired([UserRole.ADMIN]), as
       isHoster: payload.isHoster,
       isSupporter: payload.isSupporter,
       supporterSince: payload.isSupporter ? new Date() : (payload.isSupporter === false ? null : undefined),
+      // mesmas regras da aba Apoiadores (server/routes/supporterRoutes.ts): conceder resolve o pedido; revogar limpa a patente
+      ...(payload.isSupporter === true ? { supporterClaimedAt: null } : {}),
+      ...(payload.isSupporter === false ? { supporterClaimedAt: null, supporterTier: null } : {}),
     },
   });
   // papel, organizador ou desativação valem na próxima requisição da pessoa, sem esperar o cache
@@ -1611,51 +1618,19 @@ app.get("/api/users/search", authRequired, hosterRequired, async (req: RequestWi
   res.json(users);
 });
 
-// Apoio comunitário (Mural de Apoiadores e Confirmação de Doação via Pix)
-app.get("/api/support/supporters", async (_req, res) => {
-  setPublicCache(res, 30, 120);
-  try {
-    const dbSupporters = await prisma.user.findMany({
-      where: { isSupporter: true, isActive: true },
-      select: {
-        displayName: true,
-        username: true,
-        supporterSince: true,
-        supporterMessage: true,
-      },
-      orderBy: { supporterSince: "desc" },
-    });
-    const list = dbSupporters.map((s) => ({
-      name: s.displayName || s.username,
-      username: s.username,
-      sinceMonth: s.supporterSince ? new Intl.DateTimeFormat("pt-BR", { month: "short", year: "numeric" }).format(s.supporterSince) : undefined,
-      message: s.supporterMessage || undefined,
-    }));
-    res.json(list);
-  } catch {
-    res.json([]);
-  }
-});
-
-app.post("/api/support/confirm", authRequired, async (req: RequestWithUser, res: Response) => {
-  const current = await requireActiveUser(req, res);
-  if (!current) return;
-  const message = typeof req.body?.message === "string" ? req.body.message.slice(0, 200).trim() : null;
-  const updated = await prisma.user.update({
-    where: { id: current.id },
-    data: {
-      isSupporter: true,
-      supporterSince: current.supporterSince || new Date(),
-      supporterMessage: message || current.supporterMessage || null,
-    },
-  });
-  res.json({ ok: true, user: serializeUser(updated) });
+// Apoio comunitário (mural, pedido "já apoiei", patentes e tags): server/routes/supporterRoutes.ts
+registerSupporterRoutes(app, {
+  prisma,
+  authRequired,
+  roleRequired,
+  invalidateSession: (userId) => sessions.invalidate(userId),
+  currentUserId: (req) => (req as RequestWithUser).user?.userId,
 });
 
 app.get("/api/users/:username", async (req, res) => {
   setPublicCache(res, 20, 60);
   const username = String(req.params.username);
-  const user = await prisma.user.findUnique({ where: { username } });
+  const user = await prisma.user.findUnique({ where: { username }, include: { tags: { select: { tag: true } } } });
   if (!user || !user.isActive) return res.status(404).json({ error: "Perfil não encontrado." });
   const [decks, binders] = await Promise.all([
     prisma.deck.findMany({
@@ -1677,6 +1652,8 @@ app.get("/api/users/:username", async (req, res) => {
     avatarUrl: user.avatarUrl,
     isSupporter: Boolean(user.isSupporter),
     supporterSince: user.supporterSince ? user.supporterSince.toISOString() : null,
+    supporterTier: user.isSupporter ? user.supporterTier : null,
+    tags: normalizeUserTags(user.tags.map((t) => t.tag)),
     decks,
     binders,
   });
@@ -5888,6 +5865,14 @@ registerHtmlPages(app, {
   distDir: process.env.WEB_DIST_DIR || path.resolve(process.cwd(), "dist"),
   loaders: createHtmlDetailLoaders(prisma),
   bodyFor: createHtmlBodyLoader(prisma),
+  // além das páginas fixas: artigos e torneios mais recentes (os mais visitados vindos do Instagram/Facebook)
+  warmPaths: async () => {
+    const [posts, tournaments] = await Promise.all([
+      prisma.post.findMany({ where: { status: "PUBLISHED" }, orderBy: { publishedAt: "desc" }, take: 15, select: { slug: true } }),
+      prisma.tournament.findMany({ where: { isActive: true }, orderBy: { dateStart: "desc" }, take: 5, select: { id: true } }),
+    ]);
+    return [...posts.map((p) => `/articles/${p.slug}`), ...tournaments.map((t) => `/torneios/${t.id}`)];
+  },
 });
 
 app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
