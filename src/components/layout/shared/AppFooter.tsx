@@ -12,9 +12,8 @@ import { Separator } from "@/components/ui/separator";
 import { CommunitySupportModal } from "@/components/support/CommunitySupportModal";
 import anaheimLogo from "@/assets/anaheim-logo-transparent.webp";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
+import { INSTAGRAM_URL } from "@/lib/supportLinks";
 
-/** Perfil do Instagram no rodapé (só aparece configurado). */
-const INSTAGRAM_URL = /^https:\/\/(www\.)?instagram\.com\/[^\s"'<>]+$/.test(String(import.meta.env.VITE_INSTAGRAM_URL || "")) ? String(import.meta.env.VITE_INSTAGRAM_URL) : "";
 
 export function AppFooter({ className }: { className?: string }) {
   const [supportModalOpen, setSupportModalOpen] = useState(false);

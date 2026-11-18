@@ -6,6 +6,7 @@ import { SUPPORT_LEAD, SUPPORT_TIER_PERKS, SUPPORT_TITLE, SUPPORT_WHY, supportCh
 import { SUPPORTER_TIERS } from "@/lib/supporters";
 import { api, type ApiSupporter } from "@/lib/api";
 import { SupportersWall } from "@/components/support/SupportersWall";
+import { SUPPORT_URL } from "@/lib/supportLinks";
 
 const channels = supportChannels({
   supportUrl: import.meta.env.VITE_SUPPORT_URL as string | undefined,
@@ -34,7 +35,6 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
-const SUPPORT_URL = /^https:\/\//.test(import.meta.env.VITE_SUPPORT_URL || "") ? (import.meta.env.VITE_SUPPORT_URL as string) : "";
 
 /** Página "Apoie" (/apoie). O texto mora em src/lib/supportContent.ts, o mesmo que o servidor põe no HTML. */
 export default function SupportPage() {

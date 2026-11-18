@@ -18,6 +18,7 @@ import { buildPixPayload } from "@/lib/pix";
 import { api, type ApiSupporter } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
+import { INSTAGRAM_URL, SUPPORT_URL } from "@/lib/supportLinks";
 
 
 const PIX_KEY = import.meta.env.VITE_PIX_KEY || "9ca1a9a1-885f-47c6-9911-fda7e2dfe309";
@@ -26,7 +27,6 @@ const PIX_MERCHANT_CITY = import.meta.env.VITE_PIX_MERCHANT_CITY || "SAO PAULO";
 const PIX_PAYLOAD = import.meta.env.VITE_PIX_PAYLOAD || "00020126920014BR.GOV.BCB.PIX01369ca1a9a1-885f-47c6-9911-fda7e2dfe3090230Anaheim Hub - Aquele cafezinho5204000053039865802BR5924Willen Leolatto Carneiro6009SAO PAULO62140510ZRgLn3K9h563046EEE";
 const PIX_PAYMENT_URL = import.meta.env.VITE_PIX_PAYMENT_URL || "";
 /** Campanha de apoio mensal (Apoia.se) — o mesmo endereço da página /apoie (src/lib/supportContent.ts). */
-const SUPPORT_URL = /^https:\/\//.test(import.meta.env.VITE_SUPPORT_URL || "") ? (import.meta.env.VITE_SUPPORT_URL as string) : "";
 
 function PixPanel() {
   const { tr } = useSiteLanguage();
@@ -244,6 +244,19 @@ export function CommunitySupportModal({
               <ExternalLink className="size-3.5" />
             </a>
           ) : null}
+          <nav aria-label={tr("Mais sobre o apoio", "More about support")} className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+            <Link href="/apoie" onClick={() => onOpenChange?.(false)} className="font-semibold text-primary hover:underline">
+              {tr("Patentes e formas de apoio →", "Tiers and ways to support →")}
+            </Link>
+            <Link href="/apoiadores" onClick={() => onOpenChange?.(false)} className="font-semibold text-primary hover:underline">
+              {tr("Mural completo →", "Full supporters wall →")}
+            </Link>
+            {INSTAGRAM_URL ? (
+              <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">
+                Instagram ↗
+              </a>
+            ) : null}
+          </nav>
         </DialogHeader>
 
         {/* Layout em 2 colunas para widescreen / telas médias para grandes */}

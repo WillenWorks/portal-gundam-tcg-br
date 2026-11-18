@@ -448,8 +448,8 @@ export function AppTopNav() {
             size="icon"
             className="rounded-none border border-primary/50 bg-primary/15 text-primary hover:bg-primary/25 2xl:size-auto 2xl:px-3.5 2xl:py-2"
             onClick={() => setSupportOpen(true)}
-            title={tr("Apoiar o Anaheim Hub via Pix", "Support Anaheim Hub (Pix)")}
-            aria-label={tr("Apoiar o Anaheim Hub via Pix", "Support Anaheim Hub (Pix)")}
+            title={tr("Apoiar o Anaheim Hub", "Support Anaheim Hub")}
+            aria-label={tr("Apoiar o Anaheim Hub", "Support Anaheim Hub")}
           >
             <HeartHandshake className="size-4 2xl:mr-1.5 2xl:size-3.5" />
             <span className="hidden text-xs font-semibold uppercase tracking-[0.14em] 2xl:inline">{tr("Apoiar", "Support")}</span>
@@ -638,7 +638,7 @@ export function AppTopNav() {
               <span>{tr("Novidades & Atualizações", "News & Updates")}</span>
             </Link>
 
-            {/* Apoiar (Pix) */}
+            {/* Apoiar: abre o modal, que leva a /apoie, /apoiadores e Instagram */}
             <button
               type="button"
               onClick={() => {
