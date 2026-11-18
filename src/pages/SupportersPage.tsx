@@ -7,8 +7,8 @@ import { Link } from "wouter";
 import { api, type ApiSupporter } from "@/lib/api";
 import { groupSupportersByTier, SUPPORTERS_LEAD, SUPPORTERS_TITLE } from "@/lib/supportContent";
 import { SupporterBadge } from "@/components/support/SupporterBadge";
+import { SUPPORT_URL } from "@/lib/supportLinks";
 
-const SUPPORT_URL = /^https:\/\//.test(import.meta.env.VITE_SUPPORT_URL || "") ? (import.meta.env.VITE_SUPPORT_URL as string) : "";
 
 function SupporterCard({ supporter }: { supporter: ApiSupporter }) {
   const name = supporter.username ? (

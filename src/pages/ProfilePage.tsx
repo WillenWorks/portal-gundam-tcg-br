@@ -45,6 +45,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import defaultPilotAvatar from "@/assets/home/default_pilot_avatar.webp";
+import { safeImageSrc } from "@/lib/safeImageSrc";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 type FriendItem = {
@@ -620,7 +621,7 @@ export default function ProfilePage() {
                       <div className="flex items-center gap-3">
                         <div className="relative shrink-0">
                           <img
-                            src={f.avatarUrl || defaultPilotAvatar}
+                            src={safeImageSrc(f.avatarUrl) || defaultPilotAvatar}
                             alt={f.displayName}
                             className="size-10 rounded-full border border-white/15 object-cover"
                           />
@@ -724,7 +725,7 @@ export default function ProfilePage() {
                     >
                       <div className="flex items-center gap-3">
                         <img
-                          src={req.requester.avatarUrl || defaultPilotAvatar}
+                          src={safeImageSrc(req.requester.avatarUrl) || defaultPilotAvatar}
                           alt={req.requester.displayName}
                           className="size-10 rounded-full border border-white/15 object-cover"
                         />
@@ -779,7 +780,7 @@ export default function ProfilePage() {
                     >
                       <div className="flex items-center gap-3">
                         <img
-                          src={req.addressee.avatarUrl || defaultPilotAvatar}
+                          src={safeImageSrc(req.addressee.avatarUrl) || defaultPilotAvatar}
                           alt={req.addressee.displayName}
                           className="size-10 rounded-full border border-white/15 object-cover"
                         />
@@ -829,7 +830,7 @@ export default function ProfilePage() {
 
               <div className="flex items-center gap-4">
                 <button type="button" onClick={handleAvatarPick} disabled={uploadingAvatar} className="group relative size-20 shrink-0 overflow-hidden rounded-full border-2 border-white/15 bg-slate-950/60 transition hover:border-primary/60 disabled:opacity-60">
-                  <img loading="lazy" decoding="async" src={user?.avatarUrl || defaultPilotAvatar} alt={user?.displayName || "Piloto"} className="h-full w-full object-cover" />
+                  <img loading="lazy" decoding="async" src={safeImageSrc(user?.avatarUrl) || defaultPilotAvatar} alt={user?.displayName || "Piloto"} className="h-full w-full object-cover" />
                   <div className="absolute inset-0 flex items-center justify-center bg-slate-950/70 opacity-0 transition group-hover:opacity-100">
                     <Upload className="size-5 text-white" />
                   </div>

@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/dialog";
 import { CardMarkdown } from "@/components/articles/CardMarkdown";
 import { PostTagLinks } from "@/components/articles/PostTagLinks";
+import { ArticleSupportLine } from "@/components/support/SupportCallout";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, type ApiPost, type ApiComment, type PostType } from "@/lib/api";
 import { usePageMeta } from "@/lib/pageMeta";
@@ -668,6 +669,8 @@ export default function ArticleDetailPage() {
                 </Button>
               </div>
             </div>
+
+            <ArticleSupportLine />
 
             {/* ========================================================= */}
             {/* SEÇÃO DE COMENTÁRIOS, RESPOSTAS E MODERAÇÃO */}

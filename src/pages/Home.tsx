@@ -19,6 +19,7 @@ import { RecentTournamentsSection } from "@/components/home/RecentTournamentsSec
 import { CockpitRegistrationSection } from "@/components/home/CockpitRegistrationSection";
 import { GundamSeriesShowcase } from "@/components/home/GundamSeriesShowcase";
 import { AboutAnaheimHubSection } from "@/components/home/AboutAnaheimHubSection";
+import { HomeSupportStrip } from "@/components/support/SupportCallout";
 import { useFaction } from "@/contexts/FactionContext";
 import { cn } from "@/lib/utils";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
@@ -295,6 +296,9 @@ export default function Home({ targetSection }: HomeProps) {
 
         {/* ── SOBRE A ANAHEIM HUB (CARD INSTITUCIONAL COM LOGO) ─────────── */}
         <AboutAnaheimHubSection />
+
+        {/* Apoio: nomes do mural e links para /apoie, /apoiadores e Instagram */}
+        <HomeSupportStrip />
       </main>
 
       {/* ── FOOTER INSTITUCIONAL PADRONIZADO ────────────────────────────── */}
