@@ -67,6 +67,11 @@ export function registerArticleAdminRoutes(
         include: { author: { select: PUBLIC_USER_SELECT } },
       });
 
+      // #anúncios (ou #spoilers, se for artigo de spoiler) no Discord público — uma vez por artigo
+      void import("../services/discordAnnouncements.ts").then(({ announcePublishedArticle, queueDiscordAnnouncement }) =>
+        queueDiscordAnnouncement("artigo", () => announcePublishedArticle(prisma, updated.id)),
+      );
+
       let socialDraftCreated = false;
       let socialPublished = false;
       let socialPostId: string | null = null;
