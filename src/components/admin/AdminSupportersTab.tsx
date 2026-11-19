@@ -60,6 +60,9 @@ function UserEditor({ entry, onSaved }: { entry: AdminSupporterUser; onSaved: (u
       <div className="flex flex-wrap items-center gap-2">
         <p className="font-medium">{entry.displayName}</p>
         <span className="text-xs text-slate-500">@{entry.username} · {entry.email}</span>
+        <span className={entry.discordUsername ? "text-xs text-[#8b93ff]" : "text-xs text-slate-600"} title="Com o Discord conectado, patente e tags viram cargo no servidor">
+          {entry.discordUsername ? `Discord: @${entry.discordUsername}` : "Discord não conectado"}
+        </span>
         {entry.isSupporter ? <SupporterBadge size="sm" tier={entry.supporterTier} /> : null}
         <UserTagChips tags={entry.tags} />
       </div>

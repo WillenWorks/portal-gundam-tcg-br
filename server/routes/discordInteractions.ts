@@ -1,4 +1,5 @@
-/* POST /api/discord/interactions — cliques nos botões do rascunho do Instagram (✅ Aprovar / ❌ Descartar).
+/* POST /api/discord/interactions — cliques nos botões do rascunho do Instagram (✅ Aprovar / ❌ Descartar) e os
+ * comandos de barra do servidor (/carta; qualquer membro usa, ver server/services/discordCardCommand.ts).
  * O Discord assina cada chamada (Ed25519); sem assinatura válida nada executa. Só quem está em DISCORD_APPROVER_IDS
  * aprova. O Discord exige resposta em 3 s e publicar demora mais: responde "adiado" (type 6) e edita a mensagem depois. */
 import type { Request, Response } from "express";
@@ -12,19 +13,28 @@ export type DiscordInteractionDeps = {
   approve: (postId: string) => Promise<{ ok: boolean; post: PostLike }>;
   reject: (postId: string, reason: string) => Promise<PostLike | null>;
   publicUrl: () => string;
+  /** comando de barra ou autocomplete; `null` = comando desconhecido */
+  command?: (interaction: DiscordCommandInteraction) => Promise<object | null>;
   editMessage?: typeof editInteractionMessage;
   now?: () => Date;
+};
+
+export type DiscordCommandInteraction = {
+  type: number;
+  data?: { name?: string; options?: { name: string; value?: unknown; focused?: boolean }[] };
 };
 
 type Interaction = {
   type: number;
   token?: string;
-  data?: { custom_id?: string };
+  data?: { custom_id?: string; name?: string; options?: { name: string; value?: unknown; focused?: boolean }[] };
   member?: { user?: { id?: string; username?: string; global_name?: string } };
 };
 
 const PING = 1;
+const APPLICATION_COMMAND = 2;
 const COMPONENT_CLICK = 3;
+const AUTOCOMPLETE = 4;
 const PONG = 1;
 const REPLY = 4;
 const DEFERRED_UPDATE = 6;
@@ -65,6 +75,17 @@ export function createDiscordInteractionHandler(deps: DiscordInteractionDeps) {
 
     if (interaction.type === PING) {
       res.json({ type: PONG });
+      return;
+    }
+    if (interaction.type === APPLICATION_COMMAND || interaction.type === AUTOCOMPLETE) {
+      let reply: object | null;
+      try {
+        reply = deps.command ? await deps.command(interaction) : null;
+      } catch (err) {
+        console.warn("[discordInteractions] comando falhou:", err instanceof Error ? err.message : err);
+        reply = interaction.type === AUTOCOMPLETE ? { type: 8, data: { choices: [] } } : onlyForYou("Não deu para responder agora. Tente de novo em instantes.");
+      }
+      res.json(reply ?? (interaction.type === AUTOCOMPLETE ? { type: 8, data: { choices: [] } } : onlyForYou("Comando desconhecido.")));
       return;
     }
     if (interaction.type !== COMPONENT_CLICK || !interaction.token) {

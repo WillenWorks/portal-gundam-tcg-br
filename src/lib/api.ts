@@ -36,6 +36,9 @@ export type AuthUser = {
   supporterTier?: string | null;
   /** clicou em "já apoiei" e aguarda o admin conferir */
   supporterClaimPending?: boolean;
+  /** conta do Discord conectada (cargos da patente e das tags no servidor) */
+  discordConnected?: boolean;
+  discordUsername?: string | null;
   stats?: { deckCount: number; publicDeckCount: number; binderCount?: number };
 };
 
@@ -61,6 +64,8 @@ export type AdminSupporterUser = {
   supporterMessage: string | null;
   supporterClaimedAt: string | null;
   tags: string[];
+  /** conta do Discord conectada (recebe os cargos da patente e das tags) */
+  discordUsername?: string | null;
 };
 
 export type SupporterWallEntry = {
@@ -1415,7 +1420,9 @@ export const api = {
   },
   uploadAvatar: (formData: FormData) => mutate<AuthUser>("/auth/me/avatar", { method: "POST", body: formData }, ["/auth/me"]),
   getPublicProfile: (username: string) => request<{ id: string; username: string; displayName: string; bio?: string | null; avatarUrl?: string | null; isSupporter?: boolean; supporterSince?: string | null; decks: ApiDeck[]; binders: ApiBinder[] }>(`/users/${username}`, undefined, { ttlMs: 30_000 }),
-  confirmSupport: (message?: string) => mutate<{ ok: true; status: "pending" | "supporter"; message: string }>("/support/confirm", { method: "POST", body: JSON.stringify({ message }) }, ["/auth/me", "/support/supporters"]),
+  startDiscordLink: () => mutate<{ url: string }>("/me/discord/link", { method: "POST" }, []),
+  disconnectDiscord: () => mutate<{ ok: true }>("/me/discord", { method: "DELETE" }, ["/auth/me"]),
+    confirmSupport: (message?: string) => mutate<{ ok: true; status: "pending" | "supporter"; message: string }>("/support/confirm", { method: "POST", body: JSON.stringify({ message }) }, ["/auth/me", "/support/supporters"]),
   getAdminSupporters: () => request<AdminSupportersOverview>("/admin/supporters", undefined, { ttlMs: 0 }),
   searchAdminSupporterUsers: (q: string) => request<AdminSupporterUser[]>(`/admin/supporters/search?q=${encodeURIComponent(q)}`, undefined, { ttlMs: 0 }),
   updateAdminSupporterUser: (id: string, body: { isSupporter?: boolean; tier?: string | null; tags?: string[]; claim?: "reject" }) =>

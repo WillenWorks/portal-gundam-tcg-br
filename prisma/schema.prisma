@@ -146,6 +146,10 @@ model User {
   /// "já apoiei" pedido pela própria pessoa; vira apoiador quando o admin aprova
   supporterClaimedAt    DateTime?
   tags                  UserTag[]
+  /// conta do Discord conectada pelo perfil (OAuth "identify"); dá o cargo da patente e das tags no servidor
+  discordId             String?      @unique
+  discordUsername       String?
+  discordLinkedAt       DateTime?
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
 
@@ -1292,4 +1296,12 @@ model SupporterWallEntry {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+/// Anúncio já postado pelo bot no Discord (artigo, spoiler, torneio). A chave impede postar o mesmo duas vezes.
+model DiscordAnnouncement {
+  key       String   @id
+  channelId String?
+  messageId String?
+  createdAt DateTime @default(now())
 }

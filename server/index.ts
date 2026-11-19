@@ -137,6 +137,7 @@ import { purgeStaleSimulatorMatches, SIMULATOR_MATCH_PURGE_INTERVAL_MS } from ".
 import { registerVedaRoutes } from "./vedaService.ts";
 import { registerAdminDashboardRoutes } from "./routes/adminDashboardRoutes.ts";
 import { registerSupporterRoutes } from "./routes/supporterRoutes.ts";
+import { registerDiscordLinkRoutes } from "./routes/discordLinkRoutes.ts";
 import { normalizeUserTags } from "../src/lib/supporters.ts";
 import { registerSocialRoutes } from "./routes/socialRoutes.ts";
 import { registerDiscordInteractionRoute } from "./routes/discordInteractionRoute.ts";
@@ -1133,6 +1134,8 @@ function serializeUser(user: any, stats?: { deckCount: number; publicDeckCount: 
     preferredTheme: user.preferredTheme,
     hasPassword: Boolean(user.passwordHash),
     emailVerified: Boolean(user.emailVerifiedAt),
+    discordUsername: user.discordId ? (user.discordUsername ?? null) : null,
+    discordConnected: Boolean(user.discordId),
     stats,
   };
 }
@@ -1627,6 +1630,15 @@ registerSupporterRoutes(app, {
   currentUserId: (req) => (req as RequestWithUser).user?.userId,
 });
 
+// Conectar o Discord na conta (cargo da patente e das tags no servidor): server/routes/discordLinkRoutes.ts
+registerDiscordLinkRoutes(app, {
+  prisma,
+  authRequired,
+  jwtSecret: JWT_SECRET,
+  invalidateSession: (userId) => sessions.invalidate(userId),
+  currentUserId: (req) => (req as RequestWithUser).user?.userId,
+});
+
 app.get("/api/users/:username", async (req, res) => {
   setPublicCache(res, 20, 60);
   const username = String(req.params.username);
@@ -1800,9 +1812,29 @@ app.get("/api/posts/tags", async (_req, res) => {
   res.json([...counts].map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag)));
 });
 
+// Anúncios no Discord público (server/services/discordAnnouncements.ts): carregados só quando há o que anunciar.
+function queueDiscordArticleAnnouncement(articleId: string) {
+  void import("./services/discordAnnouncements.ts").then(({ announcePublishedArticle, queueDiscordAnnouncement }) =>
+    queueDiscordAnnouncement("artigo", () => announcePublishedArticle(prisma, articleId)),
+  );
+}
+
+function queueDiscordEventAnnouncement(eventId: string) {
+  void import("./services/discordAnnouncements.ts").then(({ announceHostedEvent, queueDiscordAnnouncement }) =>
+    queueDiscordAnnouncement("evento", () => announceHostedEvent(prisma, eventId, () => computeHostedEventStandings(eventId))),
+  );
+}
+
+function queueDiscordTournamentAnnouncement(tournamentId: string) {
+  void import("./services/discordAnnouncements.ts").then(({ announceTournament, queueDiscordAnnouncement }) =>
+    queueDiscordAnnouncement("torneio", () => announceTournament(prisma, tournamentId)),
+  );
+}
+
 // Artigo publicado vira rascunho de post do Instagram (capa + resumo), para aprovar no painel/Discord.
 // Só com a automação do Instagram ligada; o serviço é carregado aqui para não pesar na subida da API.
 function queueArticleInstagramPost(articleId: string) {
+  queueDiscordArticleAnnouncement(articleId);
   if (process.env.SOCIAL_SCHEDULER_ENABLED !== "true") return;
   void import("./services/socialPublisherService.ts")
     .then(({ queueArticleSocialDraft }) => queueArticleSocialDraft(prisma, articleId))
@@ -3250,6 +3282,7 @@ app.post("/api/tournaments", authRequired, roleRequired([UserRole.ADMIN, UserRol
   const parsed = tournamentCreateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Dados do evento inválidos." });
   const event = await prisma.tournament.create({ data: parsed.data });
+  queueDiscordTournamentAnnouncement(event.id);
   res.status(201).json(event);
 });
 
@@ -3496,6 +3529,7 @@ app.post("/api/hosted-events", authRequired, hosterRequired, async (req: Request
     },
     include: hostedEventOwnerInclude,
   });
+  if (event.status === HostedEventStatus.SCHEDULED) queueDiscordEventAnnouncement(event.id);
   res.status(201).json(event);
 });
 
@@ -3527,6 +3561,8 @@ app.put("/api/hosted-events/:id", authRequired, hosterRequired, async (req: Requ
     },
     include: hostedEventOwnerInclude,
   });
+  const announceable: HostedEventStatus[] = [HostedEventStatus.SCHEDULED, HostedEventStatus.COMPLETED];
+  if (event.status !== existing.status && announceable.includes(event.status)) queueDiscordEventAnnouncement(event.id);
   res.json(event);
 });
 
@@ -5969,6 +6005,10 @@ async function boot() {
   if (process.env.SOCIAL_SCHEDULER_ENABLED === "true") {
     void import("./services/socialScheduler.ts").then(({ startSocialScheduler }) => startSocialScheduler(prisma));
   }
+  // Discord: /carta no servidor e cargos de quem conectou a conta (só com o bot configurado)
+  void import("./services/discordRoles.ts")
+    .then(({ startDiscordServerTasks }) => startDiscordServerTasks(prisma))
+    .catch((err) => console.error("[discord] não deu para iniciar:", err instanceof Error ? err.message : err));
   // spoilers do canal seguido do Discord → catálogo (prévia) + artigo + carrossel/stories, só com SPOILER_CAPTURE_ENABLED=true
   if (process.env.SPOILER_CAPTURE_ENABLED === "true") {
     void import("./services/spoilerService.ts")

@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { CommunitySupportModal } from "@/components/support/CommunitySupportModal";
 import anaheimLogo from "@/assets/anaheim-logo-transparent.webp";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
-import { INSTAGRAM_URL } from "@/lib/supportLinks";
+import { DISCORD_URL, INSTAGRAM_URL } from "@/lib/supportLinks";
 
 
 export function AppFooter({ className }: { className?: string }) {
@@ -120,6 +120,13 @@ export function AppFooter({ className }: { className?: string }) {
                   <li>
                     <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-primary">
                       Instagram
+                    </a>
+                  </li>
+                ) : null}
+                {DISCORD_URL ? (
+                  <li>
+                    <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-primary">
+                      {tr("Servidor no Discord", "Discord server")}
                     </a>
                   </li>
                 ) : null}

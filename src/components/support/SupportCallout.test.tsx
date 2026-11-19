@@ -5,7 +5,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 
 const getSupporters = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api", () => ({ api: { getSupporters } }));
-vi.mock("@/lib/supportLinks", () => ({ SUPPORT_URL: "", INSTAGRAM_URL: "https://www.instagram.com/anaheimhub/" }));
+vi.mock("@/lib/supportLinks", () => ({ SUPPORT_URL: "", INSTAGRAM_URL: "https://www.instagram.com/anaheimhub/", DISCORD_URL: "https://discord.gg/Q83CCuphjU" }));
 
 import { ArticleSupportLine, HomeSupportStrip } from "./SupportCallout";
 
@@ -36,9 +36,9 @@ describe("chamadas de apoio", () => {
     expect(screen.getByRole("link", { name: /Apoiar/ })).toHaveAttribute("href", "/apoie");
   });
 
-  it("fim do artigo: uma linha com os três links", () => {
+  it("fim do artigo: uma linha com os links de apoio, mural, Instagram e Discord", () => {
     render(<ArticleSupportLine />);
     expect(screen.getByText(/mantido por apoiadores/)).toBeInTheDocument();
-    expect(screen.getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/apoie", "/apoiadores", "https://www.instagram.com/anaheimhub/"]);
+    expect(screen.getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/apoie", "/apoiadores", "https://www.instagram.com/anaheimhub/", "https://discord.gg/Q83CCuphjU"]);
   });
 });
