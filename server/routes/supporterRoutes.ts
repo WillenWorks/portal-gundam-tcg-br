@@ -67,6 +67,7 @@ const ADMIN_USER_SELECT = {
   supporterSince: true,
   supporterMessage: true,
   supporterClaimedAt: true,
+  discordUsername: true,
   tags: { select: { tag: true } },
 } as const;
 
@@ -81,6 +82,7 @@ type AdminUserRow = {
   supporterSince: Date | null;
   supporterMessage: string | null;
   supporterClaimedAt: Date | null;
+  discordUsername?: string | null;
   tags: Array<{ tag: string }>;
 };
 
@@ -96,6 +98,7 @@ const adminUser = (u: AdminUserRow) => ({
   supporterMessage: u.supporterMessage,
   supporterClaimedAt: u.supporterClaimedAt?.toISOString() ?? null,
   tags: normalizeUserTags(u.tags.map((t) => t.tag)),
+  discordUsername: u.discordUsername ?? null,
 });
 
 export function registerSupporterRoutes(app: Express, deps: Deps) {
@@ -190,6 +193,8 @@ export function registerSupporterRoutes(app: Express, deps: Deps) {
       }
     });
     invalidateSession(id);
+    // patente/tags novas viram cargo no Discord de quem conectou a conta (server/services/discordRoles.ts)
+    void import("../services/discordRoles.ts").then(({ queueUserDiscordRoleSync }) => queueUserDiscordRoleSync(prisma, id));
     const updated = await prisma.user.findUniqueOrThrow({ where: { id }, select: ADMIN_USER_SELECT });
     res.json(adminUser(updated));
   });

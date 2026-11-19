@@ -29,6 +29,10 @@ name: Manutenção da VPS
 #   spoilers-ligar    liga a captura de spoilers do Discord no .env (SPOILER_CAPTURE_ENABLED e o ID do canal
 #                     SPOILER_CANAL abaixo), guarda cópia do .env, reinicia a API e mostra o log [spoilers]
 #   spoilers-desligar SPOILER_CAPTURE_ENABLED="false" e reinicia a API
+#   discord-configurar grava no .env o segredo DISCORD_CLIENT_SECRET (conectar o Discord na conta do site), reinicia a
+#                     API e roda o discord-conferir
+#   discord-conferir  só leitura: o que o bot acha no servidor (canais #spoilers/#anúncios/#torneios, cargos das
+#                     patentes/tags e se o cargo do bot está acima deles) + log [discord]
 #   pg17-remover      depois do upgrade: confere 18 online + sites, faz backup e cópia do cluster 17, remove o 17 e
 #                     os pacotes do PostgreSQL 17 (só eles, sem autoremove)
 
@@ -38,7 +42,7 @@ on:
       tarefa:
         description: "O que fazer"
         type: choice
-        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, postgres-18, fail2ban-instalar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar, bug-reports, social-conferir, social-navegador, spoilers-ligar, spoilers-desligar, spoilers-conferir, pendencias-conferir, canais-apoio, pg17-remover]
+        options: [diagnostico, seguranca-conferir, upgrade-preparar, upgrade-executar, upgrade-status, backup-externo-configurar, backup-externo-testar, postgres-18, fail2ban-instalar, logs-api, investigar-oom, monitorar-memoria, nginx-aplicar, backup, baseline-conferir, baseline-aplicar, bug-reports, social-conferir, social-navegador, spoilers-ligar, spoilers-desligar, spoilers-conferir, pendencias-conferir, canais-apoio, discord-configurar, discord-conferir, pg17-remover]
         default: diagnostico
 
 # nunca junto com um deploy ou outra manutenção
@@ -76,12 +80,14 @@ jobs:
           # nome diferente do segredo: o rclone trataria RCLONE_DRIVE_* do ambiente como opção do backend
           BACKUP_DRIVE_TOKEN: ${{ inputs.tarefa == 'backup-externo-configurar' && secrets.RCLONE_DRIVE_TOKEN || '' }}
           BACKUP_PASSPHRASE: ${{ inputs.tarefa == 'backup-externo-configurar' && secrets.BACKUP_PASSPHRASE || '' }}
+          # o segredo do OAuth do Discord só chega à VPS na tarefa que o grava
+          DISCORD_SEGREDO: ${{ inputs.tarefa == 'discord-configurar' && secrets.DISCORD_CLIENT_SECRET || '' }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
-          envs: TAREFA,BACKUP_DRIVE_TOKEN,BACKUP_PASSPHRASE
+          envs: TAREFA,BACKUP_DRIVE_TOKEN,BACKUP_PASSPHRASE,DISCORD_SEGREDO
           command_timeout: 35m
           # sem script_stop: ele quebra funções e `case` multilinha (o script já usa `set -e`)
           script: |
@@ -543,7 +549,7 @@ jobs:
             CANAL_INSTAGRAM="https://www.instagram.com/anaheimhub/"
             CANAL_APOIO="https://apoia.se/anaheimhubupgrades"
             CANAL_PIX="9ca1a9a1-885f-47c6-9911-fda7e2dfe309"
-            CANAL_DISCORD=""
+            CANAL_DISCORD="https://discord.gg/Q83CCuphjU"
 
             # grava CHAVE="valor" no .env: troca a linha se existir, senão acrescenta (cópia do anterior em .env.antes-spoilers)
             env_definir() {
@@ -560,6 +566,30 @@ jobs:
               secao "canais no .env (públicos)"
               grep -E '^VITE_(INSTAGRAM_URL|SUPPORT_URL|SUPPORT_PIX_KEY|DISCORD_INVITE_URL)=' "$APP/.env" || echo "nenhum"
               echo "→ agora rode o workflow Deploy (Run workflow na main) para o site ser compilado com esses canais"
+            }
+
+            discord_conferir() {
+              [ -f "$APP/.env" ] || { echo "sem $APP/.env"; exit 1; }
+              secao "Discord visto pelo bot (só nomes e sim/não)"
+              (cd "$APP" && npx --no-install tsx scripts/discord-conferir.ts) || echo "a conferência falhou (veja a mensagem acima)"
+              secao "log [discord] (últimas 30 linhas)"
+              L=$(pm2 jlist | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const p=JSON.parse(s).find(x=>x.name==="gundam-portal");console.log(p.pm2_env.pm_err_log_path+" "+p.pm2_env.pm_out_log_path)})')
+              grep -ahE "\[discord" "${L%% *}" "${L##* }" 2>/dev/null | cut -c1-300 | tail -n 30 || echo "sem registros"
+            }
+
+            discord_configurar() {
+              [ -f "$APP/.env" ] || { echo "sem $APP/.env"; exit 1; }
+              [ -n "$DISCORD_SEGREDO" ] || { echo "segredo DISCORD_CLIENT_SECRET não cadastrado no GitHub (Settings → Secrets and variables → Actions)"; exit 1; }
+              cp -p "$APP/.env" "$APP/.env.antes-discord"
+              env_definir DISCORD_CLIENT_SECRET "$DISCORD_SEGREDO"
+              echo "DISCORD_CLIENT_SECRET: $(sim_nao "$(grep -E '^DISCORD_CLIENT_SECRET=.+' "$APP/.env" | head -1)")"
+              secao "reiniciando a API"
+              pm2 reload gundam-portal >/dev/null
+              OK=""
+              for i in $(seq 1 30); do curl -sf -o /dev/null -m 5 http://127.0.0.1:8787/api/health && { OK=1; break; }; sleep 3; done
+              [ -n "$OK" ] && echo "API respondeu" || { echo "API não respondeu — voltando o .env anterior"; cp -p "$APP/.env.antes-discord" "$APP/.env"; pm2 reload gundam-portal >/dev/null; exit 1; }
+              sleep 20
+              discord_conferir
             }
 
             spoilers_definir() {
@@ -705,6 +735,8 @@ jobs:
               spoilers-conferir) spoilers_conferir ;;
               pendencias-conferir) pendencias_conferir ;;
               canais-apoio) canais_apoio ;;
+              discord-configurar) discord_configurar ;;
+              discord-conferir) discord_conferir ;;
               diagnostico) diagnostico ;;
               seguranca-conferir) seguranca_conferir ;;
               upgrade-preparar) upgrade_preparar ;;

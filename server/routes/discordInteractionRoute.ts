@@ -1,4 +1,4 @@
-/* Registra POST /api/discord/interactions. Precisa vir ANTES do express.json global: a assinatura do Discord é sobre
+/* Registra POST /api/discord/interactions (botões de aprovação e o /carta). Precisa vir ANTES do express.json global: a assinatura do Discord é sobre
  * os bytes exatos do corpo. O serviço (SDKs de IA, Playwright) só carrega no primeiro clique, não na subida da API. */
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import type { PrismaClient } from "@prisma/client";
@@ -9,16 +9,19 @@ export function registerDiscordInteractionRoute(app: Express, prisma: PrismaClie
   app.post("/api/discord/interactions", express.raw({ type: "*/*", limit: "100kb" }), async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!handler) {
-        const [{ createDiscordInteractionHandler }, social, { readDiscordBotConfig }] = await Promise.all([
+        const [{ createDiscordInteractionHandler }, social, { readDiscordBotConfig }, { handleCardCommand }, { discordPublicUrl }] = await Promise.all([
           import("./discordInteractions.ts"),
           import("../services/socialPublisherService.ts"),
           import("../services/discordBot.ts"),
+          import("../services/discordCardCommand.ts"),
+          import("../services/discordGuild.ts"),
         ]);
         handler = createDiscordInteractionHandler({
           config: () => readDiscordBotConfig(),
           approve: (postId) => social.approveSocialPost(prisma, postId),
           reject: (postId, reason) => social.rejectSocialPost(prisma, postId, reason),
           publicUrl: () => social.socialPublicAppUrl(),
+          command: (interaction) => handleCardCommand(prisma, interaction, discordPublicUrl()),
         });
       }
       await handler(req, res);

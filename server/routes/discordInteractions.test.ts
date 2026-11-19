@@ -127,4 +127,22 @@ describe("POST /api/discord/interactions", () => {
     expect(payload.content).toContain("Este post já foi publicado.");
     expect(payload.components).toEqual([]);
   });
+
+  it("/carta: qualquer membro usa (fora da lista de aprovadores), e a resposta é a do comando", async () => {
+    const command = vi.fn(async () => ({ type: 4, data: { embeds: [{ title: "Gelgoog · GD01-030" }] } }));
+    const { handler } = setup({ command });
+    const res = fakeRes();
+    await handler(signedRequest({ type: 2, data: { name: "carta", options: [{ name: "nome", value: "GD01-030" }] }, member: { user: { id: "999" } } }) as any, res as any);
+    expect(res.payload).toEqual({ type: 4, data: { embeds: [{ title: "Gelgoog · GD01-030" }] } });
+  });
+
+  it("autocomplete que falha devolve lista vazia; comando que falha avisa só quem pediu", async () => {
+    const { handler } = setup({ command: vi.fn(async () => Promise.reject(new Error("banco fora"))) });
+    const a = fakeRes();
+    await handler(signedRequest({ type: 4, data: { name: "carta", options: [] } }) as any, a as any);
+    expect(a.payload).toEqual({ type: 8, data: { choices: [] } });
+    const b = fakeRes();
+    await handler(signedRequest({ type: 2, data: { name: "carta", options: [] } }) as any, b as any);
+    expect((b.payload as any).data.flags).toBe(64);
+  });
 });

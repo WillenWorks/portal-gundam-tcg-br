@@ -2,13 +2,13 @@
  * Discretas de propósito: nada de pop-up ou banner fixo. */
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { ArrowRight, Camera, HeartHandshake, Users } from "lucide-react";
+import { ArrowRight, Camera, HeartHandshake, MessagesSquare, Users } from "lucide-react";
 
 import { SupporterBadge } from "@/components/support/SupporterBadge";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
 import { api, type ApiSupporter } from "@/lib/api";
 import { SUPPORT_MONTHLY_COST } from "@/lib/supportContent";
-import { INSTAGRAM_URL } from "@/lib/supportLinks";
+import { DISCORD_URL, INSTAGRAM_URL } from "@/lib/supportLinks";
 
 /** Quantos nomes do mural aparecem na faixa da home (o mural já vem por patente, mais alta primeiro). */
 const HOME_NAMES = 6;
@@ -31,6 +31,12 @@ function SupportLinks({ compact = false }: { compact?: boolean }) {
         <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className={`${base}${box} ${compact ? "text-slate-300 hover:text-primary light:text-slate-700" : "border-white/20 bg-white/5 text-white hover:border-primary/60 hover:text-primary light:border-slate-400 light:bg-white light:text-slate-900"}`}>
           <Camera className="size-3.5" />
           Instagram
+        </a>
+      ) : null}
+      {DISCORD_URL ? (
+        <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className={`${base}${box} ${compact ? "text-slate-300 hover:text-primary light:text-slate-700" : "border-white/20 bg-white/5 text-white hover:border-primary/60 hover:text-primary light:border-slate-400 light:bg-white light:text-slate-900"}`}>
+          <MessagesSquare className="size-3.5" />
+          Discord
         </a>
       ) : null}
     </div>

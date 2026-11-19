@@ -46,6 +46,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import defaultPilotAvatar from "@/assets/home/default_pilot_avatar.webp";
 import { safeImageSrc } from "@/lib/safeImageSrc";
+import { DiscordConnection } from "@/components/profile/DiscordConnection";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
 
 type FriendItem = {
@@ -974,6 +975,7 @@ export default function ProfilePage() {
                     </div>
                   )}
                 </div>
+                <DiscordConnection connected={Boolean(user?.discordConnected)} username={user?.discordUsername} onChange={refreshMe} />
                 {user?.role === "ADMIN" ? (
                   <div className="panel-cut border border-amber-500/40 bg-amber-500/10 p-4 space-y-3">
                     <div className="flex items-center justify-between gap-2">

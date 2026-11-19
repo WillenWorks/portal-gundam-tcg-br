@@ -9,3 +9,5 @@ function httpsUrl(value: unknown): string {
 export const SUPPORT_URL = httpsUrl(import.meta.env.VITE_SUPPORT_URL);
 /** Perfil do Instagram. */
 export const INSTAGRAM_URL = httpsUrl(import.meta.env.VITE_INSTAGRAM_URL);
+/** Convite do servidor do Discord. */
+export const DISCORD_URL = httpsUrl(import.meta.env.VITE_DISCORD_INVITE_URL);

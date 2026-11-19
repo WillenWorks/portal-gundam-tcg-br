@@ -617,6 +617,9 @@ export async function publishSpoilerDigestSite(prisma: PrismaClient, post: Pick<
     const auto = (set?.metadataJson as { autoCreatedBy?: string } | null)?.autoCreatedBy === "spoilers";
     if (set && !set.isActive && auto) await prisma.cardSet.update({ where: { id: setId! }, data: { isActive: true } });
   }
+  // #spoilers público do Discord (uma vez por artigo; a versão em inglês sai como "atualizado")
+  const { announceSpoilerDigest, queueDiscordAnnouncement } = await import("./discordAnnouncements.ts");
+  queueDiscordAnnouncement("spoiler", () => announceSpoilerDigest(prisma, digest.id));
 }
 
 /** ❌ no post do resumo: marca o resumo como descartado (artigo e cartas ficam como rascunho). */
