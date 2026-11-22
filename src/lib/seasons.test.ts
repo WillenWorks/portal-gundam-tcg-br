@@ -22,10 +22,10 @@ describe("temporadas — fonte única", () => {
     expect(seasonsNewestFirst()[0].code).toBe(LATEST_SEASON);
   });
 
-  it("GD06 aberta em 30/10/2026; a análise abre em GD05 até o GD06 juntar listas", () => {
+  it("GD06 aberta em 30/10/2026; a análise abre em GD06 desde que juntou listas (22/11: 622)", () => {
     expect(SEASONS.find((s) => s.code === "GD06")?.startDate).toBe("2026-10-30");
     expect(SEASON_CODES).toContain(DEFAULT_ANALYSIS_SEASON);
-    expect(DEFAULT_ANALYSIS_SEASON).toBe("GD05");
+    expect(DEFAULT_ANALYSIS_SEASON).toBe("GD06");
   });
 
   it("recortes e grafias antigas contam como o próprio formato", () => {

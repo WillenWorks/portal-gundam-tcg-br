@@ -92,9 +92,9 @@ describe("seasonFormatMetaService", () => {
     expect(res!.archetypes.every((a) => a.colors.includes("green"))).toBe(true);
   });
 
-  it("ordena GD05 unificado no topo de getAvailableFormats (sem GD05.5 separado) e inclui ALL", () => {
+  it("ordena a temporada padrão (GD06) no topo de getAvailableFormats, sem GD05.5 separado, e inclui ALL", () => {
     const formats = getAvailableFormats();
-    expect(formats[0].format).toBe("GD05");
+    expect(formats[0].format).toBe("GD06");
     expect(formats.some((f) => f.format === "GD05.5")).toBe(false);
     expect(formats.some((f) => f.format === "GD05_COMBINED")).toBe(false);
     expect(formats.some((f) => f.format === "ALL")).toBe(true);
@@ -105,7 +105,7 @@ describe("seasonFormatMetaService", () => {
     expect(seasonDisplayOrder(["S1", "S2", "S3"], "S3")).toEqual(["S3", "S2", "S1"]);
   });
 
-  it("temporada atual unifica GD05 e GD05.5 sob GD05 sem somar duas vezes", async () => {
+  it("GD05 (temporada passada) unifica GD05 e GD05.5 sob GD05 sem somar duas vezes", async () => {
     // o recorte está contido no GD05
     expect(F["GD05.5"].lists).toBeLessThanOrEqual(F.GD05.lists);
 
@@ -116,9 +116,9 @@ describe("seasonFormatMetaService", () => {
     expect(res!.totalEvents).toBe(F.GD05.events);
     expect(res!.provenance.totalDecks).toBe(F.GD05.lists);
     expect(res!.provenance.tournaments[0].name).toContain("Temporada GD05");
-    // "current" abre a temporada padrão de análise (GD05 até o GD06 juntar listas), não a mais recente
-    expect((await getFormatMetaBreakdown(mockPrisma, "current"))!.format).toBe("GD05");
-    expect(getAvailableFormats()[0].totalLists).toBe(F.GD05.lists);
+    // "current" abre a temporada padrão de análise (GD06 desde 22/11)
+    expect((await getFormatMetaBreakdown(mockPrisma, "current"))!.format).toBe("GD06");
+    expect(getAvailableFormats()[0].totalLists).toBe(F.GD06.lists);
 
     // aliases legados como GD05.5 ou GD05_COMBINED também resolvem para GD05
     const resAlias = await getFormatMetaBreakdown(mockPrisma, "GD05_COMBINED");
