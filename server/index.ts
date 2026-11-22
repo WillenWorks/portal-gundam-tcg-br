@@ -148,9 +148,20 @@ import { createMailer, registerAuthEmailRoutes, sendVerificationEmail, validateP
 import { recaptchaVerifier } from "./recaptchaService.ts";
 import { captureServerError, initServerErrorMonitoring } from "./errorMonitoring.ts";
 import { createAuth, type AuthPayload, type RequestWithUser } from "./auth.ts";
+import { prismaWhereGuardExtension, whereGuardMode } from "./prismaWhereGuard.ts";
 import { createHtmlBodyLoader, createHtmlDetailLoaders, registerHtmlPages } from "./routes/htmlPages.ts";
 
-const prisma = new PrismaClient();
+// A extensão só observa os argumentos (não muda o formato do cliente), por isso o cast mantém o tipo PrismaClient
+// que as rotas e os serviços recebem.
+const prisma = new PrismaClient().$extends(
+  prismaWhereGuardExtension({
+    mode: whereGuardMode(process.env),
+    report: (message) => {
+      console.warn(message);
+      captureServerError(new Error(message), "prisma-where-undefined");
+    },
+  }),
+) as unknown as PrismaClient;
 
 // docs/23 — persistência da partida do Simulador (write-through no Supabase).
 // O `matchStore` segue com o Map em memória como cache; isto é só o backup que
