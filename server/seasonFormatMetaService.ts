@@ -350,6 +350,7 @@ export async function getFormatMetaBreakdown(
   } else {
     formatKey = seasonKey ?? format.toUpperCase();
     formatData = META_CORES.formats[formatKey as keyof typeof META_CORES.formats];
+    if (SEASON_CODES.includes(formatKey)) tournamentLabel = `Torneios Competitivos Temporada ${formatKey} (Egman Events + DigiLab)`;
   }
 
   if (!formatData) {

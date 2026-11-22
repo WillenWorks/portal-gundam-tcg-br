@@ -7,6 +7,6 @@
     { "code": "GD05", "name": "GD05 — Freedom Ascension", "startDate": "2026-07-24" },
     { "code": "GD06", "name": "GD06 — Stardust Trails", "startDate": "2026-10-30" }
   ],
-  "defaultAnalysisSeason": "GD05",
+  "defaultAnalysisSeason": "GD06",
   "slices": [{ "id": "GD05.5", "format": "GD05", "since": "2026-09-25" }]
 }
