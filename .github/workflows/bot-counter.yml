@@ -1,0 +1,53 @@
+name: Bot counter
+
+# Valida o counter do Zero System com a matriz de `fixtures/zeroCounterMatchups.ts` (fase B do spec
+# bot-zero-system-forte): para cada deck do pool, counter(D) × D e baseline × D, com seeds diferentes das da
+# matriz. Meta: counter ≥ 60%, Wilson > 50% e acima do baseline. Sob demanda:
+#   - PR: adicione o label `bot-counter`;
+#   - manual: Actions → Bot counter → Run workflow (só aparece depois que este arquivo estiver em `main`).
+
+on:
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      level:
+        description: "Nível do bot nos dois lados"
+        default: "dificil"
+      games:
+        description: "Partidas por confronto"
+        default: "8"
+
+concurrency:
+  group: bot-counter-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  counter:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'bot-counter'
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: corepack pnpm install --frozen-lockfile
+      - name: Counter × baseline
+        run: |
+          node scripts/gundam-bot-counter.mjs --level="${{ inputs.level || 'dificil' }}" --games="${{ inputs.games || '8' }}" --out=out/counter.json | tee out.log
+          { echo '```'; grep '^\[counter\]' out.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: bot-counter-relatorio
+          path: |
+            out/
+            out.log
+          retention-days: 90
