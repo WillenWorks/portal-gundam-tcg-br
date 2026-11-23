@@ -90,9 +90,22 @@ describe("counterForPlayerDeck", () => {
     expect(counterForPlayerDeck(byId("ST02").build(), t).summary.counterDeckId).toBe("ST01");
   });
 
-  it("matriz do GD06: nenhum confronto tem vantagem clara, o counter é sempre o baseline", () => {
+  it("matriz do GD06 sem o reforço: nenhum confronto tem vantagem clara, o counter é sempre o baseline", () => {
+    const stageOne: MatchupTable = { ...ZERO_COUNTER_MATCHUPS, refined: undefined };
+    const gd06 = poolForTable(stageOne);
+    for (const d of gd06) expect(counterForPlayerDeck(d.build(), stageOne, gd06).summary.fallback).toBe(true);
+  });
+
+  it("matriz do GD06 com o reforço: troca só onde o reforço mostrou vantagem clara", () => {
     const gd06 = poolForTable(ZERO_COUNTER_MATCHUPS);
-    for (const d of gd06) expect(counterForPlayerDeck(d.build(), ZERO_COUNTER_MATCHUPS, gd06).summary.fallback).toBe(true);
+    const ref = ZERO_COUNTER_MATCHUPS.refined!;
+    for (const d of gd06) {
+      const { summary } = counterForPlayerDeck(d.build(), ZERO_COUNTER_MATCHUPS, gd06);
+      if (summary.fallback) continue;
+      const i = ZERO_COUNTER_MATCHUPS.decks.indexOf(summary.counterDeckId);
+      const j = ZERO_COUNTER_MATCHUPS.decks.indexOf(d.id);
+      expect(ref.played[i][j]).toBeGreaterThan(0);
+    }
   });
 
   describe("reforço (2ª etapa)", () => {
