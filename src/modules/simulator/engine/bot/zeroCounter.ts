@@ -29,6 +29,11 @@ export interface MatchupTable {
    * (decks do banco): o servidor não conhece esses decks de outro jeito
    */
   lists?: Record<string, { main: string[]; resources: string[] }>;
+  /**
+   * reforço (2ª etapa): partidas extras, no nível em que o Zero System joga, só nos confrontos candidatos de cada
+   * coluna e no baseline × coluna. `wins[i][j]`/`played[i][j]` do deck `decks[i]` contra `decks[j]` (0 = sem medida).
+   */
+  refined?: { level: string; wins: number[][]; played: number[][] };
 }
 
 /** pool que a tabela descreve: as listas embutidas ou, sem elas, o pool fixo `all` */
@@ -178,6 +183,95 @@ export function shrinkPriorGames(table: MatchupTable): number {
   return prior;
 }
 
+interface StageOneCandidate {
+  row: number;
+  /** taxa ajustada contra a coluna */
+  adjusted: number;
+  /** margem sobre o baseline em desvios-padrão */
+  z: number;
+}
+
+/**
+ * Candidatos da 1ª etapa contra a coluna `col`, do maior para o menor z (sem o baseline). Taxa ajustada = média
+ * ponderada entre a taxa do confronto (n partidas) e a média do candidato (peso estimado da matriz); a margem
+ * usa a variância a posteriori p(1−p)/(n+peso). Espelho (o jogador usa o próprio baseline): a diagonal é nula,
+ * mas a taxa real é 0,5.
+ */
+function stageOneCandidates(table: MatchupTable, rows: number[], baselineRow: number, col: number): StageOneCandidate[] {
+  const n = table.gamesPerPair;
+  const prior = n === undefined ? 0 : shrinkPriorGames(table);
+  const adjusted = (row: number, r: number): number => (n === undefined ? r : (n * r + prior * averageRate(table, row)) / (n + prior));
+  const baseRate = table.rate[baselineRow][col] ?? 0.5;
+  const base = adjusted(baselineRow, baseRate);
+  const out: StageOneCandidate[] = [];
+  for (const row of rows) {
+    const r = table.rate[row][col];
+    if (row === baselineRow || r === null) continue;
+    const a = adjusted(row, r);
+    // sem gamesPerPair a taxa crua decide: qualquer vantagem conta
+    const z = n === undefined ? (a > base + 1e-12 ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY) : (a - base) / Math.max(1e-9, Math.sqrt((a * (1 - a) + base * (1 - base)) / (n + prior)));
+    out.push({ row, adjusted: a, z });
+  }
+  // empate de z (inclusive ±∞ sem gamesPerPair) → maior taxa ajustada → ordem da tabela
+  return out.sort((x, y) => (x.z === y.z ? 0 : y.z > x.z ? 1 : -1) || y.adjusted - x.adjusted || x.row - y.row);
+}
+
+/** z unilateral com Bonferroni para k candidatos (α = 5%) */
+const REFINED_Z = [1.645, 1.96, 2.128, 2.241, 2.326];
+
+/**
+ * 2ª etapa: com reforço medido para a coluna (baseline × coluna e ao menos um candidato), o candidato de maior
+ * taxa só vence se superar o baseline por REFINED_Z[k−1] desvios. As partidas do reforço são independentes das
+ * da 1ª etapa (que só escolheu quem medir), então não há encolhimento aqui; a correção é pelo número de
+ * candidatos medidos. Sem reforço para a coluna → null (fica a 1ª etapa).
+ */
+function refinedChoice(table: MatchupTable, rows: number[], baselineRow: number, col: number): { row: number; rate: number } | null {
+  const ref = table.refined;
+  if (!ref) return null;
+  const mirror = col === baselineRow;
+  const nb = mirror ? Number.POSITIVE_INFINITY : ref.played[baselineRow][col];
+  if (!nb) return null;
+  const rb = mirror ? 0.5 : ref.wins[baselineRow][col] / nb;
+  const cands = rows.filter((row) => row !== baselineRow && row !== col && ref.played[row][col] > 0);
+  if (cands.length === 0) return null;
+  const rate = (row: number) => ref.wins[row][col] / ref.played[row][col];
+  const top = cands.reduce((a, b) => (rate(b) > rate(a) + 1e-12 ? b : a));
+  const rc = rate(top);
+  const nc = ref.played[top][col];
+  const se = Math.sqrt((rc * (1 - rc)) / nc + (mirror ? 0 : (rb * (1 - rb)) / nb));
+  const zCrit = REFINED_Z[Math.min(cands.length, REFINED_Z.length) - 1];
+  if (se > 0 && (rc - rb) / se >= zCrit) return { row: top, rate: rc };
+  return { row: baselineRow, rate: rb };
+}
+
+/**
+ * Pares a reforçar (ids [linha, coluna]): para cada coluna, os `perColumn` candidatos da 1ª etapa com z ≥ `minZ`
+ * e, se houver algum, o baseline × coluna. Os pares do plano de partidas são não ordenados; aqui vai cada um uma vez.
+ */
+export function refinementPairs(table: MatchupTable, opts: { perColumn?: number; minZ?: number } = {}): [string, string][] {
+  const perColumn = opts.perColumn ?? 2;
+  const minZ = opts.minZ ?? 0;
+  const rows = table.decks.map((_, i) => i);
+  const baselineRow = rows.reduce((b, i) => (averageRate(table, i) > averageRate(table, b) + 1e-12 ? i : b), 0);
+  const seen = new Set<string>();
+  const out: [string, string][] = [];
+  const add = (a: number, b: number) => {
+    const key = [a, b].sort((x, y) => x - y).join(",");
+    if (a === b || seen.has(key)) return;
+    seen.add(key);
+    out.push([table.decks[a], table.decks[b]]);
+  };
+  for (const col of rows) {
+    const picked = stageOneCandidates(table, rows, baselineRow, col)
+      .filter((c) => c.row !== col && c.z >= minZ)
+      .slice(0, perColumn);
+    if (picked.length === 0) continue;
+    add(baselineRow, col);
+    for (const c of picked) add(c.row, col);
+  }
+  return out;
+}
+
 export function counterForPlayerDeck(playerDeck: DeckList, table: MatchupTable, pool: BenchmarkDeck[] = poolForTable(table)): ZeroCounterResult {
   const inTable = pool.filter((d) => table.decks.includes(d.id));
   if (inTable.length === 0) throw new Error("counterForPlayerDeck: nenhum deck do pool está na matriz de confrontos");
@@ -192,32 +286,14 @@ export function counterForPlayerDeck(playerDeck: DeckList, table: MatchupTable, 
     if (averageRate(table, row) > averageRate(table, baselineRow) + 1e-12) baselineRow = row;
   }
 
-  // counter: maior taxa AJUSTADA contra o deck do jogador; em empate fica o baseline
-  const n = table.gamesPerPair;
-  const prior = n === undefined ? 0 : shrinkPriorGames(table);
-  const adjusted = (row: number): number | null => {
-    const r = table.rate[row][col];
-    if (r === null) return null;
-    return n === undefined ? r : (n * r + prior * averageRate(table, row)) / (n + prior);
-  };
-  let counterRow = baselineRow;
-  let counterScore = adjusted(baselineRow);
-  for (const d of inTable) {
-    const row = table.decks.indexOf(d.id);
-    const a = adjusted(row);
-    if (a !== null && (counterScore === null || a > counterScore + 1e-12)) {
-      counterRow = row;
-      counterScore = a;
-    }
-  }
-  // vantagem clara: diferença das taxas ajustadas acima de COUNTER_MIN_Z desvios (variância a posteriori p(1−p)/(n+peso))
-  // espelho (o jogador usa o próprio baseline): a diagonal é nula, mas a taxa real é 0,5
-  const baselineScore = adjusted(baselineRow) ?? (n === undefined ? 0.5 : (n * 0.5 + prior * averageRate(table, baselineRow)) / (n + prior));
-  if (n !== undefined && counterRow !== baselineRow && counterScore !== null && baselineScore !== null) {
-    const se = Math.sqrt((counterScore * (1 - counterScore) + baselineScore * (1 - baselineScore)) / (n + prior));
-    if (counterScore - baselineScore < COUNTER_MIN_Z * se) counterRow = baselineRow;
-  }
-  const counterRate = table.rate[counterRow][col];
+  // 1ª etapa (matriz inteira): maior taxa ajustada, só com vantagem clara sobre o baseline
+  const rows = inTable.map((d) => table.decks.indexOf(d.id));
+  const best = stageOneCandidates(table, rows, baselineRow, col).filter((c) => c.z >= COUNTER_MIN_Z)[0];
+  let counterRow = best ? best.row : baselineRow;
+  // 2ª etapa (reforço medido no nível de produção): onde houver, decide no lugar da 1ª
+  const refined = refinedChoice(table, rows, baselineRow, col);
+  if (refined) counterRow = refined.row;
+  const counterRate = refined ? refined.rate : table.rate[counterRow][col];
 
   const counterId = table.decks[counterRow];
   const counterDeck = inTable.find((d) => d.id === counterId);

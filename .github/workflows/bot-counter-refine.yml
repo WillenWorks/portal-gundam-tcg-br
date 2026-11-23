@@ -1,0 +1,134 @@
+# Reforço do counter do Zero System (2ª etapa): mais partidas, no nível em que o Zero System joga, só nos confrontos
+# candidatos de cada coluna da fixture `fixtures/zeroCounterMatchups.ts` e no baseline × coluna. Sai a matriz do
+# reforço (artefato `bot-counter-refine`); a fixture nova é gerada fora daqui, com a matriz base:
+#   node scripts/gundam-bot-counter.mjs --matrix=<base>/matrix-GD06.json --refined=refine.json --write-fixture
+# Sob demanda: label `bot-counter-refine` no PR, ou Actions → Bot counter refine → Run workflow (depois de em `main`).
+name: Bot counter refine
+
+on:
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      level:
+        description: "Nível do bot nos dois lados (o do Zero System: dificil)"
+        default: "dificil"
+      games:
+        description: "Partidas por par reforçado"
+        default: "200"
+      shards:
+        description: "Fatias (20 rodam ao mesmo tempo)"
+        default: "40"
+      per_column:
+        description: "Candidatos reforçados por coluna"
+        default: "2"
+
+concurrency:
+  group: bot-counter-refine-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  LEVEL: ${{ inputs.level || 'dificil' }}
+  GAMES: ${{ inputs.games || '200' }}
+  SHARDS: ${{ inputs.shards || '40' }}
+  PER_COLUMN: ${{ inputs.per_column || '2' }}
+  # seeds fora das da matriz base (seed 1) e da validação do counter
+  SEED: "3"
+
+jobs:
+  plan:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'bot-counter-refine'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      include: ${{ steps.plan.outputs.include }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: corepack pnpm install --frozen-lockfile
+      - name: Pool e pares a partir da fixture
+        id: plan
+        run: |
+          node scripts/gundam-bot-counter.mjs --plan-refine --pool-out=refine/pool.json --pairs-out=refine/pairs.json --per-column="$PER_COLUMN" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "include=$(node -e 'console.log(JSON.stringify(Array.from({ length: Number(process.argv[1]) }, (_, shard) => ({ shard }))))' "$SHARDS")" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bot-counter-refine-plan
+          path: refine/
+          retention-days: 30
+
+  measure:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.include) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: corepack pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: bot-counter-refine-plan
+          path: refine
+      - name: Mede a fatia ${{ matrix.shard }}
+        run: |
+          mkdir -p parts
+          node scripts/gundam-bot-matchups.mjs --pool=refine/pool.json --pairs=refine/pairs.json --level="$LEVEL" \
+            --games="$GAMES" --seed="$SEED" --shard="${{ matrix.shard }}/$SHARDS" --workers=4 \
+            --out="parts/refine-${{ matrix.shard }}.json"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bot-counter-refine-part-${{ matrix.shard }}
+          path: parts/
+          retention-days: 30
+
+  report:
+    needs: [plan, measure]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: corepack pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          name: bot-counter-refine-plan
+          path: out
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: bot-counter-refine-part-*
+          path: parts
+          merge-multiple: true
+      - name: Junta as fatias
+        run: |
+          node scripts/gundam-bot-merge.mjs --out=out/refine.json parts/refine-*.json
+          echo "fatias: $(ls parts/refine-*.json | wc -l) de $SHARDS" >> "$GITHUB_STEP_SUMMARY"
+          node -e 'const m=require("./out/refine.json");const n=m.played.flat().reduce((a,b)=>a+b,0)/2;console.log(`partidas: ${n} · excluídas: ${m.excluded.length} · nível ${m.params.level}`)' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bot-counter-refine
+          path: out/
+          retention-days: 90
