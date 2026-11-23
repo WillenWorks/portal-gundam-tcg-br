@@ -129,6 +129,13 @@ function averageRate(table: MatchupTable, row: number): number {
   return rates.length ? rates.reduce((s, r) => s + r, 0) / rates.length : 0;
 }
 
+/**
+ * Margem mínima (em desvios-padrão) do counter sobre o baseline no confronto para trocar de deck. Abaixo
+ * dela fica o baseline: com pouco sinal de confronto, escolher o "melhor" de vários candidatos é escolher
+ * sorte (fase B de 23/11: 72,7% × 74,1% do baseline com a matriz de 40 por par).
+ */
+export const COUNTER_MIN_Z = 1.645;
+
 const priorCache = new WeakMap<MatchupTable, number>();
 
 /**
@@ -202,6 +209,13 @@ export function counterForPlayerDeck(playerDeck: DeckList, table: MatchupTable, 
       counterRow = row;
       counterScore = a;
     }
+  }
+  // vantagem clara: diferença das taxas ajustadas acima de COUNTER_MIN_Z desvios (variância a posteriori p(1−p)/(n+peso))
+  // espelho (o jogador usa o próprio baseline): a diagonal é nula, mas a taxa real é 0,5
+  const baselineScore = adjusted(baselineRow) ?? (n === undefined ? 0.5 : (n * 0.5 + prior * averageRate(table, baselineRow)) / (n + prior));
+  if (n !== undefined && counterRow !== baselineRow && counterScore !== null && baselineScore !== null) {
+    const se = Math.sqrt((counterScore * (1 - counterScore) + baselineScore * (1 - baselineScore)) / (n + prior));
+    if (counterScore - baselineScore < COUNTER_MIN_Z * se) counterRow = baselineRow;
   }
   const counterRate = table.rate[counterRow][col];
 
