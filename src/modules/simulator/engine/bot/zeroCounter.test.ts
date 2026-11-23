@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { deckPool } from "../../fixtures/benchmarkDeckPools";
-import { counterForPlayerDeck, deckSignature, poolForTable, type MatchupTable } from "./zeroCounter";
+import { counterForPlayerDeck, deckSignature, poolForTable, shrinkPriorGames, SHRINK_PRIOR_GAMES, SHRINK_PRIOR_MAX_GAMES, type MatchupTable } from "./zeroCounter";
+import { ZERO_COUNTER_MATCHUPS } from "../../fixtures/zeroCounterMatchups";
 import { toPoolFileDeck } from "../../fixtures/benchmarkDeckPools";
 import { validateGeneratedDeckLegality } from "./zeroCounterDeckBuilder";
 
@@ -77,6 +78,23 @@ describe("counterForPlayerDeck", () => {
     expect(counterForPlayerDeck(byId("ST05").build(), t).summary.counterDeckId).toBe("ST03");
   });
 
+  it("só troca do baseline com vantagem clara no confronto", () => {
+    // ST01 bate o ST02 por pouco acima do baseline (ST03, 0,6): com poucas partidas fica o baseline
+    const t = table();
+    const i = (id: string) => t.decks.indexOf(id);
+    t.rate[i("ST01")][i("ST02")] = 0.75;
+    t.gamesPerPair = 40;
+    expect(counterForPlayerDeck(byId("ST02").build(), t).summary.fallback).toBe(true);
+    // a mesma vantagem medida em muitas partidas passa
+    t.gamesPerPair = 2000;
+    expect(counterForPlayerDeck(byId("ST02").build(), t).summary.counterDeckId).toBe("ST01");
+  });
+
+  it("matriz do GD06: nenhum confronto tem vantagem clara, o counter é sempre o baseline", () => {
+    const gd06 = poolForTable(ZERO_COUNTER_MATCHUPS);
+    for (const d of gd06) expect(counterForPlayerDeck(d.build(), ZERO_COUNTER_MATCHUPS, gd06).summary.fallback).toBe(true);
+  });
+
   it("tabela com listas embutidas (decks do banco): o counter sai dessas listas", () => {
     const st01 = toPoolFileDeck(byId("ST01"));
     const st02 = toPoolFileDeck(byId("ST02"));
@@ -90,5 +108,25 @@ describe("counterForPlayerDeck", () => {
     expect(summary.nearestDeckId).toBe("DB-B");
     expect(summary.counterDeckId).toBe("DB-A");
     expect(deck.main.map((c) => c.code)).toEqual(st01.list.main);
+  });
+
+  describe("shrinkPriorGames (peso estimado da matriz)", () => {
+    it("matriz do GD06 (pouco sinal de confronto): peso bem acima do mínimo", () => {
+      const prior = shrinkPriorGames(ZERO_COUNTER_MATCHUPS);
+      expect(prior).toBeGreaterThan(40);
+      expect(prior).toBeLessThanOrEqual(SHRINK_PRIOR_MAX_GAMES);
+    });
+
+    it("confrontos fortes e muitas partidas: peso fica no mínimo", () => {
+      const size = 8;
+      const decks = Array.from({ length: size }, (_, i) => `D${i}`);
+      // pedra-papel-tesoura: cada deck amassa o seguinte e perde do anterior, média 0,5 para todos
+      const rate = decks.map((_, i) => decks.map((_, j) => (i === j ? null : (j - i + size) % size <= size / 2 ? 0.95 : 0.05)));
+      expect(shrinkPriorGames({ decks, rate, gamesPerPair: 100 })).toBe(SHRINK_PRIOR_GAMES);
+    });
+
+    it("sem gamesPerPair: peso mínimo (e a escolha usa a taxa crua)", () => {
+      expect(shrinkPriorGames(table())).toBe(SHRINK_PRIOR_GAMES);
+    });
   });
 });
