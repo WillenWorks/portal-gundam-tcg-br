@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { deckPool } from "../../fixtures/benchmarkDeckPools";
-import { counterForPlayerDeck, deckSignature, poolForTable, type MatchupTable } from "./zeroCounter";
+import { counterForPlayerDeck, deckSignature, poolForTable, shrinkPriorGames, SHRINK_PRIOR_GAMES, SHRINK_PRIOR_MAX_GAMES, type MatchupTable } from "./zeroCounter";
+import { ZERO_COUNTER_MATCHUPS } from "../../fixtures/zeroCounterMatchups";
 import { toPoolFileDeck } from "../../fixtures/benchmarkDeckPools";
 import { validateGeneratedDeckLegality } from "./zeroCounterDeckBuilder";
 
@@ -90,5 +91,25 @@ describe("counterForPlayerDeck", () => {
     expect(summary.nearestDeckId).toBe("DB-B");
     expect(summary.counterDeckId).toBe("DB-A");
     expect(deck.main.map((c) => c.code)).toEqual(st01.list.main);
+  });
+
+  describe("shrinkPriorGames (peso estimado da matriz)", () => {
+    it("matriz do GD06 (pouco sinal de confronto): peso bem acima do mínimo", () => {
+      const prior = shrinkPriorGames(ZERO_COUNTER_MATCHUPS);
+      expect(prior).toBeGreaterThan(40);
+      expect(prior).toBeLessThanOrEqual(SHRINK_PRIOR_MAX_GAMES);
+    });
+
+    it("confrontos fortes e muitas partidas: peso fica no mínimo", () => {
+      const size = 8;
+      const decks = Array.from({ length: size }, (_, i) => `D${i}`);
+      // pedra-papel-tesoura: cada deck amassa o seguinte e perde do anterior, média 0,5 para todos
+      const rate = decks.map((_, i) => decks.map((_, j) => (i === j ? null : (j - i + size) % size <= size / 2 ? 0.95 : 0.05)));
+      expect(shrinkPriorGames({ decks, rate, gamesPerPair: 100 })).toBe(SHRINK_PRIOR_GAMES);
+    });
+
+    it("sem gamesPerPair: peso mínimo (e a escolha usa a taxa crua)", () => {
+      expect(shrinkPriorGames(table())).toBe(SHRINK_PRIOR_GAMES);
+    });
   });
 });

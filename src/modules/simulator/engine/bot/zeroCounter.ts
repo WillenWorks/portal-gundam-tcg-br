@@ -20,8 +20,8 @@ export interface MatchupTable {
   rate: (number | null)[][];
   /**
    * partidas por par na matriz. Com ele, a escolha do counter encolhe cada taxa
-   * em direção à média do candidato (`SHRINK_PRIOR_GAMES`): com ~10 partidas por
-   * par, o melhor de 13 candidatos pela taxa crua tende a ser sorte.
+   * em direção à média do candidato (peso de `shrinkPriorGames`, estimado da matriz): com ~10 partidas por
+   * par, o melhor de 27 candidatos pela taxa crua tende a ser sorte.
    */
   gamesPerPair?: number;
   /**
@@ -41,8 +41,10 @@ export function poolForTable(table: MatchupTable): BenchmarkDeck[] {
   });
 }
 
-/** peso (em partidas) da média do candidato na taxa ajustada do confronto */
+/** peso mínimo (em partidas) da média do candidato na taxa ajustada do confronto */
 export const SHRINK_PRIOR_GAMES = 10;
+/** teto do peso: matriz sem sinal de confronto nenhum vira "sempre o baseline" sem dividir por zero */
+export const SHRINK_PRIOR_MAX_GAMES = 200;
 
 export interface ZeroCounterSummary {
   counterDeckId: string;
@@ -127,6 +129,48 @@ function averageRate(table: MatchupTable, row: number): number {
   return rates.length ? rates.reduce((s, r) => s + r, 0) / rates.length : 0;
 }
 
+const priorCache = new WeakMap<MatchupTable, number>();
+
+/**
+ * Peso da média do candidato, estimado da própria matriz (Bayes empírico). Modelo aditivo: taxa esperada do par
+ * = média da linha + média da coluna − 0,5. O que sobra é sinal de confronto + ruído binomial (p(1−p)/n).
+ * Peso = n · ruído / sinal: quanto menos sinal de confronto a matriz tem, mais a escolha fica com o deck forte
+ * no geral. Na matriz do GD06 de 22/11 (10 por par), só 14% do desvio era sinal → peso ~60, não 10.
+ */
+export function shrinkPriorGames(table: MatchupTable): number {
+  const cached = priorCache.get(table);
+  if (cached !== undefined) return cached;
+  const n = table.gamesPerPair ?? 0;
+  const size = table.decks.length;
+  const rowAvg = table.decks.map((_, i) => averageRate(table, i));
+  const colAvg = table.decks.map((_, j) => {
+    const col = table.rate.map((row) => row[j]).filter((r): r is number => r !== null);
+    return col.length ? col.reduce((s, r) => s + r, 0) / col.length : 0.5;
+  });
+  let observed = 0;
+  let noise = 0;
+  let cells = 0;
+  for (let i = 0; i < size; i++) {
+    for (let j = 0; j < size; j++) {
+      const r = table.rate[i][j];
+      if (r === null) continue;
+      const expected = rowAvg[i] + colAvg[j] - 0.5;
+      const p = Math.min(0.95, Math.max(0.05, expected));
+      observed += (r - expected) ** 2;
+      noise += (p * (1 - p)) / Math.max(1, n);
+      cells++;
+    }
+  }
+  let prior = SHRINK_PRIOR_GAMES;
+  if (n > 0 && cells > 0) {
+    const signal = (observed - noise) / cells;
+    prior = signal <= 0 ? SHRINK_PRIOR_MAX_GAMES : (n * (noise / cells)) / signal;
+    prior = Math.min(SHRINK_PRIOR_MAX_GAMES, Math.max(SHRINK_PRIOR_GAMES, prior));
+  }
+  priorCache.set(table, prior);
+  return prior;
+}
+
 export function counterForPlayerDeck(playerDeck: DeckList, table: MatchupTable, pool: BenchmarkDeck[] = poolForTable(table)): ZeroCounterResult {
   const inTable = pool.filter((d) => table.decks.includes(d.id));
   if (inTable.length === 0) throw new Error("counterForPlayerDeck: nenhum deck do pool está na matriz de confrontos");
@@ -143,10 +187,11 @@ export function counterForPlayerDeck(playerDeck: DeckList, table: MatchupTable, 
 
   // counter: maior taxa AJUSTADA contra o deck do jogador; em empate fica o baseline
   const n = table.gamesPerPair;
+  const prior = n === undefined ? 0 : shrinkPriorGames(table);
   const adjusted = (row: number): number | null => {
     const r = table.rate[row][col];
     if (r === null) return null;
-    return n === undefined ? r : (n * r + SHRINK_PRIOR_GAMES * averageRate(table, row)) / (n + SHRINK_PRIOR_GAMES);
+    return n === undefined ? r : (n * r + prior * averageRate(table, row)) / (n + prior);
   };
   let counterRow = baselineRow;
   let counterScore = adjusted(baselineRow);
