@@ -78,6 +78,23 @@ describe("counterForPlayerDeck", () => {
     expect(counterForPlayerDeck(byId("ST05").build(), t).summary.counterDeckId).toBe("ST03");
   });
 
+  it("só troca do baseline com vantagem clara no confronto", () => {
+    // ST01 bate o ST02 por pouco acima do baseline (ST03, 0,6): com poucas partidas fica o baseline
+    const t = table();
+    const i = (id: string) => t.decks.indexOf(id);
+    t.rate[i("ST01")][i("ST02")] = 0.75;
+    t.gamesPerPair = 40;
+    expect(counterForPlayerDeck(byId("ST02").build(), t).summary.fallback).toBe(true);
+    // a mesma vantagem medida em muitas partidas passa
+    t.gamesPerPair = 2000;
+    expect(counterForPlayerDeck(byId("ST02").build(), t).summary.counterDeckId).toBe("ST01");
+  });
+
+  it("matriz do GD06: nenhum confronto tem vantagem clara, o counter é sempre o baseline", () => {
+    const gd06 = poolForTable(ZERO_COUNTER_MATCHUPS);
+    for (const d of gd06) expect(counterForPlayerDeck(d.build(), ZERO_COUNTER_MATCHUPS, gd06).summary.fallback).toBe(true);
+  });
+
   it("tabela com listas embutidas (decks do banco): o counter sai dessas listas", () => {
     const st01 = toPoolFileDeck(byId("ST01"));
     const st02 = toPoolFileDeck(byId("ST02"));
