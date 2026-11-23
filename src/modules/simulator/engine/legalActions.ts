@@ -452,17 +452,39 @@ function pendingDecisionCandidates(state: GameState, seat: PlayerId, specs: Effe
         return opts2.length > 0 ? opts2 : [{ specId: q.specId, activate: !q.optional, targetIds: [] }];
       });
 
-      let combos: Array<Array<{ specId: string; activate: boolean; targetIds: string[]; secondaryTargetIds?: string[] }>> = [[]];
+      type Resolution = { specId: string; activate: boolean; targetIds: string[]; secondaryTargetIds?: string[] };
+      const COMBO_CAP = 48;
+      let combos: Resolution[][] = [[]];
+      let truncated = false;
       for (const entryOpts of perEntry) {
         const next: typeof combos = [];
         for (const combo of combos) {
           for (const opt of entryOpts) {
             next.push([...combo, opt]);
-            if (next.length >= 48) break;
+            if (next.length >= COMBO_CAP) break;
           }
-          if (next.length >= 48) break;
+          if (next.length >= COMBO_CAP) break;
         }
+        if (next.length < combos.length * entryOpts.length) truncated = true;
         combos = next;
+      }
+      if (truncated) {
+        // Produto cortado no teto: as opções do fim de cada entrada (inclusive o "não usar" do opcional) podiam
+        // sumir, e se as que sobraram eram todas ilegais a decisão ficava sem ação nenhuma (GD04-050 + ST09-008
+        // no ataque com 1 Recurso ativo: as 48 combinações só tinham cartas do trash que não dava para pagar).
+        // Garante cada opção de cada entrada ao menos uma vez, com as outras na opção mais segura (recusar, se opcional).
+        const safe = perEntry.map((entryOpts) => entryOpts.find((o) => !o.activate) ?? entryOpts[0]);
+        const seen = new Set(combos.map((c) => JSON.stringify(c)));
+        perEntry.forEach((entryOpts, i) => {
+          for (const opt of entryOpts) {
+            const combo = safe.map((s, j) => (j === i ? opt : s));
+            const key = JSON.stringify(combo);
+            if (!seen.has(key)) {
+              seen.add(key);
+              combos.push(combo);
+            }
+          }
+        });
       }
       return combos.map((resolutions): LegalAction => ({ kind: "resolveAbility", resolutions }));
     }
