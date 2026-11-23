@@ -12,6 +12,7 @@ import { buildSt07DeckList } from "../fixtures/st07Deck";
 import { buildSt08DeckList } from "../fixtures/st08Deck";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
 import { GD04_CARD_DEFS } from "../content/gd04";
+import { ST09_CARD_DEFS } from "../content/st09";
 
 /**
  * GD04 — fluxo real das cartas que ficaram sem teste próprio (023, 030, 042, 050, 070, 074, 090, 122).
@@ -236,6 +237,29 @@ describe("GD04-050 Destiny Gundam 【During Pair】【Attack】", () => {
     state = resolve(state, "A", "GD04-050-Attack", [], { activate: false });
     expect(inZone(state, "A", "trash", minerva)).toBe(true);
     expect(restedResources(state, "A")).toBe(0);
+  });
+
+  it("com o 【Attack】 do Shinn (ST09-008) junto, muitas cartas no trash e 1 Recurso ativo: recusar segue legal", () => {
+    // Achado da matriz do GD06 (22/11): o produto das duas entradas passava do teto de 48 combinações, só sobravam
+    // cartas do trash impagáveis e o "não usar" do opcional ficava de fora → nenhuma ação legal, partida travada.
+    let state = game();
+    resources(state, "A", 8);
+    for (const r of state.players.A.resourceArea.slice(1)) r.rested = true;
+    const self = placeCard(state, "A", G["GD04-050"], "battleArea");
+    pair(state, self, placeCard(state, "A", ST09_CARD_DEFS["ST09-008"], "battleArea"));
+    for (let i = 0; i < 9; i++) placeCard(state, "A", UNIT({ traits: ["Minerva Squad"], cost: 3, level: 4 }), "trash");
+    state = act(state, "A", { kind: "declareAttack", attackerId: self, target: "player" });
+    expect(entry(state, "A", "GD04-050-Attack")?.trashSearch?.legalTrashIds).toHaveLength(9);
+    expect(entry(state, "A", "ST09-008-Attack")?.legalTargets.length).toBeGreaterThan(0);
+
+    const legal = enumerateLegalActions(state, "A", ALL_EFFECT_SPECS, OPTS);
+    expect(legal.length).toBeGreaterThan(0);
+    const declines = legal.filter(
+      (a) => a.kind === "resolveAbility" && a.resolutions.some((r) => r.specId === "GD04-050-Attack" && !r.activate),
+    );
+    expect(declines.length).toBeGreaterThan(0);
+    state = act(state, "A", declines[0]);
+    expect(state.players.A.trash).toHaveLength(9);
   });
 
   it("sem Piloto pareado, o 【Attack】 não é oferecido", () => {
