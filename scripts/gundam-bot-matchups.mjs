@@ -14,6 +14,7 @@
  *   --listDecks          imprime os ids do pool em JSON e sai
  *   --decks=a,b,c        joga só esses decks, nesta ordem (mesma lista nos 2 lados = mesmas seeds)
  *   --focus=a,b          só os pares que envolvem esses decks (as seeds não mudam: filtra o plano)
+ *   --pairs=pares.json   só esses pares ([[idA, idB], …], ordem indiferente) — reforço do counter
  *   --shard=i/n          só a fatia i (0-based) de n do plano — para dividir entre máquinas/jobs
  *   --nice               prioridade baixa do processo (e dos workers): a máquina continua usável
  *   --out=caminho.json   onde gravar (o relatório leva as partidas cruas, `results`, para o merge)
@@ -85,6 +86,20 @@ for (const id of focus) {
     process.exit(2);
   }
 }
+let pairKeys = null;
+if (args.pairs) {
+  const pairs = JSON.parse(fs.readFileSync(path.resolve(ROOT, String(args.pairs)), "utf8"));
+  pairKeys = new Set();
+  for (const [x, y] of pairs) {
+    const a = ids.indexOf(x);
+    const b = ids.indexOf(y);
+    if (a < 0 || b < 0) {
+      console.error(`[matchups] --pairs: deck "${a < 0 ? x : y}" não está no pool`);
+      process.exit(2);
+    }
+    pairKeys.add(`${Math.min(a, b)},${Math.max(a, b)}`);
+  }
+}
 const shardMatch = args.shard ? /^(\d+)\/(\d+)$/.exec(String(args.shard)) : null;
 if (args.shard && (!shardMatch || Number(shardMatch[1]) >= Number(shardMatch[2]))) {
   console.error(`[matchups] --shard deve ser i/n com 0 <= i < n (recebi "${args.shard}")`);
@@ -92,6 +107,7 @@ if (args.shard && (!shardMatch || Number(shardMatch[1]) >= Number(shardMatch[2])
 }
 const plan = planMatchupGames({ decks: ids.length, gamesPerPair: games, seed })
   .filter((g) => focus.length === 0 || focus.includes(ids[g.a]) || focus.includes(ids[g.b]))
+  .filter((g) => !pairKeys || pairKeys.has(`${Math.min(g.a, g.b)},${Math.max(g.a, g.b)}`))
   .filter((_, k) => !shardMatch || k % Number(shardMatch[2]) === Number(shardMatch[1]));
 const parts = splitForWorkers(plan, workers);
 const started = Date.now();
@@ -186,6 +202,6 @@ const outPath = path.resolve(ROOT, String(args.out ?? `docs/bot/matchups-${date}
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
 fs.writeFileSync(
   outPath,
-  `${JSON.stringify({ date, commit, rulesSha: computeEngineSha(ROOT), params: { level, pool: poolSpec, gamesPerPair: games, seed, maxTurns, workers: parts.length, focus, shard: args.shard ?? null }, durationSeconds: Math.round((Date.now() - started) / 1000), decks: ids, wins, played, rate, average, excluded, results: [...results].sort((x, y) => x.index - y.index) }, null, 2)}\n`,
+  `${JSON.stringify({ date, commit, rulesSha: computeEngineSha(ROOT), params: { level, pool: poolSpec, gamesPerPair: games, seed, maxTurns, workers: parts.length, focus, pairs: pairKeys ? pairKeys.size : null, shard: args.shard ?? null }, durationSeconds: Math.round((Date.now() - started) / 1000), decks: ids, wins, played, rate, average, excluded, results: [...results].sort((x, y) => x.index - y.index) }, null, 2)}\n`,
 );
 console.log(`\n[matchups] relatório: ${path.relative(ROOT, outPath)}`);

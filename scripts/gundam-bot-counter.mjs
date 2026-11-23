@@ -11,6 +11,13 @@
  *
  *   pnpm gundam:bot:counter -- --matrix=docs/bot/matchups-2026-09-24.json --write-fixture
  *   pnpm gundam:bot:counter -- --games=8 --level=dificil --seed=7
+ *
+ * Reforço (2ª etapa, workflow `bot-counter-refine.yml`): mais partidas, no nível em que o Zero System
+ * joga, só nos confrontos candidatos de cada coluna e no baseline × coluna.
+ *   --plan-refine --pool-out=pool.json --pairs-out=pares.json [--per-column=2] [--min-z=0]
+ *       a partir da fixture atual: o pool (listas da fixture, mesma ordem) e os pares a medir
+ *   --matrix=base.json --refined=reforco.json --write-fixture
+ *       fixture com a matriz base e o reforço (`refined`: vitórias e partidas por célula)
  */
 import { register } from "tsx/esm/api";
 import { execSync } from "node:child_process";
@@ -32,6 +39,23 @@ const args = Object.fromEntries(
 );
 
 const FIXTURE = path.join(ROOT, "src/modules/simulator/fixtures/zeroCounterMatchups.ts");
+if (args["plan-refine"]) {
+  const { ZERO_COUNTER_MATCHUPS: table } = await import(sim("fixtures/zeroCounterMatchups.ts"));
+  const { refinementPairs } = await import(sim("engine/bot/zeroCounter.ts"));
+  if (!table.lists) {
+    console.error("[counter] --plan-refine: a fixture não tem as listas dos decks (matriz de pool fixo)");
+    process.exit(2);
+  }
+  const pairs = refinementPairs(table, { perColumn: Number(args["per-column"] ?? 2), minZ: Number(args["min-z"] ?? 0) });
+  const pool = { date: new Date().toISOString().slice(0, 10), decks: table.decks.map((id) => ({ id, label: id, source: "fixed", list: table.lists[id] })) };
+  for (const [key, value] of [["pool-out", pool], ["pairs-out", pairs]]) {
+    const out = path.resolve(ROOT, String(args[key] ?? `out/${key.replace("-out", "")}.json`));
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    fs.writeFileSync(out, `${JSON.stringify(value, null, 2)}\n`);
+  }
+  console.log(`[counter] reforço: ${pairs.length} pares de ${table.decks.length} decks`);
+  process.exit(0);
+}
 if (args.matrix) {
   const matrix = JSON.parse(fs.readFileSync(path.resolve(ROOT, String(args.matrix)), "utf8"));
   // matriz de um pool de arquivo (decks do banco): a fixture leva as listas, senão o
@@ -39,8 +63,22 @@ if (args.matrix) {
   const { BENCHMARK_POOLS } = await import(pathToFileURL(path.join(ROOT, "src/modules/simulator/fixtures/benchmarkDeckPools.ts")).href);
   let lists;
   if (!BENCHMARK_POOLS.includes(matrix.params.pool)) {
-    const poolFile = JSON.parse(fs.readFileSync(path.resolve(ROOT, matrix.params.pool), "utf8"));
+    // o caminho do pool é o do job que mediu; no artefato do Bot matrix ele vem ao lado da matriz
+    const besideMatrix = path.join(path.dirname(path.resolve(ROOT, String(args.matrix))), path.basename(matrix.params.pool));
+    const poolPath = fs.existsSync(path.resolve(ROOT, matrix.params.pool)) ? path.resolve(ROOT, matrix.params.pool) : besideMatrix;
+    const poolFile = JSON.parse(fs.readFileSync(poolPath, "utf8"));
     lists = Object.fromEntries(poolFile.decks.filter((d) => matrix.decks.includes(d.id)).map((d) => [d.id, d.list]));
+  }
+  let refined;
+  if (args.refined) {
+    const ref = JSON.parse(fs.readFileSync(path.resolve(ROOT, String(args.refined)), "utf8"));
+    if (JSON.stringify(ref.decks) !== JSON.stringify(matrix.decks)) {
+      console.error("[counter] --refined: a lista de decks do reforço não é a da matriz base (mesma ordem)");
+      process.exit(2);
+    }
+    refined = { level: ref.params.level, wins: ref.wins, played: ref.played };
+    const cells = ref.played.flat().filter((x) => x > 0).length / 2;
+    console.log(`[counter] reforço: ${cells} confrontos, ${ref.played.flat().reduce((a, b) => a + b, 0) / 2} partidas, nível ${ref.params.level}`);
   }
   const body = `import type { MatchupTable } from "../engine/bot/zeroCounter";
 
@@ -48,9 +86,9 @@ if (args.matrix) {
  * Matriz de confrontos que o counter do Zero System consulta (spec
  * bot-zero-system-forte). GERADA por \`pnpm gundam:bot:counter -- --matrix=… --write-fixture\`
  * a partir de ${path.basename(String(args.matrix))} (nível ${matrix.params.level},
- * ${matrix.params.gamesPerPair} partidas/par, commit ${matrix.commit}) — não editar à mão.
+ * ${matrix.params.gamesPerPair} partidas/par, commit ${matrix.commit})${args.refined ? ` + reforço ${path.basename(String(args.refined))} (nível ${refined.level})` : ""} — não editar à mão.
  */
-export const ZERO_COUNTER_MATCHUPS: MatchupTable = ${JSON.stringify({ decks: matrix.decks, gamesPerPair: matrix.params.gamesPerPair, rate: matrix.rate.map((row) => row.map((r) => (r === null ? null : Math.round(r * 1000) / 1000))), ...(lists ? { lists } : {}) }, null, 2)};
+export const ZERO_COUNTER_MATCHUPS: MatchupTable = ${JSON.stringify({ decks: matrix.decks, gamesPerPair: matrix.params.gamesPerPair, rate: matrix.rate.map((row) => row.map((r) => (r === null ? null : Math.round(r * 1000) / 1000))), ...(lists ? { lists } : {}), ...(refined ? { refined } : {}) }, null, 2)};
 `;
   if (args["write-fixture"]) {
     fs.writeFileSync(FIXTURE, body);
