@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { deckPool } from "../../fixtures/benchmarkDeckPools";
-import { counterForPlayerDeck, deckSignature, poolForTable, shrinkPriorGames, SHRINK_PRIOR_GAMES, SHRINK_PRIOR_MAX_GAMES, type MatchupTable } from "./zeroCounter";
+import { counterForPlayerDeck, deckSignature, poolForTable, refinementPairs, shrinkPriorGames, SHRINK_PRIOR_GAMES, SHRINK_PRIOR_MAX_GAMES, type MatchupTable } from "./zeroCounter";
 import { ZERO_COUNTER_MATCHUPS } from "../../fixtures/zeroCounterMatchups";
 import { toPoolFileDeck } from "../../fixtures/benchmarkDeckPools";
 import { validateGeneratedDeckLegality } from "./zeroCounterDeckBuilder";
@@ -93,6 +93,82 @@ describe("counterForPlayerDeck", () => {
   it("matriz do GD06: nenhum confronto tem vantagem clara, o counter é sempre o baseline", () => {
     const gd06 = poolForTable(ZERO_COUNTER_MATCHUPS);
     for (const d of gd06) expect(counterForPlayerDeck(d.build(), ZERO_COUNTER_MATCHUPS, gd06).summary.fallback).toBe(true);
+  });
+
+  describe("reforço (2ª etapa)", () => {
+    /** tabela com gamesPerPair (1ª etapa toda em fallback) + reforço vazio */
+    function withRefined(): MatchupTable {
+      const t = table();
+      t.gamesPerPair = 40;
+      const size = t.decks.length;
+      t.refined = { level: "dificil", wins: Array.from({ length: size }, () => Array<number>(size).fill(0)), played: Array.from({ length: size }, () => Array<number>(size).fill(0)) };
+      return t;
+    }
+    const set = (t: MatchupTable, row: string, col: string, wins: number, played: number) => {
+      const i = t.decks.indexOf(row);
+      const j = t.decks.indexOf(col);
+      t.refined!.wins[i][j] = wins;
+      t.refined!.played[i][j] = played;
+    };
+
+    it("candidato medido com vantagem clara sobre o baseline vira o counter", () => {
+      const t = withRefined();
+      set(t, "ST03", "ST02", 110, 200); // baseline 55%
+      set(t, "ST01", "ST02", 150, 200); // 75%
+      const { summary } = counterForPlayerDeck(byId("ST02").build(), t);
+      expect(summary.counterDeckId).toBe("ST01");
+      expect(summary.expectedRate).toBeCloseTo(0.75);
+    });
+
+    it("vantagem pequena no reforço: fica o baseline, mesmo se a 1ª etapa trocasse", () => {
+      const t = withRefined();
+      t.rate[t.decks.indexOf("ST01")][t.decks.indexOf("ST02")] = 1;
+      t.gamesPerPair = 2000;
+      expect(counterForPlayerDeck(byId("ST02").build(), t).summary.counterDeckId).toBe("ST01");
+      set(t, "ST03", "ST02", 110, 200);
+      set(t, "ST01", "ST02", 120, 200);
+      expect(counterForPlayerDeck(byId("ST02").build(), t).summary.fallback).toBe(true);
+    });
+
+    it("mais candidatos medidos exigem margem maior (Bonferroni)", () => {
+      const t = withRefined();
+      set(t, "ST03", "ST02", 100, 200); // 50%
+      set(t, "ST01", "ST02", 118, 200); // 59%: z ≈ 1,82
+      expect(counterForPlayerDeck(byId("ST02").build(), t).summary.counterDeckId).toBe("ST01");
+      set(t, "ST04", "ST02", 100, 200);
+      expect(counterForPlayerDeck(byId("ST02").build(), t).summary.fallback).toBe(true);
+    });
+
+    it("espelho: o jogador com o próprio baseline compara com 50%", () => {
+      const t = withRefined();
+      set(t, "ST01", "ST03", 125, 200); // 62,5% contra o baseline
+      expect(counterForPlayerDeck(byId("ST03").build(), t).summary.counterDeckId).toBe("ST01");
+    });
+
+    it("coluna sem reforço do baseline: decide a 1ª etapa", () => {
+      const t = withRefined();
+      set(t, "ST01", "ST02", 200, 200);
+      expect(counterForPlayerDeck(byId("ST02").build(), t).summary.fallback).toBe(true);
+    });
+  });
+
+  describe("refinementPairs", () => {
+    it("GD06: cada coluna com candidato leva também o baseline × coluna, sem pares repetidos", () => {
+      const pairs = refinementPairs(ZERO_COUNTER_MATCHUPS);
+      const keys = pairs.map(([a, b]) => [a, b].sort().join("|"));
+      expect(new Set(keys).size).toBe(pairs.length);
+      expect(pairs.length).toBeGreaterThan(0);
+      expect(pairs.length).toBeLessThan(60);
+      const baseline = counterForPlayerDeck(poolForTable(ZERO_COUNTER_MATCHUPS)[0].build(), ZERO_COUNTER_MATCHUPS).summary.baselineDeckId;
+      for (const [row, col] of pairs) {
+        if (row === baseline || col === baseline) continue;
+        expect(keys).toContain([baseline, col].sort().join("|"));
+      }
+    });
+
+    it("minZ alto: nenhum par", () => {
+      expect(refinementPairs(ZERO_COUNTER_MATCHUPS, { minZ: 10 })).toEqual([]);
+    });
   });
 
   it("tabela com listas embutidas (decks do banco): o counter sai dessas listas", () => {
