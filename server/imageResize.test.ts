@@ -5,7 +5,7 @@ import type { AddressInfo } from "node:net";
 import express from "express";
 import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { pickWidth, resizedUploads, safeUploadPath } from "./imageResize.ts";
+import { pickWidth, resizedUploads, resizeRateLimit, safeUploadPath } from "./imageResize.ts";
 
 let root: string;
 let server: ReturnType<express.Express["listen"]>;
@@ -17,7 +17,7 @@ beforeAll(async () => {
   await sharp({ create: { width: 1600, height: 900, channels: 3, background: { r: 200, g: 30, b: 30 } } }).png().toFile(path.join(root, "spoilers", "grande.png"));
   fs.writeFileSync(path.join(root, "spoilers", "nota.txt"), "x");
   const app = express();
-  app.use("/uploads", resizedUploads(root), express.static(root));
+  app.use("/uploads", resizeRateLimit(4), resizedUploads(root), express.static(root));
   server = app.listen(0);
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/uploads`;
 });
@@ -61,5 +61,13 @@ describe("imageResize", () => {
 
   it("arquivo inexistente segue para o 404", async () => {
     expect((await fetch(`${base}/spoilers/nao-existe.png?w=640`)).status).toBe(404);
+  });
+
+  // último teste: os anteriores já gastaram 2 dos 4 pedidos com ?w
+  it("limita os pedidos com ?w por IP; sem ?w não conta", async () => {
+    expect((await fetch(`${base}/spoilers/grande.png`)).status).toBe(200);
+    const statuses: number[] = [];
+    for (let i = 0; i < 3; i++) statuses.push((await fetch(`${base}/spoilers/grande.png?w=320`)).status);
+    expect(statuses).toEqual([200, 200, 429]);
   });
 });

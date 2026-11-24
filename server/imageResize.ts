@@ -9,7 +9,23 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { NextFunction, Request, Response } from "express";
+import { rateLimit } from "express-rate-limit";
 import sharp from "sharp";
+
+/** por IP e por minuto, só para pedidos com `?w=` (gerar o WebP gasta CPU); a home pede ~20 imagens */
+export const RESIZE_RATE_LIMIT_PER_MINUTE = 600;
+
+/** Limite do redimensionamento: o limite global da API (`apiRateLimit.ts`) não cobre `/uploads`. */
+export function resizeRateLimit(limit = RESIZE_RATE_LIMIT_PER_MINUTE) {
+  return rateLimit({
+    windowMs: 60_000,
+    limit,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    skip: (req) => req.query.w === undefined,
+    message: { error: "Muitas requisições. Aguarde um instante e tente de novo." },
+  });
+}
 
 /** larguras aceitas (qualquer outra é arredondada para a próxima da lista: o cache não explode) */
 export const RESIZE_WIDTHS = [320, 480, 640, 960, 1280] as const;
