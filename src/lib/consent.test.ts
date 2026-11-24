@@ -70,6 +70,8 @@ describe("consent", () => {
     const scripts = document.head.querySelectorAll(GA_SCRIPT);
     expect(scripts).toHaveLength(1);
     expect((scripts[0] as HTMLScriptElement).src).toBe("https://www.googletagmanager.com/gtag/js?id=G-ABC1234");
+    const config = (window.dataLayer ?? []).map((e) => Array.from(e as ArrayLike<unknown>)).find((a) => a[0] === "config");
+    expect(config).toEqual(["config", "G-ABC1234", { allow_google_signals: false, allow_ad_personalization_signals: false }]);
   });
 
   it("revogar apaga os cookies _ga e mantém os outros", () => {
