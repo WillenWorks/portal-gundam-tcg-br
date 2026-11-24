@@ -182,6 +182,9 @@ model User {
   postComments            PostComment[]
   postCommentLikes        PostCommentLike[]
 
+  // Assistente de regras
+  rulesQuestions          RulesQuestion[]
+
   @@index([supporterClaimedAt])
 }
 
@@ -543,6 +546,33 @@ model CardBinderItem {
 enum BinderItemTag {
   FOR_TRADE
   WISHLIST
+}
+
+/// Pergunta ao assistente de regras: cota diária por conta e fila de curadoria (sem resposta ou com 👎)
+model RulesQuestion {
+  id           String   @id @default(cuid())
+  userId       String
+  question     String   @db.Text
+  normalized   String
+  answer       String?  @db.Text
+  sourceIds    String[]
+  citedIds     String[]
+  notFound     Boolean  @default(false)
+  /// resposta veio do cache (não chamou o modelo)
+  cached       Boolean  @default(false)
+  model        String?
+  inputTokens  Int?
+  outputTokens Int?
+  latencyMs    Int?
+  feedback     Int?
+  feedbackNote String?  @db.Text
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([notFound, createdAt])
+  @@index([createdAt])
 }
 
 model Ruling {
