@@ -13,6 +13,15 @@ export function resizedImageSrc(src: string, width: number): string {
   return isResizableUpload(src) ? `${src}?w=${width}` : src;
 }
 
+/**
+ * `src`, `srcSet` e `sizes` prontos para espalhar num <img>. `sizes` diz ao navegador a largura do quadro na tela;
+ * ele escolhe a menor largura que cobre o quadro na densidade da tela. Imagem de fora do portal: só o `src`.
+ */
+export function uploadImageProps(src: string, sizes: string, widths: readonly number[] = RESIZED_WIDTHS) {
+  if (!isResizableUpload(src)) return { src };
+  return { src: resizedImageSrc(src, widths[widths.length - 1]), srcSet: resizedSrcSet(src, widths), sizes };
+}
+
 /** `srcset` com as larguras do servidor, ou undefined quando a imagem não é do portal */
 export function resizedSrcSet(src: string, widths: readonly number[] = RESIZED_WIDTHS): string | undefined {
   if (!isResizableUpload(src)) return undefined;

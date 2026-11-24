@@ -42,6 +42,7 @@ import { ArticleSupportLine } from "@/components/support/SupportCallout";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, type ApiPost, type ApiComment, type PostType } from "@/lib/api";
 import { usePageMeta } from "@/lib/pageMeta";
+import { uploadImageProps } from "@/lib/resizedImage";
 
 const POST_TYPE_LABEL: Record<PostType, string> = {
   NEWS: "Notícia",
@@ -411,10 +412,11 @@ export default function ArticleDetailPage() {
             {post.coverImage ? (
               <div className="overflow-hidden border border-white/10 bg-slate-950/60">
                 {/* sem proporção fixa: a capa aparece inteira, sem corte em cima e embaixo */}
+                {/* imagem principal da página (LCP): sem lazy, com prioridade e no tamanho da tela */}
                 <img
-                  loading="lazy"
+                  fetchPriority="high"
                   decoding="async"
-                  src={post.coverImage}
+                  {...uploadImageProps(post.coverImage, "(min-width: 1024px) 768px, 100vw")}
                   alt={post.title}
                   className="mx-auto h-auto max-h-[80vh] w-full object-contain"
                 />

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { api, type ApiPost, type PostType } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { uploadImageProps } from "@/lib/resizedImage";
 
 import haroRulesOff from "@/assets/home/haro_rules_off.webp";
 import haroRulesOn from "@/assets/home/haro_rules_on.webp";
@@ -386,7 +387,7 @@ export function HomeDirectivesSection() {
                     >
                       <div className="hidden sm:block aspect-[16/9] w-36 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-slate-950/60 light:border-slate-200 light:bg-slate-200">
                         {article.coverImage ? (
-                          <img loading="lazy" decoding="async" src={article.coverImage} alt="" className="h-full w-full object-cover" />
+                          <img loading="lazy" decoding="async" {...uploadImageProps(article.coverImage, "144px", [320, 480])} alt="" className="h-full w-full object-cover" />
                         ) : (
                           <div className="flex h-full items-center justify-center">
                             <BookOpen className="size-5 text-slate-500" />
