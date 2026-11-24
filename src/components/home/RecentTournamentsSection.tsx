@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api";
-import { siteLocale, useSiteLanguage } from "@/i18n/siteLanguage";
+import { siteLocale, tr as trNow, useSiteLanguage } from "@/i18n/siteLanguage";
 
 type TournamentPodiumEntry = {
   placement: number;
@@ -51,7 +51,7 @@ export function RecentTournamentsSection() {
             const podium: TournamentPodiumEntry[] = sortedEntries.slice(0, 3).map((e, idx) => ({
               placement: e.placement || idx + 1,
               playerName: e.playerName || e.user?.displayName || "Jogador",
-              deckName: e.deck?.name || e.archetype || tr("Deck sem nome", "Unnamed deck"),
+              deckName: e.deck?.name || e.archetype || trNow("Deck sem nome", "Unnamed deck"),
               deckArchetype: e.archetype || "Gundam TCG",
               score:
                 e.wins != null

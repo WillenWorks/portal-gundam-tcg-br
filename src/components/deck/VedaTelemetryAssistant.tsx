@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useEffectEvent, useMemo } from "react";
 import {
   Cpu,
   Sparkles,
@@ -148,12 +148,16 @@ export function VedaTelemetryAssistant({
       .finally(() => setLoadingRecs(false));
   };
 
+  const fetchRecommendationsOnChange = useEffectEvent(() => {
+    fetchRecommendations();
+  });
+  const deckColorsKey = deckColors.join(",");
   useEffect(() => {
     // Busca inicial ou quando adiciona as primeiras cartas
     if (cardCodes.length >= 2) {
-      fetchRecommendations();
+      fetchRecommendationsOnChange();
     }
-  }, [cardCodes.length, deckColors.join(",")]);
+  }, [cardCodes.length, deckColorsKey]);
 
   // Mapear carta recomendada para o objeto CardRecord completo da pool
   const resolveCardRecord = (rec: ClassifiedMetaCard): CardRecord => {

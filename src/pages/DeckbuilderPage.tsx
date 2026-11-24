@@ -1,5 +1,5 @@
 /* Deckbuilder tático — filtros reais da pool, persistência por usuário, diagnóstico operacional e navegação contextual. */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   BrainCircuit,
@@ -830,14 +830,21 @@ export default function DeckbuilderPage() {
     }
   };
 
+  // os efeitos de carga disparam pelo gatilho (deck, filtros) e chamam a versão atual da função de carga
+  const loadDeckOnChange = useEffectEvent((id: string) => {
+    loadDeck(id).catch(() => undefined);
+  });
   useEffect(() => {
-    if (deckId) loadDeck(deckId).catch(() => undefined);
+    if (deckId) loadDeckOnChange(deckId);
   }, [deckId]);
 
-  useEffect(() => {
+  const loadStaticData = useEffectEvent(() => {
     loadPoolMeta().catch(() => undefined);
     loadLegality().catch(() => undefined);
     loadExComponents().catch(() => undefined);
+  });
+  useEffect(() => {
+    loadStaticData();
   }, []);
 
   useEffect(() => {
@@ -848,8 +855,12 @@ export default function DeckbuilderPage() {
     return () => window.clearTimeout(timer);
   }, [poolQueryDraft]);
 
-  useEffect(() => {
+  const loadPool = useEffectEvent(() => {
     loadCards(poolFilters, poolPage, filterOnlyPlayable).catch(() => undefined);
+  });
+  // `poolPageSize` e `playabilityReady` também recarregam a pool (a carga lê os dois)
+  useEffect(() => {
+    loadPool();
   }, [poolFilters, poolPage, poolPageSize, filterOnlyPlayable, playabilityReady]);
 
   const deckRows = useMemo(
@@ -988,7 +999,7 @@ export default function DeckbuilderPage() {
     notes.push({ kind: stats.cardsWithKeywords > 0 ? "ok" : "warn", label: tr("Cobertura por keywords", "Keyword coverage"), value: tr(`${stats.cardsWithKeywords} cartas com keywords mapeadas`, `${stats.cardsWithKeywords} cards with mapped keywords`) });
     notes.push({ kind: topTraits.length > 0 ? "ok" : "warn", label: tr("Linha principal", "Main line"), value: topTraits[0] ? `${topTraits[0][0]} · ${topTraits[0][1]}` : tr("Sem trait dominante ainda", "No dominant trait yet") });
     return notes;
-  }, [stats, deckRows.length, topTraits]);
+  }, [stats, deckRows.length, topTraits, tr]);
 
   const dominantColor = useMemo(() => [...colorData].sort((a, b) => b.value - a.value)[0]?.name || "", [colorData]);
   const dominantTrait = useMemo(() => topTraits[0]?.[0] || "", [topTraits]);
@@ -1053,7 +1064,7 @@ export default function DeckbuilderPage() {
     const mainType = [...typeData].sort((a, b) => b.quantity - a.quantity)[0];
     if (mainType) blocks.push({ label: tr("Tipo-base", "Base type"), value: mainType.name, hint: tr(`${mainType.quantity}/${stats.mainDeckCount} cartas · tipo mais frequente.`, `${mainType.quantity}/${stats.mainDeckCount} cards · most common type.`) });
     return blocks;
-  }, [dominantColor, dominantTrait, dominantSeries, typeData, stats.colorMap, stats.traitMap, stats.mainDeckCount]);
+  }, [dominantColor, dominantTrait, dominantSeries, typeData, stats.colorMap, stats.traitMap, stats.mainDeckCount, tr]);
 
   // Segunda cor (deck pode ter ate 2, ver DECK_MAX_COLORS) e traits secundarios --
   // arquétipo de verdade raramente é 1 cor+1 trait só, é a combinação. archetypeBlocks
@@ -1183,7 +1194,7 @@ export default function DeckbuilderPage() {
       .filter((card) => card.score > 0)
       .sort((a, b) => b.score - a.score || a.cost - b.cost)
       .slice(0, 8);
-  }, [cards, recommendationPool, entries, cardCache, pilotCoverageGaps, mainDeckRows, dominantColor, dominantTrait, dominantSeries, deckRows, stats.lowCostRate]);
+  }, [cards, recommendationPool, entries, cardCache, pilotCoverageGaps, mainDeckRows, dominantColor, dominantTrait, dominantSeries, deckRows, stats.lowCostRate, tr]);
 
   const setPoolFilter = (key: keyof PoolFilters, value: string) => {
     setPoolPage(1);
@@ -1490,6 +1501,11 @@ export default function DeckbuilderPage() {
 
   // Leitura automática de ?lista= na URL (ex: /deckbuilder/novo?lista=GD01-001:4,ST01-010:3)
   const [urlListImported, setUrlListImported] = useState(false);
+  const importUrlList = useEffectEvent((lines: string) => {
+    importDecklistText(lines).then(() => {
+      setDeckName(tr("Deck Importado de Torneio", "Deck Imported from Tournament"));
+    });
+  });
   useEffect(() => {
     if (deckId || urlListImported) return;
     const searchPart = window.location.hash.includes("?")
@@ -1516,11 +1532,7 @@ export default function DeckbuilderPage() {
       })
       .join("\n");
 
-    if (lines) {
-      importDecklistText(lines).then(() => {
-        setDeckName(tr("Deck Importado de Torneio", "Deck Imported from Tournament"));
-      });
-    }
+    if (lines) importUrlList(lines);
   }, [deckId, urlListImported]);
 
   // Rascunho gravado por "Copiar deck", "Montar núcleo", "Carregar" (lista de torneio) ou pelo visitante que tentou
@@ -1576,12 +1588,15 @@ export default function DeckbuilderPage() {
     }
   };
 
+  const applyStoredDraft = useEffectEvent((draft: DeckbuilderDraft) => {
+    applyDraft(draft).catch(() => undefined);
+  });
   useEffect(() => {
     if (deckId || draftReadRef.current) return;
     draftReadRef.current = true;
     if (new URLSearchParams(window.location.search).get("lista")) return;
     const draft = takeDraft();
-    if (draft) applyDraft(draft).catch(() => undefined);
+    if (draft) applyStoredDraft(draft);
   }, [deckId]);
 
   /** Modal de Exportação de Imagem com Prévia Reativa e Toggles (Exburst style) */

@@ -252,8 +252,9 @@ export default function OrganizerPage() {
     }
   };
 
+  const participantsEventId = participantsEvent?.id;
   useEffect(() => {
-    if (!participantsEvent) return;
+    if (!participantsEventId) return;
     const q = participantSearch.trim();
     if (q.length < 2) { setParticipantResults([]); return; }
     setSearchingUsers(true);
@@ -268,7 +269,7 @@ export default function OrganizerPage() {
       }
     }, 350);
     return () => clearTimeout(handle);
-  }, [participantSearch, participantsEvent?.id]);
+  }, [participantSearch, participantsEventId]);
 
   const addParticipant = async (userId: string) => {
     if (!participantsEvent) return;

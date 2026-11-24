@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Sparkles,
@@ -239,8 +239,11 @@ export function AdminSocialTab() {
     }
   };
 
-  useEffect(() => {
+  const fetchPostsOnFilter = useEffectEvent(() => {
     fetchPosts();
+  });
+  useEffect(() => {
+    fetchPostsOnFilter();
   }, [statusFilter]);
 
   // a geração roda em segundo plano no servidor (leva de 20 s a alguns minutos); o painel acompanha pelo estado

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { Link, useRoute } from "wouter";
 import {
   ChevronLeft,
@@ -55,8 +55,11 @@ export default function VedaPlayerPage() {
     }
   };
 
-  useEffect(() => {
+  const loadOnChange = useEffectEvent(() => {
     loadPlayerData();
+  });
+  useEffect(() => {
+    loadOnChange();
   }, [playerSlug, selectedSeason]);
 
   if (loading) {

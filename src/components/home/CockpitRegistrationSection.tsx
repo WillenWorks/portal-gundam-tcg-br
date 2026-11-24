@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import { useSiteLanguage } from "@/i18n/siteLanguage";
+import { tr as trNow, useSiteLanguage } from "@/i18n/siteLanguage";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
@@ -50,10 +50,10 @@ export function CockpitRegistrationSection() {
           setErrorMessage(null);
           loginWithGoogle(response.credential)
             .then(() => {
-              toast.success(tr("Login com Google realizado com sucesso!", "Signed in with Google!"));
+              toast.success(trNow("Login com Google realizado com sucesso!", "Signed in with Google!"));
             })
             .catch((err: any) => {
-              const msg = err?.message || tr("Erro na autenticação social Google.", "Google sign-in failed.");
+              const msg = err?.message || trNow("Erro na autenticação social Google.", "Google sign-in failed.");
               setErrorMessage(msg);
               toast.error(msg);
             })

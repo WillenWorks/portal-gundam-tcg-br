@@ -45,7 +45,7 @@ export default function VerifyEmailPage() {
         setState("error");
         setMessage(errorMessage(err, tr("Não foi possível confirmar o e-mail.", "Couldn't confirm the email.")));
       });
-  }, [refreshMe]);
+  }, [refreshMe, tr]);
 
   const resend = async () => {
     setResending(true);

@@ -105,9 +105,10 @@ export function EffectResolutionOverlay({
   const activeTimersRef = useRef<Set<NodeJS.Timeout>>(new Set());
 
   useEffect(() => {
+    const timers = activeTimersRef.current;
     return () => {
-      activeTimersRef.current.forEach((t) => clearTimeout(t));
-      activeTimersRef.current.clear();
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
     };
   }, []);
 
@@ -367,7 +368,7 @@ export function EffectResolutionOverlay({
     }, durationMs);
 
     activeTimersRef.current.add(timer);
-  }, [eventLog, eventsBatch, rectOf, viewerSeat]);
+  }, [eventLog, eventsBatch, rectOf, viewerSeat, tr]);
 
   if (cues.length === 0) return null;
 
