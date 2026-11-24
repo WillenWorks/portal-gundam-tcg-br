@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ParallaxHeroBanner } from "@/components/catalog/ParallaxHeroBanner";
 import { api } from "@/lib/api";
+import { uploadImageProps } from "@/lib/resizedImage";
 
 type SetRow = {
   id: string;
@@ -51,7 +52,7 @@ export default function CollectionsPage() {
               <CardContent className="space-y-4 p-4">
                 <div className="overflow-hidden border border-white/10 bg-slate-950/60 aspect-[16/8] dark:bg-slate-950/60 light:bg-slate-100">
                   {set.coverImage ? (
-                    <img loading="lazy" decoding="async" src={set.coverImage} alt={set.namePt || set.nameEn} className="h-full w-full object-cover" />
+                    <img loading="lazy" decoding="async" {...uploadImageProps(set.coverImage, "(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw", [320, 480, 640, 960])} alt={set.namePt || set.nameEn} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
                       <span className="text-[10px] uppercase tracking-[0.28em] text-slate-500">Sem capa local</span>

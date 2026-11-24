@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { api, type SeriesMetadata, type TaxonomyEntry } from "@/lib/api";
 import { usePageMeta } from "@/lib/pageMeta";
+import { uploadImageProps } from "@/lib/resizedImage";
 
 export default function SeriesDetailPage() {
   const [, params] = useRoute<{ slug: string }>("/series/:slug");
@@ -70,7 +71,7 @@ export default function SeriesDetailPage() {
               <div className="grid gap-6 lg:grid-cols-[0.72fr_1.28fr] lg:items-start">
                 <div className="overflow-hidden border border-white/10 bg-slate-950/60 aspect-[16/10] dark:bg-slate-950/60 light:bg-slate-100">
                   {entry.coverImage ? (
-                    <img loading="lazy" decoding="async" src={entry.coverImage} alt={entry.name} className="h-full w-full object-cover" />
+                    <img loading="lazy" decoding="async" {...uploadImageProps(entry.coverImage, "(min-width: 1024px) 36vw, 100vw", [320, 480, 640, 960])} alt={entry.name} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full flex-col items-center justify-center gap-3 text-center px-4">
                       <span className="text-[10px] uppercase tracking-[0.28em] text-slate-500">Sem capa local</span>

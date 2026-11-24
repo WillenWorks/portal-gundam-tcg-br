@@ -13,6 +13,7 @@ import { DECK_MAIN_SIZE, NON_COUNTED_SECTIONS } from "@/lib/deck-legality";
 import { mapApiCard, type ApiDeck } from "@/lib/api";
 import { GAME_COLOR_HEX } from "@/lib/gundam-catalog";
 import { calculateDeckCostLevelCurve } from "@/lib/deck-level-stats";
+import { uploadImageProps } from "@/lib/resizedImage";
 import { ExportDeckImageModal } from "@/components/deck/ExportDeckImageModal";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
 
@@ -145,7 +146,7 @@ export function DeckPreviewCard({ deck, isOwner }: DeckPreviewCardProps) {
           >
             {deck.coverImage ? (
               <img loading="lazy" decoding="async"
-                src={deck.coverImage}
+                {...uploadImageProps(deck.coverImage, "(min-width: 640px) 240px, 100vw", [320, 480, 640, 960])}
                 alt={deck.name}
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
