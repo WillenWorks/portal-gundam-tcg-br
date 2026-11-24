@@ -138,6 +138,7 @@ import { registerVedaRoutes } from "./vedaService.ts";
 import { registerAdminDashboardRoutes } from "./routes/adminDashboardRoutes.ts";
 import { registerSupporterRoutes } from "./routes/supporterRoutes.ts";
 import { resizedUploads, resizeRateLimit } from "./imageResize.ts";
+import { invalidateRulesIndex, registerRulesAssistantRoutes } from "./routes/rulesAssistantRoutes.ts";
 import { registerDiscordLinkRoutes } from "./routes/discordLinkRoutes.ts";
 import { normalizeUserTags } from "../src/lib/supporters.ts";
 import { registerSocialRoutes } from "./routes/socialRoutes.ts";
@@ -1650,6 +1651,13 @@ registerSupporterRoutes(app, {
   currentUserId: (req) => (req as RequestWithUser).user?.userId,
 });
 
+// Assistente de regras pt-BR (busca + resposta com fontes, cota diária): server/routes/rulesAssistantRoutes.ts
+registerRulesAssistantRoutes(app, {
+  prisma,
+  authRequired,
+  currentUser: (req) => (req as RequestWithUser).user as { userId: string; guest?: boolean } | undefined,
+});
+
 // Conectar o Discord na conta (cargo da patente e das tags no servidor): server/routes/discordLinkRoutes.ts
 registerDiscordLinkRoutes(app, {
   prisma,
@@ -3069,6 +3077,7 @@ app.post("/api/import/rulings", authRequired, roleRequired([UserRole.ADMIN]), as
   const payload = req.body as { rulings?: RulingImportInput[] };
   if (!payload.rulings?.length) return res.status(400).json({ error: "Nenhuma ruling enviada para importar." });
   await upsertRulings(payload.rulings);
+  invalidateRulesIndex();
   res.json({ imported: payload.rulings.length });
 });
 
@@ -3181,18 +3190,21 @@ app.get("/api/rulings/:id", async (req, res) => {
 
 app.post("/api/rulings", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
   const ruling = await prisma.ruling.create({ data: req.body });
+  invalidateRulesIndex();
   res.status(201).json(ruling);
 });
 
 app.put("/api/rulings/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
   const id = String(req.params.id);
   const ruling = await prisma.ruling.update({ where: { id }, data: req.body });
+  invalidateRulesIndex();
   res.json(ruling);
 });
 
 app.delete("/api/rulings/:id", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
   const id = String(req.params.id);
   await prisma.ruling.update({ where: { id }, data: { isActive: false, deletedAt: new Date() } });
+  invalidateRulesIndex();
   res.status(204).send();
 });
 
