@@ -9,7 +9,7 @@ export const CONSENT_STORAGE_KEY = "anaheimhub:consent";
 export const CONSENT_VERSION = 1;
 
 /** ID público da propriedade GA4 (vai no HTML de qualquer jeito); VITE_GA_MEASUREMENT_ID no build sobrescreve. */
-const DEFAULT_GA_MEASUREMENT_ID = "";
+const DEFAULT_GA_MEASUREMENT_ID = "G-EWS6VRVPEB";
 const GA_SRC = "https://www.googletagmanager.com/gtag/js";
 const PRODUCTION_HOSTS = new Set(["anaheimhub.com", "www.anaheimhub.com"]);
 const MEASUREMENT_ID = /^G-[A-Z0-9]{4,20}$/;
@@ -78,7 +78,8 @@ export function loadGoogleAnalytics(id = gaMeasurementId(), hostname = typeof wi
   if (document.querySelector(`script[src^="${GA_SRC}"]`)) return true;
   gtag("js", new Date());
   // as trocas de rota da SPA contam como visualização pela "medição otimizada" do GA4 (eventos de histórico)
-  gtag("config", id);
+  // sinais do Google e personalização de anúncios desligados também aqui, além da propriedade (política, seção 7)
+  gtag("config", id, { allow_google_signals: false, allow_ad_personalization_signals: false });
   const script = document.createElement("script");
   script.async = true;
   script.src = `${GA_SRC}?id=${encodeURIComponent(id)}`;
