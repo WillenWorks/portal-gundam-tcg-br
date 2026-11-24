@@ -7,6 +7,7 @@ import { BookOpen, ChevronRight, Copy, Sparkles, Search, ExternalLink } from "lu
 import { toast } from "sonner";
 
 import { PublicShell } from "@/components/layout/PublicShell";
+import { RulesAssistantBox } from "@/components/rules/RulesAssistantBox";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -474,6 +475,8 @@ export default function RulesPage() {
   return (
     <PublicShell ad title="Regras" description="Explicação mecânica em português das keywords, fases e situações de jogo — a keyword em si sempre fica em inglês, como aparece na carta. Baseado nas regras e FAQs oficiais, redigido do zero.">
       <div className="space-y-6">
+        <RulesAssistantBox />
+
         {/* Painel Superior de Navegação & Filtros */}
         <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
           <CardContent className="space-y-5 p-6">

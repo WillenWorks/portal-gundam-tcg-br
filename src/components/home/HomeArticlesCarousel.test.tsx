@@ -37,7 +37,10 @@ describe("HomeArticlesCarousel", () => {
     expect(list).toHaveBeenCalledWith("PUBLISHED", { page: 1, pageSize: 5 });
     expect(screen.getByText("O que vem por aí")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /ler artigo|read article/i })).toHaveAttribute("href", "/articles/simulador-beta");
-    expect(container.querySelector("img")).toHaveAttribute("src", "/uploads/capa.jpg");
+    // imagem do portal: o servidor entrega no tamanho da tela (srcset com ?w=)
+    const [, capa] = container.querySelectorAll("img");
+    expect(capa).toHaveAttribute("src", "/uploads/capa.jpg?w=960");
+    expect(capa.getAttribute("srcset")).toContain("/uploads/capa.jpg?w=640 640w");
     expect(screen.queryByRole("button")).toBeNull();
   });
 
@@ -46,7 +49,7 @@ describe("HomeArticlesCarousel", () => {
     const { container } = render(<HomeArticlesCarousel />);
 
     expect(await screen.findByRole("link", { name: "#simulador" })).toHaveAttribute("href", "/articles?tag=simulador");
-    expect(container.querySelector("img")).toHaveAttribute("src", "/uploads/home.webp");
+    expect(container.querySelectorAll("img")[1]).toHaveAttribute("src", "/uploads/home.webp?w=960");
   });
 
   it("com mais de um artigo, mostra as setas e um indicador por artigo", async () => {

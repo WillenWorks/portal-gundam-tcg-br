@@ -6,7 +6,7 @@ import privacyPolicyHtml from "@/legal/privacy-policy.html?raw";
 const CONTACT_ADMIN = "admin@anaheimhub.com";
 const CONTACT_SUPPORT = "contato@anaheimhub.com";
 const UPDATED = "10 de novembro de 2026";
-export const PRIVACY_UPDATED = "22 de outubro de 2026";
+export const PRIVACY_UPDATED = "24 de novembro de 2026";
 
 function LegalLayout({ title, updated = UPDATED, children }: { title: string; updated?: string; children: ReactNode }) {
   return (
@@ -47,7 +47,7 @@ export function TermsPage() {
 
       <h2>1. Natureza do Projeto e Isenção de Vínculo Oficial</h2>
       <p>
-        O AnaheimHub é uma plataforma comunitária brasileira e independente, desenvolvida por fãs e jogadores para a comunidade de Gundam Card Game. Os custos de servidor e domínio são cobertos por anúncios e por links de afiliado de lojas de cartas, sempre identificados como publicidade. O acesso ao conteúdo é gratuito.
+        O AnaheimHub é uma plataforma comunitária brasileira e independente, desenvolvida por fãs e jogadores para a comunidade de Gundam Card Game. Os custos de servidor e domínio são cobertos por anúncios e pelo apoio de quem usa o site. O portal não vende cartas nem indica lojas. O acesso ao conteúdo é gratuito.
       </p>
       <p className="rounded border border-amber-400/30 bg-amber-400/5 p-4 text-xs leading-6 text-slate-300 light:border-amber-400/40 light:bg-amber-400/10 light:text-slate-800">
         <strong>Aviso de Propriedade Intelectual (Disclaimer):</strong><br />

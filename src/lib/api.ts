@@ -707,6 +707,30 @@ export type CardFilters = {
   sort?: string;
 };
 
+/** fonte citada pelo assistente de regras (server/routes/rulesAssistantRoutes.ts) */
+export type RulesSource = {
+  n: number;
+  id: string;
+  kind: "ruling" | "card_faq" | "keyword" | "card_text";
+  title: string;
+  question: string;
+  href: string;
+  officialUrl?: string;
+  autoTranslated?: boolean;
+};
+
+export type RulesAskResponse = {
+  id: string;
+  answer: string;
+  notFound: boolean;
+  /** números das fontes citadas na resposta */
+  cited: number[];
+  sources: RulesSource[];
+  cached: boolean;
+  assistantAvailable: boolean;
+  remainingToday: number;
+};
+
 export type RulingFilters = {
   q?: string;
   sourceType?: string;
@@ -1587,6 +1611,12 @@ export const api = {
   listRulings: (filters: RulingFilters = {}) => request<any[]>(`/rulings${toQuery(filters)}`, undefined, { ttlMs: 20_000 }),
   getRulingFilters: () => request<{ sourceTypes: string[]; relatedKeywords: string[]; titles: string[]; relatedPhases: string[] }>("/rulings/filters", undefined, { ttlMs: 60_000 }),
   getRuling: (id: string) => request<any>(`/rulings/${id}`, undefined, { ttlMs: 30_000 }),
+  /** assistente de regras: só a busca (sem login, sem cota) */
+  searchRules: (q: string) => request<{ sources: RulesSource[] }>(`/rules/search${toQuery({ q })}`),
+  askRules: (question: string, cardCode?: string) =>
+    request<RulesAskResponse>("/rules/ask", { method: "POST", body: JSON.stringify(cardCode ? { question, cardCode } : { question }) }),
+  rateRulesAnswer: (id: string, value: 1 | -1, note?: string) =>
+    request<{ ok: true }>(`/rules/ask/${id}/feedback`, { method: "POST", body: JSON.stringify(note ? { value, note } : { value }) }),
   createRuling: (payload: any) => mutate<any>("/rulings", { method: "POST", body: JSON.stringify(payload) }, ["/rulings", "/rulings/filters"]),
   updateRuling: (id: string, payload: any) => mutate<any>(`/rulings/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/rulings", "/rulings/filters"]),
   deleteRuling: (id: string) => mutate<void>(`/rulings/${id}`, { method: "DELETE" }, ["/rulings", "/rulings/filters"]),

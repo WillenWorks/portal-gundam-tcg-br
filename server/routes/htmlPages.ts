@@ -359,7 +359,7 @@ export function createHtmlBodyLoader(prisma: PrismaClient): BodyLoader {
           title: SUPPORT_TITLE, lead: SUPPORT_LEAD, why: SUPPORT_WHY,
           channels: supportChannels({
             supportUrl: process.env.VITE_SUPPORT_URL, pixKey: process.env.VITE_SUPPORT_PIX_KEY, instagramUrl: process.env.VITE_INSTAGRAM_URL,
-            discordUrl: process.env.VITE_DISCORD_INVITE_URL, mypCoupon: process.env.VITE_MYPCARDS_COUPON,
+            discordUrl: process.env.VITE_DISCORD_INVITE_URL,
           }),
           tiers: SUPPORTER_TIERS.map((t) => ({ icon: t.icon, label: t.label, minMonthly: t.minMonthly, perks: SUPPORT_TIER_PERKS[t.key] ?? [] })),
           supporters: (await listPublicSupporters(prisma).catch(() => [])).map((p) => ({ name: p.name, tierLabel: supporterTierInfo(p.tier)?.label })),

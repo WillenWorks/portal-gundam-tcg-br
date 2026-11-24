@@ -10,6 +10,7 @@ import { HeartHandshake, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { CommunitySupportModal } from "@/components/support/CommunitySupportModal";
+import { consentBannerEnabled, openConsentPreferences } from "@/lib/consent";
 import anaheimLogo from "@/assets/anaheim-logo-transparent.webp";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
 import { DISCORD_URL, INSTAGRAM_URL } from "@/lib/supportLinks";
@@ -140,6 +141,13 @@ export function AppFooter({ className }: { className?: string }) {
                     {tr("Termos de Uso", "Terms of Use")}
                   </Link>
                 </li>
+                {consentBannerEnabled() ? (
+                  <li>
+                    <button type="button" onClick={openConsentPreferences} className="text-left transition-colors hover:text-primary">
+                      {tr("Preferências de cookies", "Cookie preferences")}
+                    </button>
+                  </li>
+                ) : null}
                 <li>
                   <a href="mailto:admin@anaheimhub.com" className="transition-colors hover:text-primary">
                     admin@anaheimhub.com

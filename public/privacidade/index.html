@@ -124,7 +124,7 @@
       <header>
         <p class="brand">AnaheimHub Portal</p>
         <h1>Política de Privacidade</h1>
-        <p class="updated">Última atualização: 22 de outubro de 2026</p>
+        <p class="updated">Última atualização: 24 de novembro de 2026</p>
         <a href="/" class="btn">Acessar o Portal</a>
       </header>
 
@@ -149,7 +149,7 @@
           <li><strong>Conteúdo que você cria:</strong> decks, pastas de coleção (binders), biografia de perfil, comentários, preferências de interface (idioma das cartas, tema claro/escuro) e facção escolhida.</li>
           <li><strong>Dados do simulador:</strong> registros técnicos das partidas contra o bot ou na arena e relatórios de erro enviados voluntariamente, usados para melhorar as regras e a inteligência do simulador.</li>
           <li><strong>Dados técnicos e de segurança:</strong> endereço IP, data e hora de acesso e cabeçalhos das requisições, usados para segurança, limitação de tentativas de login e proteção contra robôs (Google reCAPTCHA).</li>
-          <li><strong>Estatísticas de audiência:</strong> páginas visitadas, origem do acesso, tipo de navegador/dispositivo e país, coletados de forma agregada e sem cookies pelo Cloudflare Web Analytics (ver seção 7).</li>
+          <li><strong>Estatísticas de audiência:</strong> páginas visitadas, origem do acesso, tipo de navegador/dispositivo e país, coletados de forma agregada e sem cookies pelo Cloudflare Web Analytics. <em>Só se você aceitar no aviso de cookies</em>, também pelo Google Analytics 4, que usa cookies próprios (<code>_ga</code>) para contar visitas e páginas vistas (ver seção 7).</li>
           <li><strong>Cookies e identificadores de publicidade:</strong> cookies e identificadores digitais utilizados por redes de publicidade terceiras parceiras (como o Google AdSense) para veiculação de anúncios e medição de desempenho, conforme detalhado na Seção 7.</li>
           <li><strong>Relatórios de erro técnico:</strong> quando uma página ou a API falha, registramos a mensagem do erro, o trecho do código onde ocorreu, a página ou rota, o navegador e o sistema operacional, pelo Sentry. Esses relatórios <em>não</em> incluem nome, e-mail, endereço IP, cookies, senhas nem o conteúdo do que você digitou; e-mails e códigos de acesso que apareçam em mensagens ou endereços são apagados antes do envio.</li>
         </ul>
@@ -177,8 +177,10 @@
           <li><strong>Login com Google:</strong> execução do contrato, a seu pedido, quando você escolhe essa forma de acesso (art. 7º, V da LGPD).</li>
           <li><strong>Segurança, prevenção de fraude e de abuso, registros de acesso e reCAPTCHA:</strong> legítimo interesse em proteger a plataforma e seus usuários (art. 7º, IX da LGPD).</li>
           <li><strong>Relatórios de erro técnico:</strong> legítimo interesse em encontrar e corrigir falhas do portal (art. 7º, IX da LGPD).</li>
-          <li><strong>Estatísticas agregadas de audiência e de metagame:</strong> legítimo interesse em entender o uso do portal e melhorar o serviço, sem identificar pessoas (art. 7º, IX da LGPD).</li>
-          <li><strong>Sustentabilidade da plataforma e publicidade programática:</strong> legítimo interesse do controlador em obter receita para custeio de servidores, banco de dados e manutenção técnica gratuita do portal para a comunidade, associado ao consentimento e configurações do navegador do usuário (art. 7º, I e IX da LGPD).</li>
+          <li><strong>Estatísticas agregadas de audiência (Cloudflare) e de metagame:</strong> legítimo interesse em entender o uso do portal e melhorar o serviço, sem identificar pessoas (art. 7º, IX da LGPD).</li>
+          <li><strong>Google Analytics 4:</strong> consentimento, dado no aviso de cookies e revogável a qualquer momento (art. 7º, I da LGPD).</li>
+          <li><strong>Anúncios personalizados:</strong> consentimento, dado no aviso de cookies e revogável a qualquer momento (art. 7º, I da LGPD).</li>
+          <li><strong>Anúncios não personalizados:</strong> legítimo interesse em obter receita para custear servidores, banco de dados e a manutenção gratuita do portal (art. 7º, IX da LGPD).</li>
           <li><strong>Resultados públicos de torneios:</strong> legítimo interesse, com dados tornados manifestamente públicos pelas organizações dos eventos (art. 7º, IX e § 4º da LGPD).</li>
         </ul>
 
@@ -187,7 +189,7 @@
           O banco de dados (PostgreSQL) e a aplicação rodam em um servidor virtual (VPS) contratado da <strong>Hostinger</strong>, localizado em <strong>São Paulo, Brasil</strong>. Os e-mails transacionais são enviados pelo serviço de e-mail da própria Hostinger.
         </p>
         <p>
-          Alguns serviços de terceiros processam dados fora do Brasil: o <strong>Google LLC</strong> (login, reCAPTCHA e rede de anúncios Google AdSense), a <strong>Cloudflare</strong> (estatísticas de audiência) e o <strong>Sentry</strong> (relatórios de erro técnico), todos com sede nos Estados Unidos. Essas transferências ocorrem com base nas garantias contratuais e de proteção de dados oferecidas por esses provedores, nos termos do art. 33 da LGPD.
+          Alguns serviços de terceiros processam dados fora do Brasil: o <strong>Google LLC</strong> (login, reCAPTCHA, Google Analytics e rede de anúncios Google AdSense), a <strong>Cloudflare</strong> (entrega de conteúdo, proteção contra ataques e estatísticas de audiência) e o <strong>Sentry</strong> (relatórios de erro técnico), todos com sede nos Estados Unidos. Essas transferências ocorrem com base nas garantias contratuais e de proteção de dados oferecidas por esses provedores, nos termos do art. 33 da LGPD.
         </p>
 
         <h2>7. Cookies, Armazenamento Local e Publicidade (Google AdSense)</h2>
@@ -202,16 +204,20 @@
             <strong>Estatísticas de Audiência (Cloudflare Web Analytics):</strong> medição de acessos agregada e anônima, sem gravação de cookies no navegador e sem criação de perfis de usuário.
           </li>
           <li>
+            <strong>Google Analytics 4 (só com o seu consentimento):</strong> carregado apenas depois que você clica em "Aceitar" no aviso de cookies. Grava cookies <code>_ga</code> para contar visitas, páginas vistas e tempo de uso. O Google Analytics 4 não guarda o endereço IP; os sinais do Google e a personalização de anúncios ficam desligados na nossa propriedade. Se você recusar, o script não é carregado; se revogar depois, os cookies <code>_ga</code> são apagados.
+          </li>
+          <li>
+            <strong>Aviso de cookies e como mudar a escolha:</strong> na primeira visita, o aviso oferece "Aceitar" e "Recusar" com o mesmo destaque. Até você escolher, vale a recusa. Para mudar, use o link <em>Preferências de cookies</em> no rodapé de qualquer página. A escolha fica salva só no seu navegador.
+          </li>
+          <li>
             <strong>Publicidade de Terceiros e Google AdSense:</strong> para manter o portal gratuito e viabilizar os custos de servidores, utilizamos anúncios fornecidos pelo <strong>Google AdSense</strong>. Em conformidade com as políticas do Google:
             <ul>
+              <li><strong>Anúncios personalizados só com o seu consentimento</strong> no aviso de cookies. Sem consentimento, o Google mostra anúncios não personalizados, que ainda podem usar cookies para limitar a frequência, medir resultados de forma agregada e combater fraude.</li>
               <li>Fornecedores terceiros, incluindo o Google, usam cookies para veicular anúncios com base em visitas anteriores do usuário a este website ou a outros websites.</li>
               <li>Com o uso de cookies de publicidade, o Google e seus parceiros podem veicular anúncios para os usuários com base nas visitas feitas ao AnaheimHub e/ou a outros sites na Internet.</li>
               <li>Os usuários podem desativar a publicidade personalizada acessando as <a href="https://adssettings.google.com" target="_blank" rel="noreferrer">Configurações de Anúncios do Google</a>.</li>
               <li>Alternativamente, os usuários podem optar por desativar o uso de cookies de terceiros para publicidade personalizada acessando o portal <a href="https://www.aboutads.info/choices/" target="_blank" rel="noreferrer">www.aboutads.info</a> ou configurando as opções de bloqueio de cookies em seu navegador de internet.</li>
             </ul>
-          </li>
-          <li>
-            <strong>Parcerias Comerciais e Links de Afiliados:</strong> o portal pode apresentar widgets de cotação de preços e links para plataformas de comércio eletrônico parceiras (como Mercado Livre, Amazon e lojas especializadas de TCG). Ao clicar nesses links, cookies de rastreamento de afiliados podem ser inseridos pela loja de destino para identificar que a indicação partiu do AnaheimHub, sem custo adicional para o usuário.
           </li>
         </ul>
 
@@ -219,10 +225,9 @@
         <p>Não vendemos nem alugamos dados pessoais. Compartilhamos apenas o estritamente necessário com os fornecedores que viabilizam o funcionamento da plataforma:</p>
         <ul>
           <li><strong>Hostinger:</strong> hospedagem do servidor (VPS), banco de dados e envio de e-mails transacionais.</li>
-          <li><strong>Google LLC:</strong> login com Conta Google (OAuth 2.0), proteção contra robôs (reCAPTCHA) e veiculação de anúncios programáticos (Google AdSense).</li>
-          <li><strong>Cloudflare, Inc.:</strong> entrega de conteúdo e estatísticas agregadas de audiência.</li>
+          <li><strong>Google LLC:</strong> login com Conta Google (OAuth 2.0), proteção contra robôs (reCAPTCHA), estatísticas de audiência com o seu consentimento (Google Analytics 4) e veiculação de anúncios programáticos (Google AdSense).</li>
+          <li><strong>Cloudflare, Inc.:</strong> entrega de conteúdo (rede de distribuição e cache), proteção contra ataques e estatísticas agregadas de audiência. As páginas passam pela rede da Cloudflare, que vê o endereço IP e os cabeçalhos da requisição para entregá-las e protegê-las.</li>
           <li><strong>Functional Software, Inc. (Sentry):</strong> relatórios de erro técnico, sem dados pessoais identificáveis.</li>
-          <li><strong>Marketplaces e Redes de Afiliados:</strong> ao clicar em links externos de produtos (ex.: Mercado Livre, Amazon), dados de navegação são processados pela respectiva plataforma de acordo com suas próprias políticas de privacidade.</li>
         </ul>
         <p>Dados também podem ser fornecidos a autoridades mediante ordem judicial ou estrita obrigação legal.</p>
 
@@ -231,7 +236,7 @@
           <li><strong>Dados da conta e conteúdo criado:</strong> enquanto a conta estiver ativa. Após um pedido de exclusão, são apagados em até 15 dias.</li>
           <li><strong>Cópias de segurança (backups):</strong> substituídas periodicamente; dados excluídos deixam de existir nelas em até 60 dias.</li>
           <li><strong>Registros técnicos de acesso:</strong> mantidos por período limitado, com rotação periódica, apenas para segurança e diagnóstico.</li>
-          <li><strong>Estatísticas de audiência:</strong> apenas agregadas, retidas pela Cloudflare por até 6 meses.</li>
+          <li><strong>Estatísticas de audiência:</strong> apenas agregadas, retidas pela Cloudflare por até 6 meses. No Google Analytics 4, os dados por usuário e por evento são apagados após 2 meses; ficam só os relatórios agregados.</li>
           <li><strong>Relatórios de erro técnico:</strong> apagados pelo Sentry após 30 dias.</li>
         </ul>
 
