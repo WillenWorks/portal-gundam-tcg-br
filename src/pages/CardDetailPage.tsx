@@ -34,7 +34,6 @@ import { CardPlayabilityBadge } from "@/components/catalog/CardPlayabilityBadge"
 
 import { CardTournamentUsageSection } from "@/components/veda/CardTournamentUsageSection";
 
-import { CardMarketplaceWidget } from "@/components/marketplace/CardMarketplaceWidget";
 
 import { AdSlot } from "@/components/ads/AdSlot";
 
@@ -555,13 +554,6 @@ export default function CardDetailPage() {
 
 
 
-        {/* Mercado, Onde Comprar & Comparação de Preços (Liga Gundam, MyPcards, ML, Amazon) */}
-
-        <section>
-
-          <CardMarketplaceWidget card={selectedPrint || card} />
-
-        </section>
 
 
 

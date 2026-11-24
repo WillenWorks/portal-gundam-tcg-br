@@ -40,8 +40,20 @@
     <!-- anuncios:inicio (o servidor tira este trecho em login, erro e telas logadas: server/htmlMeta.ts) -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4516039090052126" crossorigin="anonymous"></script>
     <!-- anuncios:fim -->
+    <style>
+      /* Capa de carregamento: cobre o texto do #root (que fica no HTML para quem lê sem JavaScript, como o robô do
+         AdSense) até o app montar, e some num fade (src/main.tsx). Sem JavaScript, some sozinha depois de 5 s. */
+      #boot-cover { position: fixed; inset: 0; z-index: 2147483000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: #020617; transition: opacity 0.2s ease; animation: boot-cover-out 0.3s ease 5s forwards; }
+      #boot-cover.boot-cover-done { opacity: 0; pointer-events: none; }
+      #boot-cover img { width: 64px; height: 64px; border-radius: 50%; animation: boot-cover-pulse 1.4s ease-in-out infinite; }
+      #boot-cover span { font: 700 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; letter-spacing: 0.3em; text-transform: uppercase; color: #38bdf8; }
+      @keyframes boot-cover-out { to { opacity: 0; visibility: hidden; } }
+      @keyframes boot-cover-pulse { 50% { opacity: 0.55; } }
+      @media (prefers-reduced-motion: reduce) { #boot-cover img { animation: none; } }
+    </style>
   </head>
   <body>
+    <div id="boot-cover" aria-hidden="true"><img src="/favicon.png" alt="" width="64" height="64" /><span>Anaheim Hub</span></div>
     <div id="root">
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #020617; color: #f8fafc; min-height: 100vh; padding: 24px; max-width: 1200px; margin: 0 auto; line-height: 1.6;">
         <header style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 20px; margin-bottom: 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">

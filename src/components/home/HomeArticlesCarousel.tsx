@@ -23,13 +23,19 @@ const POST_TYPE_LABEL: Record<PostType, { pt: string; en: string }> = {
 const FRAME = "relative overflow-hidden rounded-2xl border border-white/15 bg-slate-950 shadow-2xl light:border-slate-300";
 const ARROW = "hidden sm:flex size-8 items-center justify-center rounded-full border border-white/20 bg-slate-950/60 text-white transition-all hover:bg-slate-900/90 hover:scale-110 active:scale-95";
 // Altura limitada a partir de lg: a imagem aparece inteira sem o destaque ficar maior que o painel ao lado
+// O texto do slide tem altura mínima fixa: o esqueleto de carregamento ocupa o mesmo espaço e a home não pula
+// quando os artigos chegam (CLS)
+const TEXT_SLOT = "flex min-w-0 flex-1 flex-col gap-3 p-5 sm:p-6 min-h-[16.5rem]";
 const IMAGE_SLOT = "aspect-video w-full shrink-0 border-b border-white/10 lg:aspect-auto lg:h-80 min-[1800px]:h-auto min-[1800px]:min-h-[480px] min-[1800px]:w-3/5 min-[1800px]:self-stretch min-[1800px]:border-b-0 min-[1800px]:border-r";
 
 /** Destaque da home: os últimos artigos publicados no Content Hub. */
 export function HomeArticlesCarousel() {
   const { tr, isEn } = useSiteLanguage();
   const [articles, setArticles] = useState<ApiPost[] | null>(null);
-  const [currentSlide, setCurrentSlide] = useState(0);
+  // o slide anterior continua com a imagem enquanto some (fade de 700 ms)
+  const [slide, setSlide] = useState<{ current: number; previous: number | null }>({ current: 0, previous: null });
+  const currentSlide = slide.current;
+  const goTo = (next: (current: number) => number) => setSlide((s) => ({ current: next(s.current), previous: s.current }));
   const [isPaused, setIsPaused] = useState(false);
   // no celular as setas ficam escondidas; troca de slide deslizando o dedo
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -44,12 +50,19 @@ export function HomeArticlesCarousel() {
 
   useEffect(() => {
     if (isPaused || count < 2) return;
-    const timer = setInterval(() => setCurrentSlide((prev) => (prev + 1) % count), SLIDE_INTERVAL_MS);
+    const timer = setInterval(() => setSlide((s) => ({ current: (s.current + 1) % count, previous: s.current })), SLIDE_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [isPaused, count]);
 
   if (articles === null) {
-    return <div className={cn(FRAME, "min-h-[440px] lg:min-h-[500px] animate-pulse")} aria-busy="true" data-testid="home-articles-loading" />;
+    return (
+      <div className={cn(FRAME, "grid animate-pulse")} aria-busy="true" data-testid="home-articles-loading">
+        <div className="col-start-1 row-start-1 flex flex-col min-[1800px]:flex-row">
+          <div className={cn(IMAGE_SLOT, "bg-slate-900")} />
+          <div className={TEXT_SLOT} />
+        </div>
+      </div>
+    );
   }
 
   if (count === 0) {
@@ -62,8 +75,8 @@ export function HomeArticlesCarousel() {
     );
   }
 
-  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + count) % count);
-  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % count);
+  const prevSlide = () => goTo((current) => (current - 1 + count) % count);
+  const nextSlide = () => goTo((current) => (current + 1) % count);
   const onTouchStart = (event: TouchEvent) => setTouchStartX(event.touches[0]?.clientX ?? null);
   const onTouchEnd = (event: TouchEvent) => {
     if (touchStartX === null) return;
@@ -84,6 +97,9 @@ export function HomeArticlesCarousel() {
     >
       {articles.map((article, idx) => {
         const isActive = idx === currentSlide;
+        // os slides ficam empilhados e transparentes, então o `loading="lazy"` não segura nada: só o atual, o que está
+        // saindo e o próximo (pré-carregado) desenham a imagem
+        const drawImage = isActive || idx === slide.previous || idx === (currentSlide + 1) % count;
         return (
           <div
             key={article.id}
@@ -94,15 +110,22 @@ export function HomeArticlesCarousel() {
             )}
           >
             {/* A imagem vai inteira, sem texto por cima: as capas costumam ter título próprio na arte */}
-            {article.homeImage || article.coverImage ? (
-              <ArticleImageFrame src={article.homeImage || article.coverImage || ""} priority={idx === 0} className={IMAGE_SLOT} />
+            {(article.homeImage || article.coverImage) && !drawImage ? (
+              <div className={cn(IMAGE_SLOT, "bg-slate-900")} />
+            ) : article.homeImage || article.coverImage ? (
+              <ArticleImageFrame
+                src={article.homeImage || article.coverImage || ""}
+                priority={idx === 0}
+                sizes="(min-width: 1800px) 40vw, (min-width: 1024px) 50vw, 100vw"
+                className={IMAGE_SLOT}
+              />
             ) : (
               <div className={cn(IMAGE_SLOT, "flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-950")}>
                 <BookOpen className="size-10 text-slate-500" />
               </div>
             )}
 
-            <div className="flex min-w-0 flex-1 flex-col gap-3 p-5 sm:p-6">
+            <div className={TEXT_SLOT}>
               <div className="flex flex-wrap items-center gap-2.5">
                 <span className="rounded-xs border border-primary/50 bg-primary/20 px-3 py-1 text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-primary">
                   {tr(POST_TYPE_LABEL[article.postType])}
@@ -145,7 +168,7 @@ export function HomeArticlesCarousel() {
               <button
                 key={article.id}
                 type="button"
-                onClick={() => setCurrentSlide(idx)}
+                onClick={() => goTo(() => idx)}
                 aria-label={tr(`Ir para o slide ${idx + 1}`, `Go to slide ${idx + 1}`)}
                 className={cn(
                   "h-1.5 rounded-full transition-all duration-300",

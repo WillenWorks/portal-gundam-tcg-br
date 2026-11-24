@@ -134,9 +134,9 @@ describe("páginas com título próprio pelo carregador de conteúdo", () => {
 describe("página Apoie", () => {
   it("só mostra os canais configurados e só aceita https", () => {
     const none = supportChannels({});
-    expect(none.map((c) => c.title)).toEqual(["Comprar pelos nossos links", "Mandar correções e resultados"]);
-    const all = supportChannels({ supportUrl: "https://apoia.se/anaheimhub", pixKey: "pix@anaheimhub.com", instagramUrl: "javascript:alert(1)", discordUrl: "https://discord.gg/x", mypCoupon: "ANAHEIM" });
-    expect(all.map((c) => c.title)).toEqual(["Apoio mensal no Apoia.se", "Pix", "Cupom ANAHEIM na MYP Cards", "Comprar pelos nossos links", "Comunidade no Discord", "Mandar correções e resultados"]);
+    expect(none.map((c) => c.title)).toEqual(["Mandar correções e resultados"]);
+    const all = supportChannels({ supportUrl: "https://apoia.se/anaheimhub", pixKey: "pix@anaheimhub.com", instagramUrl: "javascript:alert(1)", discordUrl: "https://discord.gg/x" });
+    expect(all.map((c) => c.title)).toEqual(["Apoio mensal no Apoia.se", "Pix", "Comunidade no Discord", "Mandar correções e resultados"]);
     expect(matchSiteRoute("/apoie")).toEqual({ known: true });
     const html = supportBody({ title: SUPPORT_TITLE, lead: SUPPORT_LEAD, why: SUPPORT_WHY, channels: all });
     expect(html).toContain("<code>pix@anaheimhub.com</code>");

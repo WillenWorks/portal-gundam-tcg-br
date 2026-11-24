@@ -48,7 +48,7 @@ export const ABOUT_SECTIONS: AboutSection[] = [
     title: "Quem mantém o site",
     paragraphs: [
       "O Anaheim Hub é desenvolvido e mantido de forma independente pela WillenWorks, no Brasil, com a ajuda de jogadores que testam as ferramentas e mandam correções.",
-      "Os custos de servidor e de domínio são cobertos por anúncios e por links de afiliado de lojas de cartas. Todo link de afiliado é identificado como publicidade. Navegar e consultar qualquer página é gratuito e não exige conta; a conta gratuita serve para salvar decks e jogar no simulador.",
+      "Os custos de servidor e de domínio são cobertos por anúncios e pelo apoio de quem usa o site. O portal não vende cartas nem indica lojas. Navegar e consultar qualquer página é gratuito e não exige conta; a conta gratuita serve para salvar decks e jogar no simulador.",
       "Quer ajudar a manter o site no ar? Veja as formas de apoiar na página Apoie o Anaheim Hub (/apoie).",
     ],
   },
