@@ -17,7 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { evaluatePasswordStrength, validatePasswordStrength } from "@/lib/passwordStrength";
 import { executeRecaptcha } from "@/lib/recaptcha";
-import { useSiteLanguage } from "@/i18n/siteLanguage";
+import { tr as trNow, useSiteLanguage } from "@/i18n/siteLanguage";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
@@ -81,7 +81,7 @@ export default function AuthPage() {
           setErrorMessage(null);
           loginWithGoogle(response.credential)
             .catch((err: any) => {
-              const msg = err?.message || tr("Erro ao entrar com Google.", "Google sign-in failed.");
+              const msg = err?.message || trNow("Erro ao entrar com Google.", "Google sign-in failed.");
               setErrorMessage(msg);
               toast.error(msg);
             })

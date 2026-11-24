@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { Link, useRoute } from "wouter";
 import {
   Calendar,
@@ -59,8 +59,11 @@ export default function VedaTournamentReportPage() {
     }
   };
 
-  useEffect(() => {
+  const loadOnChange = useEffectEvent(() => {
     loadDetail();
+  });
+  useEffect(() => {
+    loadOnChange();
   }, [tournamentId]);
 
   if (loading) {

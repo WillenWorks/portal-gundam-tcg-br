@@ -40,7 +40,7 @@ import { AdSlot } from "@/components/ads/AdSlot";
 
 import { usePageMeta } from "@/lib/pageMeta";
 
-import { useSiteLanguage, type Localized } from "@/i18n/siteLanguage";
+import { tr as trNow, useSiteLanguage, type Localized } from "@/i18n/siteLanguage";
 
 
 
@@ -178,7 +178,7 @@ export default function CardDetailPage() {
 
         setRecommendations(uniqueRecs.slice(0, 6));
 
-      } catch (err: any) { if (active) setError(err.message || tr("Falha ao carregar a carta.", "Couldn't load the card.")); }
+      } catch (err: any) { if (active) setError(err.message || trNow("Falha ao carregar a carta.", "Couldn't load the card.")); }
 
     }
 

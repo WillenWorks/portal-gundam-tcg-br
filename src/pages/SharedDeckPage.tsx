@@ -817,7 +817,7 @@ export default function SharedDeckPage() {
       ];
     }
     return [];
-  }, [archetypeMeta, deck, mainRows, communityDecks, similarEntries]);
+  }, [archetypeMeta, deck, mainRows, communityDecks, similarEntries, tr]);
 
   // Pílulas interativas de Traits e Links
   const { traitList, linkList, quickCountersCount, burstCount } = useMemo(() => {

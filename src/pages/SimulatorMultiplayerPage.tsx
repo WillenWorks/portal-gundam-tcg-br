@@ -195,7 +195,7 @@ export default function SimulatorMultiplayerPage() {
     } finally {
       setBusyAction(null);
     }
-  }, [mode, deckId]);
+  }, [mode, deckId, tr]);
 
   const handleJoinSquad = useCallback(async () => {
     if (!squadCodeInput.trim()) return;
@@ -210,7 +210,7 @@ export default function SimulatorMultiplayerPage() {
     } finally {
       setBusyAction(null);
     }
-  }, [squadCodeInput, deckId]);
+  }, [squadCodeInput, deckId, tr]);
 
   const handleLeaveLobby = useCallback(() => {
     if (lobby) arena4pSocket.leaveLobby(lobby.id);

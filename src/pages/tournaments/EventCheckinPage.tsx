@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { toast } from "sonner";
 import {
@@ -110,13 +110,19 @@ export function EventCheckinPage({ eventId: propEventId }: EventCheckinPageProps
     }
   };
 
-  useEffect(() => {
+  const fetchStatusOnChange = useEffectEvent(() => {
     fetchStatus();
+  });
+  useEffect(() => {
+    fetchStatusOnChange();
   }, [eventId, user]);
 
+  const fetchUserDecksOnChange = useEffectEvent(() => {
+    fetchUserDecks();
+  });
   useEffect(() => {
     if (user && !data?.isCheckedIn) {
-      fetchUserDecks();
+      fetchUserDecksOnChange();
     }
   }, [user, data?.isCheckedIn]);
 

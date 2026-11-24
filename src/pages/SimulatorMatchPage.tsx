@@ -612,16 +612,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [matchView, setMatchView] = useState<SimulatorMatchView | null>(null);
   const [loadTimedOut, setLoadTimedOut] = useState(false);
 
+  // a visão não volta a null depois de chegar, e o aviso só aparece sem ela (o render confere `!matchView`)
+  const hasMatchView = matchView !== null;
   useEffect(() => {
-    if (matchView) {
-      setLoadTimedOut(false);
-      return;
-    }
-    const timer = setTimeout(() => {
-      if (!matchView) setLoadTimedOut(true);
-    }, 8000);
+    if (hasMatchView) return;
+    const timer = setTimeout(() => setLoadTimedOut(true), 8000);
     return () => clearTimeout(timer);
-  }, [matchView]);
+  }, [hasMatchView]);
 
   /** offset de relógio servidor↔cliente (`serverNow - Date.now()`) — corrige skew no countdown/idle. */
   const clockOffsetRef = useRef(0);
@@ -774,11 +771,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const introInitializedRef = useRef(false);
   const mulliganDidMulliganRef = useRef(false);
   const introStageRef = useRef(introStage);
-  introStageRef.current = introStage;
   const introStageResolveRef = useRef<(() => void) | null>(null);
 
-  // a fila de visões reavalia a cada etapa da abertura (ela pode passar a esperar justamente a visão que está na fila)
+  // a fila de visões reavalia a cada etapa da abertura (ela pode passar a esperar justamente a visão que está na fila);
+  // o ref muda antes de acordar a fila, que lê a etapa nova
   useEffect(() => {
+    introStageRef.current = introStage;
     introStageResolveRef.current?.();
     introStageResolveRef.current = null;
   }, [introStage]);
@@ -937,10 +935,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [modalHold, setModalHold] = useState(false);
   const beatKeyRef = useRef(0);
   // largura da carta NA MÃO de cada lado (medida na tela): toda carta que voa para a mão pousa neste tamanho
-  const handCardW = (pid: PlayerId) => board.rectOf(`handCardProbe:${pid}`)?.width ?? board.rectOf(`deckStation:${pid}`)?.width;
+  const handCardW = useCallback(
+    (pid: PlayerId) => board.rectOf(`handCardProbe:${pid}`)?.width ?? board.rectOf(`deckStation:${pid}`)?.width,
+    [board],
+  );
 
   /** P3 — onde a carta jogada pousa: a próxima vaga livre do campo, a Base, ou a Unit que recebe o Piloto */
-  function playTarget(beat: Extract<Beat, { kind: "play" }>, shownView: ViewGameState, finalView: ViewGameState): DOMRect | null {
+  const playTarget = useCallback((beat: Extract<Beat, { kind: "play" }>, shownView: ViewGameState, finalView: ViewGameState): DOMRect | null => {
     if (beat.as === "base") return board.rectOf(`base:${beat.player}`) ?? board.rectOf(playerAreaKey(beat.player));
     if (beat.as === "pilot") {
       const unit = finalView.players[beat.player].battleArea.find((c) => !isHidden(c) && (c as CardInstance).pairedPilotId === beat.instanceId);
@@ -949,7 +950,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     // mesma contagem das vagas desenhadas (`publicUnits`): só Units (o Piloto pareado também mora na Battle Area)
     const nextSlot = shownView.players[beat.player].battleArea.filter((c) => !isHidden(c) && (c as CardInstance).def?.cardType === "UNIT").length;
     return board.rectOf(`slot:${beat.player}:${nextSlot}`) ?? board.rectOf(playerAreaKey(beat.player));
-  }
+  }, [board]);
 
   const playOverlay = useCallback(
     <T,>(set: (value: T | null) => void, resolveRef: { current: (() => void) | null }, value: T) =>
@@ -1617,7 +1618,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         });
       }
     },
-    [executeAttackStrike, detectDepartures, launchDepartures, waitForBurstReveal, board, enqueuePhaseBanners, waitForPhaseBanners, playOverlay, playTurnStart, art],
+    [executeAttackStrike, detectDepartures, launchDepartures, waitForBurstReveal, board, enqueuePhaseBanners, waitForPhaseBanners, playOverlay, playTurnStart, art, handCardW, playTarget],
   );
 
   const drainViewQueue = useCallback(async () => {
@@ -1857,7 +1858,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         setBusy(false);
       }
     },
-    [sendAction, showActionError, matchView, board],
+    [sendAction, showActionError, matchView, board, tr],
   );
 
   const handleSideboardSubmit = useCallback(
@@ -1873,7 +1874,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         setBusy(false);
       }
     },
-    [matchId, applyIncomingView],
+    [matchId, applyIncomingView, tr],
   );
 
   // o servidor espera a cena no ritmo e na velocidade de animação de quem joga (o mais lento dos dois): avisa a escolha
@@ -2167,7 +2168,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     } else if (introStage === "deal-shields") {
       setIntroStage("ex-reveal");
     }
-  }, [introStage, matchView]);
+  }, [introStage]);
 
   // Callback de término de cada banner de fase
   const handlePhaseBannerDone = useCallback(() => {

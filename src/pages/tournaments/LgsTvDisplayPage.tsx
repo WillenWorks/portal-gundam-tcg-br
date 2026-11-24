@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useRoute } from "wouter";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -231,9 +231,12 @@ export function LgsTvDisplayPage({ eventId: propEventId }: LgsTvDisplayPageProps
     }
   };
 
+  const pollData = useEffectEvent(() => {
+    void fetchData();
+  });
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 10000); // Polling a cada 10s
+    pollData();
+    const interval = setInterval(() => pollData(), 10000); // Polling a cada 10s
     return () => clearInterval(interval);
   }, [eventId]);
 
