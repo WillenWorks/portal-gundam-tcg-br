@@ -1,8 +1,8 @@
 # https://www.robotstxt.org/robotstxt.html
 User-agent: *
 Allow: /
-# Conta, ferramentas logadas e telas operacionais (também marcadas com noindex na página)
-Disallow: /api/
+# Conta, ferramentas logadas e telas operacionais (também marcadas com noindex na página).
+# /api/ fica liberada: o Google chama a API para montar as páginas; as respostas levam X-Robots-Tag: noindex.
 Disallow: /admin
 Disallow: /portal
 Disallow: /profile

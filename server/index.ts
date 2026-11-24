@@ -137,6 +137,7 @@ import { purgeStaleSimulatorMatches, SIMULATOR_MATCH_PURGE_INTERVAL_MS } from ".
 import { registerVedaRoutes } from "./vedaService.ts";
 import { registerAdminDashboardRoutes } from "./routes/adminDashboardRoutes.ts";
 import { registerSupporterRoutes } from "./routes/supporterRoutes.ts";
+import { resizedUploads } from "./imageResize.ts";
 import { registerDiscordLinkRoutes } from "./routes/discordLinkRoutes.ts";
 import { normalizeUserTags } from "../src/lib/supporters.ts";
 import { registerSocialRoutes } from "./routes/socialRoutes.ts";
@@ -395,6 +396,12 @@ app.set("trust proxy", "loopback");
 app.disable("x-powered-by");
 // limite por IP de toda a /api, antes de qualquer rota (ver apiRateLimit.ts)
 app.use(rateLimit(apiRateLimitOptions()));
+// O robô do Google precisa chamar a API para montar as páginas (o robots.txt não bloqueia mais /api/), mas o JSON
+// em si não deve aparecer na busca.
+app.use("/api", (_req, res, next) => {
+  res.setHeader("X-Robots-Tag", "noindex");
+  next();
+});
 
 // Log das requisições da API que valem olhar: erro 5xx ou mais de 1,5 s. Uma linha JSON por requisição,
 // com um id que também vai no cabeçalho X-Request-Id (dá para casar a reclamação de alguém com o log).
@@ -468,6 +475,8 @@ app.use((req, res, next) => {
   }
   next();
 });
+// `?w=640` devolve a imagem redimensionada em WebP (server/imageResize.ts); sem `?w`, o original
+app.use("/uploads", resizedUploads(uploadRootDir));
 app.use("/uploads", express.static(uploadRootDir, {
   maxAge: STORAGE_DRIVER === "local" ? "1d" : 0,
   immutable: false,

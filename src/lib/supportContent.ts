@@ -11,7 +11,6 @@ export type SupportEnv = {
   pixKey?: string;
   instagramUrl?: string;
   discordUrl?: string;
-  mypCoupon?: string;
 };
 
 /** Custo mensal aproximado mostrado na página (transparência). Atualize quando o plano mudar. */
@@ -28,9 +27,6 @@ export function supportChannels(env: SupportEnv): SupportChannel[] {
   if (supportUrl) channels.push({ title: "Apoio mensal no Apoia.se", text: "A partir de R$ 5 por mês você ganha uma patente: selo de Apoiador no perfil e seu nome no mural desta página. É o que paga o servidor de forma previsível.", href: supportUrl, cta: "Quero apoiar" });
   const pix = env.pixKey?.trim();
   if (pix) channels.push({ title: "Pix", text: "Uma contribuição única, do valor que você quiser, direto pelo Pix.", copy: pix });
-  const coupon = env.mypCoupon?.trim();
-  if (coupon) channels.push({ title: `Cupom ${coupon} na MYP Cards`, text: `Compras acima de R$ 300 na MYP Cards com o cupom ${coupon} ganham R$ 10 de desconto e geram crédito para o Anaheim Hub, sem custo extra para você.`, href: "https://mypcards.com", cta: "Ir para a MYP Cards" });
-  channels.push({ title: "Comprar pelos nossos links", text: "Nas páginas de carta e nos artigos, os links marcados como publicidade levam a lojas parceiras. A loja paga uma pequena comissão ao site; o preço para você é o mesmo." });
   const instagram = httpsOnly(env.instagramUrl);
   if (instagram) channels.push({ title: "Seguir e compartilhar", text: "Spoilers, metagame e novidades todo dia no Instagram. Compartilhar um post ajuda o site a chegar a mais jogadores.", href: instagram, cta: "Abrir o Instagram" });
   const discord = httpsOnly(env.discordUrl);
@@ -43,7 +39,7 @@ export const SUPPORT_TITLE = "Apoie o Anaheim Hub";
 export const SUPPORT_LEAD =
   "O Anaheim Hub é gratuito e independente. Manter catálogo, torneios, regras e simulador no ar custa " +
   SUPPORT_MONTHLY_COST +
-  " em servidor e domínio, pagos com anúncios, links de afiliado e a ajuda de quem usa o site.";
+  " em servidor e domínio, pagos com anúncios e com a ajuda de quem usa o site.";
 
 export const SUPPORT_WHY = [
   "Todo o conteúdo continua aberto, sem conta e sem paywall: as recompensas são reconhecimento e bastidores, nunca conteúdo trancado.",

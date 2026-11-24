@@ -13,7 +13,6 @@ const channels = supportChannels({
   pixKey: import.meta.env.VITE_SUPPORT_PIX_KEY as string | undefined,
   instagramUrl: import.meta.env.VITE_INSTAGRAM_URL as string | undefined,
   discordUrl: import.meta.env.VITE_DISCORD_INVITE_URL as string | undefined,
-  mypCoupon: import.meta.env.VITE_MYPCARDS_COUPON as string | undefined,
 });
 
 function CopyButton({ value }: { value: string }) {
