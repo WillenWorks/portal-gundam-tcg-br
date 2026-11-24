@@ -10,6 +10,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { FactionProvider } from "@/contexts/FactionContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { SiteLanguageProvider, tr } from "@/i18n/siteLanguage";
+import { ConsentBanner } from "@/components/layout/shared/ConsentBanner";
 import { LanguageSuggestion } from "@/components/layout/shared/LanguageSuggestion";
 import { GlobalLoader } from "@/components/layout/GlobalLoader";
 import { SocialQuickMatchOverlay } from "@/components/social/SocialQuickMatchOverlay";
@@ -302,6 +303,7 @@ function App() {
                 <Toaster />
                 <AppRouter />
                 <LanguageSuggestion />
+                <ConsentBanner />
               </TooltipProvider>
             </SiteLanguageProvider>
           </AuthProvider>
