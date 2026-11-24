@@ -1,7 +1,7 @@
 /* Decks públicos v10.0 (Decks públicos)
  * Banner imersivo com Tallgeese em escala monumental, filtros avançados de metagame,
  * seleção multi-cor, rolagem infinita de 12 em 12 e acesso imediato ao deckbuilder. */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   ArrowUpDown,
@@ -165,6 +165,9 @@ export default function PublicDecksPage() {
   };
 
   // Observador para rolagem infinita automática
+  const loadMoreOnScroll = useEffectEvent(() => {
+    loadMoreDecks();
+  });
   useEffect(() => {
     if (!hasMore || loading || loadingMore) return;
     const currentTarget = observerTarget.current;
@@ -173,7 +176,7 @@ export default function PublicDecksPage() {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          loadMoreDecks();
+          loadMoreOnScroll();
         }
       },
       { threshold: 0.1 }

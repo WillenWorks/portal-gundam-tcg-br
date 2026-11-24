@@ -2,7 +2,7 @@
  * Design: Hangar Tático da OZ / Anaheim Electronics
  * Medidor de consistência de abertura (turnos 1 a 3), score global e recomendações de tech cards
  */
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BrainCircuit,
@@ -69,10 +69,11 @@ export function ZeroCopilotDrawer({
     }
   };
 
+  const runAnalysisOnOpen = useEffectEvent(() => {
+    void runAnalysis();
+  });
   useEffect(() => {
-    if (open) {
-      void runAnalysis();
-    }
+    if (open) runAnalysisOnOpen();
   }, [open, deckCards]);
 
   if (!open) return null;

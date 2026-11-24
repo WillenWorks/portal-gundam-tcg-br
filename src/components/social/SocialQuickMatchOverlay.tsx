@@ -63,8 +63,9 @@ export function SocialQuickMatchOverlay({ children }: { children: React.ReactNod
   const [mailboxRecipient, setMailboxRecipient] = useState<string | undefined>(undefined);
   const [mailboxSubject, setMailboxSubject] = useState<string | undefined>(undefined);
 
+  const currentUserId = currentUser?.id;
   useEffect(() => {
-    if (!isAuthenticated || !currentUser) {
+    if (!isAuthenticated || !currentUserId) {
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
@@ -124,7 +125,7 @@ export function SocialQuickMatchOverlay({ children }: { children: React.ReactNod
         setHostWidget(null);
         setIncomingInvite(null);
 
-        const isHost = data.hostUser.id === currentUser.id;
+        const isHost = data.hostUser.id === currentUserId;
         const opponent = isHost ? data.guestUser : data.hostUser;
 
         setDeckSelectSession({
@@ -167,7 +168,7 @@ export function SocialQuickMatchOverlay({ children }: { children: React.ReactNod
       socket?.disconnect();
       socketRef.current = null;
     };
-  }, [isAuthenticated, currentUser?.id, navigate]);
+  }, [isAuthenticated, currentUserId, navigate]);
 
   // Função disparada por qualquer botão do site para convidar um amigo
   const startQuickMatch = (targetUserId: string, targetUsername: string, targetDisplayName?: string) => {

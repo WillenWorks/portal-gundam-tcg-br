@@ -76,16 +76,19 @@ export function SiteLanguageProvider({ children }: { children: ReactNode }) {
     [user, setCurrentUser],
   );
 
+  // só muda com o idioma: componentes põem `tr` nas dependências de callbacks e efeitos
+  const tr = useCallback<Translate>((pt, en) => pick(lang, pt, en), [lang]);
+
   const value = useMemo<SiteLanguageValue>(
     () => ({
       lang,
       isEn: lang === "en",
       locale: siteLocale(lang),
-      tr: (pt, en) => pick(lang, pt, en),
+      tr,
       setLanguage,
       hasChosen: hasChosen || Boolean(user?.preferredSiteLanguage && user.preferredSiteLanguage !== "pt-BR"),
     }),
-    [lang, setLanguage, hasChosen, user?.preferredSiteLanguage],
+    [lang, tr, setLanguage, hasChosen, user?.preferredSiteLanguage],
   );
 
   return <SiteLanguageContext.Provider value={value}>{children}</SiteLanguageContext.Provider>;

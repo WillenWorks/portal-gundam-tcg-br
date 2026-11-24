@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import {
@@ -67,8 +67,11 @@ export default function VedaDecklistPage() {
     }
   };
 
-  useEffect(() => {
+  const loadOnChange = useEffectEvent(() => {
     loadDeck();
+  });
+  useEffect(() => {
+    loadOnChange();
   }, [entryId]);
 
   const handleCopyCode = async () => {

@@ -1,5 +1,5 @@
 /* Admin v9.4 — parserização semântica + validação robusta + modal redesenhada. */
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Copy, History, Pencil, Plus, RotateCcw, Search, Star, Trash2, Upload, X } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
@@ -406,11 +406,12 @@ export default function AdminPage() {
     loadAll().catch((error) => toast.error(error?.message || "Erro ao carregar a área administrativa."));
     loadCardFilterOptions();
   }, [user?.role]);
+  const loadAdminCardsOnQuery = useEffectEvent(() => {
+    loadAdminCards().catch((error) => toast.error(error?.message || "Erro ao buscar cartas."));
+  });
   useEffect(() => {
     if (user?.role !== "ADMIN") return;
-    const timer = window.setTimeout(() => {
-      loadAdminCards().catch((error) => toast.error(error?.message || "Erro ao buscar cartas."));
-    }, 180);
+    const timer = window.setTimeout(() => loadAdminCardsOnQuery(), 180);
     return () => window.clearTimeout(timer);
   }, [cardQuery, user?.role]);
 

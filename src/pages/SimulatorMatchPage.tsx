@@ -177,7 +177,6 @@ import {
 import { canAddTarget, targetsReadyToAutoResolve } from "@/modules/simulator/ui/targetSelection";
 import {
   ActivationAnnouncement,
-  ActionDock,
   artSrc,
   type ActionDockState,
   ArenaPlaymat,
@@ -196,7 +195,6 @@ import {
   EffectResolutionOverlay,
   CardInspectorModal,
   CardInspectorPanel,
-  CenterDecisionModal,
   type LinkedPilot,
   CombatLane,
   CommandCastAnimation,
@@ -221,7 +219,6 @@ import {
   usesBoardTargetingForSecondary,
   ZoneOverflowModal,
   BugReportModal,
-  GameOverOverlay,
   ZeroCounterDeckSummary,
   zeroCounterNotice,
   gameOverReasonLabel,
@@ -236,6 +233,8 @@ import {
   captureSimulatorSnapshot,
   type BugReportSnapshot,
 } from "@/modules/simulator/ui";
+import { ClockedActionDock, ClockedCenterDecisionModal, ClockedGameOverOverlay, TurnTimeWarnings } from "@/modules/simulator/ui/MatchClockViews";
+import { useIsPast } from "@/modules/simulator/ui/matchClock";
 import { useSiteLanguage, type Localized } from "@/i18n/siteLanguage";
 import { LanguageSwitcher } from "@/components/layout/shared/LanguageSwitcher";
 
@@ -613,28 +612,24 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [matchView, setMatchView] = useState<SimulatorMatchView | null>(null);
   const [loadTimedOut, setLoadTimedOut] = useState(false);
 
+  // a visão não volta a null depois de chegar, e o aviso só aparece sem ela (o render confere `!matchView`)
+  const hasMatchView = matchView !== null;
   useEffect(() => {
-    if (matchView) {
-      setLoadTimedOut(false);
-      return;
-    }
-    const timer = setTimeout(() => {
-      if (!matchView) setLoadTimedOut(true);
-    }, 8000);
+    if (hasMatchView) return;
+    const timer = setTimeout(() => setLoadTimedOut(true), 8000);
     return () => clearTimeout(timer);
-  }, [matchView]);
+  }, [hasMatchView]);
 
   /** offset de relógio servidor↔cliente (`serverNow - Date.now()`) — corrige skew no countdown/idle. */
   const clockOffsetRef = useRef(0);
-  /** limiares de aviso do timer de turno já disparados NESTE prazo (reseta quando `turnDeadlineAt` muda). */
-  const turnWarningsRef = useRef<{ deadline: number | null; fired: Set<number> }>({ deadline: null, fired: new Set() });
+  /** o mesmo offset para o render (prazos no relógio local); só muda com diferença > 0,5 s, para não refazer as esperas a cada visão */
+  const [clockOffset, setClockOffset] = useState(0);
   const [busy, setBusy] = useState(false);
   // spec simulador-cadencia-de-mesa — a mesa fica travada enquanto a cena toca: a fila de visões tocando e, depois
   // dela, até o fim da cena contado pelo servidor (a minha jogada eu não vejo de novo, o oponente vê; as duas telas
   // liberam juntas). Fim da cena no relógio LOCAL.
   const [sceneLocked, setSceneLocked] = useState(false);
   const sceneEndsAtLocalRef = useRef<number | null>(null);
-  const [now, setNow] = useState(() => Date.now());
 
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
@@ -776,11 +771,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const introInitializedRef = useRef(false);
   const mulliganDidMulliganRef = useRef(false);
   const introStageRef = useRef(introStage);
-  introStageRef.current = introStage;
   const introStageResolveRef = useRef<(() => void) | null>(null);
 
-  // a fila de visões reavalia a cada etapa da abertura (ela pode passar a esperar justamente a visão que está na fila)
+  // a fila de visões reavalia a cada etapa da abertura (ela pode passar a esperar justamente a visão que está na fila);
+  // o ref muda antes de acordar a fila, que lê a etapa nova
   useEffect(() => {
+    introStageRef.current = introStage;
     introStageResolveRef.current?.();
     introStageResolveRef.current = null;
   }, [introStage]);
@@ -939,10 +935,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [modalHold, setModalHold] = useState(false);
   const beatKeyRef = useRef(0);
   // largura da carta NA MÃO de cada lado (medida na tela): toda carta que voa para a mão pousa neste tamanho
-  const handCardW = (pid: PlayerId) => board.rectOf(`handCardProbe:${pid}`)?.width ?? board.rectOf(`deckStation:${pid}`)?.width;
+  const handCardW = useCallback(
+    (pid: PlayerId) => board.rectOf(`handCardProbe:${pid}`)?.width ?? board.rectOf(`deckStation:${pid}`)?.width,
+    [board],
+  );
 
   /** P3 — onde a carta jogada pousa: a próxima vaga livre do campo, a Base, ou a Unit que recebe o Piloto */
-  function playTarget(beat: Extract<Beat, { kind: "play" }>, shownView: ViewGameState, finalView: ViewGameState): DOMRect | null {
+  const playTarget = useCallback((beat: Extract<Beat, { kind: "play" }>, shownView: ViewGameState, finalView: ViewGameState): DOMRect | null => {
     if (beat.as === "base") return board.rectOf(`base:${beat.player}`) ?? board.rectOf(playerAreaKey(beat.player));
     if (beat.as === "pilot") {
       const unit = finalView.players[beat.player].battleArea.find((c) => !isHidden(c) && (c as CardInstance).pairedPilotId === beat.instanceId);
@@ -951,7 +950,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     // mesma contagem das vagas desenhadas (`publicUnits`): só Units (o Piloto pareado também mora na Battle Area)
     const nextSlot = shownView.players[beat.player].battleArea.filter((c) => !isHidden(c) && (c as CardInstance).def?.cardType === "UNIT").length;
     return board.rectOf(`slot:${beat.player}:${nextSlot}`) ?? board.rectOf(playerAreaKey(beat.player));
-  }
+  }, [board]);
 
   const playOverlay = useCallback(
     <T,>(set: (value: T | null) => void, resolveRef: { current: (() => void) | null }, value: T) =>
@@ -1188,7 +1187,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const processIncomingView = useCallback(
     async (incoming: SimulatorMatchView) => {
       if (typeof incoming.serverNow === "number") {
-        clockOffsetRef.current = incoming.serverNow - Date.now();
+        const offset = incoming.serverNow - Date.now();
+        clockOffsetRef.current = offset;
+        setClockOffset((prev) => (Math.abs(prev - offset) > 500 ? offset : prev));
       }
       if (incoming.sceneEndsAt != null) sceneEndsAtLocalRef.current = localSceneEnd(incoming.sceneEndsAt, clockOffsetRef.current, Date.now());
 
@@ -1617,7 +1618,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         });
       }
     },
-    [executeAttackStrike, detectDepartures, launchDepartures, waitForBurstReveal, board, enqueuePhaseBanners, waitForPhaseBanners, playOverlay, playTurnStart, art],
+    [executeAttackStrike, detectDepartures, launchDepartures, waitForBurstReveal, board, enqueuePhaseBanners, waitForPhaseBanners, playOverlay, playTurnStart, art, handCardW, playTarget],
   );
 
   const drainViewQueue = useCallback(async () => {
@@ -1739,12 +1740,6 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   });
   const connected = connState === "live";
 
-  // Relógio local pro countdown do timer de turno e pro "há quanto tempo o oponente sumiu" --
-  // só exibição/UX; a decisão real (agir sozinho no timeout, liberar o W.O.) é sempre do servidor.
-  useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Heartbeat de presença (`matchStore.touchPresence`, alimenta o W.O. por
   // abandono): agora vive dentro do `useMatchTransport` — `simulatorSocket.ping()`
@@ -1863,7 +1858,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         setBusy(false);
       }
     },
-    [sendAction, showActionError, matchView, board],
+    [sendAction, showActionError, matchView, board, tr],
   );
 
   const handleSideboardSubmit = useCallback(
@@ -1879,7 +1874,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         setBusy(false);
       }
     },
-    [matchId, applyIncomingView],
+    [matchId, applyIncomingView, tr],
   );
 
   // o servidor espera a cena no ritmo e na velocidade de animação de quem joga (o mais lento dos dois): avisa a escolha
@@ -2008,38 +2003,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     toast.info(zeroCounterNotice(botCounter), { duration: 8_000 });
   }, [botCounter, matchView?.view.gameOver]);
 
-  // Avisos do relógio de turno (pedido do Willen, 2026-09-04): sem isso o turno
-  // (300s) podia acabar "sem aviso" e o jogador só percebia quando o servidor já
-  // tinha agido sozinho. Só pra quem está decidindo agora (o timer de 30s do
-  // Action Step é curto de propósito, não precisa dessa régua). Precisa ficar
-  // ANTES do guard `!matchView` abaixo — hook não pode vir depois de early
-  // return — então recalcula `myTurnMain`/`turnSecondsLeft` aqui em vez de usar
-  // os `const` do corpo do componente (que só existem depois do guard).
-  // `turnWarningsRef` some os avisos repetindo a cada render: reseta quando o
-  // prazo muda (novo turno/timer rearmado) e só dispara cada limiar 1x por prazo.
-  useEffect(() => {
-    if (!matchView || matchView.turnDeadlineAt === null) return;
-    const v = matchView.view;
-    const myTurnMainNow = !v.combat && v.phase === "main" && v.activePlayer === matchView.seat;
-    if (!myTurnMainNow) return;
-    const secondsLeft = Math.max(0, Math.ceil((matchView.turnDeadlineAt - (now + clockOffsetRef.current)) / 1000));
-    const track = turnWarningsRef.current;
-    if (track.deadline !== matchView.turnDeadlineAt) {
-      track.deadline = matchView.turnDeadlineAt;
-      track.fired = new Set();
-    }
-    const thresholds: Array<{ at: number; fire: () => void }> = [
-      { at: 150, fire: () => toast.warning(tr("Metade do tempo do seu turno já passou.", "Half of your turn time has passed.")) },
-      { at: 50, fire: () => toast.warning(tr("Faltam 50s pro seu turno acabar.", "50s left in your turn.")) },
-      { at: 10, fire: () => toast.error(tr("10s! O turno vai encerrar sozinho e entrar no Action Step.", "10s! Your turn will end on its own and move to the Action Step.")) },
-    ];
-    for (const t of thresholds) {
-      if (secondsLeft <= t.at && !track.fired.has(t.at)) {
-        track.fired.add(t.at);
-        t.fire();
-      }
-    }
-  }, [matchView, now]);
+  // W.O. por abandono: o botão acende quando o oponente passa de ABANDON_THRESHOLD_MS sem sinal. Espera pelo
+  // instante exato (uma re-renderização) em vez de comparar a cada segundo. Hook: antes dos returns abaixo.
+  const abandonSeenAt = matchView ? matchView.lastSeenAt[otherPlayer(matchView.seat)] : null;
+  const opponentAbandonReached = useIsPast(abandonSeenAt ? abandonSeenAt - clockOffset + ABANDON_THRESHOLD_MS : null);
+
 
   // Frente 4 (feedback Willen 4ª rodada) — liga a `DeckDealAnimation` no fluxo
   // real. O motor NÃO expõe os `GameEvent` de setup ao cliente de forma
@@ -2200,7 +2168,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     } else if (introStage === "deal-shields") {
       setIntroStage("ex-reveal");
     }
-  }, [introStage, matchView]);
+  }, [introStage]);
 
   // Callback de término de cada banner de fase
   const handlePhaseBannerDone = useCallback(() => {
@@ -2434,12 +2402,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     setBurstSelection({ decisionId: burstDecisionId, ids: next[BURST_TARGET_KEY] ?? [] });
   };
 
-  // `serverClockNow` = relógio do cliente corrigido pro do servidor — o timer e o
-  // "oponente inativo" comparam contra epochs do servidor (`turnDeadlineAt`/`lastSeenAt`).
-  const serverClockNow = now + clockOffsetRef.current;
-  const turnSecondsLeft =
-    matchView.turnDeadlineAt !== null ? Math.max(0, Math.ceil((matchView.turnDeadlineAt - serverClockNow) / 1000)) : null;
-  const redirectSecondsLeft = redirectAt !== null ? Math.max(0, Math.ceil((redirectAt - now) / 1000)) : null;
+  // Instantes do servidor (`turnDeadlineAt`/`lastSeenAt`) no relógio LOCAL (− offset). Quem mostra os segundos lê
+  // o relógio por conta própria (`MatchClockViews`): a virada do segundo não re-renderiza esta página.
+  const turnDeadlineLocal = matchView.turnDeadlineAt !== null ? matchView.turnDeadlineAt - clockOffset : null;
   const gameOverResult = view.gameOver
     ? {
         won: view.gameOver.winner === seat,
@@ -2449,9 +2414,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     : null;
 
   const opponentLastSeen = matchView.lastSeenAt[opponentSeat];
-  const opponentIdleMs = opponentLastSeen ? Math.max(0, serverClockNow - opponentLastSeen) : null;
-  const opponentIdleSeconds = opponentIdleMs !== null ? Math.floor(opponentIdleMs / 1000) : null;
-  const canClaimAbandon = !view.gameOver && opponentIdleMs !== null && opponentIdleMs >= ABANDON_THRESHOLD_MS;
+  const opponentSeenLocal = opponentLastSeen ? opponentLastSeen - clockOffset : null;
+  const canClaimAbandon = !view.gameOver && opponentAbandonReached;
 
   // carta em `pending` — na mão (deploy/command) ou em campo (activateAbility) — + custo.
   const pendingCard: CardInstance | undefined = pending
@@ -3560,7 +3524,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
   function computeDockState(): ActionDockState {
     if (gameOverResult) {
-      return { kind: "gameOver", won: gameOverResult.won, reasonLabel: gameOverResult.reasonLabel, redirectSeconds: redirectSecondsLeft };
+      return { kind: "gameOver", won: gameOverResult.won, reasonLabel: gameOverResult.reasonLabel, redirectSeconds: null };
     }
     if (pending) {
       const verb =
@@ -3600,7 +3564,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     }
     // Só domina o dock quando você NÃO é quem deve agir — na sua Main Phase o dock
     // mostra "Encerrar turno" (o servidor cuida do oponente ausente sozinho).
-    if (canClaimAbandon && !myTurnMain) return { kind: "abandonAvailable", idleSeconds: opponentIdleSeconds ?? 0 };
+    if (canClaimAbandon && !myTurnMain) return { kind: "abandonAvailable", idleSeconds: 0 }; // segundos: ClockedCenterDecisionModal
     if (oppPendingDecision) {
       const what =
         oppPendingDecision.kind === "burst"
@@ -3623,7 +3587,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       kind: "idle",
       yourTurn: myTurnMain,
       phaseLabel: PHASE_LABEL[view.phase] ? tr(PHASE_LABEL[view.phase]) : view.phase,
-      timerSeconds: turnSecondsLeft,
+      timerSeconds: null, // segundos: ClockedCenterDecisionModal
       turnNumber: view.turnNumber,
     };
   }
@@ -4497,8 +4461,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       {/* Slim Floating Action Ribbon (docs/52) — canto: fase/turno/timer,
           Passar turno, toggle de log e indicador discreto de ping/auto-pass.
           As decisões de jogada regular vivem no TopTacticalHUD acima. */}
+      <TurnTimeWarnings deadlineAt={turnDeadlineLocal} active={myTurnMain && !gameOverResult} />
       {!gameOverResult && introStage === "complete" && !tableClear ? (
-        <ActionDock
+        <ClockedActionDock
           yourTurn={myTurnMain}
           turnIsMine={view.activePlayer === seat}
           inActionStep={inActionStep}
@@ -4509,7 +4474,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 : tr("Passo de Ação", "Action Step")
               : (PHASE_LABEL[view.phase] ? tr(PHASE_LABEL[view.phase]) : view.phase)
           }
-          timerSeconds={turnSecondsLeft}
+          deadlineAt={turnDeadlineLocal}
           turnNumber={view.turnNumber}
           busy={busy || tableLocked}
           autoPass={dockAutoPass}
@@ -4540,8 +4505,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       {/* Modal central reservado a decisões raras (confirmação explícita de
           encerrar turno, W.O. por abandono) — nunca cobre jogada regular. */}
       {!gameOverResult && introStage === "complete" ? (
-        <CenterDecisionModal
+        <ClockedCenterDecisionModal
           state={computeDockState()}
+          deadlineAt={turnDeadlineLocal}
+          opponentSeenAt={opponentSeenLocal}
           busy={busy}
           confirmEndTurnOpen={showEndTurnConfirm}
           onEndTurn={() => {
@@ -4554,16 +4521,16 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       ) : null}
 
       {gameOverResult ? (
-        <GameOverOverlay
+        <ClockedGameOverOverlay
           won={gameOverResult.won}
           reason={gameOverResult.reason}
-          redirectSeconds={redirectSecondsLeft}
+          redirectAt={redirectAt}
           onLeave={leaveMatchScreen}
         >
           {matchView?.botCounter && matchView.botDeckList?.length ? (
             <ZeroCounterDeckSummary counter={matchView.botCounter} entries={matchView.botDeckList} />
           ) : null}
-        </GameOverOverlay>
+        </ClockedGameOverOverlay>
       ) : null}
     </div>
   );

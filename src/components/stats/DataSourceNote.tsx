@@ -71,7 +71,8 @@ export function DataSourceNote({
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const decksCount = provenance?.totalDecks ?? directDecks ?? 0;
-  const tourneysList = provenance?.tournaments ?? directTournamentsList ?? [];
+  // o `[]` novo a cada render recalculava os dois useMemo que dependem da lista
+  const tourneysList = useMemo(() => provenance?.tournaments ?? directTournamentsList ?? [], [provenance?.tournaments, directTournamentsList]);
   const tournamentsCount = provenance?.totalTournaments ?? directTournaments ?? tourneysList.length;
   const start = provenance?.startDate ?? directStart ?? null;
   const end = provenance?.endDate ?? directEnd ?? null;

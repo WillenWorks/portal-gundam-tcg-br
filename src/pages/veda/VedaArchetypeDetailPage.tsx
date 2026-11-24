@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import { Link, useRoute } from "wouter";
 import {
   Calendar,
@@ -55,8 +55,11 @@ export default function VedaArchetypeDetailPage() {
     }
   };
 
-  useEffect(() => {
+  const loadOnChange = useEffectEvent(() => {
     loadArchetypeDetail();
+  });
+  useEffect(() => {
+    loadOnChange();
   }, [archetypeSlug, selectedSeason]);
 
   const detailCards = detail?.cards;

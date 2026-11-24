@@ -67,8 +67,8 @@ export function FormatArchetypeCoresPanel({
     api.getFormatList()
       .then((res) => {
         setFormats(res);
-        if (res.length > 0 && !controlledFormat && !res.some((f) => f.format === internalFormat)) {
-          setInternalFormat(res[0].format);
+        if (res.length > 0 && !controlledFormat) {
+          setInternalFormat((current) => (res.some((f) => f.format === current) ? current : res[0].format));
         }
       })
       .catch(() => setFormats([]));

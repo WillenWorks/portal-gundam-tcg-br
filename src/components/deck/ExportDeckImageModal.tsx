@@ -14,7 +14,7 @@ import {
   type ExportDeckOptions,
   type ExportStatsData,
 } from "@/utils/deckImageExport";
-import { useSiteLanguage } from "@/i18n/siteLanguage";
+import { tr as trNow, useSiteLanguage } from "@/i18n/siteLanguage";
 
 interface ExportDeckImageModalProps {
   open: boolean;
@@ -111,7 +111,7 @@ export function ExportDeckImageModal({
       })
       .catch((err) => {
         console.error("Erro ao sintetizar imagens:", err);
-        toast.error(tr("Erro ao sintetizar imagem.", "Couldn't generate the image."));
+        toast.error(trNow("Erro ao sintetizar imagem.", "Couldn't generate the image."));
       })
       .finally(() => {
         if (isMounted) setGenerating(false);
