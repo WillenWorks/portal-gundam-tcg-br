@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { usePageMeta } from "@/lib/pageMeta";
+import { uploadImageProps } from "@/lib/resizedImage";
 
 // "Fechada" = conteudo pre-definido e conhecido (starter deck, build box, acessorio,
 // premium) -- faz sentido mostrar quantidade por carta. "Regular" = booster pack
@@ -54,7 +55,7 @@ export default function SetDetailPage() {
               <div className="grid gap-6 lg:grid-cols-[0.72fr_1.28fr] lg:items-start">
                 <div className="overflow-hidden border border-white/10 bg-slate-950/60 aspect-[16/10] dark:bg-slate-950/60 light:bg-slate-100">
                   {setData.coverImage ? (
-                    <img loading="lazy" decoding="async" src={setData.coverImage} alt={setData.namePt || setData.nameEn} className="h-full w-full object-cover" />
+                    <img loading="lazy" decoding="async" {...uploadImageProps(setData.coverImage, "(min-width: 1024px) 36vw, 100vw", [320, 480, 640, 960])} alt={setData.namePt || setData.nameEn} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
                       <span className="text-[10px] uppercase tracking-[0.28em] text-slate-500">Sem capa local</span>

@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Sparkles, ArrowRight, Layers } from "lucide-
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
+import { uploadImageProps } from "@/lib/resizedImage";
 import { cn } from "@/lib/utils";
 import { useSiteLanguage } from "@/i18n/siteLanguage";
 import { useCardLanguage } from "@/i18n/useCardLanguage";
@@ -195,9 +196,10 @@ export function LatestCardsCarousel({ limit = 30, className }: LatestCardsCarous
                     <div className="relative aspect-[63/88] w-full overflow-hidden rounded-xl border border-white/15 bg-slate-900 shadow-lg shadow-black/60 transition-all duration-300 group-hover:border-cyan-400/70 group-hover:shadow-[0_12px_28px_rgba(0,0,0,0.8),0_0_24px_rgba(34,211,238,0.35)] light:border-slate-300">
                       {imgUrl ? (
                         <img
-                          src={imgUrl}
+                          {...uploadImageProps(imgUrl, "(min-width: 768px) 170px, (min-width: 640px) 155px, 135px", [320, 480])}
                           alt={cardName}
                           loading="lazy"
+                          decoding="async"
                           draggable={false}
                           className="size-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
                         />
