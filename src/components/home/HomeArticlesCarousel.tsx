@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { ArrowRight, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { ArticleImageFrame } from "@/components/articles/ArticleImageFrame";
+import { HOME_HERO_SIZES } from "@/lib/articleImageSources";
 import { PostTagLinks } from "@/components/articles/PostTagLinks";
 import { Button } from "@/components/ui/button";
 import { api, type ApiPost, type PostType } from "@/lib/api";
@@ -116,7 +117,7 @@ export function HomeArticlesCarousel() {
               <ArticleImageFrame
                 src={article.homeImage || article.coverImage || ""}
                 priority={idx === 0}
-                sizes="(min-width: 1800px) 40vw, (min-width: 1024px) 50vw, 100vw"
+                sizes={HOME_HERO_SIZES}
                 className={IMAGE_SLOT}
               />
             ) : (

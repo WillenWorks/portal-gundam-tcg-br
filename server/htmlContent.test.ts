@@ -238,3 +238,23 @@ describe("regionalMetaBody", () => {
   });
 });
 
+
+describe("pré-carregamento da imagem principal", () => {
+  it("a home mantém o texto genérico e ganha o <link rel=preload> com srcset e sizes, escapados", async () => {
+    const page = await resolveHtmlPage("/", loaders(), async (path) =>
+      path === "/" ? { preloadImages: [{ href: "/uploads/a.jpg?w=320" }, { href: "/uploads/a.jpg?w=960", srcset: "/uploads/a.jpg?w=320 320w", sizes: "100vw" }] } : null,
+    );
+    const html = renderHtml(TEMPLATE, page);
+    expect(html).toContain("texto genérico da home");
+    expect(html).toContain('<link rel="preload" as="image" href="/uploads/a.jpg?w=320" fetchpriority="high" />');
+    expect(html).toContain('<link rel="preload" as="image" href="/uploads/a.jpg?w=960" imagesrcset="/uploads/a.jpg?w=320 320w" imagesizes="100vw" fetchpriority="high" />');
+    expect(html.indexOf('rel="preload"')).toBeLessThan(html.indexOf("</head>"));
+    const hostile = renderHtml(TEMPLATE, { ...page, preloadImages: [{ href: '/x.jpg" onload="alert(1)' }] });
+    expect(hostile).not.toContain('" onload="');
+  });
+
+  it("página sem imagem não ganha preload", async () => {
+    const page = await resolveHtmlPage("/stats", loaders(), nada);
+    expect(renderHtml(TEMPLATE, page)).not.toContain('rel="preload"');
+  });
+});

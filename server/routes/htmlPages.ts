@@ -6,7 +6,8 @@ import path from "node:path";
 import type { Express } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { DECK_MAIN_SIZE } from "../../src/lib/deck-legality.ts";
-import { createPageCache, renderHtml, resolveHtmlPage, type BodyLoader, type BodyResult, type DetailLoaders, type PageCacheState } from "../htmlMeta.ts";
+import { createPageCache, renderHtml, resolveHtmlPage, type BodyLoader, type BodyResult, type DetailLoaders, type PageCacheState, type PreloadImage } from "../htmlMeta.ts";
+import { HOME_HERO_SIZES, articleImageSources } from "../../src/lib/articleImageSources.ts";
 import {
   aboutBody, supportBody, supportersBody, archetypeBody, archetypesIndexBody, articleBody, articlesIndexBody, playerBody, cardBody, deckBody, decksIndexBody, rulesBody, rulingBody, seriesBody, seriesIndexBody,
   decklistBody, metagameStatsBody, regionalMetaBody, setBody, setsIndexBody, tournamentBody, tournamentsIndexBody, type CardRow,
@@ -340,6 +341,15 @@ async function regionalPage(prisma: PrismaClient): Promise<string> {
   });
 }
 
+/** Imagens do 1º slide do destaque da home (fundo desfocado + imagem), nos mesmos endereços que o
+ *  HomeArticlesCarousel pede: o navegador baixa junto com o HTML em vez de esperar o JavaScript e a API. */
+export function homeHeroPreload(post: { homeImage: string | null; coverImage: string | null } | null): PreloadImage[] {
+  const image = post && articleImageSources(post.homeImage || post.coverImage || "", HOME_HERO_SIZES);
+  if (!image) return [];
+  const main: PreloadImage = { href: image.src, srcset: image.srcSet, sizes: image.sizes };
+  return image.blur === image.src ? [main] : [{ href: image.blur }, main];
+}
+
 export function createHtmlBodyLoader(prisma: PrismaClient): BodyLoader {
   const metaBody = (path: string) => metaBodyFrom(prisma, path);
   const setsIndex = async (title: string, lead: string) => {
@@ -354,6 +364,16 @@ export function createHtmlBodyLoader(prisma: PrismaClient): BodyLoader {
 
   return async (path) => {
     switch (path) {
+      case "/": {
+        // mesma ordem da vitrine em GET /api/posts (o mais novo pela data de publicação)
+        const post = await prisma.post.findFirst({
+          where: { status: "PUBLISHED" },
+          orderBy: [{ publishedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
+          select: { homeImage: true, coverImage: true },
+        });
+        const preloadImages = homeHeroPreload(post);
+        return preloadImages.length ? { preloadImages } : null;
+      }
       case "/apoie":
         return supportBody({
           title: SUPPORT_TITLE, lead: SUPPORT_LEAD, why: SUPPORT_WHY,
