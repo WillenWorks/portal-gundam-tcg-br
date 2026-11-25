@@ -5,7 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { HTML_PAGE_ROUTE, WARM_STATIC_PATHS, createIndexHtmlReader, registerHtmlPages } from "./htmlPages.ts";
+import { HTML_PAGE_ROUTE, WARM_STATIC_PATHS, createIndexHtmlReader, homeHeroPreload, registerHtmlPages } from "./htmlPages.ts";
+import { HOME_HERO_SIZES, articleImageSources } from "../../src/lib/articleImageSources.ts";
 import type { DetailLoaders } from "../htmlMeta.ts";
 
 const TEMPLATE = `<!doctype html><html lang="pt-BR"><head><title>Anaheim Hub</title><meta name="description" content="padrão" /></head><body><div id="root"></div></body></html>`;
@@ -127,5 +128,24 @@ describe("registerHtmlPages: cache e aquecimento", () => {
     vi.useRealTimers();
     const res = await get(app, "/stats");
     expect(res.headers.get("server-timing")).toMatch(/desc="hit"/);
+  });
+});
+
+describe("homeHeroPreload", () => {
+  it("pede as mesmas URLs que o carrossel da home (ArticleImageFrame)", () => {
+    const image = articleImageSources("/uploads/spoilers/a.jpg", HOME_HERO_SIZES)!;
+    expect(homeHeroPreload({ homeImage: "/uploads/spoilers/a.jpg", coverImage: "/uploads/b.jpg" })).toEqual([
+      { href: image.blur },
+      { href: image.src, srcset: image.srcSet, sizes: HOME_HERO_SIZES },
+    ]);
+    expect(image.blur).toBe("/uploads/spoilers/a.jpg?w=320");
+  });
+
+  it("usa a capa sem imagem de home; imagem de fora vira um preload só; sem artigo ou imagem inválida, nada", () => {
+    expect(homeHeroPreload({ homeImage: null, coverImage: "https://cdn.exemplo/x.png" })).toEqual([
+      { href: "https://cdn.exemplo/x.png", srcset: undefined, sizes: undefined },
+    ]);
+    expect(homeHeroPreload(null)).toEqual([]);
+    expect(homeHeroPreload({ homeImage: "javascript:alert(1)", coverImage: null })).toEqual([]);
   });
 });

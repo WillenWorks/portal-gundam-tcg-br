@@ -31,7 +31,11 @@ export type DetailMeta = {
 
 /** Conteúdo das páginas que não são de detalhe (listas, regras, arquétipos, jogadores). `null` = mantém o texto
  *  do index.html. Página com título próprio (ex.: /jogadores/:slug) devolve o objeto; `notFound` = 404 de verdade. */
-export type BodyResult = { body: string; title?: string; description?: string; noindex?: boolean } | { notFound: true };
+/** Imagem que o navegador começa a baixar junto com o HTML, sem esperar o JavaScript e a API (LCP). */
+export type PreloadImage = { href: string; srcset?: string; sizes?: string };
+
+/** `body` ausente = mantém o texto do index.html (ex.: a home, que só traz `preloadImages`). */
+export type BodyResult = { body?: string; title?: string; description?: string; noindex?: boolean; preloadImages?: PreloadImage[] } | { notFound: true };
 export type BodyLoader = (path: string) => Promise<string | BodyResult | null>;
 
 export type DetailLoaders = Record<DetailKind, (key: string) => Promise<DetailMeta | null>>;
@@ -46,6 +50,7 @@ export type HtmlPage = {
   ogType: "website" | "article";
   jsonLd: Record<string, unknown>[];
   body?: string;
+  preloadImages?: PreloadImage[];
 };
 
 const SECTION_BY_KIND: Record<DetailKind, { name: string; path: string }> = {
@@ -122,7 +127,8 @@ export async function resolveHtmlPage(pathname: string, loaders: DetailLoaders, 
     if (result && typeof result === "object" && "notFound" in result) return notFound(path);
     if (typeof result === "string") page.body = result;
     else if (result) {
-      page.body = result.body;
+      if (result.body) page.body = result.body;
+      if (result.preloadImages?.length) page.preloadImages = result.preloadImages;
       if (result.title) page.title = formatTitle(result.title);
       if (result.description) page.description = result.description;
       if (result.noindex) page.noindex = true;
@@ -167,6 +173,14 @@ export function stripAdsBlock(html: string): string {
  *  do Google proíbe anúncio nessas telas ("Google-served ads on screens without publisher-content"). */
 export const pageAllowsAds = (page: Pick<HtmlPage, "status" | "noindex">) => page.status === 200 && !page.noindex;
 
+const preloadTag = (image: PreloadImage) =>
+  [
+    `<link rel="preload" as="image" href="${escapeHtml(image.href)}"`,
+    image.srcset ? ` imagesrcset="${escapeHtml(image.srcset)}"` : "",
+    image.srcset && image.sizes ? ` imagesizes="${escapeHtml(image.sizes)}"` : "",
+    ` fetchpriority="high" />`,
+  ].join("");
+
 /** Troca os metadados do index.html do build pelos da página e, quando a página tem conteúdo próprio
  *  (`body`), troca o texto genérico do <main> por ele. Em página sem conteúdo (pageAllowsAds = false) tira o
  *  script dos anúncios automáticos. O resto do arquivo (scripts, CSS, cabeçalho e rodapé sem JavaScript) fica igual. */
@@ -198,6 +212,7 @@ export function renderHtml(template: string, page: HtmlPage): string {
     `<meta name="twitter:description" content="${escapeHtml(description)}" />`,
     `<meta name="twitter:image" content="${escapeHtml(page.image)}" />`,
     ...page.jsonLd.map((obj) => `<script type="application/ld+json">${safeJson(obj)}</script>`),
+    ...(page.preloadImages ?? []).map(preloadTag),
   ].filter(Boolean);
   return html.replace(/<\/head>/i, `    ${tags.join("\n    ")}\n  </head>`);
 }
