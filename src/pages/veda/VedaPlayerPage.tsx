@@ -16,6 +16,8 @@ import { VedaArchetypeBadge } from "@/components/veda/VedaArchetypeBadge";
 import { VedaPlacementBadge } from "@/components/veda/VedaPlacementBadge";
 import { VedaErrorView, VedaLoadingView } from "@/components/veda/VedaStateViews";
 import { vedaApi } from "@/lib/veda/api";
+import { usePageMeta, type PageMeta } from "@/lib/pageMeta";
+import { isNotFoundError, playerIsIndexable } from "@/lib/seoRules";
 import type { VedaPlayer } from "@/lib/veda/types";
 import { seasonsNewestFirst } from "@/lib/seasons";
 
@@ -38,6 +40,10 @@ export default function VedaPlayerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSeason, setSelectedSeason] = useState<string>("");
+  // Metadados a partir da carreira inteira (sem filtro de temporada), igual ao HTML do servidor. Erro que não é 404
+  // (rede, 429, 5xx) não mexe na meta robots: um noindex por falha passageira tiraria o perfil do Google.
+  const [meta, setMeta] = useState<PageMeta | null>(null);
+  usePageMeta(meta);
 
   const loadPlayerData = async () => {
     if (!playerSlug) return;
@@ -48,7 +54,15 @@ export default function VedaPlayerPage() {
         season: selectedSeason || undefined,
       });
       setPlayer(result);
+      if (!selectedSeason) {
+        setMeta({
+          title: `${result.player.name} — resultados`,
+          description: `${result.player.name} em torneios de Gundam Card Game: ${result.tournaments} torneios, ${result.wins} títulos, ${result.top8} top 8 e os arquétipos que jogou.`,
+          noindex: !playerIsIndexable(result),
+        });
+      }
     } catch (err: any) {
+      if (isNotFoundError(err)) setMeta({ title: "Jogador não encontrado", noindex: true });
       setError(err?.message || "Jogador não encontrado.");
     } finally {
       setLoading(false);

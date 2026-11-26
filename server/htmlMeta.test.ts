@@ -168,6 +168,37 @@ describe("createPageCache", () => {
     expect(states).toEqual(["miss"]);
   });
 
+  it("404 (ex.: rascunho pedido antes de publicar) vale pouco e nunca é entregue velho", async () => {
+    let t = 0;
+    const cache = createPageCache(10_000, 10, () => t, 50_000, 1000);
+    const rascunho = vi.fn(async () => resolveHtmlPage("/articles/novo", loaders()));
+    expect((await cache("/articles/novo", rascunho)).status).toBe(404);
+    await flush();
+    t = 500;
+    expect((await cache("/articles/novo", rascunho)).status).toBe(404); // ainda no prazo curto
+    t = 1500; // publicado nesse meio tempo: a próxima visita (o Google) já monta de novo e espera
+    const publicado = vi.fn(async () => resolveHtmlPage("/articles/novo", loaders({ article: async () => ({ title: "Novo" }) })));
+    const states: string[] = [];
+    const page = await cache("/articles/novo", publicado, (s) => states.push(s));
+    expect(page.status).toBe(200);
+    expect(page.noindex).toBe(false);
+    expect(states).toEqual(["miss"]);
+  });
+
+  it("invalidate e invalidateNotFound descartam o guardado", async () => {
+    const cache = createPageCache(10_000, 10, () => 0, 50_000);
+    await cache("/articles/a", page("v1"));
+    await cache("/articles/sumido", async () => resolveHtmlPage("/articles/sumido", loaders()));
+    await flush();
+    cache.invalidate("/articles/a/");
+    const build = vi.fn(page("v2"));
+    expect((await cache("/articles/a", build)).title).toBe("v2");
+    cache.invalidateNotFound();
+    const agora = vi.fn(async () => resolveHtmlPage("/articles/sumido", loaders({ article: async () => ({ title: "Voltou" }) })));
+    expect((await cache("/articles/sumido", agora)).status).toBe(200);
+    expect(agora).toHaveBeenCalledTimes(1);
+  });
+
   it("warm guarda a página sem visita", async () => {
     const cache = createPageCache(1000, 10, () => 0, 5000);
     await cache.warm("/stats", page("aquecida"));

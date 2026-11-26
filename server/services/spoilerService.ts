@@ -30,6 +30,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { PostStatus, PostType, SocialPostType, UserRole, type Prisma, type PrismaClient, type SocialMediaPost } from "@prisma/client";
 import { sniffImageType, IMAGE_EXTENSION_BY_TYPE } from "../imageSniff.ts";
+import { articlePaths, publicContentChanged } from "../seoRefresh.ts";
 import { parseCardEffects } from "../../src/lib/gundam-card-effects.ts";
 import { extractSpoilerCard, normalizeSpoilerCard, type SpoilerCardData } from "./spoilerExtract.ts";
 import { analyzeSpoiler, loadSpoilerAnalysisContext, type SpoilerAnalysis, type SpoilerAnalysisContext } from "./spoilerAnalysis.ts";
@@ -610,6 +611,19 @@ export async function publishSpoilerDigestSite(prisma: PrismaClient, post: Pick<
     ...articleOps,
     prisma.spoilerDigest.update({ where: { id: digest.id }, data: { status: "PUBLISHED", publishedAt: now, ...(draft ? { articleId: digest.updatesArticleId } : {}) } }),
   ]);
+  // artigo do spoiler e cartas prévias saem do cache de 404 e entram no sitemap
+  // (efeito colateral: falhar aqui não desfaz nem atrapalha a publicação, que já foi gravada)
+  const publishedArticleId = draft ? digest.updatesArticleId : digest.articleId;
+  const publishedSlug = publishedArticleId
+    ? await Promise.resolve()
+        .then(() => prisma.post.findUnique({ where: { id: publishedArticleId }, select: { slug: true } }))
+        .then((post) => post?.slug ?? null)
+        .catch((error) => {
+          console.warn("[spoilers] slug do artigo publicado indisponível:", error instanceof Error ? error.message : error);
+          return null;
+        })
+    : null;
+  publicContentChanged([...articlePaths(publishedSlug), ...ids.map((id) => `/cards/${id}`)]);
   // coleção criada automaticamente pelos spoilers aparece junto com as cartas
   const sets = await prisma.card.findMany({ where: { cardModelId: { in: ids }, setId: { not: null } }, select: { setId: true }, distinct: ["setId"] });
   for (const { setId } of sets) {
