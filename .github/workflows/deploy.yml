@@ -98,7 +98,7 @@ jobs:
             if [ -n "$PREV_DIST" ] && [ -d "$PREV_DIST/assets" ]; then cp -rn "$PREV_DIST/assets/." "$REL/assets/"; fi
 
             # 4. Sitemap com as páginas de detalhe do banco (best-effort: nunca derruba o deploy)
-            node scripts/generate-sitemap.mjs --out="$REL/sitemap.xml" || true
+            pnpm exec tsx scripts/generate-sitemap.ts --out="$REL/sitemap.xml" || true
 
             # 5. Sincronizar schema do banco: `migrate deploy` (ver scripts/prisma-sync.mjs)
             pnpm run prisma:sync
