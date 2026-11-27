@@ -226,12 +226,21 @@ type PageCacheBuild = () => Promise<HtmlPage>;
  * - de `ttlMs` a `staleMs`: entrega o guardado na hora e monta a versão nova em segundo plano ("stale") — com
  *   pouco tráfego quase toda visita chegava depois dos 5 min do cache antigo e esperava o banco (TTFB ~1,7 s);
  * - sem nada guardado (ou velho demais): monta e espera ("miss"). Erro não fica guardado.
- * `warm` monta e guarda sem visita (aquecimento das páginas principais).
+ * - 404 (inclusive rascunho de artigo, que é 404 para o público) vale só `notFoundTtlMs` e nunca é entregue velho:
+ *   senão o artigo publicado seguia respondendo 404 + noindex por até 24 h para quem chegasse primeiro (o Google).
+ * `warm` monta e guarda sem visita (aquecimento das páginas principais); `invalidate` descarta um caminho.
  */
-export function createPageCache(ttlMs = 10 * 60_000, max = 3000, now: () => number = Date.now, staleMs = 24 * 60 * 60_000) {
-  type Entry = { at: number; page: Promise<HtmlPage>; refreshing?: boolean };
+export function createPageCache(
+  ttlMs = 10 * 60_000, max = 3000, now: () => number = Date.now, staleMs = 24 * 60 * 60_000, notFoundTtlMs = 60_000,
+) {
+  type Entry = { at: number; page: Promise<HtmlPage>; refreshing?: boolean; status?: HtmlPage["status"] };
   const cache = new Map<string, Entry>();
+  const track = (entry: Entry) => {
+    entry.page.then((page) => (entry.status = page.status), () => {});
+    return entry;
+  };
   const store = (path: string, entry: Entry) => {
+    track(entry);
     cache.delete(path); // reinsere no fim: o mais antigo sai primeiro quando passa de `max`
     cache.set(path, entry);
     if (cache.size > max) {
@@ -240,24 +249,27 @@ export function createPageCache(ttlMs = 10 * 60_000, max = 3000, now: () => numb
     }
   };
   const get = (path: string, build: PageCacheBuild, onState?: (state: PageCacheState) => void): Promise<HtmlPage> => {
-    const hit = cache.get(path);
+    let hit = cache.get(path);
+    // 404 já resolvido passa a valer menos; ainda pendente (status indefinido) segue a regra normal
+    if (hit && hit.status === 404 && now() - hit.at >= notFoundTtlMs) hit = undefined;
     const age = hit ? now() - hit.at : Infinity;
     if (hit && age < ttlMs) {
       onState?.("hit");
       return hit.page;
     }
-    if (hit && age < staleMs) {
+    if (hit && age < staleMs && hit.status === 200) {
       onState?.("stale");
-      if (!hit.refreshing) {
-        hit.refreshing = true;
+      const stale = hit;
+      if (!stale.refreshing) {
+        stale.refreshing = true;
         build().then(
           (page) => store(path, { at: now(), page: Promise.resolve(page) }),
           () => {
-            hit.refreshing = false; // banco fora: segue entregando a versão guardada e tenta de novo na próxima visita
+            stale.refreshing = false; // banco fora: segue entregando a versão guardada e tenta de novo na próxima visita
           },
         );
       }
-      return hit.page;
+      return stale.page;
     }
     onState?.("miss");
     const entry: Entry = { at: now(), page: build() };
@@ -269,6 +281,14 @@ export function createPageCache(ttlMs = 10 * 60_000, max = 3000, now: () => numb
   };
   get.warm = async (path: string, build: PageCacheBuild) => {
     store(path, { at: now(), page: Promise.resolve(await build()) });
+  };
+  get.invalidate = (path: string) => {
+    cache.delete(path.replace(/\/+$/, "") || "/");
+    cache.delete(path);
+  };
+  /** Descarta todo 404 guardado (algo acabou de ser publicado e pode ter sido pedido antes por outro endereço). */
+  get.invalidateNotFound = () => {
+    for (const [key, entry] of cache) if (entry.status === 404) cache.delete(key);
   };
   return get;
 }

@@ -6,6 +6,8 @@ import path from "node:path";
 import type { Express } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { DECK_MAIN_SIZE } from "../../src/lib/deck-legality.ts";
+import { playerIsIndexable } from "../../src/lib/seoRules.ts";
+import { onPublicContentChanged } from "../seoRefresh.ts";
 import { createPageCache, renderHtml, resolveHtmlPage, type BodyLoader, type BodyResult, type DetailLoaders, type PageCacheState, type PreloadImage } from "../htmlMeta.ts";
 import { HOME_HERO_SIZES, articleImageSources } from "../../src/lib/articleImageSources.ts";
 import {
@@ -258,8 +260,9 @@ async function metaBodyFrom(prisma: PrismaClient, path: string): Promise<string 
   return {
     title: `${p.player.name} — resultados`,
     description: `${p.player.name} em torneios de Gundam Card Game: ${p.tournaments} torneios, ${p.wins} títulos, ${p.top8} top 8 e os arquétipos que jogou.`,
-    // jogador com poucos resultados é página rasa: fica acessível pelo link, fora do Google
-    noindex: p.tournaments < 3,
+    // perfil sem nenhuma lista publicada só repete a linha da classificação do torneio: fica pelo link, fora do Google
+    // (mesma regra do navegador e do sitemap: src/lib/seoRules.ts)
+    noindex: !playerIsIndexable(p),
     body: playerBody({
       name: p.player.name, tournaments: p.tournaments, wins: p.wins, top8: p.top8,
       archetypes: p.archetypes.map((a) => ({ name: a.archetype.name, slug: a.archetype.slug, count: a.count })),
@@ -469,6 +472,11 @@ export function registerHtmlPages(
   const readIndexHtml = createIndexHtmlReader(distDir);
   const pageCache = createPageCache();
   const build = (path: string) => () => resolveHtmlPage(path, loaders, bodyFor);
+  // publicou/editou artigo: a página sai do cache na hora (sem isso, quem pediu o rascunho antes deixava 404 + noindex guardado)
+  onPublicContentChanged((paths) => {
+    for (const p of paths) pageCache.invalidate(p);
+    pageCache.invalidateNotFound();
+  });
 
   app.get(HTML_PAGE_ROUTE, async (req, res, next) => {
     const template = readIndexHtml();

@@ -42,6 +42,7 @@ import { ArticleSupportLine } from "@/components/support/SupportCallout";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, type ApiPost, type ApiComment, type PostType } from "@/lib/api";
 import { usePageMeta } from "@/lib/pageMeta";
+import { articleIsIndexable, isNotFoundError } from "@/lib/seoRules";
 import { uploadImageProps } from "@/lib/resizedImage";
 
 const POST_TYPE_LABEL: Record<PostType, string> = {
@@ -87,10 +88,15 @@ export default function ArticleDetailPage() {
   const { user: currentUser, isAuthenticated } = useAuth();
 
   const [post, setPost] = useState<ApiPost | null | undefined>(undefined);
+  // falha passageira (rede, 429, 5xx): mostra o aviso, mas não mexe na meta robots — o HTML do servidor já veio certo
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  // `noindex` só com 404 confirmado pela API ou prévia de rascunho/revisão (editor): erro qualquer não tira do Google
   usePageMeta(post === undefined ? null : post === null ? { title: "Artigo não encontrado", noindex: true } : {
     title: post.title,
     description: post.excerpt || `${post.title} — artigo do Anaheim Hub sobre Gundam Card Game.`,
     image: post.coverImage || null,
+    noindex: !articleIsIndexable(post),
   });
 
   // Social: Curtidas do artigo
@@ -123,13 +129,17 @@ export default function ArticleDetailPage() {
   useEffect(() => {
     if (!params?.slug) return;
     setPost(undefined);
+    setLoadFailed(false);
     api.getPostBySlug(params.slug)
       .then((p) => {
         setPost(p);
         setLikeCount(p.likeCount || 0);
       })
-      .catch(() => setPost(null));
-  }, [params?.slug]);
+      .catch((error) => {
+        if (isNotFoundError(error)) setPost(null);
+        else setLoadFailed(true);
+      });
+  }, [params?.slug, reloadKey]);
 
   // Carrega status de curtida e comentários
   const loadCommentsAndLikes = useCallback(async (slugOrId: string) => {
@@ -399,6 +409,15 @@ export default function ArticleDetailPage() {
               >
                 <ArrowLeft className="size-3.5" /> Voltar para Artigos
               </Link>
+            </CardContent>
+          </Card>
+        ) : !post && loadFailed ? (
+          <Card className="panel-cut rounded-none border-primary/30 hero-surface">
+            <CardContent className="p-6">
+              <p className="text-sm text-amber-200">Não foi possível carregar o artigo agora.</p>
+              <Button variant="outline" size="sm" className="mt-4 rounded-none text-xs uppercase" onClick={() => setReloadKey((k) => k + 1)}>
+                Tentar de novo
+              </Button>
             </CardContent>
           </Card>
         ) : !post ? (

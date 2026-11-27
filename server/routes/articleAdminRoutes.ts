@@ -2,6 +2,7 @@ import type { Express, Request, Response, RequestHandler } from "express";
 import { PrismaClient, PostStatus } from "@prisma/client";
 import { generateArticleWithAi, type ArticleAiGenerateInput } from "../services/articleAiService.ts";
 import { PUBLIC_USER_SELECT } from "../publicUser.ts";
+import { articlePaths, publicContentChanged } from "../seoRefresh.ts";
 
 export function registerArticleAdminRoutes(
   app: Express,
@@ -66,6 +67,7 @@ export function registerArticleAdminRoutes(
         },
         include: { author: { select: PUBLIC_USER_SELECT } },
       });
+      publicContentChanged(articlePaths(updated.slug));
 
       // #anúncios (ou #spoilers, se for artigo de spoiler) no Discord público — uma vez por artigo
       void import("../services/discordAnnouncements.ts").then(({ announcePublishedArticle, queueDiscordAnnouncement }) =>

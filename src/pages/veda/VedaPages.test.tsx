@@ -37,7 +37,7 @@ import VedaDecklistPage from "@/pages/veda/VedaDecklistPage";
 import VedaPlayerPage from "@/pages/veda/VedaPlayerPage";
 import VedaArchetypesPage from "@/pages/veda/VedaArchetypesPage";
 import VedaArchetypeDetailPage from "@/pages/veda/VedaArchetypeDetailPage";
-import { vedaApi } from "@/lib/veda/api";
+import { vedaApi, VedaApiError } from "@/lib/veda/api";
 
 function renderWithRoute(ui: React.ReactElement, path: string) {
   const { hook } = memoryLocation({ path });
@@ -313,6 +313,38 @@ describe("Páginas Públicas Veda", () => {
         expect(screen.getAllByText("Exia Aggro").length).toBeGreaterThan(0);
         expect(screen.getByText(/Homônimos podem ser agrupados/i)).toBeDefined();
       });
+      // com lista publicada: indexável (mesma regra do HTML do servidor)
+      await waitFor(() => expect(robots()).toBe("index, follow"));
+      expect(document.title).toContain("Setsuna F. Seiei — resultados");
+    });
+
+    const robots = () => document.querySelector('meta[name="robots"]')?.getAttribute("content");
+    const semLista = {
+      player: { name: "Hemogoblin Josh", slug: "hemogoblin-josh" },
+      tournaments: 2, wins: 0, top8: 0, archetypes: [], nameMayBeShared: true,
+      results: [{
+        tournamentId: "t1", tournamentName: "Regional", date: "2026-08-23T00:00:00.000Z", season: "GD05",
+        place: { city: null, uf: null, country: null, store: null }, entryId: "e1", placement: 20, placementLabel: "20º",
+        archetype: null, record: "2-3", hasDecklist: false,
+      }],
+    };
+
+    it("perfil sem nenhuma lista publicada fica noindex", async () => {
+      vi.spyOn(vedaApi, "getPlayer").mockResolvedValue(semLista as never);
+      renderWithRoute(<VedaPlayerPage />, "/jogadores/hemogoblin-josh");
+      await waitFor(() => expect(robots()).toBe("noindex, nofollow"));
+    });
+
+    it("erro passageiro da API não aplica noindex; 404 aplica", async () => {
+      document.querySelector('meta[name="robots"]')?.setAttribute("content", "index, follow");
+      vi.spyOn(vedaApi, "getPlayer").mockRejectedValue(new VedaApiError("Muitas requisições", 429));
+      renderWithRoute(<VedaPlayerPage />, "/jogadores/nyann");
+      await waitFor(() => expect(screen.getByText("Muitas requisições")).toBeDefined());
+      expect(robots()).toBe("index, follow");
+      cleanup();
+      vi.spyOn(vedaApi, "getPlayer").mockRejectedValue(new VedaApiError("Jogador não encontrado.", 404));
+      renderWithRoute(<VedaPlayerPage />, "/jogadores/ninguem");
+      await waitFor(() => expect(robots()).toBe("noindex, nofollow"));
     });
   });
 

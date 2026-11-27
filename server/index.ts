@@ -134,7 +134,7 @@ import { runZeroForesightSimulationCached } from "./services/zeroForesightServic
 import { getRegionalMetagame } from "./services/regionalMetaService.ts";
 import { engineShaFromEnv } from "./engineSha.ts";
 import { purgeStaleSimulatorMatches, SIMULATOR_MATCH_PURGE_INTERVAL_MS } from "./simulatorMatchCleanup.ts";
-import { registerVedaRoutes } from "./vedaService.ts";
+import { getVedaIndex, registerVedaRoutes } from "./vedaService.ts";
 import { registerAdminDashboardRoutes } from "./routes/adminDashboardRoutes.ts";
 import { registerSupporterRoutes } from "./routes/supporterRoutes.ts";
 import { resizedUploads, resizeRateLimit } from "./imageResize.ts";
@@ -152,6 +152,8 @@ import { captureServerError, initServerErrorMonitoring } from "./errorMonitoring
 import { createAuth, type AuthPayload, type RequestWithUser } from "./auth.ts";
 import { prismaWhereGuardExtension, whereGuardMode } from "./prismaWhereGuard.ts";
 import { createHtmlBodyLoader, createHtmlDetailLoaders, registerHtmlPages } from "./routes/htmlPages.ts";
+import { createSitemapRefresher, renderSitemap, sitemapEntries } from "./sitemap.ts";
+import { articlePaths, onPublicContentChanged, publicContentChanged } from "./seoRefresh.ts";
 
 // A extensão só observa os argumentos (não muda o formato do cliente), por isso o cast mantém o tipo PrismaClient
 // que as rotas e os serviços recebem.
@@ -1898,7 +1900,10 @@ app.post("/api/posts", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDIT
     },
     include: { author: { select: PUBLIC_USER_SELECT } },
   });
-  if (post.status === PostStatus.PUBLISHED) queueArticleInstagramPost(post.id);
+  if (post.status === PostStatus.PUBLISHED) {
+    queueArticleInstagramPost(post.id);
+    publicContentChanged(articlePaths(post.slug));
+  }
   res.status(201).json(post);
 });
 
@@ -1938,12 +1943,17 @@ app.put("/api/posts/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.E
     include: { author: { select: PUBLIC_USER_SELECT } },
   });
   if (post.status === PostStatus.PUBLISHED && current.status !== PostStatus.PUBLISHED) queueArticleInstagramPost(post.id);
+  // publicado, editado ou despublicado: HTML guardado e sitemap seguem o status novo (e o slug antigo, se mudou)
+  if (post.status === PostStatus.PUBLISHED || current.status === PostStatus.PUBLISHED) {
+    publicContentChanged([...articlePaths(post.slug), ...(current.slug !== post.slug ? articlePaths(current.slug) : [])]);
+  }
   res.json(post);
 });
 
 app.delete("/api/posts/:id", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
   const id = String(req.params.id);
-  await prisma.post.delete({ where: { id } });
+  const removed = await prisma.post.delete({ where: { id } });
+  if (removed.status === PostStatus.PUBLISHED) publicContentChanged(articlePaths(removed.slug));
   res.status(204).send();
 });
 
@@ -5929,8 +5939,9 @@ app.post("/api/simulator/matches/:id/join", authRequired, hosterRequired, (req: 
 // ---------------------------------------------------------------------------------------------
 // HTML das páginas do site com metadados próprios e 404 de verdade (server/routes/htmlPages.ts). Só chega
 // aqui o que o nginx encaminha em `location @app_html` (caminhos que não são arquivo do build).
+const webDistDir = process.env.WEB_DIST_DIR || path.resolve(process.cwd(), "dist");
 registerHtmlPages(app, {
-  distDir: process.env.WEB_DIST_DIR || path.resolve(process.cwd(), "dist"),
+  distDir: webDistDir,
   loaders: createHtmlDetailLoaders(prisma),
   bodyFor: createHtmlBodyLoader(prisma),
   // além das páginas fixas: artigos e torneios mais recentes (os mais visitados vindos do Instagram/Facebook)
@@ -5942,6 +5953,14 @@ registerHtmlPages(app, {
     return [...posts.map((p) => `/articles/${p.slug}`), ...tournaments.map((t) => `/torneios/${t.id}`)];
   },
 });
+
+// sitemap.xml regravado com o servidor no ar (o do deploy envelhece): artigo publicado entra com lastmod novo em ~30 s
+const sitemapRefresher = createSitemapRefresher({
+  distDir: webDistDir,
+  build: async () => renderSitemap(await sitemapEntries(prisma, () => getVedaIndex(prisma))),
+});
+onPublicContentChanged(() => sitemapRefresher.request());
+if (IS_PRODUCTION) sitemapRefresher.start();
 
 app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
   console.error(error);
